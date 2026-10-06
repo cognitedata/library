@@ -1,2 +1,2 @@
 dbName: "raw_timeseries_{{location}}_{{sourceSystem}}"
-tableName: relationships
+tableName: state_store_variables

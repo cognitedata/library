@@ -707,7 +707,7 @@ class TestModuleDataset:
         assert _module_dataset("cdf_sap_extractor", "oslo") == "ds_sap_oslo"
         assert _module_dataset("cdf_files_extractor", "oslo") == "ds_files_oslo"
         assert _module_dataset("cdf_opcua_extractor", "oslo") == "ds_opcua_oslo"
-        assert _module_dataset("cdf_db_extractor", "oslo") == "ds_db_postgres_oslo"
+        assert _module_dataset("cdf_db_extractor", "oslo") == "ds_db_oslo"
 
     def test_falls_back_to_base_when_location_blank(self) -> None:
         """Matches the module default in default.config.yaml, so a project set up
@@ -951,25 +951,29 @@ class TestExtractorDataSetResources:
 class TestModuleInstanceSpace:
     def test_per_extractor_space_uses_location_and_suffix(self) -> None:
         from setup_project import _module_instance_space
+        assert _module_instance_space("cdf_sap_extractor", "oslo") == "inst_oslo_sap"
+        assert _module_instance_space("cdf_pi_extractor", "oslo") == "inst_oslo_pi"
+        assert _module_instance_space("cdf_opcua_extractor", "oslo") == "inst_oslo_opcua"
+        assert _module_instance_space("cdf_db_extractor", "oslo") == "inst_oslo_db"
+        assert _module_instance_space("cdf_files_extractor", "oslo") == "inst_oslo_files"
 
-        assert _module_instance_space("cdf_sap_extractor", "oslo") == "sp_oslo_sap"
-        assert _module_instance_space("cdf_pi_extractor", "oslo") == "sp_oslo_pi"
-        assert _module_instance_space("cdf_opcua_extractor", "oslo") == "sp_oslo_opcua"
-        assert _module_instance_space("cdf_db_extractor", "oslo") == "sp_oslo_db"
-        assert _module_instance_space("cdf_files_extractor", "oslo") == "sp_oslo_files"
+    def test_no_location_falls_back_to_default_config_value(self) -> None:
+        from setup_project import _module_instance_space
+        assert _module_instance_space("cdf_pi_extractor", "") == "inst_pi"
 
     def test_different_locations_produce_different_spaces(self) -> None:
         from setup_project import _module_instance_space
 
         assert _module_instance_space("cdf_sap_extractor", "oslo") != _module_instance_space("cdf_sap_extractor", "hou")
-        assert _module_instance_space("cdf_pi_extractor", "berlin") == "sp_berlin_pi"
+        assert _module_instance_space("cdf_pi_extractor", "berlin") == "inst_berlin_pi"
 
     def test_resolve_sourcesystem_gives_per_module_spaces(self, tmp_path: Path) -> None:
         from setup_project import resolve_sourcesystem_variables
-
-        result = resolve_sourcesystem_variables(["cdf_sap_extractor", "cdf_pi_extractor"], "dev", "oslo")
-        assert result["cdf_sap_extractor"]["instanceSpace"] == "sp_oslo_sap"
-        assert result["cdf_pi_extractor"]["instanceSpace"] == "sp_oslo_pi"
+        result = resolve_sourcesystem_variables(
+            ["cdf_sap_extractor", "cdf_pi_extractor"], "dev", "oslo"
+        )
+        assert result["cdf_sap_extractor"]["instanceSpace"] == "inst_oslo_sap"
+        assert result["cdf_pi_extractor"]["instanceSpace"] == "inst_oslo_pi"
         # Confirm they are distinct
         assert result["cdf_sap_extractor"]["instanceSpace"] != result["cdf_pi_extractor"]["instanceSpace"]
 
@@ -991,8 +995,8 @@ class TestModuleInstanceSpace:
         overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path)
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
         assert "inst_oslo_isa_manufacturing" in pf["instanceSpaces"]
-        assert "sp_oslo_sap" in pf["instanceSpaces"]
-        assert "sp_oslo_pi" in pf["instanceSpaces"]
+        assert "inst_oslo_sap" in pf["instanceSpaces"]
+        assert "inst_oslo_pi" in pf["instanceSpaces"]
         assert len(pf["instanceSpaces"]) == 3
 
     def test_build_overlay_instancespaces_cfihos_variant(self, tmp_path: Path) -> None:

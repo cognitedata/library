@@ -14,7 +14,7 @@ cdf_db_extractor/
 │   ├── ep_db_postgres.ExtractionPipeline.yaml          # Pipeline definition with RAW table reference
 │   └── ep_db_postgres.ExtractionPipeline.Config.yaml   # DB Extractor runtime config (queries, ODBC)
 ├── raw/
-│   └── db_postgres.Database.yaml                       # db_{{location}}_db_postgres
+│   └── db_postgres.Database.yaml                       # raw_asset_{{location}}_{{sourceSystem}}
 └── module.toml
 ```
 
@@ -26,17 +26,29 @@ Relational Database (PostgreSQL / MSSQL / Oracle / MySQL / …)
       ▼  (ODBC + SQL queries)
 DB Extractor
       │
-      └── Query result rows ──────────► RAW: db_{{location}}_db_postgres.<query.destination.table>
+      └── Query result rows ──────────► RAW: raw_asset_{{location}}_{{sourceSystem}}.<query.destination.table>
 ```
 
 ## Resources Created
 
 | Resource | External ID | Purpose |
 |---|---|---|
-| ExtractionPipeline | `ep_{{location}}_db_postgres` | Pipeline health tracking and config delivery |
-| RAW Database | `db_{{location}}_db_postgres` | Landing zone for query result rows |
+| ExtractionPipeline | `ep_asset_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
+| RAW Database | `raw_asset_{{location}}_{{sourceSystem}}` | Landing zone for query result rows |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer_{{location}}_ep_db_{{environment}}` | Scoped service-principal group for the DB extractor |
+| Access Group | `producer_{{location}}_ep_db_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
+
+Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/deploy/reference/cdf_resource_naming_conventions):
+pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
+pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
+
+The producer group follows the least-privilege scoping in the GVD data onboarding SOP:
+`extractionConfigs:READ`, `extractionRuns:WRITE`, and `extractionPipelines:READ` on the
+pipeline's data set, with no `extractionPipelines:WRITE`. There is no `sessions:CREATE`
+either: the extractor authenticates with its own client credentials, and
+[sessions](https://docs.cognite.com/api-reference/concepts/20230101/sessions) are only
+needed by background workloads such as transformations, functions, and workflows. The
+extractor only stages data in RAW, so the group has no data-model instance access.
 
 ## Configuration
 
@@ -46,9 +58,10 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_db_extractor:
-      location: "oslo"                                        # Site code, used in externalIds (ep_<location>_db_postgres, db_<location>_db_postgres)
-      instanceSpace: "sp_oslo_db"                            # Per-extractor DM instance space — computed by setup_project.py
-      dataset: "ds_db_postgres_oslo"                          # ds_<data_type>_<location> — computed by setup_project.py
+      location: "oslo"                                        # Site code, used in externalIds (ep_asset_<location>_<sourceSystem>, raw_asset_<location>_<sourceSystem>)
+      sourceSystem: "postgres"                                # Source system token, used in the pipeline ID and group name
+      instanceSpace: "inst_oslo_db"                            # Per-extractor DM instance space — computed by setup_project.py
+      dataset: "ds_db_oslo"                                   # ds_<data_type>_<location> — computed by setup_project.py
 
       integration_owner_name: "Integration Owner"             # Technical contact for the pipeline
       integration_owner_email: "integration.owner@example.com"
@@ -90,10 +103,14 @@ example with a single query against `mytable`. Before production use:
    RAW table — and add a corresponding `*.Table.yaml` under `raw/` if you want
    the toolkit to provision the table at deploy time.
 4. **Verify the RAW database name** in `destination.database` matches
-   `db_{{location}}_db_postgres` so rows land in the database declared by this
+   `raw_asset_{{location}}_{{sourceSystem}}` so rows land in the database declared by this
    module.
-5. **If targeting a different DB engine**, rename this pipeline (and `dataset`)
-   accordingly, e.g. `ep_{{location}}_db_mssql` / `ds_db_mssql_{{location}}`.
+5. **If targeting a different DB engine**, set `sourceSystem` (e.g. `mssql`) so the
+   pipeline becomes `ep_asset_{{location}}_mssql` and the group
+   `producer_{{location}}_ep_db_mssql_{{environment}}`.
+6. **Check the data type token.** The pipeline and RAW database use `asset`
+   (`ep_asset_…`, `raw_asset_…`). If your queries extract a different data type, change
+   that token in the pipeline, RAW, and group files to the matching approved value.
 
 See `.cursor/rules/cdf-transformations.mdc` for AI-assisted guidance when
 authoring the downstream transformation from RAW into a data model.
@@ -104,7 +121,7 @@ authoring the downstream transformation from RAW into a data model.
 
 - Source database reachable from the extractor host with appropriate ODBC driver installed
 - DB Extractor service account with read access to the source database
-- Cognite service account with read/write to the `db_{{location}}_db_postgres` RAW database and read access to the `{{dataset}}` data set (`ds_db_postgres_{{location}}`)
+- Cognite service account with read/write to the `raw_asset_{{location}}_{{sourceSystem}}` RAW database and read access to the `{{dataset}}` data set (`ds_db_{{location}}`)
 
 ### Deploy
 
@@ -114,8 +131,45 @@ cdf deploy modules/sourcesystem/cdf_db_extractor --env your-environment
 
 ### Configure and run the extractor
 
-The extractor config is delivered via the `ep_{{location}}_db_postgres` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+The extractor config is delivered via the `ep_asset_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+
+### Migrating from earlier versions
+
+The pipeline external ID changed from `ep_{{location}}_db_postgres` to
+`ep_asset_{{location}}_{{sourceSystem}}`, and the access group from
+`producer_{{location}}_ep_db_{{environment}}` to
+`producer_{{location}}_ep_db_{{sourceSystem}}_{{environment}}`. To upgrade an existing
+deployment:
+
+1. Add `sourceSystem` to `cdf_db_extractor` in each `config.<env>.yaml`.
+2. Run `cdf deploy`. This creates the new pipeline and group alongside the old ones.
+3. Update `extraction-pipeline.pipeline-id` in the extractor host's local `config.yaml`,
+   then restart the extractor.
+4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
+   in Fusion. Toolkit does not remove them for you, and the new group keeps the same
+   `sourceId`, so no IdP change is needed.
+
+The RAW database also changed from `db_{{location}}_db_postgres` to
+`raw_asset_{{location}}_{{sourceSystem}}`. Rows already in the old database are not
+moved: either let the extractor re-extract from `initial-start`, or copy the tables across
+before deleting the old database. Point any downstream transformations at the new name.
+
+The data set changed from `ds_db_postgres_{{location}}` to `ds_db_{{location}}` so it no
+longer hard-codes the database engine (`sourceSystem` now carries it).
+`setup_project.py` writes the new ID on its next run but keeps the old one in
+`cdf_project_foundation`'s `dataset` list; remove it there once nothing references it.
+
+The instance space also changed from `sp_{{location}}_db` to `inst_{{location}}_db`
+(`setup_project.py` writes the new name on its next run). Instances already in the old
+space are not moved: the extractor creates new instances in the new space on its next
+run. Verify the new instances, then delete the old space. To keep the old space instead,
+set `instanceSpace` back to its old value after running the wizard;
+`setup_project.py --check` then reports it as drift.
+
+The producer group's capabilities were also narrowed (see [Resources Created](#resources-created)).
+If anything else uses this group's service principal, check that it does not rely on the
+removed capabilities.
 
 ### Verify
 
-Check that the configured RAW table(s) under `db_{{location}}_db_postgres` are populated in CDF Data Explorer.
+Check that the configured RAW table(s) under `raw_asset_{{location}}_{{sourceSystem}}` are populated in CDF Data Explorer.

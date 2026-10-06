@@ -1,4 +1,4 @@
-externalId: "ep_{{location}}_sap"
+externalId: "ep_asset_{{location}}_{{sourceSystem}}"
 
 config:
   # Runtime config for the SAP OData Extractor — see ep_sap.ExtractionPipeline.yaml
@@ -23,7 +23,7 @@ config:
     chunk_size: 1000
     state-store:
       raw:
-        database: "db_{{location}}_sap"
+        database: "raw_asset_{{location}}_{{sourceSystem}}"
         table: state_store
 
   cognite:
@@ -36,7 +36,7 @@ config:
       scopes:
         - ${CDF_URL}/.default
     extraction-pipeline:
-      external-id: "ep_{{location}}_sap"
+      external-id: "ep_asset_{{location}}_{{sourceSystem}}"
 
   sap:
     - type: odata
@@ -54,7 +54,7 @@ config:
       name: "FunclocListSet - {{sapPlant}}"
       destination:
         type: raw
-        database: "db_{{location}}_sap"
+        database: "raw_asset_{{location}}_{{sourceSystem}}"
         table: functional_location
       sap_service: ZGW_FUNCLOC_SRV          # verify service name in your SAP NW Gateway
       sap_entity: FunclocListSet
@@ -70,7 +70,7 @@ config:
       name: "EquipmentListSet - {{sapPlant}}"
       destination:
         type: raw
-        database: "db_{{location}}_sap"
+        database: "raw_asset_{{location}}_{{sourceSystem}}"
         table: equipment
       sap_service: ZGW_GETEQIP_SRV          # verify service name in your SAP NW Gateway
       sap_entity: EquipmentListSet
@@ -86,7 +86,7 @@ config:
       name: "ExHeaderSet (Work Orders)"
       destination:
         type: raw
-        database: "db_{{location}}_sap"
+        database: "raw_asset_{{location}}_{{sourceSystem}}"
         table: workorder
       sap_service: ZPM_ORDER_DATA_EXPORT_SRV  # verify service name in your SAP NW Gateway
       sap_entity: ExHeaderSet
@@ -101,7 +101,7 @@ config:
       name: "ExOlistSet (Work Packages)"
       destination:
         type: raw
-        database: "db_{{location}}_sap"
+        database: "raw_asset_{{location}}_{{sourceSystem}}"
         table: workpackage
       sap_service: ZPM_ORDER_DATA_EXPORT_SRV
       sap_entity: ExOlistSet
@@ -116,7 +116,7 @@ config:
       name: "ExOperationsSet (Work Tasks)"
       destination:
         type: raw
-        database: "db_{{location}}_sap"
+        database: "raw_asset_{{location}}_{{sourceSystem}}"
         table: worktask
       sap_service: ZPM_ORDER_DATA_EXPORT_SRV
       sap_entity: ExOperationsSet
@@ -131,7 +131,7 @@ config:
       name: "ExNotifheader (Notifications)"
       destination:
         type: raw
-        database: "db_{{location}}_sap"
+        database: "raw_asset_{{location}}_{{sourceSystem}}"
         table: workitem
       sap_service: ZPM_NOTI_EXTRACT_DATA_SRV  # verify service name in your SAP NW Gateway
       sap_entity: ExNotifheader
