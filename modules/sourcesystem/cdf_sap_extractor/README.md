@@ -57,6 +57,14 @@ Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/
 pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
 pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
 
+The producer group follows the least-privilege scoping in the GVD data onboarding SOP:
+`extractionConfigs:READ`, `extractionRuns:WRITE`, and `extractionPipelines:READ` on the
+pipeline's data set, with no `extractionPipelines:WRITE`. There is no `sessions:CREATE`
+either: the extractor authenticates with its own client credentials, and
+[sessions](https://docs.cognite.com/api-reference/concepts/20230101/sessions) are only
+needed by background workloads such as transformations, functions, and workflows. The
+extractor only stages data in RAW, so the group has no data-model instance access.
+
 ## Configuration
 
 All variables are declared locally in `config.<env>.yaml` (no inheritance):
@@ -67,7 +75,7 @@ variables:
     cdf_sap_extractor:
       location: "oslo"                                        # Site code, used in externalIds (ep_asset_<location>_<sourceSystem>, raw_asset_<location>_<sourceSystem>)
       sourceSystem: "sap"                                     # Source system token, used in the pipeline ID and group name
-      instanceSpace: "sp_oslo_sap"                           # Per-extractor DM instance space — computed by setup_project.py
+      instanceSpace: "inst_oslo_sap"                           # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_sap_oslo"                                  # ds_<data_type>_<location> — computed by setup_project.py
       sapPlant: "1000"                                        # SAP plant code, used in OData filter expressions (MaintPlant eq '<sapPlant>')
       sapDisableSsl: false                                    # Set true only if SAP server uses an untrusted self-signed certificate
@@ -158,6 +166,17 @@ The RAW database also changed from `db_{{location}}_sap` to
 database, so the extractor starts without delta checkpoints and runs a full extraction of
 every endpoint. Point downstream transformations at the new name, then delete the old
 database.
+
+The instance space also changed from `sp_{{location}}_sap` to `inst_{{location}}_sap`
+(`setup_project.py` writes the new name on its next run). Instances already in the old
+space are not moved: the extractor creates new instances in the new space on its next
+run. Verify the new instances, then delete the old space. To keep the old space instead,
+set `instanceSpace` back to its old value after running the wizard;
+`setup_project.py --check` then reports it as drift.
+
+The producer group's capabilities were also narrowed (see [Resources Created](#resources-created)).
+If anything else uses this group's service principal, check that it does not rely on the
+removed capabilities.
 
 ### Verify
 

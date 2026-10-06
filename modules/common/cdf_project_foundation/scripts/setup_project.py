@@ -317,7 +317,7 @@ _MODULE_EXTRACTOR_ENV_VAR: dict[str, str] = {
 }
 
 # Instance space suffix per extractor module — combined with location to form
-# a per-extractor space: sp_{location}_{suffix}.
+# a per-extractor space: inst_{location}_{suffix}.
 _MODULE_INSTANCE_SPACE_SUFFIX: dict[str, str] = {
     "cdf_pi_extractor":    "pi",
     "cdf_sap_extractor":   "sap",
@@ -328,9 +328,13 @@ _MODULE_INSTANCE_SPACE_SUFFIX: dict[str, str] = {
 
 
 def _module_instance_space(module: str, location: str) -> str:
-    """Return a per-extractor instance space name: ``sp_{location}_{suffix}``."""
+    """Return a per-extractor instance space name: ``inst_{location}_{suffix}``.
+
+    Falls back to ``inst_{suffix}`` when no location is set, matching the module's
+    ``default.config.yaml``.
+    """
     suffix = _MODULE_INSTANCE_SPACE_SUFFIX.get(module, module)
-    return f"sp_{location}_{suffix}"
+    return f"inst_{location}_{suffix}" if location else f"inst_{suffix}"
 
 
 # Unscoped data set externalId per extractor module — the ``default.config.yaml``

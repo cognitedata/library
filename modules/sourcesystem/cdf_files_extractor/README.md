@@ -52,6 +52,13 @@ Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/
 pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
 pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
 
+The producer group follows the least-privilege scoping in the GVD data onboarding SOP:
+`extractionConfigs:READ`, `extractionRuns:WRITE`, and `extractionPipelines:READ` on the
+pipeline's data set, with no `extractionPipelines:WRITE`. There is no `sessions:CREATE`
+either: the extractor authenticates with its own client credentials, and
+[sessions](https://docs.cognite.com/api-reference/concepts/20230101/sessions) are only
+needed by background workloads such as transformations, functions, and workflows.
+
 ## Configuration
 
 All variables are declared locally in `config.<env>.yaml` (no inheritance):
@@ -63,7 +70,7 @@ variables:
       location: "oslo"                                       # Site code, used in externalIds (ep_files_<location>_<sourceSystem>)
       sourceSystem: "sharepoint"                             # Source system token, used in the pipeline ID and group name
       dataset: "ds_files_oslo"                               # ds_<data_type>_<location> — computed by setup_project.py
-      instanceSpace: "sp_oslo_files"                        # Per-extractor DM instance space — computed by setup_project.py
+      instanceSpace: "inst_oslo_files"                        # Per-extractor DM instance space — computed by setup_project.py
 
       integration_owner_name: "Integration Owner"            # Technical contact for the pipeline
       integration_owner_email: "integration.owner@example.com"
@@ -157,6 +164,17 @@ The optional RAW state-store database also changed from `db_{{location}}_files` 
 `raw_files_{{location}}_{{sourceSystem}}`. If you enabled the RAW state store, update
 `state-store.database` in `Config.yaml`. The extractor starts with an empty state, so the
 first run re-checks every file.
+
+The instance space also changed from `sp_{{location}}_files` to `inst_{{location}}_files`
+(`setup_project.py` writes the new name on its next run). Instances already in the old
+space are not moved: the extractor creates new instances in the new space on its next
+run. Verify the new instances, then delete the old space. To keep the old space instead,
+set `instanceSpace` back to its old value after running the wizard;
+`setup_project.py --check` then reports it as drift.
+
+The producer group's capabilities were also narrowed (see [Resources Created](#resources-created)).
+If anything else uses this group's service principal, check that it does not rely on the
+removed capabilities.
 
 ### Verify
 
