@@ -13,8 +13,9 @@ from pydantic import ValidationError
 
 from config import Config, ConfigData, JobConfig, Parameters, ViewPropertyConfig, format_config_for_log  # isort: skip
 from constants import ALIAS_PAGE_SIZE, DEFAULT_ALIAS_PATTERN, TS_NODE  # isort: skip
-from handler import handle  # isort: skip
+import handler  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
+import pipeline  # isort: skip
 from pipeline import (  # isort: skip
     _process_assets_optimized,
     _process_files_optimized,
@@ -372,7 +373,7 @@ class TestPipelineHelpers(unittest.TestCase):
         batch_processor = MagicMock()
         batch_processor.apply_updates_in_batches.side_effect = [2, 1]
 
-        with patch("pipeline.iter_new_items", return_value=iter([[MagicMock(), MagicMock()], [MagicMock()]])):
+        with patch.object(pipeline, "iter_new_items", return_value=iter([[MagicMock(), MagicMock()], [MagicMock()]])):
             total = _process_timeseries_optimized(MagicMock(), self.logger, config, processor, batch_processor)
 
         self.assertEqual(batch_processor.apply_updates_in_batches.call_count, 2)
@@ -384,7 +385,7 @@ class TestPipelineHelpers(unittest.TestCase):
         batch_processor = MagicMock()
         batch_processor.apply_updates_in_batches.return_value = 1
 
-        with patch("pipeline.iter_new_items", return_value=iter([[MagicMock()]])) as fetch:
+        with patch.object(pipeline, "iter_new_items", return_value=iter([[MagicMock()]])) as fetch:
             total = _process_assets_optimized(MagicMock(), self.logger, config, processor, batch_processor)
 
         self.assertIs(fetch.call_args.args[2], config.data.job.asset_view)
@@ -394,7 +395,7 @@ class TestPipelineHelpers(unittest.TestCase):
     def test_process_timeseries_handles_empty_fetch(self) -> None:
         config = self._config(run_all=False, update_all=False)
 
-        with patch("pipeline.iter_new_items", return_value=iter([])):
+        with patch.object(pipeline, "iter_new_items", return_value=iter([])):
             total = _process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
 
         self.assertEqual(total, 0)
@@ -406,14 +407,14 @@ class TestPipelineHelpers(unittest.TestCase):
             patch("handler.load_config_parameters", side_effect=ValueError("bad config")),
             self.assertRaises(ValueError),
         ):
-            handle({"ExtractionPipelineExtId": "ep"}, MagicMock())
+            handler.handle({"ExtractionPipelineExtId": "ep"}, MagicMock())
 
     def test_invalid_input_fails_before_any_cdf_call(self) -> None:
         for data in ({}, {"ExtractionPipelineExtId": ""}, {"ExtractionPipelineExtId": "ep", "logLevel": "VERBOSE"}):
             client = MagicMock()
             with self.subTest(data=data), patch("handler.load_config_parameters") as load:
                 with self.assertRaises(ValidationError):
-                    handle(data, client)
+                    handler.handle(data, client)
                 load.assert_not_called()
                 self.assertEqual(client.mock_calls, [])
 
