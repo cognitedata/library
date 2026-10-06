@@ -117,7 +117,8 @@ predict job (and one staging file) per group** that has work to do. Rule matchin
 the same groups. Manual mappings stay global and are staged with the first job; the
 model fitted for that job is reused by the later ones. The scope properties and `tags`
 are added to the target sync read, which gives a scoped configuration a target cache of
-its own.
+its own. Rows written to `contextualization_good` / `contextualization_bad` then include
+`scope_primary` and `scope_secondary` for the entity.
 
 A missing property value is read as empty. That yields two different empty cases:
 

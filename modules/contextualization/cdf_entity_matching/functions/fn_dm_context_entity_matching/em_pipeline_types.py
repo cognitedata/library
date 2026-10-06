@@ -85,6 +85,8 @@ class StoredMatch(TypedDict):
     asset_view_id: str
     entity_rule_keys: NotRequired[str]
     asset_rule_keys: NotRequired[str]
+    scope_primary: NotRequired[str]
+    scope_secondary: NotRequired[str]
 
 
 class EntityMatchTarget(TypedDict):
@@ -105,6 +107,8 @@ class EntityMatchApiSource(TypedDict):
     org_name: str
     name: str
     assets: str
+    scope_primary: NotRequired[str]
+    scope_secondary: NotRequired[str]
 
 
 class EntityMatchingApiMatch(TypedDict):

@@ -434,23 +434,24 @@ def apply_manual_mappings(
                     target_name = PLACEHOLDER_NO_MATCH_TARGET
                     target_view_id = PLACEHOLDER_NO_MATCH_TARGET
 
-                good_matches.append(
-                    {
-                        KEY_MATCH_TYPE: MATCH_TYPE_MANUAL,
-                        KEY_ENTITY_EXT_ID: entity.external_id,
-                        KEY_ENTITY_SPACE: entity.space,
-                        KEY_ENTITY_NAME: properties[PROP_COL_NAME],
-                        KEY_ENTITY_MATCH_VALUE: entity.external_id,
-                        KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
-                        KEY_ENTITY_EXISTING_TARGETS: _links_as_json(links_property or []),
-                        KEY_SCORE: SCORE_MANUAL_RULE_MATCH,
-                        KEY_TARGET_NAME: target_name,
-                        KEY_TARGET_MATCH_VALUE: target_ext_id,
-                        KEY_TARGET_EXT_ID: target_ext_id,
-                        KEY_TARGET_SPACE: target_spaces.get(target_ext_id),
-                        KEY_TARGET_VIEW_ID: target_view_id,
-                    }
-                )
+                stored: StoredMatch = {
+                    KEY_MATCH_TYPE: MATCH_TYPE_MANUAL,
+                    KEY_ENTITY_EXT_ID: entity.external_id,
+                    KEY_ENTITY_SPACE: entity.space,
+                    KEY_ENTITY_NAME: properties[PROP_COL_NAME],
+                    KEY_ENTITY_MATCH_VALUE: entity.external_id,
+                    KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
+                    KEY_ENTITY_EXISTING_TARGETS: _links_as_json(links_property or []),
+                    KEY_SCORE: SCORE_MANUAL_RULE_MATCH,
+                    KEY_TARGET_NAME: target_name,
+                    KEY_TARGET_MATCH_VALUE: target_ext_id,
+                    KEY_TARGET_EXT_ID: target_ext_id,
+                    KEY_TARGET_SPACE: target_spaces.get(target_ext_id),
+                    KEY_TARGET_VIEW_ID: target_view_id,
+                }
+                if scope_properties(config.parameters):
+                    stored[KEY_SCOPE_PRIMARY], stored[KEY_SCOPE_SECONDARY] = scope_of(properties, config.parameters)
+                good_matches.append(stored)
 
                 row_key = key_lookup[entity.external_id]
                 mapping = manual_mappings_input[row_key].copy()
@@ -1016,25 +1017,25 @@ def apply_rule_mappings(
                             target_id = d1_match[KEY_TARGET_EXT_ID]
                             if target_id and target_id not in unique_target_list:
                                 unique_target_list = [*unique_target_list, target_id]
-                                good_matches.append(
-                                    {
-                                        KEY_MATCH_TYPE: MATCH_TYPE_RULE,
-                                        KEY_ENTITY_EXT_ID: d2[KEY_ENTITY_EXT_ID],
-                                        KEY_ENTITY_SPACE: d2[KEY_ENTITY_SPACE],
-                                        KEY_ENTITY_NAME: d2[KEY_ORG_NAME],
-                                        KEY_ENTITY_MATCH_VALUE: d2[KEY_NAME],
-                                        KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
-                                        KEY_ENTITY_EXISTING_TARGETS: d2[KEY_TARGET_LINKS],
-                                        KEY_ENTITY_RULE_KEYS: json.dumps(d2[KEY_RULE_KEYS]),
-                                        KEY_SCORE: SCORE_MANUAL_RULE_MATCH,
-                                        KEY_TARGET_NAME: d1_match[KEY_ORG_NAME],
-                                        KEY_TARGET_MATCH_VALUE: d1_match[KEY_NAME],
-                                        KEY_TARGET_EXT_ID: d1_match[KEY_TARGET_EXT_ID],
-                                        KEY_TARGET_SPACE: d1_match[KEY_TARGET_SPACE],
-                                        KEY_TARGET_VIEW_ID: str(config.data.target_view.as_view_id()),
-                                        KEY_TARGET_RULE_KEYS: json.dumps(d1_match[KEY_RULE_KEYS]),
-                                    }
-                                )
+                                stored: StoredMatch = {
+                                    KEY_MATCH_TYPE: MATCH_TYPE_RULE,
+                                    KEY_ENTITY_EXT_ID: d2[KEY_ENTITY_EXT_ID],
+                                    KEY_ENTITY_SPACE: d2[KEY_ENTITY_SPACE],
+                                    KEY_ENTITY_NAME: d2[KEY_ORG_NAME],
+                                    KEY_ENTITY_MATCH_VALUE: d2[KEY_NAME],
+                                    KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
+                                    KEY_ENTITY_EXISTING_TARGETS: d2[KEY_TARGET_LINKS],
+                                    KEY_ENTITY_RULE_KEYS: json.dumps(d2[KEY_RULE_KEYS]),
+                                    KEY_SCORE: SCORE_MANUAL_RULE_MATCH,
+                                    KEY_TARGET_NAME: d1_match[KEY_ORG_NAME],
+                                    KEY_TARGET_MATCH_VALUE: d1_match[KEY_NAME],
+                                    KEY_TARGET_EXT_ID: d1_match[KEY_TARGET_EXT_ID],
+                                    KEY_TARGET_SPACE: d1_match[KEY_TARGET_SPACE],
+                                    KEY_TARGET_VIEW_ID: str(config.data.target_view.as_view_id()),
+                                    KEY_TARGET_RULE_KEYS: json.dumps(d1_match[KEY_RULE_KEYS]),
+                                }
+                                _copy_scope(d2, stored)
+                                good_matches.append(stored)
 
                             existing_target_list = json.loads(d2[KEY_TARGET_LINKS])
                             if len(existing_target_list) > 0:
@@ -1374,7 +1375,7 @@ def add_to_dict(
         target_ext_id = PLACEHOLDER_NO_MATCH
         target_view_id = PLACEHOLDER_NO_MATCH
         target_space = None
-    return {
+    row: StoredMatch = {
         KEY_MATCH_TYPE: MATCH_TYPE_ENTITY,
         KEY_ENTITY_EXT_ID: source[KEY_ENTITY_EXT_ID],
         KEY_ENTITY_SPACE: source.get(KEY_ENTITY_SPACE),
@@ -1389,6 +1390,15 @@ def add_to_dict(
         KEY_TARGET_SPACE: target_space,
         KEY_TARGET_VIEW_ID: str(target_view_id),
     }
+    _copy_scope(source, row)
+    return row
+
+
+def _copy_scope(source: Mapping[str, object], row: StoredMatch) -> None:
+    """Copy primary/secondary scope onto a RAW match row when the source carried them."""
+    if KEY_SCOPE_PRIMARY in source or KEY_SCOPE_SECONDARY in source:
+        row[KEY_SCOPE_PRIMARY] = str(source.get(KEY_SCOPE_PRIMARY) or "")
+        row[KEY_SCOPE_SECONDARY] = str(source.get(KEY_SCOPE_SECONDARY) or "")
 
 
 def raw_row_key(config: Config, match: StoredMatch | Mapping[str, object]) -> str:
