@@ -1,1 +1,1 @@
-dbName: "db_{{location}}_files"
+dbName: "raw_files_{{location}}_{{sourceSystem}}"

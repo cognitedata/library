@@ -17,7 +17,7 @@ cdf_opcua_extractor/
 │   ├── ep_opcua.ExtractionPipeline.yaml          # Pipeline definition with RAW table references
 │   └── ep_opcua.ExtractionPipeline.Config.yaml   # Full OPC-UA Extractor config template
 ├── raw/
-│   └── db_opcua.Database.yaml                    # db_{{location}}_opcua
+│   └── db_opcua.Database.yaml                    # raw_timeseries_{{location}}_{{sourceSystem}}
 └── module.toml
 ```
 
@@ -39,17 +39,31 @@ OPC-UA Extractor
       ├── Variable nodes   ──────────► RAW: timeseries
       ├── References       ──────────► RAW: relationships
       ├── Browse cache     ──────────► RAW: known_objects, known_references, known_variables
-      └── Subscription state ────────► RAW: state-store-variables
+      └── Subscription state ────────► RAW: state_store_variables
 ```
 
 ## Resources Created
 
 | Resource | External ID | Purpose |
 |---|---|---|
-| ExtractionPipeline | `ep_{{location}}_opcua` | Pipeline health tracking and config delivery |
-| RAW Database | `db_{{location}}_opcua` | OPC-UA node metadata + state landing zone |
+| ExtractionPipeline | `ep_timeseries_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
+| RAW Database | `raw_timeseries_{{location}}_{{sourceSystem}}` | OPC-UA node metadata + state landing zone |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer_{{location}}_ep_opcua_{{environment}}` | Scoped service-principal group for the OPC-UA extractor |
+| Access Group | `producer_{{location}}_ep_opcua_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
+
+Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/deploy/reference/cdf_resource_naming_conventions):
+pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
+pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
+Both the pipeline and the RAW database use the `timeseries` data type. Datapoints go
+straight to `CogniteTimeSeries`; the RAW database only holds metadata (Variable and Object
+node metadata, references) and extractor state.
+
+The producer group follows the least-privilege scoping in the GVD data onboarding SOP:
+`extractionConfigs:READ`, `extractionRuns:WRITE`, and `extractionPipelines:READ` on the
+pipeline's data set, with no `extractionPipelines:WRITE`. There is no `sessions:CREATE`
+either: the extractor authenticates with its own client credentials, and
+[sessions](https://docs.cognite.com/api-reference/concepts/20230101/sessions) are only
+needed by background workloads such as transformations, functions, and workflows.
 
 ## Configuration
 
@@ -59,8 +73,9 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_opcua_extractor:
-      location: "oslo"                                        # Site code, used in externalIds (ep_<location>_opcua, db_<location>_opcua)
-      instanceSpace: "sp_oslo_opcua"                         # Per-extractor DM instance space — computed by setup_project.py
+      location: "oslo"                                        # Site code, used in externalIds (ep_timeseries_<location>_<sourceSystem>, raw_timeseries_<location>_<sourceSystem>)
+      sourceSystem: "scada"                                   # Source system token, used in the pipeline ID and group name
+      instanceSpace: "inst_oslo_opcua"                         # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_opcua_oslo"                               # ds_<data_type>_<location> — computed by setup_project.py
 
       integration_owner_name: "Integration Owner"             # Technical contact for the pipeline
@@ -115,7 +130,7 @@ authoring the downstream transformations into ISA Manufacturing Extension.
 
 - `models/isa_manufacturing_extension` deployed (downstream target)
 - OPC-UA Extractor installed and network-accessible to the OPC-UA server
-- Extractor service account with read/write to the `db_{{location}}_opcua` RAW
+- Extractor service account with read/write to the `raw_timeseries_{{location}}_{{sourceSystem}}` RAW
   database and read access to the `{{dataset}}` data set
 - Node filters configured in the extractor config
 
@@ -127,4 +142,39 @@ cdf deploy modules/sourcesystem/cdf_opcua_extractor --env your-environment
 
 ### Configure and run the extractor
 
-The extractor config is delivered via the `ep_{{location}}_opcua` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+The extractor config is delivered via the `ep_timeseries_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+
+### Migrating from earlier versions
+
+The pipeline external ID changed from `ep_{{location}}_opcua` to
+`ep_timeseries_{{location}}_{{sourceSystem}}`, and the access group from
+`producer_{{location}}_ep_opcua_{{environment}}` to
+`producer_{{location}}_ep_opcua_{{sourceSystem}}_{{environment}}`. To upgrade an existing
+deployment:
+
+1. Add `sourceSystem` to `cdf_opcua_extractor` in each `config.<env>.yaml`.
+2. Run `cdf deploy`. This creates the new pipeline and group alongside the old ones.
+3. Update `extraction-pipeline.pipeline-id` in the extractor host's local `config.yaml`,
+   then restart the extractor.
+4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
+   in Fusion. Toolkit does not remove them for you, and the new group keeps the same
+   `sourceId`, so no IdP change is needed.
+
+The RAW database also changed from `db_{{location}}_opcua` to
+`raw_timeseries_{{location}}_{{sourceSystem}}`, and the state-store tables from
+`state-store-variables` / `state-store-events` to `state_store_variables` /
+`state_store_events`. The browse caches and state stores live in that database, so the
+extractor starts with an empty state: expect a full browse and a history re-read on first
+start. Point any downstream transformations at the new name, then delete the old database.
+
+The instance space also changed from `sp_{{location}}_opcua` to `inst_{{location}}_opcua`
+(`setup_project.py` writes the new name on its next run). Instances already in the old
+space are not moved: the extractor creates new instances in the new space on its next
+run and reads history into them according to the `history` settings in `Config.yaml`.
+Verify the new instances, then delete the old space. To keep the old space instead, set
+`instanceSpace` back to its old value after running the wizard;
+`setup_project.py --check` then reports it as drift.
+
+The producer group's capabilities were also narrowed (see [Resources Created](#resources-created)).
+If anything else uses this group's service principal, check that it does not rely on the
+removed capabilities.

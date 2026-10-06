@@ -1,10 +1,6 @@
-name: producer_{{location}}_ep_pi_{{environment}}
+name: producer_{{location}}_ep_pi_{{sourceSystem}}_{{environment}}
 sourceId: {{extractor_group_source_id}}
 capabilities:
-  - sessionsAcl:
-      actions: [CREATE]
-      scope:
-        all: {}
   - datasetsAcl:
       actions: [READ]
       scope:
@@ -34,17 +30,17 @@ capabilities:
           spaceIds:
             - cdf_cdm_units
   - extractionPipelinesAcl:
-      actions: [READ, WRITE]
+      actions: [READ]
       scope:
         datasetScope:
           ids: ["{{dataset}}"]
   - extractionConfigsAcl:
-      actions: [READ, WRITE]
+      actions: [READ]
       scope:
         datasetScope:
           ids: ["{{dataset}}"]
   - extractionRunsAcl:
-      actions: [READ, WRITE]
+      actions: [WRITE]
       scope:
         datasetScope:
           ids: ["{{dataset}}"]
