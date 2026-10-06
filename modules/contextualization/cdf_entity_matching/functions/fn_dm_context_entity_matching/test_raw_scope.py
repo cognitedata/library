@@ -26,7 +26,6 @@ from em_constants import (  # isort: skip
     KEY_TARGET_LINKS,
     KEY_TARGET_SPACE,
 )
-from em_pipeline import add_to_dict  # isort: skip
 
 
 def build_config() -> Config:
@@ -72,7 +71,7 @@ def test_add_to_dict_copies_primary_and_secondary_scope_onto_the_raw_row() -> No
         ],
     }
 
-    row = add_to_dict(match, "entity_view", "target_view")
+    row = em_pipeline.add_to_dict(match, "entity_view", "target_view")
 
     assert row[KEY_SCOPE_PRIMARY] == "VAL"
     assert row[KEY_SCOPE_SECONDARY] == "23"
@@ -90,7 +89,7 @@ def test_add_to_dict_omits_scope_when_the_source_has_none() -> None:
         KEY_MATCHES: [],
     }
 
-    row = add_to_dict(match, "entity_view", "target_view")
+    row = em_pipeline.add_to_dict(match, "entity_view", "target_view")
 
     assert KEY_SCOPE_PRIMARY not in row
     assert KEY_SCOPE_SECONDARY not in row
