@@ -41,6 +41,17 @@ from services.EntitySyncService import EntityInstance, EntitySyncService
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import AnnotationStatus
 
+
+def _scope_text(properties: dict[str, object], property_name: str | None) -> str:
+    """Text of a scope property. Missing, blank, or non-text values are unscoped ('')."""
+    if not property_name:
+        return ""
+    raw_value = properties.get(property_name)
+    if isinstance(raw_value, str):
+        return raw_value.strip()
+    return ""
+
+
 # Properties Launch reads off the annotation state. Job tokens stay on the node and are not selected.
 LAUNCH_STATE_PROPERTIES = [
     "annotationStatus",
@@ -373,6 +384,7 @@ class GeneralDataModelService(IDataModelService):
         or from file_space when it has none, and then narrowed to the scope in memory:
             - entities in the primary and secondary scope carrying one of the configured tags
             - or entities in the primary scope tagged ScopeWideDetect, whatever their secondary scope
+            - or entities with no value for the configured scope properties (matched against every document)
 
         Args:
             primary_scope_value: Primary scope identifier (e.g., site, facility).
@@ -418,6 +430,7 @@ class GeneralDataModelService(IDataModelService):
     ) -> list[EntityInstance]:
         """The entities of the view that the scope matches against; see get_instances_entities."""
         launch = self.config.launch_function
+        primary_configured = bool((launch.primary_scope_property or "").strip())
         primary_property = launch.primary_scope_property if primary_scope_value else None
         secondary_property = launch.secondary_scope_property if secondary_scope_value else None
         view_id = view.as_view_id()
@@ -432,15 +445,29 @@ class GeneralDataModelService(IDataModelService):
             self._synced_entities[view_id] = synced
 
         in_scope: list[EntityInstance] = []
+        unscoped_count = 0
         wanted_tags = set(entity_tags)
         for entity in synced[1]:
             properties = entity.properties[view_id]
-            if primary_property and properties.get(primary_property) != primary_scope_value:
+            entity_primary = _scope_text(properties, launch.primary_scope_property)
+            entity_secondary = _scope_text(properties, launch.secondary_scope_property)
+            unscoped = primary_configured and not entity_primary
+            if primary_property and entity_primary and entity_primary != primary_scope_value:
                 continue
             raw_tags = properties.get("tags")
             tags = set(raw_tags) if isinstance(raw_tags, list) else set()
             scope_wide = TAG_SCOPE_WIDE_DETECT in tags
-            in_secondary_scope = not secondary_property or properties.get(secondary_property) == secondary_scope_value
-            if scope_wide or (not wanted_tags.isdisjoint(tags) and in_secondary_scope):
-                in_scope.append(entity)
+            in_secondary_scope = (
+                not secondary_property or not entity_secondary or entity_secondary == secondary_scope_value
+            )
+            if not (scope_wide or (not wanted_tags.isdisjoint(tags) and in_secondary_scope)):
+                continue
+            if unscoped:
+                unscoped_count += 1
+            in_scope.append(entity)
+        if unscoped_count and primary_scope_value:
+            self.logger.warning(
+                f"{unscoped_count} {view.external_id} instance(s) have no {launch.primary_scope_property} value — "
+                "unscoped assets are tried matched against all documents"
+            )
         return in_scope

@@ -113,6 +113,7 @@ class GeneralApplyService(IApplyService):
         file_id = file_node.as_id()
         file_properties = (file_node.properties or {}).get(self.file_view_id) or {}
         source_id = cast(str, file_properties.get("sourceId"))
+        scope_columns = self._file_scope_raw_columns(file_properties)
 
         if clean_old:
             deleted_counts = self._delete_annotations_for_file(file_id)
@@ -135,6 +136,7 @@ class GeneralApplyService(IApplyService):
                     tag_rows,
                     annotation,
                     processed_bounding_boxes,
+                    scope_columns,
                 )
                 regular_edges.extend(edges)
 
@@ -325,6 +327,7 @@ class GeneralApplyService(IApplyService):
         file_id = file_node.as_id()
         file_properties = (file_node.properties or {}).get(self.file_view_id) or {}
         source_id = cast(str, file_properties.get("sourceId"))
+        scope_columns = self._file_scope_raw_columns(file_properties)
         doc_patterns, edge_applies = [], []
         removed_external_ids: set[str] = set()
 
@@ -405,9 +408,28 @@ class GeneralApplyService(IApplyService):
                     "viewSpace": self.core_annotation_view_id.space,
                     "viewVersion": self.core_annotation_view_id.version,
                     **annotation_properties,
+                    **scope_columns,
                 }
                 doc_patterns.append(RowWrite(key=external_id, columns=row_columns))
         return edge_applies, doc_patterns, removed_external_ids
+
+    def _file_scope_raw_columns(self, file_properties: object) -> dict[str, str]:
+        """Values of the configured scope properties on the annotated file, for RAW rows.
+
+        Keys match the extraction pipeline names (`primaryScopeProperty`, `secondaryScopeProperty`).
+        A property that is not configured is omitted.
+        """
+        properties = file_properties if isinstance(file_properties, dict) else {}
+        columns: dict[str, str] = {}
+        primary_name = (self.config.parameters.primary_scope_property or "").strip()
+        secondary_name = (self.config.parameters.secondary_scope_property or "").strip()
+        if primary_name:
+            value = properties.get(primary_name)
+            columns["primaryScopeProperty"] = value.strip() if isinstance(value, str) else ""
+        if secondary_name:
+            value = properties.get(secondary_name)
+            columns["secondaryScopeProperty"] = value.strip() if isinstance(value, str) else ""
+        return columns
 
     def _detect_annotation_to_edge_applies(
         self,
@@ -417,6 +439,7 @@ class GeneralApplyService(IApplyService):
         doc_tag: list[RowWrite],
         detect_annotation: dict[str, object],
         processed_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]],
+        scope_columns: dict[str, str],
     ) -> list[EdgeApply]:
         """
         Converts a single detection annotation into edge applies and RAW row writes.
@@ -432,6 +455,7 @@ class GeneralApplyService(IApplyService):
             doc_tag: List to append doc-to-tag annotation RAW rows to (modified in place).
             detect_annotation: Dictionary containing a single detection result with 'region', 'entities', 'confidence', and 'text' keys.
             processed_bounding_boxes: mapping dict [key is (page, (x_min, y_min, x_max, y_max)), value is set of external IDs] for regular annotations (modified in place).
+            scope_columns: File primary/secondary scope values to store on each RAW row.
 
         Returns:
             List of EdgeApply objects for each entity in the detection that meets confidence thresholds.
@@ -501,6 +525,7 @@ class GeneralApplyService(IApplyService):
                 "viewSpace": self.core_annotation_view_id.space,
                 "viewVersion": self.core_annotation_view_id.version,
                 **annotation_properties,
+                **scope_columns,
             }
             if entity.get("annotation_type") == self.file_annotation_type:
                 doc_doc.append(RowWrite(key=external_id, columns=doc_log))

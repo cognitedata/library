@@ -178,6 +178,13 @@ class GeneralLaunchService(AbstractLaunchService):
                 self.logger.info(message="No files found to launch")
                 return "Done"
             self.logger.info(message=f"Launching {len(file_nodes)} files", section="END")
+            if not (self.primary_scope_property or "").strip():
+                self.logger.warning(
+                    message=(
+                        "primaryScopeProperty is not set: all targets / assets will be used to match against "
+                        "all files, with the possibility of false positive matching"
+                    )
+                )
         except CogniteAPIError as e:
             if not is_query_timeout(e):
                 raise
@@ -336,6 +343,14 @@ class GeneralLaunchService(AbstractLaunchService):
                     message=f"Created batch of {len(batch.files)} files for {self._describe_scope(batch)}",
                     section="END",
                 )
+        unscoped_files = sum(len(batch.files) for batch in final_processing_batches if not batch.primary_scope_value)
+        if (self.primary_scope_property or "").strip() and unscoped_files:
+            self.logger.warning(
+                message=(
+                    f"Files without scope (primary='', secondary='') - {unscoped_files} is tried matched against "
+                    "all assets. Unscoped assets are tried matched against all documents"
+                )
+            )
         return final_processing_batches
 
     def _describe_scope(self, batch: FileProcessingBatch) -> str:

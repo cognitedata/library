@@ -925,6 +925,69 @@ def test_launch_omits_scope_logs_when_unscoped() -> None:
     )
     assert not any(message.startswith("Created batch of") for message in messages)
     assert not any(message.startswith("Finished processing for") for message in messages)
+    warnings = [
+        call.kwargs.get("message") or (call.args[0] if call.args else "") for call in logger.warning.call_args_list
+    ]
+    assert any("all files" in message.lower() and "false positive" in message.lower() for message in warnings)
+
+
+def test_files_without_scope_values_warn_they_match_against_all_assets() -> None:
+    import services.LaunchService as launch_service
+    from cognite.client.data_classes.data_modeling import NodeId, ViewId
+    from services.ConfigService import Config
+
+    config = Config.model_validate(
+        {
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}, "primaryScopeProperty": "site"},
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "sp_hdm",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+    logger = MagicMock()
+    file_id = NodeId("files", "file-unscoped")
+    file_node = MagicMock()
+    file_node.space = "files"
+    file_node.properties = {ViewId("cdf_cdm", "CogniteFile", "v1"): {}}
+    file_node.as_id.return_value = file_id
+    launch_svc = launch_service.GeneralLaunchService(
+        client=MagicMock(),
+        config=config,
+        logger=logger,
+        tracker=MagicMock(),
+        data_model_service=MagicMock(),
+        cache_service=MagicMock(),
+        annotation_service=MagicMock(),
+        function_call_info={},
+        rate_limit_policy=MagicMock(),
+    )
+
+    batches = launch_svc._organize_files_for_processing([file_node])
+
+    assert len(batches) == 1
+    assert batches[0].primary_scope_value == ""
+    warnings = [
+        call.kwargs.get("message") or (call.args[0] if call.args else "") for call in logger.warning.call_args_list
+    ]
+    assert any("without scope" in message.lower() and "all" in message.lower() for message in warnings)
 
 
 def _file_node_with_tags(file_id, tags: list[str]) -> MagicMock:

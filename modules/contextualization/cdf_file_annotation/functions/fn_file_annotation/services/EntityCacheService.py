@@ -211,6 +211,7 @@ class GeneralCacheService(ICacheService):
 
         self._log_launch_input_summary(
             scope_key=key,
+            primary_scope_value=primary_scope_value,
             asset_entities=asset_entities,
             file_entities=file_entities,
             asset_pattern_samples=asset_pattern_samples,
@@ -292,6 +293,7 @@ class GeneralCacheService(ICacheService):
         file_pattern_samples: list[dict],
         manual_pattern_groups: int,
         manual_pattern_strings: int,
+        primary_scope_value: str = "",
     ) -> None:
         """Log INFO counts and DEBUG details for launch entity/pattern input.
 
@@ -313,16 +315,22 @@ class GeneralCacheService(ICacheService):
         asset_pattern_count = count_pattern_sample_strings(asset_pattern_samples)
         file_pattern_count = count_pattern_sample_strings(file_pattern_samples)
 
-        if not scope_key:
+        scoping_configured = bool((getattr(self.config.launch_function, "primary_scope_property", None) or "").strip())
+        if not scoping_configured:
             scope_desc = (
                 "unscoped — primaryScopeProperty is empty, so tagged entities are loaded "
                 "project-wide (still limited to configured tags / instanceSpace)"
+            )
+        elif not primary_scope_value:
+            scope_desc = (
+                f"scope {scope_key!r} — files without primaryScopeProperty / secondaryScopeProperty values; "
+                "tagged entities are loaded project-wide, and unscoped assets are matched against all documents"
             )
         else:
             scope_desc = (
                 f"scope {scope_key!r} — after filters: configured tags, instance space "
                 "('<space>:' prefix when set), and primaryScopeProperty / secondaryScopeProperty "
-                "of the files being annotated"
+                "of the files being annotated (instances with no scope value are included in every batch)"
             )
 
         def _entity_line(label: str, view_id: str, detectable: list[dict], missing: list[dict], search: str) -> str:

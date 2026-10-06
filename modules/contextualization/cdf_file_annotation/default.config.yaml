@@ -54,8 +54,10 @@ fileAutoApprovalThreshold: 0.25
 fileAutoSuggestThreshold: 0.2
 # Scope properties are property NAMES (for example site / unit), not values. The property must
 # be a text property with the same name on both the file view and the target entity view; the
-# site value is read from each instance. Empty disables that grouping level. See README
-# "Scoping by site". Example:
+# site value is read from each instance. Empty disables that grouping level. Instances without
+# a value are still matched (unscoped files against all entities; unscoped assets against all
+# documents) and Launch warns. With both empty, every file is matched against all targets
+# (warning: false positives). See README "Scoping by site". Example:
 #   primaryScopeProperty: site
 #   secondaryScopeProperty: unit
 primaryScopeProperty: ""

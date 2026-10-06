@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from cognite.client.data_classes.data_modeling import EdgeApply, NodeId
+from cognite.client.data_classes.data_modeling import EdgeApply, NodeId, ViewId
 
 sys.path.append(str(Path(__file__).parent))
 
@@ -14,6 +14,7 @@ from services.ApplyService import GeneralApplyService  # isort: skip
 from services.ConfigService import Config  # isort: skip
 
 FILE_ID = NodeId("inst_location", "file_PH-ME-P-0153-001.pdf")
+FILE_VIEW_ID = ViewId("cdf_cdm", "CogniteFile", "v1")
 LINKED_FILE = {
     "annotation_type": "diagrams.FileLink",
     "external_id": "file_PH-ME-P-0152-001.pdf",
@@ -28,10 +29,10 @@ ASSET = {
 }
 
 
-def _config(**thresholds: float) -> Config:
+def _config(**parameters: object) -> Config:
     return Config.model_validate(
         {
-            "parameters": {"rawData": {"rawDb": "db_file_annotation"}, **thresholds},
+            "parameters": {"rawData": {"rawDb": "db_file_annotation"}, **parameters},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",
@@ -83,12 +84,17 @@ def _pattern(region: dict[str, object]) -> dict:
     return {"annotations": [{"entities": [LINKED_FILE], "region": region, "text": "PH-ME-P-0152-001 REV 2"}]}
 
 
-def _apply(config: Config, regular: list[dict], pattern: dict | None = None) -> tuple[list[EdgeApply], MagicMock]:
+def _apply(
+    config: Config,
+    regular: list[dict],
+    pattern: dict | None = None,
+    file_properties: dict[str, object] | None = None,
+) -> tuple[list[EdgeApply], MagicMock]:
     """Run the apply step for one file and return the edges written plus the mocked client."""
     client = MagicMock()
     file_node = MagicMock()
     file_node.as_id.return_value = FILE_ID
-    file_node.properties = {}
+    file_node.properties = {FILE_VIEW_ID: file_properties or {}}
 
     GeneralApplyService(client, config, MagicMock()).process_and_apply_annotations_for_file(
         file_node, {"annotations": regular}, pattern, clean_old=False
@@ -100,13 +106,17 @@ def _status_by_end_node(edges: list[EdgeApply]) -> dict[str, object]:
     return {edge.end_node.external_id: edge.sources[0].properties["status"] for edge in edges}
 
 
-def _doc_doc_rows(client: MagicMock) -> list:
+def _raw_rows(client: MagicMock, table_name: str) -> list:
     return [
         row
         for call in client.raw.rows.insert.call_args_list
-        if call.kwargs["table_name"] == "annotation_documents_docs"
+        if call.kwargs["table_name"] == table_name
         for row in call.kwargs["row"]
     ]
+
+
+def _doc_doc_rows(client: MagicMock) -> list:
+    return _raw_rows(client, "annotation_documents_docs")
 
 
 def test_an_approved_annotation_is_replaced_by_an_enclosing_pattern() -> None:
@@ -212,3 +222,27 @@ def test_extract_bounding_box_ignores_vertices_with_null_coordinates() -> None:
 
     # Null coordinates are dropped per axis. The remaining values are x=0.2, x=0.5 and y=0.1, y=0.8.
     assert (box.x_min, box.x_max, box.y_min, box.y_max) == (0.2, 0.5, 0.1, 0.8)
+
+
+def test_document_and_asset_raw_rows_include_the_file_scope_property_values() -> None:
+    """Doc, tag, and pattern RAW rows store the annotated file's configured scope values."""
+    config = _config(primaryScopeProperty="site", secondaryScopeProperty="unit")
+    asset_region = _box(0.1, 0.1, 0.2, 0.2)
+    pattern_region = _box(0.3, 0.3, 0.4, 0.4)
+
+    _, client = _apply(
+        config,
+        [_detection(LINKED_FILE, 1.0), _detection(ASSET, 1.0, asset_region)],
+        _pattern(pattern_region),
+        file_properties={"site": "PlantA", "unit": "U100", "sourceId": "src-1"},
+    )
+
+    rows = (
+        _raw_rows(client, "annotation_documents_docs")
+        + _raw_rows(client, "annotation_documents_tags")
+        + _raw_rows(client, "annotation_documents_patterns")
+    )
+    assert rows
+    for row in rows:
+        assert row.columns["primaryScopeProperty"] == "PlantA"
+        assert row.columns["secondaryScopeProperty"] == "U100"

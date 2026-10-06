@@ -122,6 +122,33 @@ def test_entities_are_filtered_by_tag_and_grouped_by_scope_in_memory() -> None:
     assert _targets(_config("site", "unit"), client, "S1", "U1") == ["in-scope", "scope-wide"]
 
 
+def test_entities_without_scope_values_are_matched_against_every_document() -> None:
+    """Assets with no site/unit still match; they go in the unscoped set used for every file."""
+    from services.DataModelService import GeneralDataModelService
+
+    client = _client(
+        [
+            _page(
+                [
+                    _asset("in-scope", tags=["DetectInDiagrams"], site="S1", unit="U1"),
+                    _asset("unscoped", tags=["DetectInDiagrams"]),
+                    _asset("empty-scope", tags=["DetectInDiagrams"], site="", unit=""),
+                    _asset("other-site", tags=["DetectInDiagrams"], site="S2", unit="U1"),
+                ]
+            )
+        ]
+    )
+    logger = MagicMock()
+
+    targets, _ = GeneralDataModelService(_config("site", "unit"), client, logger).get_instances_entities(
+        "S1", "U1", None
+    )
+
+    assert sorted(target.external_id for target in targets) == ["empty-scope", "in-scope", "unscoped"]
+    warnings = [call.args[0] if call.args else call.kwargs.get("message", "") for call in logger.warning.call_args_list]
+    assert any("unscoped" in message.lower() and "all documents" in message.lower() for message in warnings)
+
+
 def test_a_file_entity_without_aliases_is_kept_to_match_on_its_name() -> None:
     from services.DataModelService import GeneralDataModelService
 
