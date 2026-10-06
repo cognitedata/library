@@ -633,7 +633,7 @@ class TestModuleDataset:
         assert _module_dataset("cdf_sap_extractor", "oslo") == "ds_sap_oslo"
         assert _module_dataset("cdf_files_extractor", "oslo") == "ds_files_oslo"
         assert _module_dataset("cdf_opcua_extractor", "oslo") == "ds_opcua_oslo"
-        assert _module_dataset("cdf_db_extractor", "oslo") == "ds_db_postgres_oslo"
+        assert _module_dataset("cdf_db_extractor", "oslo") == "ds_db_oslo"
 
     def test_falls_back_to_base_when_location_blank(self) -> None:
         """Matches the module default in default.config.yaml, so a project set up

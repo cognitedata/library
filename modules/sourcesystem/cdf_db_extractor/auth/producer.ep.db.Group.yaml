@@ -1,4 +1,4 @@
-name: producer_{{location}}_ep_db_{{environment}}
+name: producer_{{location}}_ep_db_{{sourceSystem}}_{{environment}}
 sourceId: {{extractor_group_source_id}}
 capabilities:
   - sessionsAcl:
@@ -15,7 +15,7 @@ capabilities:
       scope:
         tableScope:
           dbsToTables:
-            db_{{location}}_db_postgres: []
+            raw_asset_{{location}}_{{sourceSystem}}: []
   - dataModelInstancesAcl:
       actions: [READ, WRITE, WRITE_PROPERTIES]
       scope:

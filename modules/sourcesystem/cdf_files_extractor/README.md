@@ -16,14 +16,14 @@ cdf_files_extractor/
 │   ├── ep_files_sharepoint.ExtractionPipeline.yaml         # Pipeline definition (contacts, schedule, source)
 │   └── ep_files_sharepoint.ExtractionPipeline.Config.yaml  # Files Extractor runtime config (file provider, paths, filters)
 ├── raw/
-│   └── db_files.Database.yaml                               # db_{{location}}_files (optional RAW-backed state store)
+│   └── db_files.Database.yaml                               # raw_files_{{location}}_{{sourceSystem}} (optional RAW-backed state store)
 └── module.toml
 ```
 
 > **Note:** File bytes and `CogniteFile` metadata land in CDF Files and
 > `{{instanceSpace}}` (the shipped example uses `destination-mode: cdm`). The
 > module does **not** stage file content to RAW. The `raw/` folder deploys
-> `db_{{location}}_files` so the producer group can use RAW for an optional
+> `raw_files_{{location}}_{{sourceSystem}}` so the producer group can use RAW for an optional
 > extractor state store (see `state-store` in `ExtractionPipeline.Config.yaml`).
 
 ## Data Flow
@@ -42,11 +42,15 @@ Files Extractor   (destination-mode: cdm)
 
 | Resource | External ID | Purpose |
 |---|---|---|
-| ExtractionPipeline | `ep_{{location}}_files_sharepoint` | Pipeline health tracking and config delivery |
+| ExtractionPipeline | `ep_files_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
 | Data set | `{{dataset}}` | Groups uploaded files and pipeline resources |
-| RAW Database | `db_{{location}}_files` | Optional RAW-backed extractor state store (not used for file ingestion) |
+| RAW Database | `raw_files_{{location}}_{{sourceSystem}}` | Optional RAW-backed extractor state store (not used for file ingestion) |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer_{{location}}_ep_files_{{environment}}` | Scoped service-principal group for the Files extractor |
+| Access Group | `producer_{{location}}_ep_file_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
+
+Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/deploy/reference/cdf_resource_naming_conventions):
+pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
+pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
 
 ## Configuration
 
@@ -56,7 +60,8 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_files_extractor:
-      location: "oslo"                                       # Site code, used in externalIds (ep_<location>_files_sharepoint)
+      location: "oslo"                                       # Site code, used in externalIds (ep_files_<location>_<sourceSystem>)
+      sourceSystem: "sharepoint"                             # Source system token, used in the pipeline ID and group name
       dataset: "ds_files_oslo"                               # ds_<data_type>_<location> — computed by setup_project.py
       instanceSpace: "sp_oslo_files"                        # Per-extractor DM instance space — computed by setup_project.py
 
@@ -103,7 +108,7 @@ SharePoint Online example with a single extraction path. Before production use:
 5. **Pick a state-store path** in `Config.yaml` that the extractor service
    account can write to (default: `/path/to/state-store.json` is a placeholder
    — change before running). For cluster deployments, uncomment the RAW
-   `state-store` block and point `database` at `db_{{location}}_files` (deployed
+   `state-store` block and point `database` at `raw_files_{{location}}_{{sourceSystem}}` (deployed
    from `raw/db_files.Database.yaml`). Add a `*.Table.yaml` under `raw/` if you
    want Toolkit to create the state table at deploy time.
 6. **Confirm `data_model.space`** matches your `instanceSpace` — `CogniteFile`
@@ -130,7 +135,28 @@ cdf deploy modules/sourcesystem/cdf_files_extractor --env your-environment
 
 ### Configure and run the extractor
 
-The extractor config is delivered via the `ep_{{location}}_files_sharepoint` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+The extractor config is delivered via the `ep_files_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+
+### Migrating from earlier versions
+
+The pipeline external ID changed from `ep_{{location}}_files_sharepoint` to
+`ep_files_{{location}}_{{sourceSystem}}`, and the access group from
+`producer_{{location}}_ep_files_{{environment}}` to
+`producer_{{location}}_ep_file_{{sourceSystem}}_{{environment}}`. To upgrade an existing
+deployment:
+
+1. Add `sourceSystem` to `cdf_files_extractor` in each `config.<env>.yaml`.
+2. Run `cdf deploy`. This creates the new pipeline and group alongside the old ones.
+3. Update `extraction-pipeline.pipeline-id` in the extractor host's local `config.yaml`,
+   then restart the extractor.
+4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
+   in Fusion. Toolkit does not remove them for you, and the new group keeps the same
+   `sourceId`, so no IdP change is needed.
+
+The optional RAW state-store database also changed from `db_{{location}}_files` to
+`raw_files_{{location}}_{{sourceSystem}}`. If you enabled the RAW state store, update
+`state-store.database` in `Config.yaml`. The extractor starts with an empty state, so the
+first run re-checks every file.
 
 ### Verify
 

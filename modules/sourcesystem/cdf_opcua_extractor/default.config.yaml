@@ -1,8 +1,14 @@
 # OPC-UA Extractor — configuration variables
 
-# Site/location code, used in externalIds (e.g. ep_{{location}}_opcua, db_{{location}}_opcua)
+# Site/location code, used in externalIds (e.g. ep_timeseries_{{location}}_{{sourceSystem}}, raw_timeseries_{{location}}_{{sourceSystem}})
 # Populated automatically from the site / location name entered in setup_project.py.
 location: ""
+
+# Source system token — the system behind the OPC-UA server (e.g. scada, dcs, historian).
+# Used in the pipeline externalId (ep_timeseries_{{location}}_{{sourceSystem}}) and in the
+# producer group name (producer_{{location}}_ep_opcua_{{sourceSystem}}_{{environment}}).
+# Lowercase, [a-z0-9] only.
+sourceSystem: "scada"
 prometheusJobName: opcua-extractor
 
 # DM space where OPC-UA extractor instances are written — one space per extractor.

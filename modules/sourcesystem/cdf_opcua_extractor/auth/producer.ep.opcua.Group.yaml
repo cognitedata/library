@@ -1,4 +1,4 @@
-name: producer_{{location}}_ep_opcua_{{environment}}
+name: producer_{{location}}_ep_opcua_{{sourceSystem}}_{{environment}}
 sourceId: {{extractor_group_source_id}}
 capabilities:
   - sessionsAcl:
@@ -15,7 +15,7 @@ capabilities:
       scope:
         tableScope:
           dbsToTables:
-            db_{{location}}_opcua: []
+            raw_timeseries_{{location}}_{{sourceSystem}}: []
   - timeSeriesAcl:
       actions: [READ, WRITE]
       scope:
