@@ -303,7 +303,14 @@ def _collect_one_job(
     logger.info(f"Predict job {job.job_id} completed - collecting {len(match_results)} result(s){submitted}")
 
     with cdf_lock:
-        staged_matches = read_staged_matches(client, logger, job.job_id, job.staging_digest)
+        try:
+            staged_matches = read_staged_matches(client, logger, job.job_id, job.staging_digest)
+        except ValueError as e:
+            # Fails the same way on every run, so leaving the job queued would block it for good.
+            logger.error(f"Dropping predict job {job.job_id}, its staged matches cannot be trusted: {e}")
+            delete_staged_matches(client, logger, job.job_id)
+            delete_predict_job(client, config, logger, job)
+            return CollectJobOutcome(job.job_id, JOB_API_STATUS_FAILED)
         with time_operation("Select and apply matches", logger):
             good_matches, bad_matches, cnt_entity_matching = select_and_apply_matches(
                 client, config, logger, staged_matches, match_results

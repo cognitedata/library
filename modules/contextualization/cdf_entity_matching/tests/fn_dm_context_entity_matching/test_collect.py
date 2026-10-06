@@ -21,6 +21,7 @@ class StubJob:
         self.statuses = iter(statuses)
         self.status = ""
         self.error_message = None
+        self.result = None
         self.polls = 0
 
     def update_status(self) -> str:
@@ -191,6 +192,48 @@ class TestDrainJobQueue(unittest.TestCase):
 
         self.assertEqual(budgets, [0.0])
         self.assertEqual(timeouts, [0.0])
+
+
+class TestCollectOneJob(unittest.TestCase):
+    def test_drops_a_job_whose_staged_matches_cannot_be_trusted(self) -> None:
+        """A digest mismatch fails the same way every run, so the job must leave the queue."""
+        deleted: list[str] = []
+        patched = {
+            "mark_job_running": lambda client, config, logger, job: job,
+            "wait_for_job": lambda *args: (StubJob([]), "Completed"),
+            "read_staged_matches": self._raise_digest_mismatch,
+            "select_and_apply_matches": self._fail_if_called,
+            "delete_staged_matches": lambda client, logger, job_id: deleted.append(f"staged:{job_id}"),
+            "delete_predict_job": lambda client, config, logger, job: deleted.append(f"job:{job.job_id}"),
+        }
+        originals = {name: getattr(em_collect, name) for name in patched}
+        for name, replacement in patched.items():
+            setattr(em_collect, name, replacement)
+        try:
+            outcome = em_collect._collect_one_job(
+                None,  # type: ignore[arg-type]
+                CogniteFunctionLogger("DEBUG"),
+                None,  # type: ignore[arg-type]
+                None,  # type: ignore[arg-type]
+                threading.Lock(),
+                queued_job("42"),
+                seconds_left=600,
+                queue_size=1,
+            )
+        finally:
+            for name, original in originals.items():
+                setattr(em_collect, name, original)
+
+        self.assertEqual(outcome, em_collect.CollectJobOutcome("42", "Failed"))
+        self.assertEqual(deleted, ["staged:42", "job:42"])
+
+    @staticmethod
+    def _raise_digest_mismatch(*args: object) -> list[object]:
+        raise ValueError("Staged matches file does not match the digest stored for job 42")
+
+    @staticmethod
+    def _fail_if_called(*args: object) -> None:
+        raise AssertionError("matches must not be applied from an untrusted staging file")
 
 
 if __name__ == "__main__":
