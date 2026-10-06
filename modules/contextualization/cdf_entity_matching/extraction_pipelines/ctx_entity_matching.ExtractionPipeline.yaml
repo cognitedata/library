@@ -15,11 +15,11 @@ rawTables:
     tableName: 'contextualization_state_store'
 source: entity_matching
 documentation: >
- # Time series and assets Contextualization
+ # Entity Matching of entities (timeseries) to targets (assets)
 
- The Time series and assets Contextualization runs as a process in CDF Functions.
+ The Entity Matching of entities (timeseries) to targets (assets) runs as a process in CDF Functions.
 
- Process triggers on new time series that not is connected to an asset.
+ Process triggers on new entities (timeseries) that not is connected to an target (asset).
 
  The process stages are as follows:
 
