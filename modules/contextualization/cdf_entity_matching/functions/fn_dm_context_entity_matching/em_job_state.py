@@ -20,6 +20,7 @@ from em_constants import (  # isort: skip
     JOB_COL_JOB_TOKEN,
     JOB_COL_MODEL_ID,
     JOB_COL_SOURCE_COUNT,
+    JOB_COL_STAGING_DIGEST,
     JOB_COL_STAGING_PREFIX,
     JOB_COL_STATUS,
     JOB_STATUS_RUNNING,
@@ -39,6 +40,7 @@ class PredictJob:
     status: str
     created_at: str
     staging_prefix: str
+    staging_digest: str | None = None
     model_id: str | None = None
     source_count: int | None = None
 
@@ -53,6 +55,7 @@ class PredictJob:
             JOB_COL_STATUS: self.status,
             JOB_COL_CREATED_AT: self.created_at,
             JOB_COL_STAGING_PREFIX: self.staging_prefix,
+            JOB_COL_STAGING_DIGEST: self.staging_digest,
             JOB_COL_MODEL_ID: self.model_id,
             JOB_COL_SOURCE_COUNT: self.source_count,
         }
@@ -68,6 +71,7 @@ class PredictJob:
             status=str(columns.get(JOB_COL_STATUS) or JOB_STATUS_SUBMITTED),
             created_at=str(columns.get(JOB_COL_CREATED_AT) or ""),
             staging_prefix=str(columns.get(JOB_COL_STAGING_PREFIX) or ""),
+            staging_digest=str(columns[JOB_COL_STAGING_DIGEST]) if columns.get(JOB_COL_STAGING_DIGEST) else None,
             model_id=str(columns[JOB_COL_MODEL_ID]) if columns.get(JOB_COL_MODEL_ID) else None,
             source_count=int(source_count) if source_count is not None else None,
         )
@@ -85,6 +89,7 @@ def append_predict_job(
     job_id: str,
     job_token: str | None,
     staging_prefix: str,
+    staging_digest: str | None = None,
     model_id: str | None = None,
     source_count: int | None = None,
 ) -> PredictJob:
@@ -102,6 +107,7 @@ def append_predict_job(
         status=JOB_STATUS_SUBMITTED,
         created_at=datetime.now(UTC).isoformat(),
         staging_prefix=staging_prefix,
+        staging_digest=staging_digest,
         model_id=model_id,
         source_count=source_count,
     )

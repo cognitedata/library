@@ -14,7 +14,7 @@ import pytest
 from cognite.client.exceptions import CogniteAPIError
 from tenacity import wait_none
 
-sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_entity_matching"))
 
 from cognite.client.data_classes.data_modeling import DirectRelationReference  # isort: skip
 

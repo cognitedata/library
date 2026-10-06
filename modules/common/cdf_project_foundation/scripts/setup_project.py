@@ -16,7 +16,6 @@ Usage:
     python setup_project.py [-y] [--check] [--variant VARIANT]
 """
 
-
 import argparse
 import re
 import shutil
@@ -213,17 +212,17 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
 # (e.g. created before the flat-structure migration).  Used by _write_config_update
 # to try an alternative dotted path when the flat path is not found.
 _MODULE_CATEGORY_FALLBACK: dict[str, str] = {
-    "cdf_project_foundation":    "common",
-    "cdf_entity_matching":       "contextualization",
-    "cdf_file_annotation":       "contextualization",
-    "cdf_pi_extractor":          "sourcesystem",
-    "cdf_sap_extractor":         "sourcesystem",
-    "cdf_opcua_extractor":       "sourcesystem",
-    "cdf_db_extractor":          "sourcesystem",
-    "cdf_files_extractor":       "sourcesystem",
-    "isa_manufacturing_extension":         "datamodels",
-    "isa_manufacturing_extension_search":  "datamodels",
-    "cfihos_oil_and_gas_extension":        "datamodels",
+    "cdf_project_foundation": "common",
+    "cdf_entity_matching": "contextualization",
+    "cdf_file_annotation": "contextualization",
+    "cdf_pi_extractor": "sourcesystem",
+    "cdf_sap_extractor": "sourcesystem",
+    "cdf_opcua_extractor": "sourcesystem",
+    "cdf_db_extractor": "sourcesystem",
+    "cdf_files_extractor": "sourcesystem",
+    "isa_manufacturing_extension": "datamodels",
+    "isa_manufacturing_extension_search": "datamodels",
+    "cfihos_oil_and_gas_extension": "datamodels",
     "cfihos_oil_and_gas_extension_search": "datamodels",
 }
 
@@ -233,8 +232,7 @@ _MODULE_CATEGORY_FALLBACK: dict[str, str] = {
 _STALE_CTX_KEYS: tuple[str, ...] = (
     # Contextualization stale keys.
     "variables.modules.contextualization.cdf_file_annotation.groupSourceId",
-    "variables.modules.contextualization.cdf_entity_matching"
-    ".entity_matching_processing_group_source_id",
+    "variables.modules.contextualization.cdf_entity_matching.entity_matching_processing_group_source_id",
     "variables.modules.cdf_entity_matching.reservedWordPrefix",
     "variables.modules.contextualization.cdf_entity_matching.reservedWordPrefix",
     # Stale ISA DM vars — previously written by setup_project.py, now owned by the module.
@@ -255,6 +253,7 @@ _STALE_CTX_KEYS: tuple[str, ...] = (
 )
 
 # ── Domain helpers ─────────────────────────────────────────────────────────────
+
 
 def group_name(persona: str, site: str, env: str) -> str:
     """SOP pattern: ``<persona>_[{site}_]all_<env>``; env is 'dev' (dev+test) or 'prod'."""
@@ -292,37 +291,34 @@ def resolve_contextualization_variables(
     for module, overrides in templates.items():
         if module not in installed_ctx:
             continue
-        result[module] = {
-            key: (instance_space if value is None else value)
-            for key, value in overrides.items()
-        }
+        result[module] = {key: (instance_space if value is None else value) for key, value in overrides.items()}
     return result
 
 
 _MODULE_LABELS: dict[str, str] = {
-    "cdf_pi_extractor":    "PI Extractor",
-    "cdf_sap_extractor":   "SAP Extractor",
+    "cdf_pi_extractor": "PI Extractor",
+    "cdf_sap_extractor": "SAP Extractor",
     "cdf_opcua_extractor": "OPC-UA Extractor",
-    "cdf_db_extractor":    "DB Extractor",
+    "cdf_db_extractor": "DB Extractor",
     "cdf_files_extractor": "Files Extractor",
 }
 
 # .env variable name for each SS module's extractor group source ID.
 _MODULE_EXTRACTOR_ENV_VAR: dict[str, str] = {
-    "cdf_pi_extractor":    "PI_EXTRACTOR_GROUP_SOURCE_ID",
-    "cdf_sap_extractor":   "SAP_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_pi_extractor": "PI_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_sap_extractor": "SAP_EXTRACTOR_GROUP_SOURCE_ID",
     "cdf_opcua_extractor": "OPCUA_EXTRACTOR_GROUP_SOURCE_ID",
-    "cdf_db_extractor":    "DB_EXTRACTOR_GROUP_SOURCE_ID",
+    "cdf_db_extractor": "DB_EXTRACTOR_GROUP_SOURCE_ID",
     "cdf_files_extractor": "FILES_EXTRACTOR_GROUP_SOURCE_ID",
 }
 
 # Instance space suffix per extractor module — combined with location to form
 # a per-extractor space: sp_{location}_{suffix}.
 _MODULE_INSTANCE_SPACE_SUFFIX: dict[str, str] = {
-    "cdf_pi_extractor":    "pi",
-    "cdf_sap_extractor":   "sap",
+    "cdf_pi_extractor": "pi",
+    "cdf_sap_extractor": "sap",
     "cdf_opcua_extractor": "opcua",
-    "cdf_db_extractor":    "db",
+    "cdf_db_extractor": "db",
     "cdf_files_extractor": "files",
 }
 
@@ -336,10 +332,10 @@ def _module_instance_space(module: str, location: str) -> str:
 # Unscoped data set externalId per extractor module — the ``default.config.yaml``
 # value, combined with location to form ds_{data_type}_{location}.
 _MODULE_DATASET_BASE: dict[str, str] = {
-    "cdf_pi_extractor":    "ds_pi",
-    "cdf_sap_extractor":   "ds_sap",
+    "cdf_pi_extractor": "ds_pi",
+    "cdf_sap_extractor": "ds_sap",
     "cdf_opcua_extractor": "ds_opcua",
-    "cdf_db_extractor":    "ds_db_postgres",
+    "cdf_db_extractor": "ds_db_postgres",
     "cdf_files_extractor": "ds_files",
 }
 
@@ -365,11 +361,7 @@ def _wizard_generated_datasets(sites: tuple[str, ...]) -> set[str]:
     Toolkit seeds a new project with, and no such data set is deployed once a
     location is set.
     """
-    return {
-        _module_dataset(module, site)
-        for module in _MODULE_DATASET_BASE
-        for site in ("", *sites)
-    }
+    return {_module_dataset(module, site) for module in _MODULE_DATASET_BASE for site in ("", *sites)}
 
 
 def _module_label(module: str) -> str:
@@ -486,9 +478,7 @@ def build_overlay(
     # read from the config (cdf_ingestion's dataset, or one the user added) is kept.
     generated = _wizard_generated_datasets((site, previous_site))
     ss_datasets = [_module_dataset(m, site) for m in installed_ss]
-    foundation_datasets = ss_datasets + [
-        d for d in (datasets or []) if d not in generated
-    ]
+    foundation_datasets = ss_datasets + [d for d in (datasets or []) if d not in generated]
 
     # Always write dataset (even as empty list) so the key is always present.
     modules_vars: dict[str, dict[str, object]] = {
@@ -498,15 +488,14 @@ def build_overlay(
     if installed_ss:
         modules_vars.update(
             resolve_sourcesystem_variables(
-                installed_ss, env, site,
-                integration_owners, data_owners, extractor_group_source_ids
+                installed_ss, env, site, integration_owners, data_owners, extractor_group_source_ids
             )
         )
     # instanceSpaces for consumer group: project-level DM space + one per installed extractor.
     # Always written so the key is present even when no SS modules are installed.
-    modules_vars["cdf_project_foundation"]["instanceSpaces"] = (
-        [instance_space] + [_module_instance_space(m, site) for m in installed_ss]
-    )
+    modules_vars["cdf_project_foundation"]["instanceSpaces"] = [instance_space] + [
+        _module_instance_space(m, site) for m in installed_ss
+    ]
     if variant == "cfihos_oil_and_gas_extension":
         # CFIHOS uses its own space / instance_space variables — not the ISA ones.
         # instance_space is site-derived (falls back to the domain-only default
@@ -560,8 +549,7 @@ def resolve_variant(args_variant: str | None, data_models_dir: Path) -> str:
     if args_variant:
         if args_variant not in INGESTION_FOUNDATION_VARIABLES:
             raise SystemExit(
-                f"ERROR: Unknown --variant '{args_variant}'.\n"
-                f"  Supported: {', '.join(INGESTION_FOUNDATION_VARIABLES)}"
+                f"ERROR: Unknown --variant '{args_variant}'.\n  Supported: {', '.join(INGESTION_FOUNDATION_VARIABLES)}"
             )
         return args_variant
     return detect_data_model_variant(data_models_dir)
@@ -634,16 +622,11 @@ def _skeleton_config(env: str, project: str) -> dict:
 def _write_config_fresh(path: Path, env: str, project: str, overlay: dict) -> None:
     """Create a brand-new config file from the skeleton + overlay."""
     merged = deep_merge(_skeleton_config(env, project), overlay)
-    path.write_text(
-        _YAML_HEADER
-        + yaml.dump(merged, sort_keys=False, allow_unicode=True, default_flow_style=False)
-    )
+    path.write_text(_YAML_HEADER + yaml.dump(merged, sort_keys=False, allow_unicode=True, default_flow_style=False))
     _ok(f"Created  {path.name}")
 
 
-def _write_config_update(
-    path: Path, project: str, overlay: dict, skip_backup: bool = False
-) -> bool:
+def _write_config_update(path: Path, project: str, overlay: dict, skip_backup: bool = False) -> bool:
     """Update an existing config file in-place, preserving comments and blank lines.
 
     Returns ``True`` when at least one value changed.
@@ -664,11 +647,7 @@ def _write_config_update(
         if not isinstance(mod_vars, dict):
             continue
         for key, val in mod_vars.items():
-            yaml_val = (
-                val
-                if isinstance(val, str)
-                else yaml.dump(val, default_flow_style=True).strip()
-            )
+            yaml_val = val if isinstance(val, str) else yaml.dump(val, default_flow_style=True).strip()
             # 1. Try flat path: variables.modules.<module>.<key>
             old, c = _yaml_set_value(lines, f"variables.modules.{module}.{key}", yaml_val)
             if old is None and not c:
@@ -701,13 +680,12 @@ def _write_config_update(
     path.write_text("".join(lines))
     if not skip_backup:
         from _style import _C
+
         _ok(f"Updated  {path.name}  {_C.DIM}(backup: {backup.name}){_C.RESET}")
     return True
 
 
-def _replicate_config_from_existing(
-    pack_root: Path, env: str, project: str
-) -> Path | None:
+def _replicate_config_from_existing(pack_root: Path, env: str, project: str) -> Path | None:
     """Find an existing config in pack_root and copy it as config.<env>.yaml.
 
     Updates environment.name and environment.validation-type in-place.
@@ -751,6 +729,7 @@ def write_config(path: Path, env: str, project: str, overlay: dict) -> bool:
 
 
 # ── Redundant auth cleanup ─────────────────────────────────────────────────────
+
 
 def _rmdir_if_empty(directory: Path) -> None:
     """Remove ``directory`` if it exists and is now empty."""
@@ -830,6 +809,7 @@ def restore_cdm_space_file(variant: str, repo_root: Path | None = None) -> Path 
 
 # ── Staging → test migration ──────────────────────────────────────────────────
 
+
 def _migrate_staging_to_test(pack_root: Path) -> bool:
     """Rename ``config.staging.yaml`` → ``config.test.yaml`` with corrected fields.
 
@@ -840,7 +820,7 @@ def _migrate_staging_to_test(pack_root: Path) -> bool:
     Returns ``True`` if a migration was performed.
     """
     staging = pack_root / "config.staging.yaml"
-    test    = pack_root / "config.test.yaml"
+    test = pack_root / "config.test.yaml"
 
     if not staging.exists():
         return False
@@ -970,9 +950,7 @@ def diagram_annotation_is_redundant(repo_root: Path | None = None) -> bool:
     """True when both the synthetic and real annotation pipelines are installed."""
     sourcesystem_dir = get_sourcesystem_dir(repo_root)
     ctx_dir = get_contextualization_dir(repo_root)
-    return (sourcesystem_dir / _DIAGRAM_ANNOTATION_MODULE).is_dir() and (
-        ctx_dir / _FILE_ANNOTATION_MODULE
-    ).is_dir()
+    return (sourcesystem_dir / _DIAGRAM_ANNOTATION_MODULE).is_dir() and (ctx_dir / _FILE_ANNOTATION_MODULE).is_dir()
 
 
 def _remove_ingestion_diagram_annotation_tasks(lines: list[str]) -> int:
@@ -1081,6 +1059,7 @@ def remove_redundant_diagram_annotation(repo_root: Path | None = None) -> list[P
 
 # ── Data model auth patching ──────────────────────────────────────────────────
 
+
 def patch_cfihos_auth_for_missing_search(repo_root: Path | None = None) -> list[Path]:
     """Remove ``{{search_space}}`` from cfihos auth files when the search module is absent.
 
@@ -1105,21 +1084,16 @@ def patch_cfihos_auth_for_missing_search(repo_root: Path | None = None) -> list[
     for auth_file in sorted(cfihos_auth_dir.glob("*.yaml")):
         original = auth_file.read_text()
         # Remove any line that contains only the {{search_space}} list item.
-        new_lines = [
-            line for line in original.splitlines(keepends=True)
-            if "{{search_space}}" not in line
-        ]
+        new_lines = [line for line in original.splitlines(keepends=True) if "{{search_space}}" not in line]
         if len(new_lines) < len(original.splitlines()):
             auth_file.write_text("".join(new_lines))
             patched.append(auth_file)
-            _ok(
-                f"Removed {{{{search_space}}}} from: "
-                f"{auth_file.relative_to(data_models_dir.parent)}"
-            )
+            _ok(f"Removed {{{{search_space}}}} from: {auth_file.relative_to(data_models_dir.parent)}")
     return patched
 
 
 # ── CI/CD generation ───────────────────────────────────────────────────────────
+
 
 def _read_existing_values(
     pack_root: Path,
@@ -1152,9 +1126,7 @@ def _read_existing_values(
         modules = cfg.get("variables", {}).get("modules", {})
         # Support both flat (new) and nested-category (old) structures.
         foundation = (
-            modules.get("cdf_project_foundation")
-            or (modules.get("common") or {}).get("cdf_project_foundation")
-            or {}
+            modules.get("cdf_project_foundation") or (modules.get("common") or {}).get("cdf_project_foundation") or {}
         )
         if foundation.get("site"):
             existing["site"] = foundation["site"]
@@ -1172,11 +1144,7 @@ def _read_existing_values(
         # cdf_project_foundation's persona groups take over — fold it into the persona
         # dataset list too, or the producer group loses that access entirely.
         if (pack_root / "modules" / "common" / "cdf_ingestion").is_dir():
-            ingestion_vars = (
-                modules.get("cdf_ingestion")
-                or (modules.get("common") or {}).get("cdf_ingestion")
-                or {}
-            )
+            ingestion_vars = modules.get("cdf_ingestion") or (modules.get("common") or {}).get("cdf_ingestion") or {}
             ingestion_dataset = ingestion_vars.get("dataset", "ingestion")
             if ingestion_dataset and isinstance(ingestion_dataset, str) and ingestion_dataset not in ss_datasets:
                 ss_datasets.append(ingestion_dataset)
@@ -1193,10 +1161,8 @@ def _read_existing_values(
         if ss_datasets:
             existing["dataset"] = ss_datasets
         app_owner = (
-            (modules.get("cdf_file_annotation") or
-             modules.get("contextualization", {}).get("cdf_file_annotation", {}))
-            .get("ApplicationOwner", "")
-        )
+            modules.get("cdf_file_annotation") or modules.get("contextualization", {}).get("cdf_file_annotation", {})
+        ).get("ApplicationOwner", "")
         if app_owner and app_owner != "<APPLICATION_OWNER>":
             existing["app_owner"] = app_owner
         # CFIHOS DM owner fields (flat or nested datamodels category).
@@ -1345,6 +1311,7 @@ def _run_cicd_wizard(pack_root: Path) -> list[Path]:
 
     cmd = [sys.executable, str(generate_script), "--force"]
     from _style import _C
+
     print(f"\n  {_C.DIM}Running: {' '.join(cmd)}{_C.RESET}")
     result = subprocess.run(cmd, cwd=str(REPO_ROOT), capture_output=True, text=True)
     if result.stdout:
@@ -1367,6 +1334,7 @@ def _run_cicd_wizard(pack_root: Path) -> list[Path]:
 
 # ── Main wizard ────────────────────────────────────────────────────────────────
 
+
 def _detect_installed_envs(pack_root: Path) -> tuple[str, ...]:
     """Return the environments that already have a config file in pack_root.
 
@@ -1375,7 +1343,9 @@ def _detect_installed_envs(pack_root: Path) -> tuple[str, ...]:
     """
     detected: list[str] = []
     for env in ENVIRONMENTS:
-        if (pack_root / f"config.{env}.yaml").exists() or (env == "test" and (pack_root / "config.staging.yaml").exists()):
+        if (pack_root / f"config.{env}.yaml").exists() or (
+            env == "test" and (pack_root / "config.staging.yaml").exists()
+        ):
             detected.append(env)
     return tuple(detected)
 
@@ -1420,8 +1390,7 @@ def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
             return installed_envs
         _hint("Select which environments to set up:")
         selected = tuple(
-            env for env in ENVIRONMENTS
-            if prompt_yes_no(f"  Include '{env}'?", default=(env in installed_envs))
+            env for env in ENVIRONMENTS if prompt_yes_no(f"  Include '{env}'?", default=(env in installed_envs))
         )
         if not selected:
             raise SystemExit("No environments selected — nothing to do.")
@@ -1443,10 +1412,7 @@ def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
         return ("dev",)
     if choice == 3:
         return ("dev", "prod")
-    selected = tuple(
-        env for env in ENVIRONMENTS
-        if prompt_yes_no(f"  Include environment '{env}'?", default=True)
-    )
+    selected = tuple(env for env in ENVIRONMENTS if prompt_yes_no(f"  Include environment '{env}'?", default=True))
     if not selected:
         raise SystemExit("No environments selected — nothing to do.")
     return selected
@@ -1476,11 +1442,12 @@ def _prompt_project_names(
             break
     return project_names
 
+
 def _prompt_site(existing_site: str) -> str:
     _section("Site / Location Name")
     _hint("Required. Used in access-group names (<persona>_<site>_all_<env>),")
     _hint("location for source system external IDs.")
-    _hint("Only lowercase letters, digits, hyphens, and underscores (e.g. oslo).")
+    _hint("Only lowercase letters, digits, and underscores (e.g. oslo).")
     while True:
         site = prompt("Site / location name", default=existing_site or None).strip().lower()
         if not site:
@@ -1641,13 +1608,9 @@ def _env_values_dirty(
     env_vals: dict[str, str],
     original_env_vals: dict[str, str],
 ) -> bool:
-    extractor_dirty = any(
-        env_vals.get(v) != original_env_vals.get(v)
-        for v in _MODULE_EXTRACTOR_ENV_VAR.values()
-    )
+    extractor_dirty = any(env_vals.get(v) != original_env_vals.get(v) for v in _MODULE_EXTRACTOR_ENV_VAR.values())
     return extractor_dirty or any(
-        env_vals.get(f"{p.upper()}_SOURCE_ID") != original_env_vals.get(f"{p.upper()}_SOURCE_ID")
-        for p in PERSONAS
+        env_vals.get(f"{p.upper()}_SOURCE_ID") != original_env_vals.get(f"{p.upper()}_SOURCE_ID") for p in PERSONAS
     )
 
 
@@ -1692,16 +1655,19 @@ def _write_wizard_configs(
     changed_count = 0
     for env, path in targets.items():
         overlay = build_overlay(
-            variant, env, site, installed_ctx, app_owner,
-            integration_owners, data_owners,
+            variant,
+            env,
+            site,
+            installed_ctx,
+            app_owner,
+            integration_owners,
+            data_owners,
             datasets=existing["dataset"],
             cfihos_admin_user=cfihos_admin_user,
             cfihos_integration_owner_name=cfihos_integration_owner_name,
             cfihos_integration_owner_email=cfihos_integration_owner_email,
             extractor_group_source_ids={
-                m: _MODULE_EXTRACTOR_ENV_VAR[m]
-                for m in installed_ss
-                if m in _MODULE_EXTRACTOR_ENV_VAR
+                m: _MODULE_EXTRACTOR_ENV_VAR[m] for m in installed_ss if m in _MODULE_EXTRACTOR_ENV_VAR
             },
             repo_root=repo_root,
             previous_site=existing["site"],
@@ -1837,8 +1803,8 @@ def _run_wizard(
     cfihos_integration_owner_name = ""
     cfihos_integration_owner_email = ""
     if variant == "cfihos_oil_and_gas_extension":
-        cfihos_admin_user, cfihos_integration_owner_name, cfihos_integration_owner_email = (
-            _prompt_cfihos_owners(existing)
+        cfihos_admin_user, cfihos_integration_owner_name, cfihos_integration_owner_email = _prompt_cfihos_owners(
+            existing
         )
 
     env_path, env_lines, env_vals, _env_key_idx, original_env_vals = _prompt_group_source_ids(
@@ -1885,6 +1851,7 @@ def _run_wizard(
 
 # ── --check mode (CI) ──────────────────────────────────────────────────────────
 
+
 def collect_expected(
     variant: str,
     env: str,
@@ -1914,7 +1881,7 @@ def get_actual_value(config: dict, dotted: str) -> object:
         return None
     category = _MODULE_CATEGORY_FALLBACK.get(parts[0])
     node: object = config.get("variables", {}).get("modules", {})
-    for part in ([category, *parts] if category else parts):
+    for part in [category, *parts] if category else parts:
         if not isinstance(node, dict) or part not in node:
             return None
         node = node[part]
@@ -1975,9 +1942,8 @@ def _read_check_context(pack_root: Path) -> tuple[str, list[str]]:
         cfg = load_yaml(path)
         modules = cfg.get("variables", {}).get("modules", {})
         # Support nested (canonical) and flat structures.
-        foundation = (
-            modules.get("common", {}).get("cdf_project_foundation", {})
-            or modules.get("cdf_project_foundation", {})
+        foundation = modules.get("common", {}).get("cdf_project_foundation", {}) or modules.get(
+            "cdf_project_foundation", {}
         )
         site = foundation.get("site", "")
         datasets = foundation.get("dataset") or []
@@ -2013,9 +1979,7 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
             # Config may be flat (variables.modules.<module>.*, the current default)
             # or nested under the legacy category (variables.modules.sourcesystem.<module>.*).
             category = _MODULE_CATEGORY_FALLBACK.get(module)
-            mod_cfg = modules_cfg.get(module) or (
-                modules_cfg.get(category, {}).get(module) if category else None
-            ) or {}
+            mod_cfg = modules_cfg.get(module) or (modules_cfg.get(category, {}).get(module) if category else None) or {}
             if not isinstance(mod_cfg, dict):
                 mod_cfg = {}
             if not mod_cfg.get("integration_owner_email"):
@@ -2028,8 +1992,7 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
             for entry in disabled:
                 print(f"  - {entry}")
             print(
-                "  These contacts will not be notified on pipeline failure. "
-                "Run: python scripts/setup_project.py -y\n"
+                "  These contacts will not be notified on pipeline failure. Run: python scripts/setup_project.py -y\n"
             )
 
 
@@ -2071,9 +2034,7 @@ def _run_check(
             if (ctx_dir / module_dir / rel_path).exists():
                 stale_auth.append(ctx_dir / module_dir / rel_path)
 
-    missing_cdm_space = variant == "cdm" and not (
-        get_pack_root(repo_root) / _CDM_INSTANCE_SPACE_REL_PATH
-    ).exists()
+    missing_cdm_space = variant == "cdm" and not (get_pack_root(repo_root) / _CDM_INSTANCE_SPACE_REL_PATH).exists()
 
     stale_diagram_annotation = diagram_annotation_stale_paths(repo_root)
 
@@ -2096,17 +2057,11 @@ def _run_check(
         print("\n  Run: python scripts/setup_project.py -y")
         sys.exit(1)
     if missing_cdm_space:
-        print(
-            f"ERROR: CDM instance space file missing for variant '{variant}':\n"
-            f"  {_CDM_INSTANCE_SPACE_REL_PATH}"
-        )
+        print(f"ERROR: CDM instance space file missing for variant '{variant}':\n  {_CDM_INSTANCE_SPACE_REL_PATH}")
         print("\n  Run: python scripts/setup_project.py -y")
         sys.exit(1)
     if stale_diagram_annotation:
-        print(
-            "ERROR: Redundant diagram-annotation file(s) still present "
-            "(superseded by cdf_file_annotation):"
-        )
+        print("ERROR: Redundant diagram-annotation file(s) still present (superseded by cdf_file_annotation):")
         for p in stale_diagram_annotation:
             print(f"  {p.relative_to(get_pack_root(repo_root))}")
         print("\n  Run: python scripts/setup_project.py -y")
@@ -2117,6 +2072,7 @@ def _run_check(
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -2129,7 +2085,8 @@ def main() -> None:
         help="CI mode: exit 1 if any target config is out of sync with the installed variant",
     )
     parser.add_argument(
-        "--yes", "-y",
+        "--yes",
+        "-y",
         action="store_true",
         help="Skip the confirmation prompt and apply immediately",
     )

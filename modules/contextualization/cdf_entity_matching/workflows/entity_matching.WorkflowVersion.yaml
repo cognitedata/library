@@ -16,7 +16,7 @@ workflowDefinition:
       name: 'Aliases update'
       description: 'Update aliases for timeseries and assets as prep for entity matching'
       retries: 3
-      timeout: 1200
+      timeout: 540
       onFailure: 'abortWorkflow'
     # Not retried: a retry after a partial run would queue a second predict job for the
     # same entities. A failed submit is picked up again by the next run of this workflow.
@@ -34,7 +34,7 @@ workflowDefinition:
       name: 'Entity matching submit'
       description: 'Manual and rule based matching, then start the entity matching predict job'
       retries: 0
-      timeout: 1200
+      timeout: 540
       onFailure: 'abortWorkflow'
       dependsOn:
         - externalId: 'fn_dm_context_aliases_update'
@@ -54,7 +54,7 @@ workflowDefinition:
       name: 'Entity matching collect'
       description: 'Poll queued predict jobs in parallel and write matches to RAW and the data model'
       retries: 3
-      timeout: 1200
+      timeout: 540
       onFailure: 'abortWorkflow'
       dependsOn:
         - externalId: 'fn_dm_context_entity_matching_submit'

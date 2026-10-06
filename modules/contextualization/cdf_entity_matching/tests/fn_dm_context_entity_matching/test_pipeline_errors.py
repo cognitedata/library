@@ -8,7 +8,7 @@ import pytest
 from cognite.client.exceptions import CogniteAPIError
 from tenacity import wait_none
 
-sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_entity_matching"))
 
 import em_pipeline  # isort: skip
 from em_pipeline_optimizations import RobustAPIClient  # isort: skip
@@ -204,7 +204,7 @@ def test_raw_upload_queue_trigger_log_level_is_a_name() -> None:
     assert LOG_LEVEL_INFO == "INFO"
     assert LOG_LEVEL_DEBUG == "DEBUG"
 
-    function_dir = Path(__file__).parent
+    function_dir = Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_entity_matching"
     for module in ("em_submit.py", "em_collect.py"):
         source = (function_dir / module).read_text(encoding="utf-8")
         assert "trigger_log_level=LOG_LEVEL_INFO" in source

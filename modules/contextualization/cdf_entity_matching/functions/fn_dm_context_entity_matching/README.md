@@ -103,7 +103,9 @@ Targets are read with the DMS sync endpoint and kept in a cache:
   change, never deleted).
 - A page that times out is read again 20% smaller, down to 100 instances.
 
-This needs `filesAcl: READ, WRITE` in addition to the usual capabilities.
+This needs `filesAcl: READ, WRITE` on `ds_entity_matching`. Collect also checks a digest
+stored in the RAW state row before applying staged matches or (on submit) using the
+target cache.
 
 ### Primary and secondary scope
 
@@ -181,7 +183,7 @@ run to one.
 ## Tests
 
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching -q
+uv run pytest modules/contextualization/cdf_entity_matching/tests/fn_dm_context_entity_matching -q
 ```
 
 Locally:

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_entity_matching"))
 
 import em_pipeline  # isort: skip
 from em_config import Config, ConfigData, Parameters, ViewPropertyConfig  # isort: skip
@@ -126,5 +126,42 @@ def test_rule_match_row_keeps_entity_scope(monkeypatch: pytest.MonkeyPatch) -> N
     good, cnt = em_pipeline.apply_rule_mappings(MagicMock(), build_config(), MagicMock(), [], targets, entities)
 
     assert cnt == 1
+    assert good[0].get(KEY_SCOPE_PRIMARY) == "VAL"
+    assert good[0].get(KEY_SCOPE_SECONDARY) == "23"
+
+
+def test_select_and_apply_matches_copies_scope_from_predict_source(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(em_pipeline, "add_to_items", lambda *a, **k: [])
+    monkeypatch.setattr(em_pipeline, "_flush_when_full", lambda *a, **k: [])
+
+    match_results = [
+        {
+            KEY_SOURCE: {
+                KEY_ENTITY_EXT_ID: "ts-1",
+                KEY_ENTITY_SPACE: "inst",
+                KEY_ORG_NAME: "VAL_23-KA-9101",
+                KEY_NAME: "VAL_23_KA_9101",
+                KEY_TARGET_LINKS: "[]",
+                KEY_SCOPE_PRIMARY: "VAL",
+                KEY_SCOPE_SECONDARY: "23",
+            },
+            KEY_MATCHES: [
+                {
+                    KEY_SCORE: 0.95,
+                    KEY_TARGET: {
+                        KEY_TARGET_EXT_ID: "asset-1",
+                        KEY_TARGET_SPACE: "inst",
+                        KEY_ORG_NAME: "23-KA-9101",
+                        KEY_NAME: "23_KA_9101",
+                    },
+                }
+            ],
+        }
+    ]
+
+    good, bad, cnt = em_pipeline.select_and_apply_matches(MagicMock(), build_config(), MagicMock(), [], match_results)
+
+    assert cnt == 1
+    assert bad == []
     assert good[0].get(KEY_SCOPE_PRIMARY) == "VAL"
     assert good[0].get(KEY_SCOPE_SECONDARY) == "23"

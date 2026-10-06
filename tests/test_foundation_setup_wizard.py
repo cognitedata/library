@@ -14,7 +14,6 @@ Covers:
   - _pack_config  : detect_data_model_variant, detect_pack_kind
 """
 
-
 import re
 import sys
 import textwrap
@@ -23,7 +22,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-REPO_ROOT   = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = REPO_ROOT / "modules" / "common" / "cdf_project_foundation" / "scripts"
 
 # Make scripts importable without installing them.
@@ -33,12 +32,14 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 # ── _yaml_patch ────────────────────────────────────────────────────────────────
 
+
 class TestYamlPatchFindLine:
     def _lines(self, text: str) -> list[str]:
         return textwrap.dedent(text).splitlines(keepends=True)
 
     def test_finds_top_level_key(self) -> None:
         from _yaml_patch import find_line
+
         lines = self._lines("""\
             site: oslo
             dataset: ds_pi
@@ -48,6 +49,7 @@ class TestYamlPatchFindLine:
 
     def test_finds_nested_key(self) -> None:
         from _yaml_patch import find_line
+
         lines = self._lines("""\
             variables:
               modules:
@@ -58,12 +60,14 @@ class TestYamlPatchFindLine:
 
     def test_returns_none_for_missing_key(self) -> None:
         from _yaml_patch import find_line
+
         lines = self._lines("site: oslo\n")
         assert find_line(lines, "missing") is None
         assert find_line(lines, "site.nested") is None
 
     def test_skips_comment_lines(self) -> None:
         from _yaml_patch import find_line
+
         lines = self._lines("""\
             # comment
             site: oslo
@@ -72,6 +76,7 @@ class TestYamlPatchFindLine:
 
     def test_distinguishes_sibling_sections(self) -> None:
         from _yaml_patch import find_line
+
         lines = self._lines("""\
             a:
               x: 1
@@ -85,21 +90,25 @@ class TestYamlPatchFindLine:
 class TestYamlPatchGetValue:
     def test_gets_scalar(self) -> None:
         from _yaml_patch import get_value
+
         lines = "site: oslo\n".splitlines(keepends=True)
         assert get_value(lines, "site") == "oslo"
 
     def test_strips_quotes(self) -> None:
         from _yaml_patch import get_value
+
         lines = 'site: "oslo"\n'.splitlines(keepends=True)
         assert get_value(lines, "site") == "oslo"
 
     def test_returns_none_for_missing(self) -> None:
         from _yaml_patch import get_value
+
         lines = "site: oslo\n".splitlines(keepends=True)
         assert get_value(lines, "missing") is None
 
     def test_ignores_inline_comment_in_value(self) -> None:
         from _yaml_patch import get_value
+
         lines = "site: oslo  # the site\n".splitlines(keepends=True)
         assert get_value(lines, "site") == "oslo"
 
@@ -107,6 +116,7 @@ class TestYamlPatchGetValue:
 class TestYamlPatchSetValue:
     def test_updates_scalar(self) -> None:
         from _yaml_patch import set_value
+
         lines = ["site: oslo\n"]
         old, changed = set_value(lines, "site", "berlin")
         assert changed
@@ -115,12 +125,14 @@ class TestYamlPatchSetValue:
 
     def test_no_change_when_same_value(self) -> None:
         from _yaml_patch import set_value
+
         lines = ["site: oslo\n"]
         _, changed = set_value(lines, "site", "oslo")
         assert not changed
 
     def test_preserves_trailing_comment(self) -> None:
         from _yaml_patch import set_value
+
         lines = ["site: oslo  # required\n"]
         set_value(lines, "site", "berlin")
         assert "# required" in lines[0]
@@ -128,6 +140,7 @@ class TestYamlPatchSetValue:
 
     def test_removes_block_sequence_items(self) -> None:
         from _yaml_patch import set_value
+
         lines = [
             "dataset:\n",
             "- ds_pi\n",
@@ -136,12 +149,13 @@ class TestYamlPatchSetValue:
         ]
         _, changed = set_value(lines, "dataset", "[ds_pi, ds_sap]")
         assert changed
-        assert len(lines) == 2   # only dataset and site remain
+        assert len(lines) == 2  # only dataset and site remain
         assert "[ds_pi, ds_sap]" in lines[0]
         assert "site" in lines[1]
 
     def test_handles_empty_block_list(self) -> None:
         from _yaml_patch import set_value
+
         lines = ["dataset:\n", "- ds_pi\n"]
         set_value(lines, "dataset", "[]")
         assert len(lines) == 1
@@ -149,6 +163,7 @@ class TestYamlPatchSetValue:
 
     def test_returns_none_for_missing_path(self) -> None:
         from _yaml_patch import set_value
+
         lines = ["site: oslo\n"]
         old, changed = set_value(lines, "missing.key", "x")
         assert old is None
@@ -156,6 +171,7 @@ class TestYamlPatchSetValue:
 
     def test_ensures_space_after_colon(self) -> None:
         from _yaml_patch import set_value
+
         # Key with no value (block list follows)
         lines = ["dataset:\n", "- ds_pi\n"]
         set_value(lines, "dataset", "[]")
@@ -165,6 +181,7 @@ class TestYamlPatchSetValue:
 class TestYamlPatchInsertKey:
     def test_inserts_into_existing_section(self) -> None:
         from _yaml_patch import insert_key
+
         lines = [
             "variables:\n",
             "  modules:\n",
@@ -178,11 +195,13 @@ class TestYamlPatchInsertKey:
 
     def test_returns_false_for_missing_parent(self) -> None:
         from _yaml_patch import insert_key
+
         lines = ["site: oslo\n"]
         assert not insert_key(lines, "missing.parent", "key", "val")
 
     def test_inserted_line_uses_correct_indentation(self) -> None:
         from _yaml_patch import insert_key
+
         lines = [
             "section:\n",
             "  existing: yes\n",
@@ -195,6 +214,7 @@ class TestYamlPatchInsertKey:
 class TestYamlPatchDeleteKey:
     def test_deletes_scalar(self) -> None:
         from _yaml_patch import delete_key
+
         lines = ["site: oslo\n", "dataset: ds_pi\n"]
         assert delete_key(lines, "site")
         assert len(lines) == 1
@@ -202,6 +222,7 @@ class TestYamlPatchDeleteKey:
 
     def test_deletes_with_block_items(self) -> None:
         from _yaml_patch import delete_key
+
         lines = ["dataset:\n", "- ds_pi\n", "- ds_sap\n", "site: oslo\n"]
         delete_key(lines, "dataset")
         assert len(lines) == 1
@@ -209,15 +230,18 @@ class TestYamlPatchDeleteKey:
 
     def test_returns_false_for_missing_key(self) -> None:
         from _yaml_patch import delete_key
+
         lines = ["site: oslo\n"]
         assert not delete_key(lines, "missing")
 
 
 # ── _env_io ────────────────────────────────────────────────────────────────────
 
+
 class TestEnvIO:
     def test_parse_empty_file(self, tmp_path: Path) -> None:
         from _env_io import parse_env_file
+
         p = tmp_path / ".env"
         p.write_text("")
         _lines, vals, _idx = parse_env_file(p)
@@ -225,12 +249,14 @@ class TestEnvIO:
 
     def test_parse_missing_file(self, tmp_path: Path) -> None:
         from _env_io import parse_env_file
+
         lines, vals, _idx = parse_env_file(tmp_path / ".env")
         assert lines == []
         assert vals == {}
 
     def test_parse_key_value_pairs(self, tmp_path: Path) -> None:
         from _env_io import parse_env_file
+
         p = tmp_path / ".env"
         p.write_text('FOO=bar\nBAZ="qux"\n')
         _, vals, _ = parse_env_file(p)
@@ -239,6 +265,7 @@ class TestEnvIO:
 
     def test_parse_skips_comments(self, tmp_path: Path) -> None:
         from _env_io import parse_env_file
+
         p = tmp_path / ".env"
         p.write_text("# comment\nFOO=bar\n")
         _, vals, _ = parse_env_file(p)
@@ -247,6 +274,7 @@ class TestEnvIO:
 
     def test_parse_normalises_trailing_newline(self, tmp_path: Path) -> None:
         from _env_io import parse_env_file
+
         p = tmp_path / ".env"
         p.write_text("FOO=bar")  # no trailing newline
         lines, _, _ = parse_env_file(p)
@@ -254,6 +282,7 @@ class TestEnvIO:
 
     def test_upsert_new_key(self, tmp_path: Path) -> None:
         from _env_io import parse_env_file, upsert_env
+
         p = tmp_path / ".env"
         p.write_text("EXISTING=yes\n")
         lines, _vals, idx = parse_env_file(p)
@@ -262,6 +291,7 @@ class TestEnvIO:
 
     def test_upsert_updates_existing_key(self, tmp_path: Path) -> None:
         from _env_io import parse_env_file, upsert_env
+
         p = tmp_path / ".env"
         p.write_text("FOO=old\n")
         lines, _vals, idx = parse_env_file(p)
@@ -271,6 +301,7 @@ class TestEnvIO:
 
     def test_upsert_no_quotes(self, tmp_path: Path) -> None:
         from _env_io import parse_env_file, upsert_env
+
         p = tmp_path / ".env"
         p.write_text("")
         lines, _vals, idx = parse_env_file(p)
@@ -281,24 +312,29 @@ class TestEnvIO:
 
 # ── setup_project — domain helpers ────────────────────────────────────────────
 
+
 class TestGroupName:
     def test_no_site(self) -> None:
         from setup_project import group_name
+
         assert group_name("consumer", "", "dev") == "consumer_all_dev"
         assert group_name("admin", "", "prod") == "admin_all_prod"
 
     def test_with_site(self) -> None:
         from setup_project import group_name
+
         assert group_name("producer", "oslo", "dev") == "producer_oslo_all_dev"
         assert group_name("consumer", "oslo", "prod") == "consumer_oslo_all_prod"
 
     def test_test_env_maps_to_dev_suffix(self) -> None:
         from setup_project import group_name
+
         # test env uses the same group as dev (GROUP_ENV["test"] == "dev")
         assert group_name("consumer", "", "test") == "consumer_all_dev"
 
     def test_test_env_with_site(self) -> None:
         from setup_project import group_name
+
         assert group_name("admin", "oslo", "test") == "admin_oslo_all_dev"
 
 
@@ -306,14 +342,26 @@ class TestPromptSite:
     def test_rejects_hyphen_and_reprompts(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """The site becomes a token in external IDs, where hyphens are not allowed."""
         import setup_project
+
         answers = iter(["north-sea", "northsea"])
         monkeypatch.setattr(setup_project, "prompt", lambda *_args, **_kwargs: next(answers))
         assert setup_project._prompt_site("") == "northsea"
+
+    def test_hint_does_not_offer_hyphens(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import setup_project
+
+        hints: list[str] = []
+        monkeypatch.setattr(setup_project, "_section", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(setup_project, "_hint", lambda msg: hints.append(msg))
+        monkeypatch.setattr(setup_project, "prompt", lambda *_args, **_kwargs: "oslo")
+        setup_project._prompt_site("")
+        assert not any("hyphen" in hint.lower() for hint in hints)
 
 
 class TestBuildFoundationVars:
     def test_isa_variant_contains_required_keys(self) -> None:
         from setup_project import build_foundation_vars
+
         vars_ = build_foundation_vars("isa_manufacturing_extension", "dev", "oslo")
         assert vars_["dataModelVariant"] == "isa_manufacturing_extension"
         assert vars_["schemaSpace"] == "dm_dom_isa_manufacturing"
@@ -331,15 +379,16 @@ class TestBuildFoundationVars:
         rejects as an invalid capability — this must never happen for a variant that
         ships its own dataset."""
         from setup_project import build_foundation_vars
-        assert build_foundation_vars("isa_manufacturing_extension", "dev", "")["dataset"] == [
-            "ds_isa_manufacturing"
-        ]
+
+        assert build_foundation_vars("isa_manufacturing_extension", "dev", "")["dataset"] == ["ds_isa_manufacturing"]
         assert build_foundation_vars("isa_manufacturing_extension", "dev", "", ["ds_pi"])["dataset"] == [
-            "ds_pi", "ds_isa_manufacturing"
+            "ds_pi",
+            "ds_isa_manufacturing",
         ]
 
     def test_cfihos_variant(self) -> None:
         from setup_project import build_foundation_vars
+
         vars_ = build_foundation_vars("cfihos_oil_and_gas_extension", "prod", "")
         assert vars_["schemaSpace"] == "dm_dom_oil_and_gas"
         assert vars_["instanceSpace"] == "inst_cfihos_oil_and_gas"
@@ -350,6 +399,7 @@ class TestBuildFoundationVars:
         transformations/RAW tables are tagged with) must be in the persona groups'
         dataset scope, or producer/consumer/admin have no access to those resources."""
         from setup_project import build_foundation_vars
+
         vars_ = build_foundation_vars("cfihos_oil_and_gas_extension", "dev", "")
         assert vars_["dataset"] == ["ds_oil_and_gas_domain_model"]
 
@@ -357,18 +407,19 @@ class TestBuildFoundationVars:
         """cdm ships no DM extension module, so there is no extra dataset to fold in —
         dataset stays exactly whatever the source-system modules contributed."""
         from setup_project import build_foundation_vars
+
         assert build_foundation_vars("cdm", "dev", "")["dataset"] == []
         assert build_foundation_vars("cdm", "dev", "", ["ds_pi"])["dataset"] == ["ds_pi"]
 
     def test_datasets_for_variant_does_not_duplicate(self) -> None:
         from setup_project import datasets_for_variant
-        result = datasets_for_variant(
-            "cfihos_oil_and_gas_extension", ["ds_oil_and_gas_domain_model", "ds_pi"]
-        )
+
+        result = datasets_for_variant("cfihos_oil_and_gas_extension", ["ds_oil_and_gas_domain_model", "ds_pi"])
         assert result == ["ds_oil_and_gas_domain_model", "ds_pi"]
 
     def test_cdm_variant_contains_required_keys(self) -> None:
         from setup_project import build_foundation_vars
+
         vars_ = build_foundation_vars("cdm", "dev", "")
         assert vars_["dataModelVariant"] == "cdm"
         assert vars_["schemaSpace"] == "cdf_cdm"
@@ -377,16 +428,19 @@ class TestBuildFoundationVars:
 
     def test_cdm_variant_instance_space_derived_from_site(self) -> None:
         from setup_project import build_foundation_vars
+
         vars_ = build_foundation_vars("cdm", "dev", "oslo")
         assert vars_["instanceSpace"] == "sp_oslo_instances"
 
     def test_isa_variant_instance_space_falls_back_without_site(self) -> None:
         from setup_project import build_foundation_vars
+
         vars_ = build_foundation_vars("isa_manufacturing_extension", "dev", "")
         assert vars_["instanceSpace"] == "inst_isa_manufacturing"
 
     def test_cfihos_variant_instance_space_derived_from_site(self) -> None:
         from setup_project import build_foundation_vars
+
         vars_ = build_foundation_vars("cfihos_oil_and_gas_extension", "dev", "oslo")
         assert vars_["instanceSpace"] == "inst_oslo_cfihos_oil_and_gas"
 
@@ -426,51 +480,64 @@ class TestBuildFoundationVars:
         from setup_project import build_foundation_vars
 
         expected_keys = {
-            "dataModelVariant", "schemaSpace", "instanceSpace", "site", "dataset",
+            "dataModelVariant",
+            "schemaSpace",
+            "instanceSpace",
+            "site",
+            "dataset",
             "additionalSchemaSpaces",
-            "consumerGroupName", "producerGroupName", "adminGroupName",
-            "consumerSourceId", "producerSourceId", "adminSourceId",
+            "consumerGroupName",
+            "producerGroupName",
+            "adminGroupName",
+            "consumerSourceId",
+            "producerSourceId",
+            "adminSourceId",
         }
         for variant in ("cdm", "isa_manufacturing_extension", "cfihos_oil_and_gas_extension"):
             vars_ = build_foundation_vars(variant, "dev", "oslo", ["ds_pi"])
-            assert set(vars_.keys()) == expected_keys, (
-                f"unexpected key set for variant={variant}: {set(vars_.keys())}"
-            )
+            assert set(vars_.keys()) == expected_keys, f"unexpected key set for variant={variant}: {set(vars_.keys())}"
 
 
 class TestCdmInstanceSpace:
     def test_uses_site_when_set(self) -> None:
         from setup_project import _cdm_instance_space
+
         assert _cdm_instance_space("oslo") == "sp_oslo_instances"
 
     def test_falls_back_to_static_placeholder_when_site_blank(self) -> None:
         from setup_project import _cdm_instance_space
+
         assert _cdm_instance_space("") == "sp_cdm_instances"
 
 
 class TestCfihosInstanceSpace:
     def test_uses_site_when_set(self) -> None:
         from setup_project import _cfihos_instance_space
+
         assert _cfihos_instance_space("oslo") == "inst_oslo_cfihos_oil_and_gas"
 
     def test_falls_back_to_static_placeholder_when_site_blank(self) -> None:
         from setup_project import _cfihos_instance_space
+
         assert _cfihos_instance_space("") == "inst_cfihos_oil_and_gas"
 
 
 class TestIsaInstanceSpace:
     def test_uses_site_when_set(self) -> None:
         from setup_project import _isa_instance_space
+
         assert _isa_instance_space("oslo") == "inst_oslo_isa_manufacturing"
 
     def test_falls_back_to_static_placeholder_when_site_blank(self) -> None:
         from setup_project import _isa_instance_space
+
         assert _isa_instance_space("") == "inst_isa_manufacturing"
 
 
 class TestBuildOverlay:
     def test_isa_overlay_structure(self) -> None:
         from setup_project import build_overlay
+
         overlay = build_overlay("isa_manufacturing_extension", "dev", "", [])
         mods = overlay["variables"]["modules"]
         assert "cdf_project_foundation" in mods
@@ -478,12 +545,14 @@ class TestBuildOverlay:
 
     def test_isa_overlay_instance_space_derived_from_site(self) -> None:
         from setup_project import build_overlay
+
         overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [])
         mods = overlay["variables"]["modules"]
         assert mods["isa_manufacturing_extension"]["instance_space"] == "inst_oslo_isa_manufacturing"
 
     def test_cfihos_overlay_has_no_isa_keys(self) -> None:
         from setup_project import build_overlay
+
         overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "", [])
         mods = overlay["variables"]["modules"]
         dm = mods["cfihos_oil_and_gas_extension"]
@@ -494,64 +563,60 @@ class TestBuildOverlay:
 
     def test_cfihos_search_module_added_when_present(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
+
         # Simulate search module being installed
         search_dir = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension_search"
         search_dir.mkdir(parents=True)
-        overlay = build_overlay(
-            "cfihos_oil_and_gas_extension", "dev", "", [], repo_root=tmp_path
-        )
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "", [], repo_root=tmp_path)
         mods = overlay["variables"]["modules"]
         assert "cfihos_oil_and_gas_extension_search" in mods
         assert mods["cfihos_oil_and_gas_extension_search"]["instance_space"] == "inst_cfihos_oil_and_gas"
 
     def test_cfihos_search_module_instance_space_derived_from_site(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
+
         search_dir = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension_search"
         search_dir.mkdir(parents=True)
-        overlay = build_overlay(
-            "cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path
-        )
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
         mods = overlay["variables"]["modules"]
         assert mods["cfihos_oil_and_gas_extension_search"]["instance_space"] == "inst_oslo_cfihos_oil_and_gas"
 
     def test_isa_search_module_instance_space_derived_from_site(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
+
         search_dir = tmp_path / "modules" / "datamodels" / "isa_manufacturing_extension_search"
         search_dir.mkdir(parents=True)
-        overlay = build_overlay(
-            "isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path
-        )
+        overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path)
         mods = overlay["variables"]["modules"]
         assert mods["isa_manufacturing_extension_search"]["instance_space"] == "inst_oslo_isa_manufacturing"
 
     def test_cfihos_search_module_absent_when_not_installed(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
-        overlay = build_overlay(
-            "cfihos_oil_and_gas_extension", "dev", "", [], repo_root=tmp_path
-        )
+
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "", [], repo_root=tmp_path)
         mods = overlay["variables"]["modules"]
         assert "cfihos_oil_and_gas_extension_search" not in mods
 
     def test_app_owner_injected_when_file_annotation_installed(self) -> None:
         from setup_project import build_overlay
+
         overlay = build_overlay(
-            "isa_manufacturing_extension", "dev", "", ["cdf_file_annotation"],
-            app_owner="owner@example.com"
+            "isa_manufacturing_extension", "dev", "", ["cdf_file_annotation"], app_owner="owner@example.com"
         )
         fa = overlay["variables"]["modules"]["cdf_file_annotation"]
         assert fa["ApplicationOwner"] == "owner@example.com"
 
     def test_entity_matching_is_installed_without_location_or_source_name(self) -> None:
         from setup_project import build_overlay
-        overlay = build_overlay(
-            "isa_manufacturing_extension", "dev", "oslo", ["cdf_entity_matching"]
-        )
+
+        overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", ["cdf_entity_matching"])
         em = overlay["variables"]["modules"]["cdf_entity_matching"]
         assert "location_name" not in em
         assert "source_name" not in em
 
     def test_no_contextualization_vars_when_not_installed(self) -> None:
         from setup_project import build_overlay
+
         overlay = build_overlay("isa_manufacturing_extension", "dev", "", [])
         mods = overlay["variables"]["modules"]
         assert "cdf_entity_matching" not in mods
@@ -559,8 +624,12 @@ class TestBuildOverlay:
 
     def test_cfihos_owner_vars_injected(self) -> None:
         from setup_project import build_overlay
+
         overlay = build_overlay(
-            "cfihos_oil_and_gas_extension", "dev", "", [],
+            "cfihos_oil_and_gas_extension",
+            "dev",
+            "",
+            [],
             cfihos_admin_user="admin@firm.com",
             cfihos_integration_owner_name="Alice",
             cfihos_integration_owner_email="alice@firm.com",
@@ -572,9 +641,8 @@ class TestBuildOverlay:
 
     def test_cdm_overlay_uses_base_cognite_core_views(self) -> None:
         from setup_project import build_overlay
-        overlay = build_overlay(
-            "cdm", "dev", "oslo", ["cdf_entity_matching", "cdf_file_annotation"]
-        )
+
+        overlay = build_overlay("cdm", "dev", "oslo", ["cdf_entity_matching", "cdf_file_annotation"])
         mods = overlay["variables"]["modules"]
         em = mods["cdf_entity_matching"]
         assert em["schemaSpace"] == "cdf_cdm"
@@ -598,6 +666,7 @@ class TestCheckConfigDiff:
 
     def test_mismatch_is_reported(self) -> None:
         from setup_project import diff_config
+
         config = {"variables": {"modules": {"my_datamodel": {"dm_version": "v2"}}}}
         expected = {"my_datamodel.dm_version": "v1"}
         errors = diff_config(config, expected)
@@ -605,18 +674,21 @@ class TestCheckConfigDiff:
 
     def test_matching_value_reports_nothing(self) -> None:
         from setup_project import diff_config
+
         config = {"variables": {"modules": {"my_datamodel": {"dm_version": "v1"}}}}
         expected = {"my_datamodel.dm_version": "v1"}
         assert diff_config(config, expected) == []
 
     def test_missing_key_is_reported(self) -> None:
         from setup_project import diff_config
+
         expected = {"my_datamodel.dm_version": "v1"}
         errors = diff_config({"variables": {"modules": {}}}, expected)
         assert errors == ["    my_datamodel.dm_version: got None, expected 'v1'"]
 
     def test_invalid_config_type_is_reported(self) -> None:
         from setup_project import diff_config
+
         expected = {"my_datamodel.dm_version": "v1"}
         errors = diff_config([], expected)
         assert errors == ["    (invalid config file format — expected a dictionary)"]
@@ -630,6 +702,7 @@ class TestModuleDataset:
 
     def test_per_extractor_dataset_uses_location(self) -> None:
         from setup_project import _module_dataset
+
         assert _module_dataset("cdf_pi_extractor", "oslo") == "ds_pi_oslo"
         assert _module_dataset("cdf_sap_extractor", "oslo") == "ds_sap_oslo"
         assert _module_dataset("cdf_files_extractor", "oslo") == "ds_files_oslo"
@@ -640,13 +713,13 @@ class TestModuleDataset:
         """Matches the module default in default.config.yaml, so a project set up
         without the wizard still resolves to a valid externalId."""
         from setup_project import _module_dataset
+
         assert _module_dataset("cdf_pi_extractor", "") == "ds_pi"
 
     def test_resolve_sourcesystem_writes_dataset(self) -> None:
         from setup_project import resolve_sourcesystem_variables
-        result = resolve_sourcesystem_variables(
-            ["cdf_sap_extractor", "cdf_pi_extractor"], "dev", "oslo"
-        )
+
+        result = resolve_sourcesystem_variables(["cdf_sap_extractor", "cdf_pi_extractor"], "dev", "oslo")
         assert result["cdf_sap_extractor"]["dataset"] == "ds_sap_oslo"
         assert result["cdf_pi_extractor"]["dataset"] == "ds_pi_oslo"
 
@@ -654,6 +727,7 @@ class TestModuleDataset:
         """The persona groups' dataset scope must list the same externalIds the
         extractor modules deploy, or producer/consumer/admin lose access to them."""
         from setup_project import build_overlay
+
         ss_dir = tmp_path / "modules" / "sourcesystem"
         (ss_dir / "cdf_sap_extractor").mkdir(parents=True)
         (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
@@ -665,25 +739,27 @@ class TestModuleDataset:
         """Re-running the wizard on a project written before location scoping reads
         the old ds_pi from disk — it must be replaced, not appended alongside."""
         from setup_project import build_overlay
+
         ss_dir = tmp_path / "modules" / "sourcesystem"
         (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
-        overlay = build_overlay(
-            "cdm", "dev", "oslo", [], datasets=["ds_pi"], repo_root=tmp_path
-        )
+        overlay = build_overlay("cdm", "dev", "oslo", [], datasets=["ds_pi"], repo_root=tmp_path)
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
         assert pf["dataset"] == ["ds_pi_oslo"]
 
-    def test_build_overlay_keeps_custom_dataset_sharing_an_extractor_prefix(
-        self, tmp_path: Path
-    ) -> None:
+    def test_build_overlay_keeps_custom_dataset_sharing_an_extractor_prefix(self, tmp_path: Path) -> None:
         """ds_files_archive is not an id the wizard generates — dropping it would
         silently revoke the persona groups' access to a data set the user added."""
         from setup_project import build_overlay
+
         ss_dir = tmp_path / "modules" / "sourcesystem"
         (ss_dir / "cdf_files_extractor").mkdir(parents=True)
         overlay = build_overlay(
-            "cdm", "dev", "oslo", [],
-            datasets=["ds_files_archive"], repo_root=tmp_path,
+            "cdm",
+            "dev",
+            "oslo",
+            [],
+            datasets=["ds_files_archive"],
+            repo_root=tmp_path,
         )
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
         assert pf["dataset"] == ["ds_files_oslo", "ds_files_archive"]
@@ -691,28 +767,31 @@ class TestModuleDataset:
     def test_build_overlay_replaces_previous_sites_datasets(self, tmp_path: Path) -> None:
         """On a site rename the ids the last run wrote are replaced, not accumulated."""
         from setup_project import build_overlay
+
         ss_dir = tmp_path / "modules" / "sourcesystem"
         (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
         overlay = build_overlay(
-            "cdm", "dev", "bergen", [],
-            datasets=["ds_pi_oslo"], previous_site="oslo", repo_root=tmp_path,
+            "cdm",
+            "dev",
+            "bergen",
+            [],
+            datasets=["ds_pi_oslo"],
+            previous_site="oslo",
+            repo_root=tmp_path,
         )
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
         assert pf["dataset"] == ["ds_pi_bergen"]
 
-    def test_build_overlay_keeps_unknown_site_dataset_when_no_previous_site(
-        self, tmp_path: Path
-    ) -> None:
+    def test_build_overlay_keeps_unknown_site_dataset_when_no_previous_site(self, tmp_path: Path) -> None:
         """Without a recorded previous site the old id cannot be told apart from a
         custom one, so it is kept. That data set exists in CDF, so the result is a
         stale grant the user can remove — never a scope referencing a data set that
         was never deployed."""
         from setup_project import build_overlay
+
         ss_dir = tmp_path / "modules" / "sourcesystem"
         (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
-        overlay = build_overlay(
-            "cdm", "dev", "bergen", [], datasets=["ds_pi_oslo"], repo_root=tmp_path
-        )
+        overlay = build_overlay("cdm", "dev", "bergen", [], datasets=["ds_pi_oslo"], repo_root=tmp_path)
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
         assert pf["dataset"] == ["ds_pi_bergen", "ds_pi_oslo"]
 
@@ -720,9 +799,14 @@ class TestModuleDataset:
         """cdf_ingestion's dataset (Demo pack) is not owned by any extractor module —
         it is read from the config and must survive."""
         from setup_project import build_overlay
+
         overlay = build_overlay(
-            "cfihos_oil_and_gas_extension", "dev", "oslo",
-            [], datasets=["ds_custom_ingestion"], repo_root=tmp_path,
+            "cfihos_oil_and_gas_extension",
+            "dev",
+            "oslo",
+            [],
+            datasets=["ds_custom_ingestion"],
+            repo_root=tmp_path,
         )
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
         assert pf["dataset"] == ["ds_custom_ingestion", "ds_oil_and_gas_domain_model"]
@@ -732,21 +816,32 @@ class TestModuleDataset:
         Custom ids on cdf_project_foundation.dataset must survive that round-trip;
         build_overlay-only tests miss the gap if the reader never surfaces them."""
         from setup_project import _read_existing_values, build_overlay
+
         ss_dir = tmp_path / "modules" / "sourcesystem"
         (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
-        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "cdf_project_foundation": {
-                    "site": "oslo",
-                    "dataset": ["ds_pi", "ds_files_archive"],
+        (tmp_path / "config.dev.yaml").write_text(
+            yaml.dump(
+                {
+                    "environment": {"project": "acme-dev"},
+                    "variables": {
+                        "modules": {
+                            "cdf_project_foundation": {
+                                "site": "oslo",
+                                "dataset": ["ds_pi", "ds_files_archive"],
+                            },
+                            "cdf_pi_extractor": {"dataset": "ds_pi"},
+                        }
+                    },
                 },
-                "cdf_pi_extractor": {"dataset": "ds_pi"},
-            }},
-        }, sort_keys=False))
+                sort_keys=False,
+            )
+        )
         existing = _read_existing_values(tmp_path, ("dev",), ["cdf_pi_extractor"])
         overlay = build_overlay(
-            "cdm", "dev", "oslo", [],
+            "cdm",
+            "dev",
+            "oslo",
+            [],
             datasets=existing["dataset"],
             previous_site=existing["site"],
             repo_root=tmp_path,
@@ -758,18 +853,29 @@ class TestModuleDataset:
         """ds_oil_and_gas_domain_model is already on the foundation list and is
         also folded in by datasets_for_variant — the round-trip must not double it."""
         from setup_project import _read_existing_values, build_overlay
-        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "cdf_project_foundation": {
-                    "site": "oslo",
-                    "dataset": ["ds_custom_ingestion", "ds_oil_and_gas_domain_model"],
+
+        (tmp_path / "config.dev.yaml").write_text(
+            yaml.dump(
+                {
+                    "environment": {"project": "acme-dev"},
+                    "variables": {
+                        "modules": {
+                            "cdf_project_foundation": {
+                                "site": "oslo",
+                                "dataset": ["ds_custom_ingestion", "ds_oil_and_gas_domain_model"],
+                            },
+                        }
+                    },
                 },
-            }},
-        }, sort_keys=False))
+                sort_keys=False,
+            )
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         overlay = build_overlay(
-            "cfihos_oil_and_gas_extension", "dev", "oslo", [],
+            "cfihos_oil_and_gas_extension",
+            "dev",
+            "oslo",
+            [],
             datasets=existing["dataset"],
             previous_site=existing["site"],
             repo_root=tmp_path,
@@ -786,14 +892,18 @@ class TestSourceSystemSendNotification:
 
     def test_send_notification_false_when_no_owners_passed(self) -> None:
         from setup_project import resolve_sourcesystem_variables
+
         result = resolve_sourcesystem_variables(["cdf_pi_extractor"], "dev", "oslo")
         assert "integration_owner_send_notification" not in result["cdf_pi_extractor"]
         assert "data_owner_send_notification" not in result["cdf_pi_extractor"]
 
     def test_send_notification_false_when_owner_has_no_email(self) -> None:
         from setup_project import resolve_sourcesystem_variables
+
         result = resolve_sourcesystem_variables(
-            ["cdf_pi_extractor"], "dev", "oslo",
+            ["cdf_pi_extractor"],
+            "dev",
+            "oslo",
             integration_owners={"cdf_pi_extractor": ("Jane Doe", "")},
             data_owners={"cdf_pi_extractor": ("", "")},
         )
@@ -802,8 +912,11 @@ class TestSourceSystemSendNotification:
 
     def test_send_notification_true_when_email_configured(self) -> None:
         from setup_project import resolve_sourcesystem_variables
+
         result = resolve_sourcesystem_variables(
-            ["cdf_pi_extractor"], "dev", "oslo",
+            ["cdf_pi_extractor"],
+            "dev",
+            "oslo",
             integration_owners={"cdf_pi_extractor": ("Jane Doe", "jane@example.com")},
             data_owners={"cdf_pi_extractor": ("John Doe", "john@example.com")},
         )
@@ -838,6 +951,7 @@ class TestExtractorDataSetResources:
 class TestModuleInstanceSpace:
     def test_per_extractor_space_uses_location_and_suffix(self) -> None:
         from setup_project import _module_instance_space
+
         assert _module_instance_space("cdf_sap_extractor", "oslo") == "sp_oslo_sap"
         assert _module_instance_space("cdf_pi_extractor", "oslo") == "sp_oslo_pi"
         assert _module_instance_space("cdf_opcua_extractor", "oslo") == "sp_oslo_opcua"
@@ -846,14 +960,14 @@ class TestModuleInstanceSpace:
 
     def test_different_locations_produce_different_spaces(self) -> None:
         from setup_project import _module_instance_space
+
         assert _module_instance_space("cdf_sap_extractor", "oslo") != _module_instance_space("cdf_sap_extractor", "hou")
         assert _module_instance_space("cdf_pi_extractor", "berlin") == "sp_berlin_pi"
 
     def test_resolve_sourcesystem_gives_per_module_spaces(self, tmp_path: Path) -> None:
         from setup_project import resolve_sourcesystem_variables
-        result = resolve_sourcesystem_variables(
-            ["cdf_sap_extractor", "cdf_pi_extractor"], "dev", "oslo"
-        )
+
+        result = resolve_sourcesystem_variables(["cdf_sap_extractor", "cdf_pi_extractor"], "dev", "oslo")
         assert result["cdf_sap_extractor"]["instanceSpace"] == "sp_oslo_sap"
         assert result["cdf_pi_extractor"]["instanceSpace"] == "sp_oslo_pi"
         # Confirm they are distinct
@@ -861,6 +975,7 @@ class TestModuleInstanceSpace:
 
     def test_build_overlay_instancespaces_no_ss_modules(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
+
         # Use tmp_path as repo_root so no SS modules are found
         overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path)
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
@@ -868,13 +983,12 @@ class TestModuleInstanceSpace:
 
     def test_build_overlay_instancespaces_with_ss_modules(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
+
         # Simulate SAP and PI extractors installed
         ss_dir = tmp_path / "modules" / "sourcesystem"
         (ss_dir / "cdf_sap_extractor").mkdir(parents=True)
         (ss_dir / "cdf_pi_extractor").mkdir(parents=True)
-        overlay = build_overlay(
-            "isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path
-        )
+        overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path)
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
         assert "inst_oslo_isa_manufacturing" in pf["instanceSpaces"]
         assert "sp_oslo_sap" in pf["instanceSpaces"]
@@ -883,6 +997,7 @@ class TestModuleInstanceSpace:
 
     def test_build_overlay_instancespaces_cfihos_variant(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
+
         overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
         # CFIHOS's project-level space is site-derived, same as ISA.
@@ -890,6 +1005,7 @@ class TestModuleInstanceSpace:
 
     def test_build_overlay_instancespaces_cfihos_variant_no_site(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
+
         overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "", [], repo_root=tmp_path)
         pf = overlay["variables"]["modules"]["cdf_project_foundation"]
         assert pf["instanceSpaces"] == ["inst_cfihos_oil_and_gas"]
@@ -897,9 +1013,11 @@ class TestModuleInstanceSpace:
 
 # ── setup_project — config file writers ───────────────────────────────────────
 
+
 class TestWriteConfigFresh:
     def test_creates_yaml_with_env_block(self, tmp_path: Path) -> None:
         from setup_project import _write_config_fresh, build_overlay
+
         path = tmp_path / "config.dev.yaml"
         overlay = build_overlay("isa_manufacturing_extension", "dev", "", [])
         _write_config_fresh(path, "dev", "acme-dev", overlay)
@@ -910,9 +1028,9 @@ class TestWriteConfigFresh:
 
     def test_created_file_has_header_comment(self, tmp_path: Path) -> None:
         from setup_project import _write_config_fresh, build_overlay
+
         path = tmp_path / "config.dev.yaml"
-        _write_config_fresh(path, "dev", "acme-dev",
-                            build_overlay("isa_manufacturing_extension", "dev", "", []))
+        _write_config_fresh(path, "dev", "acme-dev", build_overlay("isa_manufacturing_extension", "dev", "", []))
         assert "setup_project.py" in path.read_text()
 
 
@@ -924,7 +1042,10 @@ class TestWriteConfigUpdate:
 
     def test_updates_project_name(self, tmp_path: Path) -> None:
         from setup_project import _write_config_update, build_overlay
-        p = self._make_config(tmp_path, """\
+
+        p = self._make_config(
+            tmp_path,
+            """\
             environment:
               name: dev
               project: old-project
@@ -948,7 +1069,8 @@ class TestWriteConfigUpdate:
                 isa_manufacturing_extension:
                   isaSchemaSpace: sp_isa_manufacturing
                   isaInstanceSpace: sp_isa_instance_space
-        """)
+        """,
+        )
         overlay = build_overlay("isa_manufacturing_extension", "dev", "", [])
         _write_config_update(p, "new-project", overlay)
         data = yaml.safe_load(p.read_text())
@@ -956,7 +1078,10 @@ class TestWriteConfigUpdate:
 
     def test_preserves_comments(self, tmp_path: Path) -> None:
         from setup_project import _write_config_update, build_overlay
-        p = self._make_config(tmp_path, """\
+
+        p = self._make_config(
+            tmp_path,
+            """\
             # My custom header
             environment:
               name: dev
@@ -981,7 +1106,8 @@ class TestWriteConfigUpdate:
                 isa_manufacturing_extension:
                   isaSchemaSpace: sp_isa_manufacturing
                   isaInstanceSpace: sp_isa_instance_space
-        """)
+        """,
+        )
         overlay = build_overlay("isa_manufacturing_extension", "dev", "", [])
         _write_config_update(p, "acme-dev", overlay)
         content = p.read_text()
@@ -990,6 +1116,7 @@ class TestWriteConfigUpdate:
 
     def test_returns_false_when_nothing_changed(self, tmp_path: Path) -> None:
         from setup_project import _write_config_fresh, _write_config_update, build_overlay
+
         # Use tmp_path as repo_root to avoid picking up real SS modules
         overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [], repo_root=tmp_path)
         p = tmp_path / "config.dev.yaml"
@@ -997,12 +1124,15 @@ class TestWriteConfigUpdate:
         # normalises them to inline style (counts as a change). A second call with the
         # same overlay must find nothing to change.
         _write_config_fresh(p, "dev", "acme-dev", overlay)
-        _write_config_update(p, "acme-dev", overlay)   # normalise list formats
+        _write_config_update(p, "acme-dev", overlay)  # normalise list formats
         assert not _write_config_update(p, "acme-dev", overlay)
 
     def test_removes_stale_groupsourceid(self, tmp_path: Path) -> None:
         from setup_project import _write_config_update, build_overlay
-        p = self._make_config(tmp_path, """\
+
+        p = self._make_config(
+            tmp_path,
+            """\
             environment:
               project: acme-dev
             variables:
@@ -1011,7 +1141,8 @@ class TestWriteConfigUpdate:
                   cdf_file_annotation:
                     groupSourceId: old-id
                     fileSchemaSpace: sp_isa_manufacturing
-        """)
+        """,
+        )
         overlay = build_overlay("isa_manufacturing_extension", "dev", "", ["cdf_file_annotation"])
         _write_config_update(p, "acme-dev", overlay)
         content = p.read_text()
@@ -1019,7 +1150,10 @@ class TestWriteConfigUpdate:
 
     def test_removes_reserved_word_prefix(self, tmp_path: Path) -> None:
         from setup_project import _write_config_update, build_overlay
-        p = self._make_config(tmp_path, """\
+
+        p = self._make_config(
+            tmp_path,
+            """\
             environment:
               project: acme-dev
             variables:
@@ -1027,7 +1161,8 @@ class TestWriteConfigUpdate:
                 cdf_entity_matching:
                   reservedWordPrefix: Enterprise_
                   schemaSpace: sp_isa_manufacturing
-        """)
+        """,
+        )
         overlay = build_overlay("isa_manufacturing_extension", "dev", "", [])
         _write_config_update(p, "acme-dev", overlay)
         assert "reservedWordPrefix" not in p.read_text()
@@ -1035,7 +1170,10 @@ class TestWriteConfigUpdate:
     def test_updates_nested_category_structure(self, tmp_path: Path) -> None:
         """Configs with old common.cdf_project_foundation nesting must be updated."""
         from setup_project import _write_config_update, build_overlay
-        p = self._make_config(tmp_path, """\
+
+        p = self._make_config(
+            tmp_path,
+            """\
             environment:
               project: old
             variables:
@@ -1044,7 +1182,8 @@ class TestWriteConfigUpdate:
                   cdf_project_foundation:
                     site: berlin
                     dataset: []
-        """)
+        """,
+        )
         overlay = build_overlay("isa_manufacturing_extension", "dev", "oslo", [])
         _write_config_update(p, "old", overlay)
         content = p.read_text()
@@ -1053,13 +1192,13 @@ class TestWriteConfigUpdate:
 
 # ── setup_project — staging migration ─────────────────────────────────────────
 
+
 class TestMigrateStagingToTest:
     def test_renames_and_patches_file(self, tmp_path: Path) -> None:
         from setup_project import _migrate_staging_to_test
+
         staging = tmp_path / "config.staging.yaml"
-        staging.write_text(
-            "environment:\n  name: staging\n  validation-type: dev\n  project: acme-staging\n"
-        )
+        staging.write_text("environment:\n  name: staging\n  validation-type: dev\n  project: acme-staging\n")
         result = _migrate_staging_to_test(tmp_path)
         assert result
         assert not staging.exists()
@@ -1072,10 +1211,12 @@ class TestMigrateStagingToTest:
 
     def test_no_op_when_staging_absent(self, tmp_path: Path) -> None:
         from setup_project import _migrate_staging_to_test
+
         assert not _migrate_staging_to_test(tmp_path)
 
     def test_warns_when_both_exist(self, tmp_path: Path) -> None:
         from setup_project import _migrate_staging_to_test
+
         (tmp_path / "config.staging.yaml").write_text("env: staging\n")
         (tmp_path / "config.test.yaml").write_text("env: test\n")
         result = _migrate_staging_to_test(tmp_path)
@@ -1085,6 +1226,7 @@ class TestMigrateStagingToTest:
 
 # ── setup_project — redundant auth removal ────────────────────────────────────
 
+
 class TestRemoveRedundantAuthFiles:
     def _make_auth_file(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1092,9 +1234,14 @@ class TestRemoveRedundantAuthFiles:
 
     def test_removes_entity_matching_auth(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
+
         auth = (
-            tmp_path / "modules" / "contextualization" / "cdf_entity_matching"
-            / "auth" / "entity.matching.processing.groups.Group.yaml"
+            tmp_path
+            / "modules"
+            / "contextualization"
+            / "cdf_entity_matching"
+            / "auth"
+            / "entity.matching.processing.groups.Group.yaml"
         )
         self._make_auth_file(auth)
         removed = remove_redundant_auth_files(tmp_path)
@@ -1103,9 +1250,9 @@ class TestRemoveRedundantAuthFiles:
 
     def test_removes_file_annotation_auth(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
+
         auth = (
-            tmp_path / "modules" / "contextualization" / "cdf_file_annotation"
-            / "auth" / "file_annotation.Group.yaml"
+            tmp_path / "modules" / "contextualization" / "cdf_file_annotation" / "auth" / "file_annotation.Group.yaml"
         )
         self._make_auth_file(auth)
         removed = remove_redundant_auth_files(tmp_path)
@@ -1114,10 +1261,8 @@ class TestRemoveRedundantAuthFiles:
 
     def test_removes_qualitizer_auth(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
-        auth = (
-            tmp_path / "modules" / "tools" / "apps" / "qualitizer"
-            / "auth" / "apps.qualitizer.Group.yaml"
-        )
+
+        auth = tmp_path / "modules" / "tools" / "apps" / "qualitizer" / "auth" / "apps.qualitizer.Group.yaml"
         self._make_auth_file(auth)
         removed = remove_redundant_auth_files(tmp_path)
         assert len(removed) == 1
@@ -1125,36 +1270,33 @@ class TestRemoveRedundantAuthFiles:
 
     def test_removes_cfihos_auth_groups(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
+
         for name in (
             "gp_cdf_owner_cfihos_oil_gas_data_model.group.yaml",
             "gp_cdf_read_cfihos_oil_gas_data_model.group.yaml",
         ):
-            self._make_auth_file(
-                tmp_path / "modules" / "datamodels"
-                / "cfihos_oil_and_gas_extension" / "auth" / name
-            )
+            self._make_auth_file(tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension" / "auth" / name)
         removed = remove_redundant_auth_files(tmp_path)
         assert len(removed) == 2
 
     def test_idempotent_when_files_already_removed(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
+
         removed = remove_redundant_auth_files(tmp_path)
         assert removed == []
 
     def test_removes_empty_ctx_auth_dir(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
-        auth_dir = (
-            tmp_path / "modules" / "contextualization" / "cdf_entity_matching" / "auth"
-        )
+
+        auth_dir = tmp_path / "modules" / "contextualization" / "cdf_entity_matching" / "auth"
         self._make_auth_file(auth_dir / "entity.matching.processing.groups.Group.yaml")
         remove_redundant_auth_files(tmp_path)
         assert not auth_dir.exists()
 
     def test_leaves_non_empty_ctx_auth_dir(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
-        auth_dir = (
-            tmp_path / "modules" / "contextualization" / "cdf_entity_matching" / "auth"
-        )
+
+        auth_dir = tmp_path / "modules" / "contextualization" / "cdf_entity_matching" / "auth"
         self._make_auth_file(auth_dir / "entity.matching.processing.groups.Group.yaml")
         self._make_auth_file(auth_dir / "other.Group.yaml")  # unrelated file stays
         remove_redundant_auth_files(tmp_path)
@@ -1162,9 +1304,8 @@ class TestRemoveRedundantAuthFiles:
 
     def test_removes_empty_cfihos_auth_dir(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
-        auth_dir = (
-            tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension" / "auth"
-        )
+
+        auth_dir = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension" / "auth"
         for name in (
             "gp_cdf_owner_cfihos_oil_gas_data_model.group.yaml",
             "gp_cdf_read_cfihos_oil_gas_data_model.group.yaml",
@@ -1175,9 +1316,8 @@ class TestRemoveRedundantAuthFiles:
 
     def test_leaves_non_empty_cfihos_auth_dir(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
-        auth_dir = (
-            tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension" / "auth"
-        )
+
+        auth_dir = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension" / "auth"
         self._make_auth_file(auth_dir / "gp_cdf_owner_cfihos_oil_gas_data_model.group.yaml")
         self._make_auth_file(auth_dir / "gp_cdf_read_cfihos_oil_gas_data_model.group.yaml")
         self._make_auth_file(auth_dir / "other.group.yaml")  # unrelated file stays
@@ -1188,6 +1328,7 @@ class TestRemoveRedundantAuthFiles:
 
     def test_removes_cdf_ingestion_auth(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
+
         ingestion_auth = tmp_path / "modules" / "common" / "cdf_ingestion" / "auth"
         self._make_auth_file(ingestion_auth / "user.Group.yaml")
         self._make_auth_file(ingestion_auth / "workflow.Group.yaml")
@@ -1198,6 +1339,7 @@ class TestRemoveRedundantAuthFiles:
 
     def test_removes_empty_cdf_ingestion_auth_dir(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
+
         ingestion_auth = tmp_path / "modules" / "common" / "cdf_ingestion" / "auth"
         self._make_auth_file(ingestion_auth / "user.Group.yaml")
         self._make_auth_file(ingestion_auth / "workflow.Group.yaml")
@@ -1206,6 +1348,7 @@ class TestRemoveRedundantAuthFiles:
 
     def test_leaves_non_empty_cdf_ingestion_auth_dir(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_auth_files
+
         ingestion_auth = tmp_path / "modules" / "common" / "cdf_ingestion" / "auth"
         self._make_auth_file(ingestion_auth / "user.Group.yaml")
         self._make_auth_file(ingestion_auth / "workflow.Group.yaml")
@@ -1216,6 +1359,7 @@ class TestRemoveRedundantAuthFiles:
     def test_no_op_when_cdf_ingestion_not_installed(self, tmp_path: Path) -> None:
         """Foundation-only projects never ship cdf_ingestion — must not error."""
         from setup_project import remove_redundant_auth_files
+
         removed = remove_redundant_auth_files(tmp_path)
         assert removed == []
 
@@ -1226,12 +1370,17 @@ class TestRestoreCdmSpaceFile:
 
     def _space_file(self, tmp_path: Path) -> Path:
         return (
-            tmp_path / "modules" / "common" / "cdf_project_foundation"
-            / "data_modeling" / "cdm_instance_space.Space.yaml"
+            tmp_path
+            / "modules"
+            / "common"
+            / "cdf_project_foundation"
+            / "data_modeling"
+            / "cdm_instance_space.Space.yaml"
         )
 
     def test_creates_file_when_missing_and_variant_is_cdm(self, tmp_path: Path) -> None:
         from setup_project import restore_cdm_space_file
+
         space_file = self._space_file(tmp_path)
         created = restore_cdm_space_file("cdm", tmp_path)
         assert created == space_file
@@ -1240,6 +1389,7 @@ class TestRestoreCdmSpaceFile:
 
     def test_noop_when_file_already_present(self, tmp_path: Path) -> None:
         from setup_project import restore_cdm_space_file
+
         space_file = self._space_file(tmp_path)
         space_file.parent.mkdir(parents=True)
         space_file.write_text("space: {{ instanceSpace }}\ncustom: true\n")
@@ -1249,6 +1399,7 @@ class TestRestoreCdmSpaceFile:
 
     def test_noop_when_variant_is_an_extension(self, tmp_path: Path) -> None:
         from setup_project import restore_cdm_space_file
+
         space_file = self._space_file(tmp_path)
         created = restore_cdm_space_file("isa_manufacturing_extension", tmp_path)
         assert created is None
@@ -1258,6 +1409,7 @@ class TestRestoreCdmSpaceFile:
         """A file created during a prior cdm run is intentionally left alone if the
         project later switches to an extension — nothing deletes it."""
         from setup_project import restore_cdm_space_file
+
         space_file = self._space_file(tmp_path)
         space_file.parent.mkdir(parents=True)
         space_file.write_text("space: {{ instanceSpace }}\n")
@@ -1267,6 +1419,7 @@ class TestRestoreCdmSpaceFile:
 
 # ── setup_project — CFIHOS auth patching ──────────────────────────────────────
 
+
 class TestPatchCfihosAuthForMissingSearch:
     def _cfihos_auth_dir(self, tmp_path: Path) -> Path:
         d = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension" / "auth"
@@ -1275,19 +1428,19 @@ class TestPatchCfihosAuthForMissingSearch:
 
     def test_removes_search_space_when_search_module_absent(self, tmp_path: Path) -> None:
         from setup_project import patch_cfihos_auth_for_missing_search
+
         auth_dir = self._cfihos_auth_dir(tmp_path)
         f = auth_dir / "owner.group.yaml"
-        f.write_text(
-            "spaceIds:\n  - cdf_cdm\n  - {{space}}\n  - {{search_space}}\n"
-        )
+        f.write_text("spaceIds:\n  - cdf_cdm\n  - {{space}}\n  - {{search_space}}\n")
         patched = patch_cfihos_auth_for_missing_search(tmp_path)
         assert len(patched) == 1
         content = f.read_text()
         assert "{{search_space}}" not in content
-        assert "{{space}}" in content   # unrelated line preserved
+        assert "{{space}}" in content  # unrelated line preserved
 
     def test_leaves_file_unchanged_when_search_module_present(self, tmp_path: Path) -> None:
         from setup_project import patch_cfihos_auth_for_missing_search
+
         auth_dir = self._cfihos_auth_dir(tmp_path)
         # Create the search module directory
         search = tmp_path / "modules" / "datamodels" / "cfihos_oil_and_gas_extension_search"
@@ -1300,10 +1453,12 @@ class TestPatchCfihosAuthForMissingSearch:
 
     def test_no_op_when_cfihos_not_installed(self, tmp_path: Path) -> None:
         from setup_project import patch_cfihos_auth_for_missing_search
+
         assert patch_cfihos_auth_for_missing_search(tmp_path) == []
 
     def test_idempotent_when_search_space_already_removed(self, tmp_path: Path) -> None:
         from setup_project import patch_cfihos_auth_for_missing_search
+
         auth_dir = self._cfihos_auth_dir(tmp_path)
         f = auth_dir / "owner.group.yaml"
         f.write_text("  - cdf_cdm\n  - {{space}}\n")
@@ -1312,6 +1467,7 @@ class TestPatchCfihosAuthForMissingSearch:
 
 
 # ── setup_project — synthetic data removal ────────────────────────────────────
+
 
 class TestRemoveSyntheticData:
     """remove_synthetic_data covers cfihos_oil_and_gas_extension and isa_manufacturing_extension."""
@@ -1335,6 +1491,7 @@ class TestRemoveSyntheticData:
 
     def test_removes_upload_data(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "upload_data", "data.csv", "manifest.yaml")
         count = remove_synthetic_data(self._CFIHOS, tmp_path)
@@ -1343,6 +1500,7 @@ class TestRemoveSyntheticData:
 
     def test_removes_raw(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "raw", "db.Database.yaml")
         count = remove_synthetic_data(self._CFIHOS, tmp_path)
@@ -1351,6 +1509,7 @@ class TestRemoveSyntheticData:
 
     def test_removes_workflows(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "workflows", "example.Workflow.yaml")
         count = remove_synthetic_data(self._CFIHOS, tmp_path)
@@ -1359,6 +1518,7 @@ class TestRemoveSyntheticData:
 
     def test_removes_transformations(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "transformations", "populate.sql")
         count = remove_synthetic_data(self._CFIHOS, tmp_path)
@@ -1367,6 +1527,7 @@ class TestRemoveSyntheticData:
 
     def test_removes_all_four_dirs(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "upload_data", "a.csv")
         self._make_files(cfihos / "raw", "b.yaml")
@@ -1379,15 +1540,18 @@ class TestRemoveSyntheticData:
 
     def test_no_op_when_cfihos_not_installed(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         assert remove_synthetic_data(self._CFIHOS, tmp_path) == 0
 
     def test_idempotent_when_dirs_already_removed(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         self._cfihos_dir(tmp_path)  # module dir exists but no synthetic dirs
         assert remove_synthetic_data(self._CFIHOS, tmp_path) == 0
 
     def test_does_not_touch_other_cfihos_dirs(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "data_modeling", "model.datamodel.yaml")
         self._make_files(cfihos / "auth", "group.yaml")
@@ -1397,6 +1561,7 @@ class TestRemoveSyntheticData:
 
     def test_removes_cfihos_model_config(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         cfihos = self._cfihos_dir(tmp_path)
         self._make_files(cfihos / "cfihos_model_config", "config.json", "schema.yaml")
         count = remove_synthetic_data(self._CFIHOS, tmp_path)
@@ -1407,6 +1572,7 @@ class TestRemoveSyntheticData:
         """No data model selected (variant == 'cdm') must not delete anything, even
         if stray ISA/CFIHOS directories are still physically present."""
         from setup_project import remove_synthetic_data
+
         cfihos = self._cfihos_dir(tmp_path)
         isa = self._isa_dir(tmp_path)
         self._make_files(cfihos / "upload_data", "a.csv")
@@ -1425,6 +1591,7 @@ class TestRemoveSyntheticData:
 
     def test_isa_removes_files_dir(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         isa = self._isa_dir(tmp_path)
         self._make_files(isa / "files", "sample.pdf")
         count = remove_synthetic_data(self._ISA, tmp_path)
@@ -1433,6 +1600,7 @@ class TestRemoveSyntheticData:
 
     def test_isa_removes_raw(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         isa = self._isa_dir(tmp_path)
         self._make_files(isa / "raw", "db.Database.yaml")
         count = remove_synthetic_data(self._ISA, tmp_path)
@@ -1441,6 +1609,7 @@ class TestRemoveSyntheticData:
 
     def test_isa_removes_transformations_and_workflows(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         isa = self._isa_dir(tmp_path)
         self._make_files(isa / "transformations", "tr.sql")
         self._make_files(isa / "workflows", "wf.yaml")
@@ -1451,10 +1620,12 @@ class TestRemoveSyntheticData:
 
     def test_isa_no_op_when_not_installed(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         assert remove_synthetic_data(self._ISA, tmp_path) == 0
 
     def test_cfihos_variant_does_not_touch_isa_dir(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         isa = self._isa_dir(tmp_path)
         self._make_files(isa / "files", "sample.pdf")
         remove_synthetic_data(self._CFIHOS, tmp_path)
@@ -1464,6 +1635,7 @@ class TestRemoveSyntheticData:
 
     def test_removes_png_from_cfihos(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         cfihos = self._cfihos_dir(tmp_path)
         (cfihos / "data_model_views.png").write_text("img")
         (cfihos / "dm-workflow.png").write_text("img")
@@ -1474,6 +1646,7 @@ class TestRemoveSyntheticData:
 
     def test_removes_svg_from_isa(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         isa = self._isa_dir(tmp_path)
         (isa / "diagram.svg").write_text("svg")
         count = remove_synthetic_data(self._ISA, tmp_path)
@@ -1482,6 +1655,7 @@ class TestRemoveSyntheticData:
 
     def test_data_modeling_dir_not_touched(self, tmp_path: Path) -> None:
         from setup_project import remove_synthetic_data
+
         isa = self._isa_dir(tmp_path)
         self._make_files(isa / "data_modeling", "model.datamodel.yaml")
         remove_synthetic_data(self._ISA, tmp_path)
@@ -1489,6 +1663,7 @@ class TestRemoveSyntheticData:
 
 
 # ── setup_project — diagram-annotation redundancy ─────────────────────────────
+
 
 class TestRemoveRedundantDiagramAnnotation:
     """remove_redundant_diagram_annotation only acts when both cdf_sharepoint_data_dump
@@ -1619,6 +1794,7 @@ class TestRemoveRedundantDiagramAnnotation:
 
     def test_no_op_when_file_annotation_not_installed(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_diagram_annotation
+
         module_dir = self._make_sharepoint_data_dump(tmp_path)
         removed = remove_redundant_diagram_annotation(tmp_path)
         assert removed == []
@@ -1627,11 +1803,13 @@ class TestRemoveRedundantDiagramAnnotation:
 
     def test_no_op_when_sharepoint_data_dump_not_installed(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_diagram_annotation
+
         self._make_file_annotation(tmp_path)
         assert remove_redundant_diagram_annotation(tmp_path) == []
 
     def test_removes_files_when_both_installed(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_diagram_annotation
+
         module_dir = self._make_sharepoint_data_dump(tmp_path)
         self._make_file_annotation(tmp_path)
         removed = remove_redundant_diagram_annotation(tmp_path)
@@ -1641,6 +1819,7 @@ class TestRemoveRedundantDiagramAnnotation:
 
     def test_keeps_tr_file_all_to_file(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_diagram_annotation
+
         module_dir = self._make_sharepoint_data_dump(tmp_path)
         self._make_file_annotation(tmp_path)
         remove_redundant_diagram_annotation(tmp_path)
@@ -1648,6 +1827,7 @@ class TestRemoveRedundantDiagramAnnotation:
 
     def test_removes_ingestion_workflow_tasks(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_diagram_annotation
+
         self._make_sharepoint_data_dump(tmp_path)
         self._make_file_annotation(tmp_path)
         workflow_path, config_path = self._make_ingestion(tmp_path)
@@ -1671,6 +1851,7 @@ class TestRemoveRedundantDiagramAnnotation:
 
     def test_workflow_yaml_stays_parseable_after_removal(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_diagram_annotation
+
         self._make_sharepoint_data_dump(tmp_path)
         self._make_file_annotation(tmp_path)
         workflow_path, _ = self._make_ingestion(tmp_path)
@@ -1686,6 +1867,7 @@ class TestRemoveRedundantDiagramAnnotation:
 
     def test_no_op_when_ingestion_not_installed(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_diagram_annotation
+
         self._make_sharepoint_data_dump(tmp_path)
         self._make_file_annotation(tmp_path)
         # No modules/common/cdf_ingestion at all — must not raise.
@@ -1694,6 +1876,7 @@ class TestRemoveRedundantDiagramAnnotation:
 
     def test_idempotent_on_second_run(self, tmp_path: Path) -> None:
         from setup_project import remove_redundant_diagram_annotation
+
         self._make_sharepoint_data_dump(tmp_path)
         self._make_file_annotation(tmp_path)
         self._make_ingestion(tmp_path)
@@ -1709,11 +1892,13 @@ class TestDiagramAnnotationStalePaths:
 
     def test_empty_when_file_annotation_not_installed(self, tmp_path: Path) -> None:
         from setup_project import diagram_annotation_stale_paths
+
         TestRemoveRedundantDiagramAnnotation()._make_sharepoint_data_dump(tmp_path)
         assert diagram_annotation_stale_paths(tmp_path) == []
 
     def test_flags_leftover_files_when_both_installed(self, tmp_path: Path) -> None:
         from setup_project import diagram_annotation_stale_paths
+
         helper = TestRemoveRedundantDiagramAnnotation()
         helper._make_sharepoint_data_dump(tmp_path)
         helper._make_file_annotation(tmp_path)
@@ -1722,6 +1907,7 @@ class TestDiagramAnnotationStalePaths:
 
     def test_empty_after_cleanup(self, tmp_path: Path) -> None:
         from setup_project import diagram_annotation_stale_paths, remove_redundant_diagram_annotation
+
         helper = TestRemoveRedundantDiagramAnnotation()
         helper._make_sharepoint_data_dump(tmp_path)
         helper._make_file_annotation(tmp_path)
@@ -1729,12 +1915,11 @@ class TestDiagramAnnotationStalePaths:
         remove_redundant_diagram_annotation(tmp_path)
         assert diagram_annotation_stale_paths(tmp_path) == []
 
-    def test_flags_stale_ingestion_workflow_when_files_removed_but_workflow_not_patched(
-        self, tmp_path: Path
-    ) -> None:
+    def test_flags_stale_ingestion_workflow_when_files_removed_but_workflow_not_patched(self, tmp_path: Path) -> None:
         """Guards against a partial cleanup: module files gone but the ingestion
         workflow still references the retired tasks."""
         from setup_project import diagram_annotation_stale_paths
+
         helper = TestRemoveRedundantDiagramAnnotation()
         module_dir = helper._make_sharepoint_data_dump(tmp_path)
         helper._make_file_annotation(tmp_path)
@@ -1746,6 +1931,7 @@ class TestDiagramAnnotationStalePaths:
 
 
 # ── setup_project — replicate config from existing ───────────────────────────
+
 
 class TestReplicateConfigFromExisting:
     def _write_config(self, path: Path, env: str, project: str) -> None:
@@ -1759,7 +1945,7 @@ class TestReplicateConfigFromExisting:
     def test_happy_path_replicates_and_patches(self, tmp_path: Path) -> None:
         import yaml as _yaml
         from setup_project import ENVIRONMENT_VALIDATION_TYPE, _replicate_config_from_existing
-        
+
         self._write_config(tmp_path / "config.dev.yaml", "dev", "acme-dev")
         result = _replicate_config_from_existing(tmp_path, "prod", "acme-prod")
         assert result is not None
@@ -1772,6 +1958,7 @@ class TestReplicateConfigFromExisting:
 
     def test_preserves_existing_variables(self, tmp_path: Path) -> None:
         from setup_project import _replicate_config_from_existing
+
         self._write_config(tmp_path / "config.dev.yaml", "dev", "acme-dev")
         result = _replicate_config_from_existing(tmp_path, "test", "acme-test")
         assert result is not None
@@ -1781,6 +1968,7 @@ class TestReplicateConfigFromExisting:
 
     def test_no_source_returns_none(self, tmp_path: Path) -> None:
         from setup_project import _replicate_config_from_existing
+
         # No existing configs at all
         result = _replicate_config_from_existing(tmp_path, "prod", "acme-prod")
         assert result is None
@@ -1788,6 +1976,7 @@ class TestReplicateConfigFromExisting:
 
     def test_does_not_replicate_from_same_env(self, tmp_path: Path) -> None:
         from setup_project import _replicate_config_from_existing
+
         # Only config.prod.yaml exists — must not use it as source for prod itself
         self._write_config(tmp_path / "config.prod.yaml", "prod", "acme-prod")
         result = _replicate_config_from_existing(tmp_path, "prod", "acme-prod-new")
@@ -1797,6 +1986,7 @@ class TestReplicateConfigFromExisting:
 
 # ── setup_project — read_existing_values ─────────────────────────────────────
 
+
 class TestReadExistingValues:
     def _write_config(self, path: Path, data: dict) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1804,48 +1994,68 @@ class TestReadExistingValues:
 
     def test_reads_project_names(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {}},
-        })
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {"modules": {}},
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert existing["project_names"]["dev"] == "acme-dev"
 
     def test_reads_site_from_foundation(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "cdf_project_foundation": {"site": "oslo"},
-            }},
-        })
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {
+                    "modules": {
+                        "cdf_project_foundation": {"site": "oslo"},
+                    }
+                },
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert existing["site"] == "oslo"
 
     def test_reads_site_from_nested_structure(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "common": {"cdf_project_foundation": {"site": "berlin"}},
-            }},
-        })
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {
+                    "modules": {
+                        "common": {"cdf_project_foundation": {"site": "berlin"}},
+                    }
+                },
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert existing["site"] == "berlin"
 
     def test_reads_datasets_from_sourcesystem_modules(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "cdf_project_foundation": {"site": ""},
-                "cdf_pi_extractor": {"dataset": "ds_pi_oslo", "instanceSpace": "sp_oslo_pi"},
-                "cdf_sap_extractor": {"dataset": "ds_sap_oslo", "instanceSpace": "sp_oslo_sap"},
-            }},
-        })
-        existing = _read_existing_values(
-            tmp_path, ("dev",), ["cdf_pi_extractor", "cdf_sap_extractor"]
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {
+                    "modules": {
+                        "cdf_project_foundation": {"site": ""},
+                        "cdf_pi_extractor": {"dataset": "ds_pi_oslo", "instanceSpace": "sp_oslo_pi"},
+                        "cdf_sap_extractor": {"dataset": "ds_sap_oslo", "instanceSpace": "sp_oslo_sap"},
+                    }
+                },
+            },
         )
+        existing = _read_existing_values(tmp_path, ("dev",), ["cdf_pi_extractor", "cdf_sap_extractor"])
         assert "ds_pi_oslo" in existing["dataset"]
         assert "ds_sap_oslo" in existing["dataset"]
 
@@ -1854,32 +2064,44 @@ class TestReadExistingValues:
         the user added there is not on any extractor module, so it is lost unless
         this reader surfaces it to build_overlay."""
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "cdf_project_foundation": {
-                    "site": "oslo",
-                    "dataset": ["ds_pi_oslo", "ds_files_archive"],
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {
+                    "modules": {
+                        "cdf_project_foundation": {
+                            "site": "oslo",
+                            "dataset": ["ds_pi_oslo", "ds_files_archive"],
+                        },
+                        "cdf_pi_extractor": {"dataset": "ds_pi_oslo"},
+                    }
                 },
-                "cdf_pi_extractor": {"dataset": "ds_pi_oslo"},
-            }},
-        })
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), ["cdf_pi_extractor"])
         assert existing["dataset"] == ["ds_pi_oslo", "ds_files_archive"]
 
     def test_reads_custom_datasets_from_nested_foundation(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "common": {
-                    "cdf_project_foundation": {
-                        "site": "oslo",
-                        "dataset": ["ds_custom"],
-                    },
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {
+                    "modules": {
+                        "common": {
+                            "cdf_project_foundation": {
+                                "site": "oslo",
+                                "dataset": ["ds_custom"],
+                            },
+                        },
+                    }
                 },
-            }},
-        })
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert existing["dataset"] == ["ds_custom"]
 
@@ -1887,12 +2109,18 @@ class TestReadExistingValues:
         """A scalar dataset on an extractor module is a string; the foundation
         key is a list. A stray string must not be iterated character by character."""
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "cdf_project_foundation": {"site": "oslo", "dataset": "ds_pi"},
-            }},
-        })
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {
+                    "modules": {
+                        "cdf_project_foundation": {"site": "oslo", "dataset": "ds_pi"},
+                    }
+                },
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert existing["dataset"] == []
 
@@ -1902,79 +2130,115 @@ class TestReadExistingValues:
         transformations/extraction-pipeline access to this dataset, so the persona
         groups are the only thing left granting it."""
         from setup_project import _read_existing_values
+
         (tmp_path / "modules" / "common" / "cdf_ingestion").mkdir(parents=True)
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "cdf_ingestion": {"dataset": "ds_custom_ingestion"},
-            }},
-        })
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {
+                    "modules": {
+                        "cdf_ingestion": {"dataset": "ds_custom_ingestion"},
+                    }
+                },
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert "ds_custom_ingestion" in existing["dataset"]
 
     def test_reads_cdf_ingestion_dataset_when_common_key_is_null(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
+
         (tmp_path / "modules" / "common" / "cdf_ingestion").mkdir(parents=True)
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {"common": None}},
-        })
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {"modules": {"common": None}},
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert "ingestion" in existing["dataset"]
 
     def test_reads_cdf_ingestion_dataset_default_when_no_override(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
+
         (tmp_path / "modules" / "common" / "cdf_ingestion").mkdir(parents=True)
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {}},
-        })
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {"modules": {}},
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert "ingestion" in existing["dataset"]
 
     def test_skips_cdf_ingestion_dataset_when_not_installed(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {}},
-        })
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {"modules": {}},
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert existing["dataset"] == []
 
     def test_reads_app_owner(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "cdf_file_annotation": {"ApplicationOwner": "owner@firm.com"},
-            }},
-        })
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {
+                    "modules": {
+                        "cdf_file_annotation": {"ApplicationOwner": "owner@firm.com"},
+                    }
+                },
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert existing["app_owner"] == "owner@firm.com"
 
     def test_skips_placeholder_app_owner(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "cdf_file_annotation": {"ApplicationOwner": "<APPLICATION_OWNER>"},
-            }},
-        })
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {
+                    "modules": {
+                        "cdf_file_annotation": {"ApplicationOwner": "<APPLICATION_OWNER>"},
+                    }
+                },
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert existing["app_owner"] == ""
 
     def test_reads_cfihos_owner_fields(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "cfihos_oil_and_gas_extension": {
-                    "admin_user": "admin@firm.com",
-                    "integrationOwnerName": "Alice",
-                    "integrationOwnerEmail": "alice@firm.com",
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {
+                    "modules": {
+                        "cfihos_oil_and_gas_extension": {
+                            "admin_user": "admin@firm.com",
+                            "integrationOwnerName": "Alice",
+                            "integrationOwnerEmail": "alice@firm.com",
+                        },
+                    }
                 },
-            }},
-        })
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert existing["cfihos_admin_user"] == "admin@firm.com"
         assert existing["cfihos_integration_owner_name"] == "Alice"
@@ -1982,16 +2246,22 @@ class TestReadExistingValues:
 
     def test_skips_placeholder_cfihos_emails(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
-        self._write_config(tmp_path / "config.dev.yaml", {
-            "environment": {"project": "acme-dev"},
-            "variables": {"modules": {
-                "cfihos_oil_and_gas_extension": {
-                    "admin_user": "admin.user@firm.com",
-                    "integrationOwnerEmail": "integration.owner@firm.com",
-                    "integrationOwnerName": "Integration Owner",
+
+        self._write_config(
+            tmp_path / "config.dev.yaml",
+            {
+                "environment": {"project": "acme-dev"},
+                "variables": {
+                    "modules": {
+                        "cfihos_oil_and_gas_extension": {
+                            "admin_user": "admin.user@firm.com",
+                            "integrationOwnerEmail": "integration.owner@firm.com",
+                            "integrationOwnerName": "Integration Owner",
+                        },
+                    }
                 },
-            }},
-        })
+            },
+        )
         existing = _read_existing_values(tmp_path, ("dev",), [])
         assert existing["cfihos_admin_user"] == ""
         assert existing["cfihos_integration_owner_email"] == ""
@@ -1999,6 +2269,7 @@ class TestReadExistingValues:
 
     def test_returns_defaults_when_no_configs_exist(self, tmp_path: Path) -> None:
         from setup_project import _read_existing_values
+
         existing = _read_existing_values(tmp_path, ("dev", "prod"), [])
         assert existing["project_names"] == {}
         assert existing["site"] == ""
@@ -2007,18 +2278,22 @@ class TestReadExistingValues:
 
 # ── setup_project — detect installed envs ────────────────────────────────────
 
+
 class TestDetectInstalledEnvs:
     def test_returns_empty_when_no_configs(self, tmp_path: Path) -> None:
         from setup_project import _detect_installed_envs
+
         assert _detect_installed_envs(tmp_path) == ()
 
     def test_detects_single_env(self, tmp_path: Path) -> None:
         from setup_project import _detect_installed_envs
+
         (tmp_path / "config.dev.yaml").write_text("environment:\n  name: dev\n")
         assert _detect_installed_envs(tmp_path) == ("dev",)
 
     def test_detects_dev_and_prod(self, tmp_path: Path) -> None:
         from setup_project import _detect_installed_envs
+
         (tmp_path / "config.dev.yaml").write_text("environment:\n  name: dev\n")
         (tmp_path / "config.prod.yaml").write_text("environment:\n  name: prod\n")
         result = _detect_installed_envs(tmp_path)
@@ -2028,6 +2303,7 @@ class TestDetectInstalledEnvs:
 
     def test_detects_all_three(self, tmp_path: Path) -> None:
         from setup_project import _detect_installed_envs
+
         for env in ("dev", "test", "prod"):
             (tmp_path / f"config.{env}.yaml").write_text(f"environment:\n  name: {env}\n")
         result = _detect_installed_envs(tmp_path)
@@ -2035,6 +2311,7 @@ class TestDetectInstalledEnvs:
 
     def test_staging_maps_to_test(self, tmp_path: Path) -> None:
         from setup_project import _detect_installed_envs
+
         (tmp_path / "config.dev.yaml").write_text("environment:\n  name: dev\n")
         (tmp_path / "config.staging.yaml").write_text("environment:\n  name: staging\n")
         result = _detect_installed_envs(tmp_path)
@@ -2043,6 +2320,7 @@ class TestDetectInstalledEnvs:
 
     def test_staging_not_returned_when_test_config_exists(self, tmp_path: Path) -> None:
         from setup_project import _detect_installed_envs
+
         (tmp_path / "config.test.yaml").write_text("environment:\n  name: test\n")
         (tmp_path / "config.staging.yaml").write_text("environment:\n  name: staging\n")
         result = _detect_installed_envs(tmp_path)
@@ -2051,6 +2329,7 @@ class TestDetectInstalledEnvs:
 
     def test_preserves_environment_order(self, tmp_path: Path) -> None:
         from setup_project import _detect_installed_envs
+
         for env in ("prod", "dev", "test"):  # write in non-canonical order
             (tmp_path / f"config.{env}.yaml").write_text(f"environment:\n  name: {env}\n")
         result = _detect_installed_envs(tmp_path)
@@ -2060,26 +2339,29 @@ class TestDetectInstalledEnvs:
 
 # ── setup_project — .env path resolution ─────────────────────────────────────
 
+
 class TestGetOrgDirName:
     def test_reads_from_cdf_section(self, tmp_path: Path) -> None:
         from _pack_config import get_org_dir_name
-        (tmp_path / "cdf.toml").write_text(
-            '[cdf]\ndefault_organization_dir = "industrial"\n'
-        )
+
+        (tmp_path / "cdf.toml").write_text('[cdf]\ndefault_organization_dir = "industrial"\n')
         assert get_org_dir_name(tmp_path) == "industrial"
 
     def test_returns_none_when_no_toml(self, tmp_path: Path) -> None:
         from _pack_config import get_org_dir_name
+
         assert get_org_dir_name(tmp_path) is None
 
     def test_returns_none_when_key_absent(self, tmp_path: Path) -> None:
         from _pack_config import get_org_dir_name
+
         (tmp_path / "cdf.toml").write_text("[cdf]\nenterprise = acme\n")
         assert get_org_dir_name(tmp_path) is None
 
     def test_top_level_key_not_read(self, tmp_path: Path) -> None:
         """Ensure top-level default_organization_dir (wrong format) is not read."""
         from _pack_config import get_org_dir_name
+
         (tmp_path / "cdf.toml").write_text('default_organization_dir = "wrong"\n')
         assert get_org_dir_name(tmp_path) is None
 
@@ -2087,28 +2369,33 @@ class TestGetOrgDirName:
 class TestDetectDataModelVariant:
     def test_missing_directory_falls_back_to_cdm(self, tmp_path: Path) -> None:
         from _pack_config import detect_data_model_variant
+
         assert detect_data_model_variant(tmp_path / "modules" / "datamodels") == "cdm"
 
     def test_empty_directory_falls_back_to_cdm(self, tmp_path: Path) -> None:
         from _pack_config import detect_data_model_variant
+
         data_models_dir = tmp_path / "modules" / "datamodels"
         data_models_dir.mkdir(parents=True)
         assert detect_data_model_variant(data_models_dir) == "cdm"
 
     def test_directory_with_unsupported_subdir_falls_back_to_cdm(self, tmp_path: Path) -> None:
         from _pack_config import detect_data_model_variant
+
         data_models_dir = tmp_path / "modules" / "datamodels"
         (data_models_dir / "qs_enterprise_dm").mkdir(parents=True)
         assert detect_data_model_variant(data_models_dir) == "cdm"
 
     def test_single_known_extension_detected(self, tmp_path: Path) -> None:
         from _pack_config import detect_data_model_variant
+
         data_models_dir = tmp_path / "modules" / "datamodels"
         (data_models_dir / "isa_manufacturing_extension").mkdir(parents=True)
         assert detect_data_model_variant(data_models_dir) == "isa_manufacturing_extension"
 
     def test_multiple_known_extensions_raise(self, tmp_path: Path) -> None:
         from _pack_config import detect_data_model_variant
+
         data_models_dir = tmp_path / "modules" / "datamodels"
         (data_models_dir / "isa_manufacturing_extension").mkdir(parents=True)
         (data_models_dir / "cfihos_oil_and_gas_extension").mkdir(parents=True)
@@ -2121,6 +2408,7 @@ class TestDetectDataModelVariant:
 
 # ── _pack_config — pack-kind detection ────────────────────────────────────────
 
+
 class TestDetectPackKind:
     """detect_pack_kind distinguishes Foundation (*_extractor) from Demo
     (*_data_dump) sourcesystem modules, or reports "ambiguous" when the signal
@@ -2128,16 +2416,19 @@ class TestDetectPackKind:
 
     def test_missing_sourcesystem_dir_is_ambiguous(self, tmp_path: Path) -> None:
         from _pack_config import detect_pack_kind
+
         assert detect_pack_kind(tmp_path / "modules" / "sourcesystem") == "ambiguous"
 
     def test_empty_sourcesystem_dir_is_ambiguous(self, tmp_path: Path) -> None:
         from _pack_config import detect_pack_kind
+
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         sourcesystem_dir.mkdir(parents=True)
         assert detect_pack_kind(sourcesystem_dir) == "ambiguous"
 
     def test_extractor_only_is_foundation(self, tmp_path: Path) -> None:
         from _pack_config import detect_pack_kind
+
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         (sourcesystem_dir / "cdf_pi_extractor").mkdir(parents=True)
         (sourcesystem_dir / "cdf_sap_extractor").mkdir(parents=True)
@@ -2145,6 +2436,7 @@ class TestDetectPackKind:
 
     def test_data_dump_only_is_demo(self, tmp_path: Path) -> None:
         from _pack_config import detect_pack_kind
+
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         (sourcesystem_dir / "cdf_pi_data_dump").mkdir(parents=True)
         (sourcesystem_dir / "cdf_sharepoint_data_dump").mkdir(parents=True)
@@ -2152,6 +2444,7 @@ class TestDetectPackKind:
 
     def test_mixed_extractor_and_data_dump_is_ambiguous(self, tmp_path: Path) -> None:
         from _pack_config import detect_pack_kind
+
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         (sourcesystem_dir / "cdf_pi_extractor").mkdir(parents=True)
         (sourcesystem_dir / "cdf_sharepoint_data_dump").mkdir(parents=True)
@@ -2161,6 +2454,7 @@ class TestDetectPackKind:
         """cdf_sharepoint / cdf_sap_assets / etc. are neither extractor nor
         data-dump modules — their presence alone must not resolve either way."""
         from _pack_config import detect_pack_kind
+
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         (sourcesystem_dir / "cdf_sharepoint").mkdir(parents=True)
         assert detect_pack_kind(sourcesystem_dir) == "ambiguous"
@@ -2168,15 +2462,14 @@ class TestDetectPackKind:
 
 # ── setup_project — pack-kind resolution ──────────────────────────────────────
 
+
 class TestResolvePackKind:
     """resolve_pack_kind: always auto-detected — no override flag, since every
     cleanup function downstream already decides from installed module
     directories rather than from this value. Prompts only when detection is
     ambiguous (mirrors resolve_variant/detect_data_model_variant)."""
 
-    def test_unambiguous_demo_detected_without_prompting(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unambiguous_demo_detected_without_prompting(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         import setup_project
         from setup_project import resolve_pack_kind
 
@@ -2202,9 +2495,7 @@ class TestResolvePackKind:
         (sourcesystem_dir / "cdf_pi_extractor").mkdir(parents=True)
         assert resolve_pack_kind("cfihos_oil_and_gas_extension", sourcesystem_dir) == "foundation"
 
-    def test_ambiguous_detection_prompts_and_uses_answer(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_ambiguous_detection_prompts_and_uses_answer(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         import setup_project
         from setup_project import resolve_pack_kind
 
@@ -2213,9 +2504,7 @@ class TestResolvePackKind:
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         assert resolve_pack_kind("cfihos_oil_and_gas_extension", sourcesystem_dir) == "demo"
 
-    def test_isa_is_always_foundation_without_prompting(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_isa_is_always_foundation_without_prompting(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """ISA has no Demo/synthetic-data path — the data-dump modules are
         CFIHOS-shaped only — so an ISA project is always Foundation, even when
         no sourcesystem modules are installed (which would otherwise be ambiguous
@@ -2238,10 +2527,9 @@ class TestExitIfDemoHasNoSourceSystemModules:
     must stop and tell the user what to add, rather than run with an empty
     source-system config."""
 
-    def test_exits_when_demo_and_no_source_system_modules_installed(
-        self, tmp_path: Path
-    ) -> None:
+    def test_exits_when_demo_and_no_source_system_modules_installed(self, tmp_path: Path) -> None:
         from setup_project import _exit_if_demo_has_no_source_system_modules
+
         try:
             _exit_if_demo_has_no_source_system_modules("demo", [], tmp_path)
             raise AssertionError("expected SystemExit")
@@ -2250,14 +2538,17 @@ class TestExitIfDemoHasNoSourceSystemModules:
 
     def test_does_not_exit_when_foundation(self, tmp_path: Path) -> None:
         from setup_project import _exit_if_demo_has_no_source_system_modules
+
         _exit_if_demo_has_no_source_system_modules("foundation", [], tmp_path)
 
     def test_does_not_exit_when_extractor_modules_installed(self, tmp_path: Path) -> None:
         from setup_project import _exit_if_demo_has_no_source_system_modules
+
         _exit_if_demo_has_no_source_system_modules("demo", ["cdf_pi_extractor"], tmp_path)
 
     def test_does_not_exit_when_data_dump_modules_installed(self, tmp_path: Path) -> None:
         from setup_project import _exit_if_demo_has_no_source_system_modules
+
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         (sourcesystem_dir / "cdf_sharepoint_data_dump").mkdir(parents=True)
         _exit_if_demo_has_no_source_system_modules("demo", [], tmp_path)
@@ -2270,12 +2561,14 @@ class TestResolvePackKindForCheck:
 
     def test_unambiguous_detection_resolved(self, tmp_path: Path) -> None:
         from setup_project import resolve_pack_kind_for_check
+
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         (sourcesystem_dir / "cdf_sap_extractor").mkdir(parents=True)
         assert resolve_pack_kind_for_check("cfihos_oil_and_gas_extension", sourcesystem_dir) == "foundation"
 
     def test_ambiguous_detection_raises_without_prompting(self, tmp_path: Path) -> None:
         from setup_project import resolve_pack_kind_for_check
+
         # Sourcesystem dir missing entirely -> ambiguous.
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         try:
@@ -2286,6 +2579,7 @@ class TestResolvePackKindForCheck:
 
     def test_isa_is_always_foundation_never_ambiguous(self, tmp_path: Path) -> None:
         from setup_project import resolve_pack_kind_for_check
+
         # Sourcesystem dir missing entirely -> would raise SystemExit for any other variant.
         sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
         assert resolve_pack_kind_for_check("isa_manufacturing_extension", sourcesystem_dir) == "foundation"
@@ -2297,11 +2591,13 @@ class TestWarnIfNoEmail:
 
     def test_warns_when_email_blank(self, capsys: pytest.CaptureFixture[str]) -> None:
         from setup_project import _warn_if_no_email
+
         _warn_if_no_email("integration owner", "")
         assert "No email set for integration owner" in capsys.readouterr().out
 
     def test_silent_when_email_present(self, capsys: pytest.CaptureFixture[str]) -> None:
         from setup_project import _warn_if_no_email
+
         _warn_if_no_email("integration owner", "jane@example.com")
         assert capsys.readouterr().out == ""
 
@@ -2310,14 +2606,18 @@ class TestWarnDisabledNotifications:
     """--check must surface the same disabled-notification gap as the interactive
     wizard, since a CI run with no email configured never sees the wizard's prompt."""
 
-    def test_warns_for_missing_owner_emails(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_warns_for_missing_owner_emails(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         from setup_project import _warn_disabled_notifications
+
         (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
-        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
-            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {}}}},
-        }, sort_keys=False))
+        (tmp_path / "config.dev.yaml").write_text(
+            yaml.dump(
+                {
+                    "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {}}}},
+                },
+                sort_keys=False,
+            )
+        )
 
         _warn_disabled_notifications(tmp_path, tmp_path)
 
@@ -2325,48 +2625,70 @@ class TestWarnDisabledNotifications:
         assert "PI Extractor: integration owner" in out
         assert "PI Extractor: data owner" in out
 
-    def test_silent_when_owner_emails_configured(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_silent_when_owner_emails_configured(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         from setup_project import _warn_disabled_notifications
+
         (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
-        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
-            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {
-                "integration_owner_email": "jane@example.com",
-                "data_owner_email": "john@example.com",
-            }}}},
-        }, sort_keys=False))
+        (tmp_path / "config.dev.yaml").write_text(
+            yaml.dump(
+                {
+                    "variables": {
+                        "modules": {
+                            "sourcesystem": {
+                                "cdf_pi_extractor": {
+                                    "integration_owner_email": "jane@example.com",
+                                    "data_owner_email": "john@example.com",
+                                }
+                            }
+                        }
+                    },
+                },
+                sort_keys=False,
+            )
+        )
 
         _warn_disabled_notifications(tmp_path, tmp_path)
 
         assert "WARNING" not in capsys.readouterr().out
 
-    def test_silent_when_owner_emails_configured_flat(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_silent_when_owner_emails_configured_flat(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Fresh configs are written flat (variables.modules.<module>.*, no category
         wrapper) — the common case must not produce a false warning."""
         from setup_project import _warn_disabled_notifications
+
         (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
-        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
-            "variables": {"modules": {"cdf_pi_extractor": {
-                "integration_owner_email": "jane@example.com",
-                "data_owner_email": "john@example.com",
-            }}},
-        }, sort_keys=False))
+        (tmp_path / "config.dev.yaml").write_text(
+            yaml.dump(
+                {
+                    "variables": {
+                        "modules": {
+                            "cdf_pi_extractor": {
+                                "integration_owner_email": "jane@example.com",
+                                "data_owner_email": "john@example.com",
+                            }
+                        }
+                    },
+                },
+                sort_keys=False,
+            )
+        )
 
         _warn_disabled_notifications(tmp_path, tmp_path)
 
         assert "WARNING" not in capsys.readouterr().out
 
-    def test_warns_when_owner_emails_missing_flat(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_warns_when_owner_emails_missing_flat(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         from setup_project import _warn_disabled_notifications
+
         (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
-        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
-            "variables": {"modules": {"cdf_pi_extractor": {}}},
-        }, sort_keys=False))
+        (tmp_path / "config.dev.yaml").write_text(
+            yaml.dump(
+                {
+                    "variables": {"modules": {"cdf_pi_extractor": {}}},
+                },
+                sort_keys=False,
+            )
+        )
 
         _warn_disabled_notifications(tmp_path, tmp_path)
 
@@ -2378,6 +2700,7 @@ class TestWarnDisabledNotifications:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         from setup_project import _warn_disabled_notifications
+
         _warn_disabled_notifications(tmp_path, tmp_path)
         assert capsys.readouterr().out == ""
 
@@ -2387,6 +2710,7 @@ class TestWarnDisabledNotifications:
         """A config.yaml that parses to a scalar/list (valid YAML, not a mapping) must
         be skipped, not crash --check with an AttributeError on config.get(...)."""
         from setup_project import _warn_disabled_notifications
+
         (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
         (tmp_path / "config.dev.yaml").write_text("just a string\n", encoding="utf-8")
 
@@ -2394,22 +2718,37 @@ class TestWarnDisabledNotifications:
 
         assert capsys.readouterr().out == ""
 
-    def test_warns_per_environment_not_just_the_first(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_warns_per_environment_not_just_the_first(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """dev and prod configs are independent — an email configured in dev must not
         mask a missing one in prod (or vice versa)."""
         from setup_project import _warn_disabled_notifications
+
         (tmp_path / "modules" / "sourcesystem" / "cdf_pi_extractor").mkdir(parents=True)
-        (tmp_path / "config.dev.yaml").write_text(yaml.dump({
-            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {
-                "integration_owner_email": "jane@example.com",
-                "data_owner_email": "john@example.com",
-            }}}},
-        }, sort_keys=False))
-        (tmp_path / "config.prod.yaml").write_text(yaml.dump({
-            "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {}}}},
-        }, sort_keys=False))
+        (tmp_path / "config.dev.yaml").write_text(
+            yaml.dump(
+                {
+                    "variables": {
+                        "modules": {
+                            "sourcesystem": {
+                                "cdf_pi_extractor": {
+                                    "integration_owner_email": "jane@example.com",
+                                    "data_owner_email": "john@example.com",
+                                }
+                            }
+                        }
+                    },
+                },
+                sort_keys=False,
+            )
+        )
+        (tmp_path / "config.prod.yaml").write_text(
+            yaml.dump(
+                {
+                    "variables": {"modules": {"sourcesystem": {"cdf_pi_extractor": {}}}},
+                },
+                sort_keys=False,
+            )
+        )
 
         _warn_disabled_notifications(tmp_path, tmp_path)
 
@@ -2421,9 +2760,9 @@ class TestWarnDisabledNotifications:
 
 
 class TestWizardHeaderTitle:
-
     def test_foundation_banner(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
         from setup_project import _print_wizard_header
+
         _print_wizard_header("cdm", tmp_path, [], "foundation")
         out = capsys.readouterr().out
         assert "Foundation Deployment Pack — Project Setup" in out
@@ -2431,6 +2770,7 @@ class TestWizardHeaderTitle:
 
     def test_demo_banner(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
         from setup_project import _print_wizard_header
+
         _print_wizard_header("cfihos_oil_and_gas_extension", tmp_path, [], "demo")
         out = capsys.readouterr().out
         assert "Foundation Deployment Pack Demo — Project Setup" in out
@@ -2455,36 +2795,45 @@ class TestEnvPathResolution:
 
 # ── setup_project — environment validation type ───────────────────────────────
 
+
 class TestEnvironmentValidationType:
     def test_test_env_uses_prod_validation(self) -> None:
         from setup_project import ENVIRONMENT_VALIDATION_TYPE
+
         assert ENVIRONMENT_VALIDATION_TYPE["test"] == "prod"
 
     def test_dev_uses_dev_validation(self) -> None:
         from setup_project import ENVIRONMENT_VALIDATION_TYPE
+
         assert ENVIRONMENT_VALIDATION_TYPE["dev"] == "dev"
 
     def test_prod_uses_prod_validation(self) -> None:
         from setup_project import ENVIRONMENT_VALIDATION_TYPE
+
         assert ENVIRONMENT_VALIDATION_TYPE["prod"] == "prod"
 
 
 # ── setup_project — stale key removal ─────────────────────────────────────────
 
+
 class TestStaleKeyRemoval:
     def test_owner_source_id_in_stale_keys(self) -> None:
         from setup_project import _STALE_CTX_KEYS
+
         assert any("owner_source_id" in k for k in _STALE_CTX_KEYS)
         assert any("read_source_id" in k for k in _STALE_CTX_KEYS)
 
     def test_reserved_word_prefix_in_stale_keys(self) -> None:
         from setup_project import _STALE_CTX_KEYS
+
         assert any("reservedWordPrefix" in k for k in _STALE_CTX_KEYS)
 
     def test_stale_cfihos_keys_removed_from_config(self, tmp_path: Path) -> None:
         from setup_project import _write_config_update, build_overlay
+
         p = tmp_path / "config.dev.yaml"
-        p.write_text(textwrap.dedent("""\
+        p.write_text(
+            textwrap.dedent("""\
             environment:
               project: acme-dev
             variables:
@@ -2494,7 +2843,8 @@ class TestStaleKeyRemoval:
                   read_source_id: xyz789
                   instance_space: inst_cfihos_oil_and_gas
                   environment: dev
-        """))
+        """)
+        )
         overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "", [])
         _write_config_update(p, "acme-dev", overlay)
         content = p.read_text()
@@ -2503,12 +2853,15 @@ class TestStaleKeyRemoval:
 
     def test_cdf_ingestion_group_source_id_in_stale_keys(self) -> None:
         from setup_project import _STALE_CTX_KEYS
+
         assert any(k.endswith("cdf_ingestion.groupSourceId") for k in _STALE_CTX_KEYS)
 
     def test_stale_cdf_ingestion_group_source_id_removed_from_config(self, tmp_path: Path) -> None:
         from setup_project import _write_config_update, build_overlay
+
         p = tmp_path / "config.dev.yaml"
-        p.write_text(textwrap.dedent("""\
+        p.write_text(
+            textwrap.dedent("""\
             environment:
               project: acme-dev
             variables:
@@ -2516,7 +2869,8 @@ class TestStaleKeyRemoval:
                 cdf_ingestion:
                   groupSourceId: ${GROUP_SOURCE_ID}
                   dataset: ingestion
-        """))
+        """)
+        )
         overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "", [])
         _write_config_update(p, "acme-dev", overlay)
         content = p.read_text()
@@ -2537,9 +2891,7 @@ class TestFinalizeWizardCicdGeneration:
         import setup_project
 
         calls: list = []
-        monkeypatch.setattr(
-            setup_project, "_run_cicd_wizard", lambda pack_root: calls.append(pack_root) or []
-        )
+        monkeypatch.setattr(setup_project, "_run_cicd_wizard", lambda pack_root: calls.append(pack_root) or [])
         setup_project._finalize_wizard(
             tmp_path,
             (),

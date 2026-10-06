@@ -308,8 +308,9 @@ def iter_new_items(
     """The instances to generate aliases for, one page at a time.
 
     Only the properties alias generation reads are selected. The caller writes a page
-    before the next is read, so in incremental mode the instances it has just given
-    aliases have already left the filter and the cursor carries on past them.
+    before the next is read. In incremental mode that write takes instances out of the
+    missing-aliases filter, so the next read starts at the head of the filter rather than
+    continuing an opaque cursor over a smaller set.
 
     Raises:
         Exception: A read that fails for good - not transient, or out of retries - so the
@@ -326,16 +327,31 @@ def iter_new_items(
         with_={ITEMS_QUERY_NAME: expression},
         select={ITEMS_QUERY_NAME: Select([SourceSelector(view_config.as_view_id(), ALIAS_SOURCE_PROPERTIES)])},
     )
+    last_ids: set[tuple[str, str]] | None = None
     while True:
         result = _query_with_retries(client, logger, query)
         page = list(result[ITEMS_QUERY_NAME])
         logger.debug(f"Read a page of {len(page)} {label} instances")
-        if page:
-            yield page
-        cursor = result.cursors.get(ITEMS_QUERY_NAME)
-        if not cursor or len(page) < ALIAS_PAGE_SIZE:
+        if not page:
             return
-        query.cursors = {ITEMS_QUERY_NAME: cursor}
+        if run_all:
+            yield page
+            cursor = result.cursors.get(ITEMS_QUERY_NAME)
+            if not cursor or len(page) < ALIAS_PAGE_SIZE:
+                return
+            query.cursors = {ITEMS_QUERY_NAME: cursor}
+            continue
+
+        ids = {(node.space, node.external_id) for node in page}
+        if ids == last_ids:
+            logger.info(
+                f"Still {len(page)} {label} instance(s) missing aliases after a write; "
+                "leaving them for the next run so paging does not stall"
+            )
+            return
+        last_ids = ids
+        yield page
+        query.cursors = None
 
 
 def _query_with_retries(client: CogniteClient, logger: CogniteFunctionLogger, query: Query) -> QueryResult:

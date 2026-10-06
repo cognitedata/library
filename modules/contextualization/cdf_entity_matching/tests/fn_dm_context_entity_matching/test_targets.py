@@ -6,6 +6,7 @@ once and reads the content from the cache, that changes are merged into that cac
 that a timed-out page comes back with a smaller page size rather than failing the run.
 """
 
+import hashlib
 import json
 import re
 import sys
@@ -20,7 +21,7 @@ from cognite.client.data_classes.data_modeling.instances import NodeListWithCurs
 from cognite.client.data_classes.data_modeling.query import Query, QueryResult
 from cognite.client.exceptions import CogniteAPIError, CogniteConnectionError
 
-sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_entity_matching"))
 
 from em_config import Config, ConfigData, Parameters, ViewPropertyConfig  # isort: skip
 from em_constants import (  # isort: skip
@@ -29,6 +30,7 @@ from em_constants import (  # isort: skip
     TARGET_SYNC_BATCH_SIZE,
     TARGET_SYNC_COL_BATCH_SIZE,
     TARGET_SYNC_COL_CURSOR,
+    TARGET_SYNC_COL_DIGEST,
     TARGET_SYNC_COL_FILE,
     TARGET_SYNC_QUERY_NAME,
 )
@@ -205,6 +207,10 @@ def state_row(client: FakeClient, config: Config) -> dict[str, Any]:
     return client.raw.rows.tables[("db", "state")][key]
 
 
+def stored_digest(client: FakeClient, file_external_id: str) -> str:
+    return hashlib.sha256(client.files.files[file_external_id]).hexdigest()
+
+
 def seed_cache(client: FakeClient, config: Config, targets: list[Node], cursor: str = "cursor-1") -> str:
     """Leave behind what an earlier run would have: a cache file and the cursor for it."""
     file_external_id = cache_file_external_id(target_cache_key(config.data.target_view))
@@ -214,7 +220,11 @@ def seed_cache(client: FakeClient, config: Config, targets: list[Node], cursor: 
         "state",
         Row(
             target_state_row_key(target_cache_key(config.data.target_view)),
-            {TARGET_SYNC_COL_CURSOR: cursor, TARGET_SYNC_COL_FILE: file_external_id},
+            {
+                TARGET_SYNC_COL_CURSOR: cursor,
+                TARGET_SYNC_COL_FILE: file_external_id,
+                TARGET_SYNC_COL_DIGEST: stored_digest(client, file_external_id),
+            },
         ),
     )
     return file_external_id
@@ -268,7 +278,11 @@ def test_unchanged_targets_are_read_from_the_cached_file(logger: CogniteFunction
         "state",
         Row(
             target_state_row_key(target_cache_key(config.data.target_view)),
-            {TARGET_SYNC_COL_CURSOR: "cursor-1", TARGET_SYNC_COL_FILE: file_external_id},
+            {
+                TARGET_SYNC_COL_CURSOR: "cursor-1",
+                TARGET_SYNC_COL_FILE: file_external_id,
+                TARGET_SYNC_COL_DIGEST: stored_digest(client, file_external_id),
+            },
         ),
     )
 
@@ -278,6 +292,19 @@ def test_unchanged_targets_are_read_from_the_cached_file(logger: CogniteFunction
     assert client.data_modeling.instances.cursors == ["cursor-1"]
     assert client.files.uploads == [], "an unchanged cache is not written again"
     assert state_row(client, config)[TARGET_SYNC_COL_CURSOR] == "cursor-2"
+
+
+def test_a_replaced_cache_file_is_read_again_from_the_data_model(logger: CogniteFunctionLogger) -> None:
+    honest = [target_node("A-1", "Pump 1")]
+    client = FakeClient(pages=[(honest, "cursor-2")])
+    config = build_config()
+    file_external_id = seed_cache(client, config, honest)
+    client.files.store(file_external_id, [target_node("EVIL", "Attacker")])
+
+    targets = load_targets(client, config, logger)  # type: ignore[arg-type]
+
+    assert [node.external_id for node in targets] == ["A-1"]
+    assert client.data_modeling.instances.cursors == [None]
 
 
 def test_changed_and_deleted_targets_are_merged_into_the_cache(logger: CogniteFunctionLogger) -> None:
@@ -292,7 +319,11 @@ def test_changed_and_deleted_targets_are_merged_into_the_cache(logger: CogniteFu
         "state",
         Row(
             target_state_row_key(target_cache_key(config.data.target_view)),
-            {TARGET_SYNC_COL_CURSOR: "cursor-1", TARGET_SYNC_COL_FILE: file_external_id},
+            {
+                TARGET_SYNC_COL_CURSOR: "cursor-1",
+                TARGET_SYNC_COL_FILE: file_external_id,
+                TARGET_SYNC_COL_DIGEST: stored_digest(client, file_external_id),
+            },
         ),
     )
 
@@ -332,6 +363,7 @@ def test_the_page_size_that_worked_is_used_on_the_next_run(logger: CogniteFuncti
                 TARGET_SYNC_COL_CURSOR: "cursor-1",
                 TARGET_SYNC_COL_FILE: file_external_id,
                 TARGET_SYNC_COL_BATCH_SIZE: 640,
+                TARGET_SYNC_COL_DIGEST: stored_digest(client, file_external_id),
             },
         ),
     )
@@ -377,7 +409,11 @@ def test_a_rejected_cursor_is_read_again_from_the_data_model(logger: CogniteFunc
         "state",
         Row(
             target_state_row_key(target_cache_key(config.data.target_view)),
-            {TARGET_SYNC_COL_CURSOR: "cursor-1", TARGET_SYNC_COL_FILE: file_external_id},
+            {
+                TARGET_SYNC_COL_CURSOR: "cursor-1",
+                TARGET_SYNC_COL_FILE: file_external_id,
+                TARGET_SYNC_COL_DIGEST: stored_digest(client, file_external_id),
+            },
         ),
     )
 
@@ -513,7 +549,11 @@ def test_targets_are_built_from_the_cached_content(logger: CogniteFunctionLogger
         "state",
         Row(
             target_state_row_key(target_cache_key(config.data.target_view)),
-            {TARGET_SYNC_COL_CURSOR: "cursor-1", TARGET_SYNC_COL_FILE: file_external_id},
+            {
+                TARGET_SYNC_COL_CURSOR: "cursor-1",
+                TARGET_SYNC_COL_FILE: file_external_id,
+                TARGET_SYNC_COL_DIGEST: stored_digest(client, file_external_id),
+            },
         ),
     )
 

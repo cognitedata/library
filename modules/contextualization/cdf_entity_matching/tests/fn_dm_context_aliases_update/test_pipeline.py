@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_aliases_update"))
 
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError, CogniteConnectionError
@@ -269,6 +269,49 @@ class TestPipelineHelpers(unittest.TestCase):
         self.assertEqual([len(page) for page in pages], [ALIAS_PAGE_SIZE, 1])
         second_query = client.data_modeling.instances.query.call_args_list[1].args[0]
         self.assertEqual(second_query.cursors, {"items": "c1"})
+
+    def _node(self, external_id: str) -> MagicMock:
+        node = MagicMock()
+        node.space = "sp"
+        node.external_id = external_id
+        return node
+
+    def test_incremental_pages_re_query_the_filter_head_after_each_write(self) -> None:
+        """After a page is written, those instances leave the missing-aliases filter.
+
+        Continuing the previous cursor over that smaller set would skip the instances
+        that slid into the vacated slots.
+        """
+        first = [self._node(f"n{i}") for i in range(ALIAS_PAGE_SIZE)]
+        remaining = [self._node("rest")]
+        client = MagicMock()
+
+        def query(q: object) -> Page:
+            cursors = getattr(q, "cursors", None)
+            if cursors:
+                return Page([self._node("skipped")])
+            if client.data_modeling.instances.query.call_count == 1:
+                return Page(first, "c1")
+            return Page(remaining)
+
+        client.data_modeling.instances.query.side_effect = query
+
+        pages = list(iter_new_items(client, self.logger, self.view_config, run_all=False, label=TS_NODE))
+
+        self.assertEqual([node.external_id for node in pages[1]], ["rest"])
+        second_query = client.data_modeling.instances.query.call_args_list[1].args[0]
+        self.assertFalse(second_query.cursors)
+
+    def test_incremental_stops_when_the_filter_head_does_not_shrink(self) -> None:
+        stuck = [self._node("stuck")]
+        client = MagicMock()
+        client.data_modeling.instances.query.side_effect = [Page(stuck, "c1"), Page(stuck, "c1")]
+
+        pages = list(iter_new_items(client, self.logger, self.view_config, run_all=False, label=TS_NODE))
+
+        self.assertEqual([node.external_id for node in pages[0]], ["stuck"])
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(client.data_modeling.instances.query.call_count, 2)
 
     def test_only_the_properties_alias_generation_uses_are_read(self) -> None:
         client = MagicMock()

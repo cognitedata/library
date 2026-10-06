@@ -14,6 +14,7 @@ selects. Running with `runAll` reads every target again and rebuilds the cache.
 """
 
 import hashlib
+import hmac
 import json
 import time
 from collections.abc import Callable
@@ -57,6 +58,7 @@ from em_constants import (  # isort: skip
     TARGET_SYNC_COL_BATCH_SIZE,
     TARGET_SYNC_COL_COUNT,
     TARGET_SYNC_COL_CURSOR,
+    TARGET_SYNC_COL_DIGEST,
     TARGET_SYNC_COL_FILE,
     TARGET_SYNC_COL_UPDATED_AT,
     TARGET_SYNC_COL_VIEW,
@@ -86,6 +88,7 @@ class TargetSyncState:
     cursor: str | None
     file_external_id: str
     batch_size: int
+    content_digest: str | None = None
 
 
 def target_cache_key(view: ViewPropertyConfig, extra_properties: list[str] | None = None) -> str:
@@ -149,6 +152,7 @@ def read_sync_state(
         cursor=str(columns[TARGET_SYNC_COL_CURSOR]) if columns.get(TARGET_SYNC_COL_CURSOR) else None,
         file_external_id=str(columns.get(TARGET_SYNC_COL_FILE) or cache_file_external_id(cache_key)),
         batch_size=int(batch_size) if batch_size else TARGET_SYNC_BATCH_SIZE,
+        content_digest=str(columns[TARGET_SYNC_COL_DIGEST]) if columns.get(TARGET_SYNC_COL_DIGEST) else None,
     )
     logger.debug(
         f"Target sync state - cursor: {state.cursor}, file: {state.file_external_id}, page size: {state.batch_size}"
@@ -172,6 +176,7 @@ def write_sync_state(
     columns: dict[str, object] = {
         TARGET_SYNC_COL_CURSOR: state.cursor,
         TARGET_SYNC_COL_FILE: state.file_external_id,
+        TARGET_SYNC_COL_DIGEST: state.content_digest,
         TARGET_SYNC_COL_BATCH_SIZE: state.batch_size,
         TARGET_SYNC_COL_COUNT: target_count,
         TARGET_SYNC_COL_VIEW: str(config.data.target_view.as_view_id()),
@@ -231,11 +236,13 @@ def read_cached_targets(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     file_external_id: str,
+    expected_digest: str | None,
 ) -> list[Node] | None:
-    """The targets an earlier run stored, or None when the file cannot be read.
+    """The targets an earlier run stored, or None when the file cannot be trusted.
 
-    A cache that is gone, unreachable or unreadable is not an error: the targets are
-    still in the data model, and the caller falls back to reading them from there.
+    A cache that is gone, unreachable, unreadable or whose digest does not match the
+    RAW state row is not used: the targets are still in the data model, and the caller
+    falls back to reading them from there.
     """
     try:
         content = with_retries(
@@ -243,6 +250,13 @@ def read_cached_targets(
             f"download cached {QUERY_FILTER_TYPE_TARGETS} from file: {file_external_id}",
             lambda: client.files.download_bytes(external_id=file_external_id),
         )
+        digest = hashlib.sha256(content).hexdigest()
+        if expected_digest is None or not hmac.compare_digest(digest, expected_digest):
+            logger.warning(
+                f"Cached {QUERY_FILTER_TYPE_TARGETS} in file: {file_external_id} do not match the stored digest, "
+                "reading them from the data model instead"
+            )
+            return None
         targets = [Node.load(item) for item in json.loads(content)]
     except (CogniteException, ValueError, TypeError, KeyError) as e:
         logger.warning(
@@ -261,15 +275,16 @@ def write_cached_targets(
     file_external_id: str,
     targets: list[Node],
     data_set_id: int | None = None,
-) -> bool:
+) -> str | None:
     """Store the target content so the next run can read it instead of the data model.
 
     Returns:
-        Whether the content was stored. A run that could not store it keeps the targets
-        it has read, and its caller leaves the cursor where it is, so the file and the
-        cursor still describe the same targets.
+        SHA-256 of the stored bytes, or None when the file could not be written. A run
+        that could not store it keeps the targets it has read, and its caller leaves the
+        cursor where it is, so the file and the cursor still describe the same targets.
     """
     content = json.dumps([target.dump(camel_case=True) for target in targets]).encode("utf-8")
+    digest = hashlib.sha256(content).hexdigest()
     try:
         with_retries(
             logger,
@@ -288,10 +303,10 @@ def write_cached_targets(
             f"Could not cache {len(targets)} {QUERY_FILTER_TYPE_TARGETS} in file: {file_external_id} - "
             f"the next run reads them from the data model. Error: {type(e)}({e})"
         )
-        return False
+        return None
 
     logger.info(f"Cached {len(targets)} {QUERY_FILTER_TYPE_TARGETS} in file: {file_external_id}")
-    return True
+    return digest
 
 
 def sync_page(
@@ -433,7 +448,7 @@ def load_targets(
 
     cached: list[Node] | None = None
     if state.cursor and not config.parameters.run_all:
-        cached = read_cached_targets(client, logger, state.file_external_id)
+        cached = read_cached_targets(client, logger, state.file_external_id, state.content_digest)
     elif state.cursor:
         logger.info(f"runAll enabled - reading all {QUERY_FILTER_TYPE_TARGETS} again instead of syncing changes")
 
@@ -449,10 +464,16 @@ def load_targets(
         cached = None
         changes, next_cursor, batch_size = sync_target_changes(client, config, logger, None, state.batch_size)
 
-    synced = TargetSyncState(next_cursor, state.file_external_id, batch_size)
     if cached is not None and not changes:
         logger.info(f"No {QUERY_FILTER_TYPE_TARGETS} changed since the last run - using the cached content")
-        write_sync_state(client, config, logger, cache_key, synced, len(cached))
+        write_sync_state(
+            client,
+            config,
+            logger,
+            cache_key,
+            TargetSyncState(next_cursor, state.file_external_id, batch_size, state.content_digest),
+            len(cached),
+        )
         return cached
 
     targets = merge_target_changes(cached or [], changes)
@@ -461,8 +482,16 @@ def load_targets(
     # The cursor is only moved on once the content it describes has been stored. Moving
     # it on a failed write would leave the next run merging changes onto the targets of
     # an earlier one.
-    if write_cached_targets(client, logger, state.file_external_id, targets, file_data_set_id(client, config)):
-        write_sync_state(client, config, logger, cache_key, synced, len(targets))
+    digest = write_cached_targets(client, logger, state.file_external_id, targets, file_data_set_id(client, config))
+    if digest:
+        write_sync_state(
+            client,
+            config,
+            logger,
+            cache_key,
+            TargetSyncState(next_cursor, state.file_external_id, batch_size, digest),
+            len(targets),
+        )
     return targets
 
 

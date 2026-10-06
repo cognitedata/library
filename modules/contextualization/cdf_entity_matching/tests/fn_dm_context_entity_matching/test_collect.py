@@ -7,7 +7,7 @@ import time
 import unittest
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_entity_matching"))
 
 import em_collect  # isort: skip
 from em_job_state import PredictJob  # isort: skip

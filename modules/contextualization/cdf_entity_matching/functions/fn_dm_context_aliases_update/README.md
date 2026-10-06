@@ -1,6 +1,6 @@
-# Entity Matching Metadata Update Function
+# Aliases Update
 
-This module provides optimized metadata update functionality for timeseries, assets and files in Cognite Data Fusion (CDF) with enhanced performance, monitoring, and error handling.
+This function writes normalized `aliases` on timeseries, assets and files in Cognite Data Fusion (CDF) ahead of entity matching, with paged reads, batch writes, and retry handling.
 
 ## 🚀 Features
 
@@ -23,7 +23,6 @@ fn_dm_context_aliases_update/
 ├── constants.py                  # Module constants
 ├── requirements.txt              # Direct deploy dependencies for CDF
 ├── pyproject.toml                # uv package definition
-├── test_alias_optimizations.py   # Comprehensive test suite
 └── README.md                     # This file
 ```
 
@@ -329,26 +328,19 @@ so the workflow stops before entity matching runs on stale aliases.
 From the repository root:
 
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update -q
-```
-
-Or run the script directly:
-
-```bash
-cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update
-uv run python test_alias_optimizations.py
+uv run pytest modules/contextualization/cdf_entity_matching/tests/fn_dm_context_aliases_update -q
 ```
 
 ### Test Categories
 
 #### 1. **Unit Tests**
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py::TestOptimizedMetadataProcessor -v
+uv run pytest modules/contextualization/cdf_entity_matching/tests/fn_dm_context_aliases_update/test_alias_optimizations.py::TestOptimizedMetadataProcessor -v
 ```
 
 #### 2. **Integration Tests**
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py::TestIntegrationScenarios -v
+uv run pytest modules/contextualization/cdf_entity_matching/tests/fn_dm_context_aliases_update/test_alias_optimizations.py::TestIntegrationScenarios -v
 ```
 
 ### Test Coverage

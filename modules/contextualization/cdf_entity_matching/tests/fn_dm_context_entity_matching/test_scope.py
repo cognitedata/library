@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_entity_matching"))
 
 import em_submit  # isort: skip
 from em_config import Config, ConfigData, Parameters, ViewPropertyConfig  # isort: skip
@@ -91,6 +91,23 @@ def test_unscoped_run_is_one_batch_of_everything(logger: CogniteFunctionLogger) 
     batches = scope_batches(build_config().parameters, logger, targets, entities)  # type: ignore[arg-type]
 
     assert batches == [(targets, entities)]
+
+
+def test_unscoped_run_warns_that_everything_is_matched_together(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    targets = [target("A-1", "x"), target("A-2", "y")]
+    entities = [entity("TS-1", "z"), entity("TS-2", "w")]
+    logger = CogniteFunctionLogger("WARNING")
+
+    with caplog.at_level("WARNING"):
+        batches = scope_batches(build_config().parameters, logger, targets, entities)  # type: ignore[arg-type]
+
+    assert batches == [(targets, entities)]
+    assert any(
+        "No scope properties configured (primary='', secondary='') - 2 is tried matched against all Targets" in message
+        for message in caplog.messages
+    )
 
 
 def test_entities_only_meet_targets_in_their_primary_scope(logger: CogniteFunctionLogger) -> None:

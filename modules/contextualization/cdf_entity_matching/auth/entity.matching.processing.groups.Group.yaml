@@ -14,7 +14,6 @@ capabilities:
   - extractionConfigsAcl:
       actions:
         - READ
-        - WRITE
       scope:
         all: {}
   - extractionRunsAcl:
@@ -50,14 +49,17 @@ capabilities:
         - READ
       scope:
         all: {}
-  # The target content read from the data model is cached as a JSON file, so an
-  # unchanged target set is not read again on the next run.
+  # Staging and the target cache live in this data set. Scope WRITE so a broader
+  # filesAcl on other data sets cannot overwrite those files; collect also checks
+  # a digest stored in RAW.
   - filesAcl:
       actions:
         - READ
         - WRITE
       scope:
-        all: {}
+        datasetScope:
+          ids:
+            - ds_entity_matching
   - entitymatchingAcl:
       actions:
         - READ

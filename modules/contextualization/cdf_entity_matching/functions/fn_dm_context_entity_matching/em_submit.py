@@ -210,7 +210,7 @@ def submit_entity_matching(
             # already staged, so a failure in between leaves an ignored job rather than a
             # job whose manual and rule matches it cannot find.
             with time_operation("Stage manual and rule matches", logger):
-                write_staged_matches(client, logger, job_id, staged_matches, data_set_id)
+                staging_digest = write_staged_matches(client, logger, job_id, staged_matches, data_set_id)
 
             append_predict_job(
                 client,
@@ -219,6 +219,7 @@ def submit_entity_matching(
                 job_id=job_id,
                 job_token=job.job_token,
                 staging_prefix=staging_prefix(job_id),
+                staging_digest=staging_digest,
                 model_id=str(job.model_id) if job.model_id else None,
                 source_count=len(scoped_entities),
             )

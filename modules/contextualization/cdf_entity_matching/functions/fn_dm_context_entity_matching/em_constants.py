@@ -104,6 +104,7 @@ JOB_COL_STATUS: Final = "status"
 JOB_COL_CREATED_AT: Final = "createdAt"
 JOB_COL_MODEL_ID: Final = "modelId"
 JOB_COL_STAGING_PREFIX: Final = "stagingPrefix"
+JOB_COL_STAGING_DIGEST: Final = "stagingDigest"
 JOB_COL_SOURCE_COUNT: Final = "sourceCount"
 
 # Predict job lifecycle. A collected job has its row deleted rather than a terminal
@@ -141,6 +142,7 @@ STAT_STORE_TARGET_SYNC_PREFIX: Final = "state_target_sync_"
 # Columns on a target sync row.
 TARGET_SYNC_COL_CURSOR: Final = "syncCursor"
 TARGET_SYNC_COL_FILE: Final = "fileExternalId"
+TARGET_SYNC_COL_DIGEST: Final = "contentDigest"
 TARGET_SYNC_COL_BATCH_SIZE: Final = "batchSize"
 TARGET_SYNC_COL_COUNT: Final = "targetCount"
 TARGET_SYNC_COL_VIEW: Final = "targetView"

@@ -302,7 +302,7 @@ def _collect_one_job(
     logger.info(f"Predict job {job.job_id} completed - collecting {len(match_results)} result(s){submitted}")
 
     with cdf_lock:
-        staged_matches = read_staged_matches(client, logger, job.job_id)
+        staged_matches = read_staged_matches(client, logger, job.job_id, job.staging_digest)
         with time_operation("Select and apply matches", logger):
             good_matches, bad_matches, cnt_entity_matching = select_and_apply_matches(
                 client, config, logger, staged_matches, match_results

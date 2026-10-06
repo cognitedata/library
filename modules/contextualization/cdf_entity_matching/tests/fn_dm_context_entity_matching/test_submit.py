@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_entity_matching"))
 
 from cognite.client.data_classes import Row  # isort: skip
 from cognite.client.exceptions import CogniteAPIError  # isort: skip
@@ -199,13 +199,13 @@ class TestStaging(unittest.TestCase):
             {"entity_ext_id": "TS-2", "asset_ext_id": "A-2", "match_type": "Rule Based Mapping"},
         ]
 
-        write_staged_matches(
+        digest = write_staged_matches(
             self.client,  # type: ignore[arg-type]
             self.logger,
             "1001",
             matches,  # type: ignore[arg-type]
         )
-        restored = read_staged_matches(self.client, self.logger, "1001")  # type: ignore[arg-type]
+        restored = read_staged_matches(self.client, self.logger, "1001", digest)  # type: ignore[arg-type]
 
         self.assertEqual(sorted(restored, key=lambda m: m["entity_ext_id"]), matches)
 
@@ -249,7 +249,7 @@ class TestStaging(unittest.TestCase):
             "1001",
             ts1_match,  # type: ignore[arg-type]
         )
-        write_staged_matches(
+        digest = write_staged_matches(
             self.client,  # type: ignore[arg-type]
             self.logger,
             "1002",
@@ -257,12 +257,12 @@ class TestStaging(unittest.TestCase):
         )
 
         self.assertEqual(
-            read_staged_matches(self.client, self.logger, "1002"),  # type: ignore[arg-type]
+            read_staged_matches(self.client, self.logger, "1002", digest),  # type: ignore[arg-type]
             ts2_match,
         )
 
     def test_delete_staged_matches_removes_file(self) -> None:
-        write_staged_matches(
+        digest = write_staged_matches(
             self.client,  # type: ignore[arg-type]
             self.logger,
             "1001",
@@ -272,24 +272,53 @@ class TestStaging(unittest.TestCase):
 
         delete_staged_matches(self.client, self.logger, "1001")  # type: ignore[arg-type]
         self.assertNotIn(staging_file_external_id("1001"), self.client.files.files)
-        self.assertEqual(read_staged_matches(self.client, self.logger, "1001"), [])
+        self.assertEqual(read_staged_matches(self.client, self.logger, "1001", digest), [])
 
     def test_a_staging_file_that_cannot_be_read_fails_collect(self) -> None:
         """Returning nothing would let collect delete the file and lose the staged matches."""
         self.client.files.download_bytes = MagicMock(side_effect=CogniteAPIError("Unavailable", code=503))
 
         with self.assertRaises(CogniteAPIError):
-            read_staged_matches(self.client, self.logger, "1001")  # type: ignore[arg-type]
+            read_staged_matches(self.client, self.logger, "1001", "digest")  # type: ignore[arg-type]
 
     def test_a_staging_file_that_cannot_be_parsed_fails_collect(self) -> None:
+        digest = write_staged_matches(
+            self.client,  # type: ignore[arg-type]
+            self.logger,
+            "1001",
+            [{"entity_ext_id": "TS-1"}],  # type: ignore[arg-type]
+        )
         self.client.files.files[staging_file_external_id("1001")] = b"not json"
+
+        with self.assertRaises(ValueError):
+            read_staged_matches(self.client, self.logger, "1001", digest)  # type: ignore[arg-type]
+
+    def test_a_replaced_staging_file_fails_collect(self) -> None:
+        digest = write_staged_matches(
+            self.client,  # type: ignore[arg-type]
+            self.logger,
+            "1001",
+            [{"entity_ext_id": "TS-1"}],  # type: ignore[arg-type]
+        )
+        self.client.files.files[staging_file_external_id("1001")] = b'[{"entity_ext_id": "EVIL"}]'
+
+        with self.assertRaises(ValueError):
+            read_staged_matches(self.client, self.logger, "1001", digest)  # type: ignore[arg-type]
+
+    def test_staged_matches_without_a_digest_are_not_applied(self) -> None:
+        write_staged_matches(
+            self.client,  # type: ignore[arg-type]
+            self.logger,
+            "1001",
+            [{"entity_ext_id": "TS-1"}],  # type: ignore[arg-type]
+        )
 
         with self.assertRaises(ValueError):
             read_staged_matches(self.client, self.logger, "1001")  # type: ignore[arg-type]
 
     def test_run_all_clears_results_but_keeps_staged_matches(self) -> None:
         self.client.raw.rows.insert("db", "good", Row("TS-9", {"entity_ext_id": "TS-9"}))
-        write_staged_matches(
+        digest = write_staged_matches(
             self.client,  # type: ignore[arg-type]
             self.logger,
             "1001",
@@ -301,7 +330,7 @@ class TestStaging(unittest.TestCase):
         remaining = list(self.client.raw.rows.tables[("db", "good")])
         self.assertEqual(remaining, [])
         self.assertEqual(
-            read_staged_matches(self.client, self.logger, "1001"),  # type: ignore[arg-type]
+            read_staged_matches(self.client, self.logger, "1001", digest),  # type: ignore[arg-type]
             [{"entity_ext_id": "TS-1"}],
         )
 

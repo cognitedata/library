@@ -65,6 +65,12 @@ def scope_batches(
         non-empty scope without targets is logged and left out.
     """
     if not scope_properties(parameters):
+        primary = parameters.primary_scope_property or ""
+        secondary = parameters.secondary_scope_property or ""
+        logger.warning(
+            f"No scope properties configured (primary={primary!r}, secondary={secondary!r}) - "
+            f"{len(entities)} is tried matched against all Targets"
+        )
         return [(targets, entities)]
 
     by_scope: dict[ScopeKey, list[EntityMatchSource]] = defaultdict(list)

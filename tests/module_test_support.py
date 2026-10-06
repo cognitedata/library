@@ -16,9 +16,7 @@ _FLAT_MODULE_NAMES = (
     "pipeline_optimizations",
 )
 
-_MODULE_TEST_PATH_MARKERS = (
-    "modules/contextualization/",
-)
+_MODULE_TEST_PATH_MARKERS = ("modules/contextualization/",)
 
 
 def cognite_sdk_available() -> bool:
@@ -35,9 +33,16 @@ def is_module_function_test_file(path: Path) -> bool:
 
 
 def function_dir_for_test_file(path: Path) -> Path | None:
-    """Return the deployed function directory for a module test file."""
+    """Return the deployed function directory for a module test file.
+
+    Tests live at ``<module>/tests/<function_external_id>/`` so they are not packaged
+    with the function. Older modules still keep ``test_*.py`` beside the handler.
+    """
     if not is_module_function_test_file(path):
         return None
+    tests_dir = path.parent.parent
+    if tests_dir.name == "tests":
+        return tests_dir.parent / "functions" / path.parent.name
     return path.parent
 
 

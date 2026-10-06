@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_aliases_update"))
 
 from cognite.client.data_classes.data_modeling import NodeApply, ViewId
 from cognite.client.exceptions import CogniteAPIError, CogniteConnectionError
@@ -226,9 +226,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         """With overlapping conventions, the longest match is the most specific one."""
         processor = OptimizedMetadataProcessor(
             self.logger,
-            timeseries_alias_rule=AliasRule.from_config(
-                [DEFAULT_ALIAS_PATTERN, PUMP_PATTERN], selection="longest"
-            ),
+            timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN, PUMP_PATTERN], selection="longest"),
         )
         node = MagicMock()
         node.external_id = "pi:160021"
@@ -257,9 +255,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         """Selecting only the longest must not orphan aliases an earlier run wrote."""
         processor = OptimizedMetadataProcessor(
             self.logger,
-            timeseries_alias_rule=AliasRule.from_config(
-                [DEFAULT_ALIAS_PATTERN, PUMP_PATTERN], selection="longest"
-            ),
+            timeseries_alias_rule=AliasRule.from_config([DEFAULT_ALIAS_PATTERN, PUMP_PATTERN], selection="longest"),
         )
         node = MagicMock()
         node.external_id = "pi:160023"
@@ -271,13 +267,9 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             }
         }
 
-        result = processor.process_timeseries_metadata(
-            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
-        )
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True)
 
-        self.assertEqual(
-            result.sources[0].properties["aliases"], ["operator note", "23-KA-9101"]
-        )
+        self.assertEqual(result.sources[0].properties["aliases"], ["operator note", "23-KA-9101"])
 
     def test_letter_prefixed_aliases_are_normalized(self) -> None:
         """Separators are rewritten for every generated alias, not only two-digit tags."""
@@ -290,9 +282,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.external_id = "23-DB-9101"
         node.properties = {asset_view: {"name": "23-DB-9101", "aliases": ["23-DB-9101", "DB-9101"]}}
 
-        result = processor.process_asset_metadata(
-            node, asset_view, "inst_location", update_all=True
-        )
+        result = processor.process_asset_metadata(node, asset_view, "inst_location", update_all=True)
 
         self.assertEqual(result.sources[0].properties["aliases"], ["DB-9101", "23-DB-9101"])
 
@@ -331,9 +321,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
     def test_configured_pattern_drives_timeseries_alias_generation(self) -> None:
         """A site whose tags do not follow the default shape configures its own pattern."""
-        processor = OptimizedMetadataProcessor(
-            self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN])
-        )
+        processor = OptimizedMetadataProcessor(self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN]))
         node = MagicMock()
         node.external_id = "pi:160010"
         node.properties = {self.view_id: {"name": "PMP1234 discharge pressure", "aliases": []}}
@@ -396,9 +384,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
     def test_the_missing_alias_warning_stops_after_ten_names(self) -> None:
         """A naming convention no pattern covers must not bury the rest of the run log."""
-        processor = OptimizedMetadataProcessor(
-            self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN])
-        )
+        processor = OptimizedMetadataProcessor(self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN]))
 
         with patch.object(self.logger, "warning") as warning:
             self._process_names_without_alias(processor, 12)
@@ -409,9 +395,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
     def test_no_summary_is_logged_when_no_warning_was_suppressed(self) -> None:
         """With nothing held back, a total only repeats what the log already shows."""
-        processor = OptimizedMetadataProcessor(
-            self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN])
-        )
+        processor = OptimizedMetadataProcessor(self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN]))
 
         with patch.object(self.logger, "warning") as warning:
             self._process_names_without_alias(processor, 3)
@@ -421,9 +405,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
     def test_a_suppressed_warning_still_leaves_aliases_empty(self) -> None:
         """Throttling the log must not change that no alias is written."""
-        processor = OptimizedMetadataProcessor(
-            self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN])
-        )
+        processor = OptimizedMetadataProcessor(self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN]))
         self._process_names_without_alias(processor, 10)
 
         node = MagicMock()
@@ -440,9 +422,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
         node = MagicMock()
         node.external_id = "pi:160033"
-        node.properties = {
-            self.view_id: {"name": "Reactor outlet temp", "aliases": ["spare for 23-AB-1234"]}
-        }
+        node.properties = {self.view_id: {"name": "Reactor outlet temp", "aliases": ["spare for 23-AB-1234"]}}
 
         result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas")
 
@@ -458,13 +438,9 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         )
         node = MagicMock()
         node.external_id = "pi:160034"
-        node.properties = {
-            self.view_id: {"name": "Reactor outlet temperature", "aliases": ["Reactor outlet temp"]}
-        }
+        node.properties = {self.view_id: {"name": "Reactor outlet temperature", "aliases": ["Reactor outlet temp"]}}
 
-        result = processor.process_timeseries_metadata(
-            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
-        )
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True)
 
         self.assertIsNone(result)
 
@@ -528,9 +504,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             }
         }
 
-        result = processor.process_timeseries_metadata(
-            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
-        )
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True)
 
         self.assertEqual(result.sources[0].properties["aliases"], ["23-KA-9101", "PMP-1234"])
 
@@ -545,9 +519,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.external_id = "pi:160012"
         node.properties = {self.view_id: {"name": "PMP9999 discharge pressure", "aliases": ["PMP-1234"]}}
 
-        result = processor.process_timeseries_metadata(
-            node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True
-        )
+        result = processor.process_timeseries_metadata(node, self.view_id, "inst_cfihos_oil_and_gas", update_all=True)
 
         self.assertEqual(result.sources[0].properties["aliases"], ["PMP-9999"])
 
@@ -607,9 +579,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
     def test_document_number_aliases_are_normalized(self) -> None:
         """Document numbers get the same separator rewrite as equipment tags."""
-        processor = OptimizedMetadataProcessor(
-            self.logger, file_alias_rule=AliasRule.from_config(DOCUMENT_PATTERNS)
-        )
+        processor = OptimizedMetadataProcessor(self.logger, file_alias_rule=AliasRule.from_config(DOCUMENT_PATTERNS))
         node = MagicMock()
         node.external_id = "file:4010"
         node.properties = {self.file_view_id: {"name": "PH-25578-P-4110006-001.pdf", "aliases": []}}
@@ -635,16 +605,12 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
 
     def test_a_longer_prefix_does_not_yield_a_truncated_document_alias(self) -> None:
         """Matching from the second letter of a prefix would write a wrong document number."""
-        processor = OptimizedMetadataProcessor(
-            self.logger, file_alias_rule=AliasRule.from_config(DOCUMENT_PATTERNS)
-        )
+        processor = OptimizedMetadataProcessor(self.logger, file_alias_rule=AliasRule.from_config(DOCUMENT_PATTERNS))
         node = MagicMock()
         node.external_id = "file:4011"
         node.properties = {self.file_view_id: {"name": "SHEET-1-A-2.pdf", "aliases": []}}
 
-        result = processor.process_file_metadata(
-            node, self.file_view_id, "inst_cfihos_oil_and_gas", update_all=True
-        )
+        result = processor.process_file_metadata(node, self.file_view_id, "inst_cfihos_oil_and_gas", update_all=True)
 
         # No pattern match and no existing aliases → nothing to write.
         self.assertIsNone(result)
@@ -792,9 +758,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         """Nothing produced must reach CDF as null, otherwise the old aliases survive."""
         node = MagicMock()
         node.external_id = "pi:160008"
-        node.properties = {
-            self.view_id: {"name": "Reactor outlet temperature", "aliases": ["operator note"]}
-        }
+        node.properties = {self.view_id: {"name": "Reactor outlet temperature", "aliases": ["operator note"]}}
 
         result = self.processor.process_timeseries_metadata(
             node,
@@ -843,9 +807,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             }
         }
 
-        result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True
-        )
+        result = self.processor.process_asset_metadata(node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True)
 
         self.assertIsNotNone(result)
         properties = result.sources[0].properties
@@ -873,9 +835,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             }
         }
 
-        result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True
-        )
+        result = self.processor.process_asset_metadata(node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True)
 
         self.assertIsNone(result)
 
@@ -896,9 +856,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             }
         }
 
-        result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=False
-        )
+        result = self.processor.process_asset_metadata(node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=False)
 
         self.assertIsNotNone(result)
         self.assertEqual(result.sources[0].properties["aliases"], ["23-KA-9101"])
@@ -925,9 +883,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             }
         }
 
-        result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=False
-        )
+        result = self.processor.process_asset_metadata(node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=False)
 
         self.assertIsNotNone(result)
         self.assertEqual(list(result.sources[0].properties), ["aliases"])
@@ -950,9 +906,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
             }
         }
 
-        result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=False
-        )
+        result = self.processor.process_asset_metadata(node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=False)
 
         self.assertIsNone(result)
 
@@ -968,9 +922,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.external_id = "23-KA-9101"
         node.properties = {other_view_id: {"name": "23-KA-9101"}}
 
-        result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True
-        )
+        result = self.processor.process_asset_metadata(node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True)
 
         self.assertIsNone(result)
 
@@ -1001,9 +953,7 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         node.external_id = "23-KA-9101"
         node.properties = None
 
-        result = self.processor.process_asset_metadata(
-            node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True
-        )
+        result = self.processor.process_asset_metadata(node, asset_view_id, "inst_cfihos_oil_and_gas", update_all=True)
 
         self.assertIsNone(result)
 
@@ -1032,21 +982,15 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         tag = "VAL_23-KA-9101:X.Value"
 
         # Test timeseries alias generation
-        aliases1 = self.processor._get_timeseries_alias_list_optimized(
-            tag, ("existing",)
-        )
-        aliases2 = self.processor._get_timeseries_alias_list_optimized(
-            tag, ("existing",)
-        )  # Should use cache
+        aliases1 = self.processor._get_timeseries_alias_list_optimized(tag, ("existing",))
+        aliases2 = self.processor._get_timeseries_alias_list_optimized(tag, ("existing",))  # Should use cache
 
         self.assertEqual(aliases1, aliases2)
         self.assertIn("existing", aliases1)
         self.assertIn("23-KA-9101", aliases1)
 
         # Test asset alias generation
-        asset_aliases = self.processor._get_asset_alias_list_optimized(
-            "23-KA-9101", ("existing",)
-        )
+        asset_aliases = self.processor._get_asset_alias_list_optimized("23-KA-9101", ("existing",))
         self.assertIn("existing", asset_aliases)
         self.assertIn("23-KA-9101", asset_aliases)
 
@@ -1057,14 +1001,14 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         print("🧪 Testing processing statistics...")
 
         # Mock some processing
-        self.processor.stats['processed'] = 100
-        self.processor.stats['updated'] = 75
+        self.processor.stats["processed"] = 100
+        self.processor.stats["updated"] = 75
 
         stats = self.processor.get_stats()
 
-        self.assertEqual(stats['processed'], 100)
-        self.assertEqual(stats['updated'], 75)
-        self.assertEqual(stats['update_rate'], 0.75)
+        self.assertEqual(stats["processed"], 100)
+        self.assertEqual(stats["updated"], 75)
+        self.assertEqual(stats["update_rate"], 0.75)
 
         print("✅ Processing statistics test passed")
 
@@ -1087,7 +1031,8 @@ class TestIntegrationScenarios(unittest.TestCase):
         for i in range(1000):
             # Test cached operations
             aliases = processor._get_timeseries_alias_list_optimized(
-                f"test-item-{i % 10}", ("existing",)  # Reuse names to test caching
+                f"test-item-{i % 10}",
+                ("existing",),  # Reuse names to test caching
             )
             self.assertIsInstance(aliases, tuple)
 

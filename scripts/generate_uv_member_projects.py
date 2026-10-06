@@ -6,7 +6,6 @@ Run from the repository root after editing PACKAGE_SPECS:
     python scripts/export_deploy_requirements.py
 """
 
-
 import json
 from pathlib import Path
 
@@ -126,7 +125,6 @@ PACKAGE_SPECS: list[dict[str, object]] = [
             "mixpanel >= 4.10.0, < 6",
         ],
         "dev_dependencies": ["pytest>=7.0.0"],
-        "pytest": True,
     },
     {
         "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_finalize",

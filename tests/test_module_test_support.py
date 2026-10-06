@@ -13,7 +13,7 @@ from tests.module_test_support import (
 
 
 def test_is_module_function_test_file_matches_contextualization_tests() -> None:
-    path = Path("modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching/test_submit.py")
+    path = Path("modules/contextualization/cdf_entity_matching/tests/fn_dm_context_entity_matching/test_submit.py")
     assert is_module_function_test_file(path)
 
 
@@ -21,8 +21,17 @@ def test_is_module_function_test_file_ignores_root_tests() -> None:
     assert not is_module_function_test_file(Path("tests/test_foundation_setup_wizard.py"))
 
 
-def test_function_dir_for_test_file_is_its_own_parent() -> None:
-    path = Path("modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching/test_submit.py")
+def test_function_dir_for_test_file_maps_module_tests_to_function_dir() -> None:
+    path = Path("modules/contextualization/cdf_entity_matching/tests/fn_dm_context_entity_matching/test_submit.py")
+    assert function_dir_for_test_file(path) == Path(
+        "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching"
+    )
+
+
+def test_function_dir_for_test_file_keeps_legacy_in_function_dir_layout() -> None:
+    path = Path(
+        "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/test_pipeline.py"
+    )
     assert function_dir_for_test_file(path) == path.parent
 
 
