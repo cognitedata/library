@@ -1487,15 +1487,15 @@ def _prompt_site(existing_site: str) -> str:
     _section("Site / Location Name")
     _hint("Required. Used in access-group names (<persona>_<site>_all_<env>),")
     _hint("location for source system external IDs, and location_name in entity-matching.")
-    _hint("Only lowercase letters, digits, hyphens, and underscores (e.g. oslo).")
+    _hint("Only lowercase letters, digits, and underscores (e.g. oslo).")
     while True:
         site = prompt("Site / location name", default=existing_site or None).strip().lower()
         if not site:
             _warn("Site / location name is required and cannot be empty.")
             continue
-        if re.fullmatch(r"[a-z0-9_-]+", site):
+        if re.fullmatch(r"[a-z0-9_]+", site):
             return site
-        _warn("Use only lowercase letters, digits, hyphens, and underscores.")
+        _warn("Use only lowercase letters, digits, and underscores — hyphens are not allowed in CDF external IDs.")
 
 
 def _prompt_cfihos_owners(existing: dict) -> tuple[str, str, str]:

@@ -302,6 +302,15 @@ class TestGroupName:
         assert group_name("admin", "oslo", "test") == "admin_oslo_all_dev"
 
 
+class TestPromptSite:
+    def test_rejects_hyphen_and_reprompts(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The site becomes a token in external IDs, where hyphens are not allowed."""
+        import setup_project
+        answers = iter(["north-sea", "northsea"])
+        monkeypatch.setattr(setup_project, "prompt", lambda *_args, **_kwargs: next(answers))
+        assert setup_project._prompt_site("") == "northsea"
+
+
 class TestBuildFoundationVars:
     def test_isa_variant_contains_required_keys(self) -> None:
         from setup_project import build_foundation_vars
