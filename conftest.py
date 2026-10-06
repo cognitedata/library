@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from _pytest.python import Module
+from pytest import Item
 
 from tests.module_test_support import (
     bind_flat_modules_from_test,
@@ -55,7 +56,7 @@ def pytest_configure(config):
     Module._getobj = _isolated_module_getobj
 
 
-def pytest_runtest_setup(item) -> None:
+def pytest_runtest_setup(item: Item) -> None:
     """Re-bind flat modules before each test so string patches hit the right package."""
     function_dir = function_dir_for_test_file(Path(str(item.path)))
     if function_dir is None:
