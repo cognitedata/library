@@ -3,12 +3,14 @@
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 sys.path.append(str(Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_entity_matching"))
 
 from cognite.client.data_classes import Row  # isort: skip
 from cognite.client.exceptions import CogniteAPIError  # isort: skip
+
+import em_submit  # isort: skip
 
 from em_config import Config, ConfigData, Parameters, ViewPropertyConfig  # isort: skip
 from em_constants import STAT_STORE_MATCH_MODEL_ID, STAT_STORE_VALUE  # isort: skip
@@ -333,6 +335,45 @@ class TestStaging(unittest.TestCase):
             read_staged_matches(self.client, self.logger, "1001", digest),  # type: ignore[arg-type]
             [{"entity_ext_id": "TS-1"}],
         )
+
+
+class TestSubmitWithoutPredict(unittest.TestCase):
+    """Manual matches never staged with a predict job must still reach the good table."""
+
+    def setUp(self) -> None:
+        self.client = FakeClient()
+        self.config = build_config()
+        self.logger = CogniteFunctionLogger("DEBUG")
+        self.manual_match = {"entity_ext_id": "TS-1", "entity_space": "sp", "asset_ext_id": "A-1"}
+
+    def _submit(self, new_entities: list[dict], batches: list) -> None:
+        with (
+            patch.object(em_submit, "_raw_upload_queue", return_value=FakeUploadQueue(self.client)),
+            patch.object(em_submit, "read_state_store", return_value=""),
+            patch.object(em_submit, "read_manual_mappings", return_value=([], [])),
+            patch.object(em_submit, "read_rule_mappings", return_value=[]),
+            patch.object(em_submit, "get_all_targets", return_value=[{"target_ext_id": "A-1"}]),
+            patch.object(em_submit, "apply_manual_mappings", return_value=([self.manual_match], 1)),
+            patch.object(em_submit, "get_new_entities", return_value=new_entities),
+            patch.object(em_submit, "scope_batches", return_value=batches),
+            patch.object(em_submit, "update_pipeline_run"),
+        ):
+            em_submit.submit_entity_matching(
+                self.client,  # type: ignore[arg-type]
+                self.logger,
+                {"ExtractionPipelineExtId": "ep"},  # type: ignore[typeddict-item]
+                self.config,
+            )
+
+    def test_manual_matches_written_when_no_new_entities(self) -> None:
+        self._submit(new_entities=[], batches=[])
+
+        self.assertEqual(len(self.client.raw.rows.tables[("db", "good")]), 1)
+
+    def test_manual_matches_written_when_no_targets_in_scope(self) -> None:
+        self._submit(new_entities=[{"entity_ext_id": "TS-2", "entity_space": "sp"}], batches=[])
+
+        self.assertEqual(len(self.client.raw.rows.tables[("db", "good")]), 1)
 
 
 if __name__ == "__main__":

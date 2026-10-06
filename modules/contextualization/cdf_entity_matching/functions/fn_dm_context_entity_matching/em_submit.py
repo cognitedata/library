@@ -168,6 +168,8 @@ def submit_entity_matching(
         logger.info(f"New entities to match: {submitted_entities} ({len(new_entities)} source record(s) submitted)")
         if len(new_entities) == 0:
             logger.info("No new entities to process - predict not started")
+            if good_matches:
+                write_mapping_to_raw(client, config, raw_uploader, good_matches, [], logger)
             update_pipeline_run(
                 client,
                 logger,
@@ -182,6 +184,8 @@ def submit_entity_matching(
         # Scoping matches each scope against its own targets, with a predict job of its own.
         batches = scope_batches(config.parameters, logger, targets, new_entities)
         if not batches:
+            if good_matches:
+                write_mapping_to_raw(client, config, raw_uploader, good_matches, [], logger)
             update_pipeline_run(
                 client,
                 logger,
