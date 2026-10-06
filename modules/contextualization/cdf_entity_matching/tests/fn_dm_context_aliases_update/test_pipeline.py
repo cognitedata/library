@@ -16,15 +16,6 @@ from constants import ALIAS_PAGE_SIZE, DEFAULT_ALIAS_PATTERN, TS_NODE  # isort: 
 import handler  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
 import pipeline  # isort: skip
-from pipeline import (  # isort: skip
-    _process_assets_optimized,
-    _process_files_optimized,
-    _process_timeseries_optimized,
-    describe_processing_mode,
-    effective_run_all,
-    get_alias_filter,
-    iter_new_items,
-)
 
 
 class Page:
@@ -106,7 +97,7 @@ class TestPipelineHelpers(unittest.TestCase):
         client = MagicMock()
         config = self._config(run_all=True, update_all=False)
 
-        updates = _process_files_optimized(client, self.logger, config, MagicMock(), MagicMock())
+        updates = pipeline._process_files_optimized(client, self.logger, config, MagicMock(), MagicMock())
 
         self.assertEqual(updates, 0)
         client.data_modeling.instances.list.assert_not_called()
@@ -205,7 +196,7 @@ class TestPipelineHelpers(unittest.TestCase):
             )
 
     def _pages(self, client: MagicMock) -> list[list[object]]:
-        return list(iter_new_items(client, self.logger, self.view_config, run_all=True, label=TS_NODE))
+        return list(pipeline.iter_new_items(client, self.logger, self.view_config, run_all=True, label=TS_NODE))
 
     def test_a_rejected_request_fails_the_run_without_retrying(self) -> None:
         """A 400 means the request itself is wrong; an empty result would hide that."""
@@ -297,7 +288,7 @@ class TestPipelineHelpers(unittest.TestCase):
 
         client.data_modeling.instances.query.side_effect = query
 
-        pages = list(iter_new_items(client, self.logger, self.view_config, run_all=False, label=TS_NODE))
+        pages = list(pipeline.iter_new_items(client, self.logger, self.view_config, run_all=False, label=TS_NODE))
 
         self.assertEqual([node.external_id for node in pages[1]], ["rest"])
         second_query = client.data_modeling.instances.query.call_args_list[1].args[0]
@@ -308,7 +299,7 @@ class TestPipelineHelpers(unittest.TestCase):
         client = MagicMock()
         client.data_modeling.instances.query.side_effect = [Page(stuck, "c1"), Page(stuck, "c1")]
 
-        pages = list(iter_new_items(client, self.logger, self.view_config, run_all=False, label=TS_NODE))
+        pages = list(pipeline.iter_new_items(client, self.logger, self.view_config, run_all=False, label=TS_NODE))
 
         self.assertEqual([node.external_id for node in pages[0]], ["stuck"])
         self.assertEqual(len(pages), 1)
@@ -325,23 +316,23 @@ class TestPipelineHelpers(unittest.TestCase):
 
     def test_effective_run_all_when_update_all_enabled(self) -> None:
         config = self._config(run_all=False, update_all=True)
-        self.assertTrue(effective_run_all(config))
+        self.assertTrue(pipeline.effective_run_all(config))
 
     def test_effective_run_all_when_remove_old_aliases_enabled(self) -> None:
         config = self._config(run_all=False, update_all=False, remove_old_aliases=True)
-        self.assertTrue(effective_run_all(config))
+        self.assertTrue(pipeline.effective_run_all(config))
 
     def test_describe_processing_mode_update_all(self) -> None:
         config = self._config(run_all=False, update_all=True)
-        self.assertIn("updateAll", describe_processing_mode(config))
+        self.assertIn("updateAll", pipeline.describe_processing_mode(config))
 
     def test_describe_processing_mode_remove_old_aliases(self) -> None:
         config = self._config(run_all=False, update_all=False, remove_old_aliases=True)
-        self.assertIn("removeOldAliases", describe_processing_mode(config))
+        self.assertIn("removeOldAliases", pipeline.describe_processing_mode(config))
 
     def test_describe_processing_mode_incremental(self) -> None:
         config = self._config(run_all=False, update_all=False)
-        self.assertIn("incremental", describe_processing_mode(config))
+        self.assertIn("incremental", pipeline.describe_processing_mode(config))
 
     def test_timeseries_are_fetched_on_space_and_aliases_alone(self) -> None:
         """Time series are selected like assets and files: nothing but space and the alias check."""
@@ -353,16 +344,16 @@ class TestPipelineHelpers(unittest.TestCase):
         query = client.data_modeling.instances.query.call_args.args[0]
         expected = dm.filters.And(
             dm.filters.In(["node", "space"], self.view_config.instance_spaces),
-            get_alias_filter(self.view_config, self.logger, run_all=True),
+            pipeline.get_alias_filter(self.view_config, self.logger, run_all=True),
         )
         self.assertEqual(query.with_["items"].filter.dump(), expected.dump())
 
     def test_get_alias_filter_skips_alias_exists_when_incremental(self) -> None:
-        filter_query = get_alias_filter(self.view_config, self.logger, run_all=False)
+        filter_query = pipeline.get_alias_filter(self.view_config, self.logger, run_all=False)
         self.assertIsInstance(filter_query, dm.filters.And)
 
     def test_get_alias_filter_fetches_all_when_run_all(self) -> None:
-        filter_query = get_alias_filter(self.view_config, self.logger, run_all=True)
+        filter_query = pipeline.get_alias_filter(self.view_config, self.logger, run_all=True)
         self.assertIsInstance(filter_query, dm.filters.HasData)
 
     def test_each_page_is_written_before_the_next_is_read(self) -> None:
@@ -374,7 +365,7 @@ class TestPipelineHelpers(unittest.TestCase):
         batch_processor.apply_updates_in_batches.side_effect = [2, 1]
 
         with patch.object(pipeline, "iter_new_items", return_value=iter([[MagicMock(), MagicMock()], [MagicMock()]])):
-            total = _process_timeseries_optimized(MagicMock(), self.logger, config, processor, batch_processor)
+            total = pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, processor, batch_processor)
 
         self.assertEqual(batch_processor.apply_updates_in_batches.call_count, 2)
         self.assertEqual(total, 3)
@@ -386,7 +377,7 @@ class TestPipelineHelpers(unittest.TestCase):
         batch_processor.apply_updates_in_batches.return_value = 1
 
         with patch.object(pipeline, "iter_new_items", return_value=iter([[MagicMock()]])) as fetch:
-            total = _process_assets_optimized(MagicMock(), self.logger, config, processor, batch_processor)
+            total = pipeline._process_assets_optimized(MagicMock(), self.logger, config, processor, batch_processor)
 
         self.assertIs(fetch.call_args.args[2], config.data.job.asset_view)
         processor.process_asset_metadata.assert_called_once()
@@ -396,7 +387,7 @@ class TestPipelineHelpers(unittest.TestCase):
         config = self._config(run_all=False, update_all=False)
 
         with patch.object(pipeline, "iter_new_items", return_value=iter([])):
-            total = _process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
+            total = pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
 
         self.assertEqual(total, 0)
 
