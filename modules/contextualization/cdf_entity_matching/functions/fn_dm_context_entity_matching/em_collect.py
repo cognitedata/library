@@ -56,6 +56,7 @@ def _raw_upload_queue(client: CogniteClient) -> "RawUploadQueue":
 
     return RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
 
+
 @dataclass(frozen=True)
 class CollectJobOutcome:
     """How one queued predict job ended in this collect run."""
@@ -146,7 +147,7 @@ def drain_job_queue(
     in_flight: dict[Future[CollectJobOutcome], PredictJob] = {}
 
     def submit(pool: ThreadPoolExecutor, job: PredictJob) -> None:
-        seconds_left = deadline - now()
+        seconds_left = max(0.0, deadline - now())
         in_flight[pool.submit(collect_one, job, seconds_left)] = job
 
     def take_finished(finished: set[Future[CollectJobOutcome]]) -> None:
@@ -165,7 +166,7 @@ def drain_job_queue(
                 submit(pool, pending.pop(0))
             if not in_flight:
                 break
-            done, _ = wait(in_flight, timeout=deadline - now(), return_when=FIRST_COMPLETED)
+            done, _ = wait(in_flight, timeout=max(0.0, deadline - now()), return_when=FIRST_COMPLETED)
             take_finished(set(done))
     return outcomes
 

@@ -168,6 +168,30 @@ class TestDrainJobQueue(unittest.TestCase):
         self.assertLessEqual(len(started), 10)
         self.assertGreaterEqual(len(started), 1)
 
+    def test_never_waits_or_starts_a_job_with_a_negative_budget(self) -> None:
+        """The deadline can pass between the deadline check and computing the time left."""
+        clock = iter([0.0, 20.0, 20.0, 20.0])
+        budgets: list[float] = []
+        timeouts: list[float | None] = []
+        real_wait = em_collect.wait
+
+        def collect_one(job: PredictJob, seconds_left: float) -> em_collect.CollectJobOutcome:
+            budgets.append(seconds_left)
+            return em_collect.CollectJobOutcome(job.job_id, "Running")
+
+        def recording_wait(fs: object, timeout: float | None = None, return_when: str = "") -> object:
+            timeouts.append(timeout)
+            return real_wait(fs)  # type: ignore[arg-type]
+
+        em_collect.wait = recording_wait  # type: ignore[assignment]
+        try:
+            em_collect.drain_job_queue([queued_job()], collect_one, deadline=10.0, now=lambda: next(clock))
+        finally:
+            em_collect.wait = real_wait  # type: ignore[assignment]
+
+        self.assertEqual(budgets, [0.0])
+        self.assertEqual(timeouts, [0.0])
+
 
 if __name__ == "__main__":
     unittest.main()

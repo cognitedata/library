@@ -34,6 +34,7 @@ from em_pipeline import (  # isort: skip
     read_state_store,
     submit_predict_job,
     update_pipeline_run,
+    write_mapping_to_raw,
 )
 from em_pipeline_optimizations import time_operation  # isort: skip
 from em_pipeline_types import EntityMatchSource, FunctionInputData, StoredMatch  # isort: skip
@@ -52,6 +53,7 @@ def _raw_upload_queue(client: CogniteClient) -> "RawUploadQueue":
 
     return RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
 
+
 def predict_job_entity_counts(
     scoped_entities: list[EntityMatchSource],
     staged_matches: list[StoredMatch],
@@ -69,6 +71,23 @@ def predict_job_entity_counts(
     already = {instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]) for match in staged_matches}
     already_in_job = entity_ids & already
     return len(scoped_entities), len(entity_ids), len(already_in_job), len(entity_ids - already)
+
+
+def unmatched_source_records(
+    scoped_entities: list[EntityMatchSource],
+    staged_matches: list[StoredMatch],
+) -> list[EntityMatchSource]:
+    """The source records whose entity no manual or rule mapping has matched yet.
+
+    Args:
+        scoped_entities: Sources in this scope.
+        staged_matches: Manual/rule matches already found for this job.
+
+    Returns:
+        The sources to send to the matching API.
+    """
+    already = {instance_key(match.get(KEY_ENTITY_SPACE), match[KEY_ENTITY_EXT_ID]) for match in staged_matches}
+    return [e for e in scoped_entities if instance_key(e[KEY_ENTITY_SPACE], e[KEY_ENTITY_EXT_ID]) not in already]
 
 
 def submit_entity_matching(
@@ -188,14 +207,23 @@ def submit_entity_matching(
                 )
             cnt_rule_mappings += cnt_scope_rules
 
-            source_records, unique_entities, already_matched, entities_to_match = predict_job_entity_counts(
+            _, unique_entities, already_matched, entities_to_match = predict_job_entity_counts(
                 scoped_entities, staged_matches
             )
+            unmatched_entities = unmatched_source_records(scoped_entities, staged_matches)
+            if not unmatched_entities:
+                # Collect would only have written these matches to RAW, so do that here.
+                logger.info(f"All {unique_entities} entities in scope already matched - predict not started")
+                write_mapping_to_raw(client, config, raw_uploader, staged_matches, [], logger)
+                staged_matches = []
+                continue
+
+            source_records = len(unmatched_entities)
             total_entities_to_match += entities_to_match
             total_source_records += source_records
 
             with time_operation("Start entity matching predict job", logger):
-                job = submit_predict_job(client, config, logger, matching_model_id, scoped_targets, scoped_entities)
+                job = submit_predict_job(client, config, logger, matching_model_id, scoped_targets, unmatched_entities)
             if job.model_id:
                 matching_model_id = str(job.model_id)
 
@@ -221,7 +249,7 @@ def submit_entity_matching(
                 staging_prefix=staging_prefix(job_id),
                 staging_digest=staging_digest,
                 model_id=str(job.model_id) if job.model_id else None,
-                source_count=len(scoped_entities),
+                source_count=source_records,
             )
             job_ids.append(job_id)
             staged_matches = []
@@ -232,6 +260,10 @@ def submit_entity_matching(
         )
 
         match_count = cnt_manual_mappings + cnt_rule_mappings
+        if job_ids:
+            run_message = f"Predict submitted (jobId={', '.join(job_ids)}), collect pending"
+        else:
+            run_message = "All entities matched by manual or rule mapping, predict not started"
 
         update_pipeline_run(
             client,
@@ -240,7 +272,7 @@ def submit_entity_matching(
             STATUS_SUCCESS,
             match_count,
             None,
-            f"Predict submitted (jobId={', '.join(job_ids)}), collect pending",
+            run_message,
             input_count=cnt_manual_mappings + submitted_entities,
         )
 

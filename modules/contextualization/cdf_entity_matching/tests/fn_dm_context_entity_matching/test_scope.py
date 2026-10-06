@@ -189,48 +189,107 @@ def test_predict_job_counts_unique_entities_minus_those_already_matched() -> Non
     assert to_match == 1
 
 
-def test_predict_job_log_includes_entities_to_match(monkeypatch: pytest.MonkeyPatch) -> None:
-    config = build_config(primary="site")
-    logger = MagicMock()
-    predicted: list[list[str]] = []
+def test_unmatched_source_records_drops_entities_already_matched() -> None:
+    entities = [entity("TS-A"), entity("TS-A"), entity("TS-B")]
+    staged = [{"entity_ext_id": "TS-A", "entity_space": "sp"}]
 
-    def fake_predict(client: object, cfg: Config, log: object, model_id: str, targets: list, entities: list) -> Any:
-        predicted.append(ids(entities, "entity_ext_id"))
-        job_id = str(len(predicted))
-        return SimpleNamespace(job_id=job_id, job_token=f"token-{job_id}", model_id=42)
+    unmatched = em_submit.unmatched_source_records(entities, staged)  # type: ignore[arg-type]
 
-    monkeypatch.setattr(em_submit, "_raw_upload_queue", MagicMock())
-    monkeypatch.setattr(em_submit, "read_state_store", lambda *a: "")
-    monkeypatch.setattr(em_submit, "read_manual_mappings", lambda *a: ([], {}))
-    monkeypatch.setattr(em_submit, "read_rule_mappings", lambda *a: [])
-    monkeypatch.setattr(em_submit, "get_all_targets", lambda *a: [target("A-1", "site_a"), target("B-1", "site_b")])
-    monkeypatch.setattr(em_submit, "apply_manual_mappings", lambda *a: ([], 0))
-    monkeypatch.setattr(em_submit, "get_new_entities", lambda *a: [entity("TS-A", "site_a"), entity("TS-B", "site_b")])
+    assert ids(unmatched, "entity_ext_id") == ["TS-B"]
 
-    def apply_rules(
-        client: object,
-        cfg: Config,
-        log: object,
-        good: list[dict[str, str]],
-        targets: list,
-        entities: list,
-    ) -> tuple[list[dict[str, str]], int]:
-        if entities and entities[0]["entity_ext_id"] == "TS-A":
-            return [*good, {"entity_ext_id": "TS-A", "entity_space": "sp"}], 1
-        return good, 0
 
-    monkeypatch.setattr(em_submit, "apply_rule_mappings", apply_rules)
-    monkeypatch.setattr(em_submit, "submit_predict_job", fake_predict)
-    monkeypatch.setattr(em_submit, "write_staged_matches", lambda *a: None)
-    monkeypatch.setattr(em_submit, "append_predict_job", lambda *a, **kw: None)
-    monkeypatch.setattr(em_submit, "update_pipeline_run", MagicMock())
+class SubmitRun:
+    """Runs submit with CDF stubbed out, recording predict jobs, queued jobs and RAW writes."""
 
-    em_submit.submit_entity_matching(MagicMock(), logger, {"ExtractionPipelineExtId": "ep"}, config)
+    def __init__(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        config: Config,
+        new_entities: list[dict[str, Any]],
+        rule_matched: set[str],
+    ) -> None:
+        self.predicted: list[list[str]] = []
+        self.queued: list[dict[str, Any]] = []
+        self.raw_good: list[list[dict[str, Any]]] = []
+        self.logger = MagicMock()
+        self.pipeline_run = MagicMock()
 
-    info = [call.args[0] for call in logger.info.call_args_list]
-    assert any("Predict job submitted - jobId: 1, 0 entities to match" in msg for msg in info)
-    assert any("Predict job submitted - jobId: 2, 1 entities to match" in msg for msg in info)
-    assert any("Submitted 2 predict job(s) totalling 1 entities to match" in msg for msg in info)
+        def fake_predict(client: object, cfg: Config, log: object, model_id: str, targets: list, entities: list) -> Any:
+            self.predicted.append(ids(entities, "entity_ext_id"))
+            job_id = str(len(self.predicted))
+            return SimpleNamespace(job_id=job_id, job_token=f"token-{job_id}", model_id=42)
+
+        def apply_rules(
+            client: object, cfg: Config, log: object, good: list[dict[str, str]], targets: list, entities: list
+        ) -> tuple[list[dict[str, str]], int]:
+            matched = [
+                {"entity_ext_id": e, "entity_space": "sp"}
+                for e in dict.fromkeys(ids(entities, "entity_ext_id"))
+                if e in rule_matched
+            ]
+            return [*good, *matched], len(matched)
+
+        monkeypatch.setattr(em_submit, "_raw_upload_queue", MagicMock())
+        monkeypatch.setattr(em_submit, "read_state_store", lambda *a: "")
+        monkeypatch.setattr(em_submit, "read_manual_mappings", lambda *a: ([], {}))
+        monkeypatch.setattr(em_submit, "read_rule_mappings", lambda *a: [])
+        monkeypatch.setattr(em_submit, "get_all_targets", lambda *a: [target("A-1", "site_a"), target("B-1", "site_b")])
+        monkeypatch.setattr(em_submit, "apply_manual_mappings", lambda *a: ([], 0))
+        monkeypatch.setattr(em_submit, "get_new_entities", lambda *a: new_entities)
+        monkeypatch.setattr(em_submit, "apply_rule_mappings", apply_rules)
+        monkeypatch.setattr(em_submit, "submit_predict_job", fake_predict)
+        monkeypatch.setattr(em_submit, "write_staged_matches", lambda *a: None)
+        monkeypatch.setattr(em_submit, "append_predict_job", lambda *a, **kw: self.queued.append(kw))
+        monkeypatch.setattr(
+            em_submit, "write_mapping_to_raw", lambda c, cfg, up, good, bad, log: self.raw_good.append(good)
+        )
+        monkeypatch.setattr(em_submit, "update_pipeline_run", self.pipeline_run)
+
+        em_submit.submit_entity_matching(MagicMock(), self.logger, {"ExtractionPipelineExtId": "ep"}, config)
+        self.info = [call.args[0] for call in self.logger.info.call_args_list]
+
+
+def test_fully_matched_scope_skips_predict_and_writes_its_matches_to_raw(monkeypatch: pytest.MonkeyPatch) -> None:
+    run = SubmitRun(
+        monkeypatch,
+        build_config(primary="site"),
+        [entity("TS-A", "site_a"), entity("TS-B", "site_b")],
+        rule_matched={"TS-A"},
+    )
+
+    assert run.predicted == [["TS-B"]], "the fully rule-matched scope starts no predict job"
+    assert [job["job_id"] for job in run.queued] == ["1"]
+    assert run.raw_good == [[{"entity_ext_id": "TS-A", "entity_space": "sp"}]]
+    assert any("Predict job submitted - jobId: 1, 1 entities to match" in msg for msg in run.info)
+    assert any("Submitted 1 predict job(s) totalling 1 entities to match" in msg for msg in run.info)
+
+
+def test_predict_is_sent_only_the_unmatched_source_records(monkeypatch: pytest.MonkeyPatch) -> None:
+    run = SubmitRun(
+        monkeypatch,
+        build_config(),
+        [entity("TS-A"), entity("TS-A"), entity("TS-B")],
+        rule_matched={"TS-A"},
+    )
+
+    assert run.predicted == [["TS-B"]]
+    assert [job["source_count"] for job in run.queued] == [1]
+    assert any("(1 source record(s) sent)" in msg for msg in run.info)
+
+
+def test_no_predict_job_when_every_scope_is_already_matched(monkeypatch: pytest.MonkeyPatch) -> None:
+    run = SubmitRun(
+        monkeypatch,
+        build_config(primary="site"),
+        [entity("TS-A", "site_a"), entity("TS-B", "site_b")],
+        rule_matched={"TS-A", "TS-B"},
+    )
+
+    assert run.predicted == []
+    assert run.queued == []
+    assert len(run.raw_good) == 2
+    message = run.pipeline_run.call_args.args[6]
+    assert "predict not started" in message
 
 
 def test_submit_starts_one_predict_job_per_scope(monkeypatch: pytest.MonkeyPatch) -> None:
