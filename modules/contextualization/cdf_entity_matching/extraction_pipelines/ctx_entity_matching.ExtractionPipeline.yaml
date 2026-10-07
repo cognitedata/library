@@ -1,0 +1,85 @@
+externalId: 'ep_ctx_entity_matching'
+name: 'ctx:entity:matching'
+dataSetExternalId: 'ds_entity_matching'
+description: 'Entity Matching of entities (timeseries) to targets (assets)'
+rawTables:
+  - dbName: '{{ dbName }}'
+    tableName: 'contextualization_good'
+  - dbName: '{{ dbName }}'
+    tableName: 'contextualization_bad'
+  - dbName: '{{ dbName }}'
+    tableName: 'contextualization_manual_input'
+  - dbName: '{{ dbName }}'
+    tableName: 'contextualization_rule_input'
+  - dbName: '{{ dbName }}'
+    tableName: 'contextualization_state_store'
+source: entity_matching
+documentation: >
+ # Entity Matching of entities (timeseries) to targets (assets)
+
+ The Entity Matching of entities (timeseries) to targets (assets) runs as a process in CDF Functions.
+
+ Process triggers on new entities (timeseries) that not is connected to an target (asset).
+
+ The process stages are as follows:
+
+
+  ```
+    Read configuration and start process by:
+    1. Read RAW table with manual mappings and extract all rows not contextualized
+    2. Apply manual mappings from TS to Asset - this will overwrite any existing mapping
+    3. Read all time series not matched (or all if runAll is True)
+    4. Read all assets
+    5. Run ML contextualization to match TS -> Assets
+    6. Update TS with mapping
+    7. Write results matched (good) not matched (bad) to RAW
+    8. Output in good/bad table can then be used in workflow to update manual mappings
+  ```
+
+ Default configuration is provided as part of the deployment, but can be overwritten
+
+ by configuration provided in configuration section below:
+
+  ```
+
+   schemaSpace - Schema space for the views, same or different for each view
+   instanceSpace - Instance space ( where data is stored), a single space or a list of spaces.
+                   Instances are written back to the space they were read from.
+   externalId: External id of the view
+   version: Version of the view
+   searchProperty: Property used to create the entity matching link, typically alias
+
+   runAll - if True run on all found timeseries,
+            if False only run on document not updated since last entity matching
+   dmUpdate - if True, update the metadata in the DM, if False, only update the RAW tables
+   rawdb - Raw database where status Information is stored
+   rawTableState - Table to store state related to process
+   rawTableCtxGood: Table to store entities with score higher than the autoApprovalThreshold
+   rawTableCtxBad: Table to store entities with score lower than the autoApprovalThreshold
+   rawTableCtxManual: Raw table to store manual mappings
+   autoApprovalThreshold - Threshold for auto approval of entity matching
+   dataSetExternalId - Data set for the function's own files (target cache, staged matches)
+   primaryScopeProperty - Optional property on both views; entities only match targets with the same value.
+                   Entities with no scope are matched against all targets.
+   secondaryScopeProperty - Optional second level within the primary scope; targets tagged
+                   ScopeWideDetect match every secondary scope of their primary scope
+
+   ```
+
+   ## Running the process
+
+   Provide a data block with the parameters for the process to run.
+
+  ```
+  data = {
+    "logLevel":"INFO",
+    "ExtractionPipelineExtId": "ep_ctx_entity_matching"
+  }
+
+  ```
+
+
+  Available logLevels are INFO, DEBUG, ERROR, WARNING
+
+
+  ExtractionPipelineExtId is the external id of the extraction pipeline to run

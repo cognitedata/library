@@ -1,0 +1,3 @@
+- description: Schema space for the entity matching test data model that adds site and unit scope properties
+  name: "{{ scopeSchemaSpace }}"
+  space: "{{ scopeSchemaSpace }}"

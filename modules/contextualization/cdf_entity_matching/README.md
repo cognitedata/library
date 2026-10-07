@@ -1,6 +1,6 @@
 # CDF Entity Matching Module
 
-This module provides comprehensive entity matching capabilities for Cognite Data Fusion (CDF), enabling automated contextualization of timeseries data with assets through advanced matching algorithms and metadata optimization.
+This module provides comprehensive entity matching capabilities for Cognite Data Fusion (CDF), enabling automated contextualization of timeseries data with assets through advanced matching algorithms and normalized aliases.
 
 ## Why Use This Module?
 
@@ -11,7 +11,7 @@ Building an entity matching solution from scratch is complex and time-consuming.
 **Key Benefits:**
 
 - ⚡ **Production-Proven**: Built from real-world implementations across several customers running in production environments, ensuring reliability and stability
-- 🚀 **Significant Time Savings**: Deploy in hours instead of spending weeks or months developing custom matching algorithms, rule engines, and metadata optimization logic
+- 🚀 **Significant Time Savings**: Deploy in hours instead of spending weeks or months developing custom matching algorithms, rule engines, and alias generation logic
 - 📊 **Proven Performance**: 35-55% faster execution than legacy implementations, with 40-60% improvement in matching accuracy
 - 🔧 **Easy to Extend**: Clean, modular architecture with well-documented functions makes it straightforward to customize rules, add new matching algorithms, or integrate with your specific workflows
 - 📈 **Enterprise Scale**: Handles 10,000+ timeseries per batch out of the box, with proven scalability for large industrial deployments
@@ -32,7 +32,7 @@ Building an entity matching solution from scratch is complex and time-consuming.
 - **Memory Efficiency**: 30-50% reduction in memory usage
 - **Matching Accuracy**: 40-60% improvement over basic matching approaches
 - **Batch Capacity**: Successfully processes 10,000+ timeseries per batch
-- **Cache Performance**: 70%+ cache hit rate for metadata operations
+- **Cache Performance**: 70%+ cache hit rate for repeated alias generation
 
 Whether you're contextualizing hundreds or tens of thousands of timeseries, this module provides a solid, scalable foundation that has been proven in production environments. Start with the default configuration for immediate value, then customize rules and algorithms to match your specific domain requirements.
 
@@ -41,7 +41,7 @@ Whether you're contextualizing hundreds or tens of thousands of timeseries, this
 The CDF Entity Matching module is designed to:
 - **Support expert manual mappings** for complex or domain-specific relationships
 - **Match timeseries to assets** using rule-based, AI-powered, and manual mapping algorithms
-- **Optimize metadata** for improved searchability and contextualization
+- **Write normalized aliases** on timeseries, assets and files so matching and search compare like-for-like tags
 - **Provide scalable processing** with batch operations and performance monitoring
 - **Support workflow automation** through CDF Workflows integration
 - **Maintain state** for incremental processing and error recovery
@@ -51,8 +51,8 @@ The CDF Entity Matching module is designed to:
 ```
 cdf_entity_matching/
 ├── 📁 functions/                           # CDF Functions
-│   ├── 📁 fn_dm_context_timeseries_entity_matching/  # Entity matching logic
-│   ├── 📁 fn_dm_context_aliases_update/            # Metadata optimization
+│   ├── 📁 fn_dm_context_entity_matching/           # Submit + collect (data.stage)
+│   ├── 📁 fn_dm_context_aliases_update/            # Aliases update
 │   └── 📄 functions.Function.yaml                   # Function definitions
 ├── 📁 workflows/                           # CDF Workflows
 │   ├── 📄 entity_matching.Workflow.yaml             # Main workflow definition
@@ -66,7 +66,9 @@ cdf_entity_matching/
 │   ├── 📄 contextualization_good.Table.yaml        # Validated good matches
 │   └── 📄 contextualization_bad.Table.yaml         # Rejected matches
 ├── 📁 upload_data/                        # Sample rule/manual-mapping data
-├── 📁 data_modeling/                      # Function-code space + helper nodes
+├── 📁 data_modeling/                      # Function-code space and helper nodes
+├── 📁 testing/                            # Optional scoped-matching test model (not deployed)
+├── 📁 tests/                              # Unit tests (not packaged with functions)
 ├── 📁 extraction_pipelines/               # Pipeline configurations
 ├── 📁 data_sets/                          # Data set definitions
 ├── 📁 auth/                               # Authentication and permissions
@@ -76,43 +78,89 @@ cdf_entity_matching/
 
 ## 🚀 Core Functions
 
-### 1. [Timeseries Entity Matching Function](./functions/fn_dm_context_timeseries_entity_matching/README.md)
+### 1. Entity matching: [fn_dm_context_entity_matching](./functions/fn_dm_context_entity_matching/README.md)
 
-**Purpose**: Matches timeseries data to assets using advanced algorithms
+**Purpose**: Matches time series to assets with manual mappings, regex rules and the
+entity matching model, split into `submit` and `collect` stages so a long prediction
+cannot time the function out. One CDF Function selects the stage with `data.stage`; the
+workflow runs those stages in sequence.
 
-**Key Features**:
-- ✋ **Manual mapping support** for expert-defined asset-timeseries relationships
-- 🎯 **Rule-based matching** with regex patterns and business logic
-- 🤖 **AI-powered entity matching** using machine learning algorithms
-- 📊 **Performance optimization** with 35-55% faster execution
-- 🔄 **Batch processing** with retry logic and error handling
-- 📈 **Real-time monitoring** with detailed performance metrics
+Matching in CDF is a job on the platform, and waiting for it is what makes a large run
+time out. **Submit** applies manual and rule based mappings, starts the predict job
+without waiting for it, stages its matches in RAW and adds the job to a queue in the
+state store table. **Collect** polls queued jobs in parallel (one worker per job, at
+most 10), every 30s, for at most 7 minutes per run. When a worker finishes and time
+remains, the next queued job is started. Finished results are merged with the staged
+matches, written, and removed from the queue. Anything still running is picked up by the
+next collect run.
 
-**Use Cases**:
-- Manual expert mapping for complex relationships
-- Automatic contextualization of sensor data
-- Asset-timeseries relationship discovery
-- Industrial IoT data organization
-- Process optimization and monitoring
+Both stages read the `ep_ctx_entity_matching` extraction pipeline configuration. Manual and rule based matches always win over model matches for the
+same entity, because collect merges them in before the model's results are considered.
 
-### 2. [Metadata Update Function](./functions/fn_dm_context_aliases_update/README.md)
+Logging verbosity is set by `logLevel` in the function input data (workflow already sets
+`DEBUG`). Set `dmUpdate: false` on the extraction pipeline config to skip data-model
+writes while still writing RAW.
 
-**Purpose**: Optimizes metadata for timeseries, assets and files to improve searchability
+| RAW / CDF key | Written by | Meaning |
+|---|---|---|
+| `state_predict_job_<jobId>` | submit | A predict job waiting to be collected |
+| CDF file `em_staged_matches_<jobId>.json` | submit | Manual and rule matches staged for that job |
+| `state_target_sync_<key>` | submit | Sync cursor, cache file id, page size and target count |
+| CDF file `em_target_cache_<key>.json` | submit | Cached targets; **overwritten** on change, never deleted |
 
-**Key Features**:
-- ⚡ **Optimized processing** with caching and batch operations
-- 🏷️ **Alias normalization** for PI-style tags to improve matching, with one or more tag
-  patterns per view
-- 📄 **File aliases** from the file name without its extension, plus the tag it carries
-- 🧠 **Memory optimization** with automatic cleanup
-- 📊 **Performance monitoring** with detailed benchmarking
-- 🛡️ **Enhanced error handling** with comprehensive logging
+Submit reads assets (targets) through the DMS sync endpoint and caches them in that CDF
+file so a later run does not page the whole view. Sync changes are merged in memory
+(deleted instances are dropped) and the **same** file and RAW row are written again. If
+the target view, spaces or filter change, `<key>` changes and a new file and row are
+created; the old ones stay unused.
 
-**Use Cases**:
-- Metadata enrichment for better search
-- Normalized aliases for entity matching
-- Data quality improvement
-- Search optimization
+The processing group needs `filesAcl: READ, WRITE` on `ds_entity_matching` for that
+cache. Collect does not read or write it. File bytes are checked against a digest stored
+in the RAW state row, so a principal that can overwrite files but not that RAW table
+cannot plant cache or staged-match content. Set `dataSetExternalId` on the extraction
+pipeline config to put the cache and staged-match files in a data set (the module's
+config uses `ds_entity_matching`); leave it out to write them without one. A configured
+data set that does not exist fails the run, and reading it needs the group's
+`datasetsAcl: READ`.
+
+Both functions check their input before calling CDF: `ExtractionPipelineExtId` must be
+set, and `logLevel` (default `INFO`) must be `DEBUG`, `INFO`, `WARNING` or `ERROR`. Entity
+matching also needs `stage` set to `submit` or `collect`.
+
+Time series are read a page at a time with only the properties matching uses. A failed
+read of the time series, the manual or rule mappings, or a staged match file fails the
+run instead of continuing on partial input; a job whose staged matches cannot be read
+stays queued for the next collect run.
+
+### 2. Aliases update: [fn_dm_context_aliases_update](./functions/fn_dm_context_aliases_update/README.md)
+
+**Purpose**: Writes normalized `aliases` on timeseries, assets and files so entity
+matching can compare like-for-like tags. The workflow runs this function first, then
+submit, then collect. A failed read or write fails the function call so matching does
+not run on stale aliases.
+
+The function reads its own extraction pipeline, `ep_ctx_aliases_update`. It pages
+instances with only `name` and `aliases`, derives aliases from each name with the
+view's `aliasPattern` list, and writes the page back before reading the next. Capture
+groups are joined by `-`, and separators inside a captured tag (`_`, `.`, `:`) are
+rewritten to `-` as well — so `VAL_23-KA-9101:X.Value` becomes `23-KA-9101`.
+
+By default only instances that are missing `aliases` are fetched. On the extraction
+pipeline config, `runAll` fetches every instance, `updateAll` rebuilds generated
+aliases while keeping hand-curated ones, and `removeOldAliases` replaces the whole
+list. `updateAll` and `removeOldAliases` both imply `runAll`. A write — and an
+"updated" count — happens only when the rebuilt list differs from what is stored.
+
+`fileView` is optional. When it is configured, files get pattern-derived aliases plus
+the file name without its final extension, **only when a pattern matches**. A name that
+matches nothing produces no alias. `aliasSelection` does not apply to that stem alias;
+it is always kept when a pattern hit.
+
+| Parameter | Purpose |
+|---|---|
+| `runAll` | Fetch all instances, not only those missing `aliases` |
+| `updateAll` | Rebuild generated aliases on every fetched instance (implies `runAll`) |
+| `removeOldAliases` | Discard every existing alias and write only this run's output (implies `runAll`) |
 
 ## 🔧 Configuration
 
@@ -121,8 +169,7 @@ cdf_entity_matching/
 ```yaml
 # Core Settings
 function_version: v1.0.0
-location_name: Springfield  # Update to your location
-source_name: springfield    # Update to your source system, e.g. 'workmate', 'sap'
+functionOwner: cdf_entity_matching  # Team or person shown as the functions' owner in CDF
 
 # Data Model Configuration
 dbName: db_asset_entity_matching
@@ -132,33 +179,39 @@ assetInstanceSpace: sp_cdm_instances
 timeseriesInstanceSpace: sp_cdm_instances
 fileInstanceSpace: sp_cdm_instances
 functionSpace: sp_entity_matching_fn  # space for this module's own nodes
-AssetViewExternalId: CogniteAsset
-TimeSeriesViewExternalId: CogniteTimeSeries
-FileViewExternalId: CogniteFile
+assetViewExternalId: CogniteAsset
+timeseriesViewExternalId: CogniteTimeSeries
+fileSchemaSpace: cdf_cdm
+fileViewExternalId: CogniteFile
 targetViewExternalId: CogniteAsset
 entityViewExternalId: CogniteTimeSeries
 targetViewSearchProperty: name
 entityViewSearchProperty: name
+primaryScopeProperty: ''
+secondaryScopeProperty: ''
 # Property entity matching filters assets/timeseries on, together with the filter
 # values below. Default is tags (CDM); use labels with the CFIHOS data model pack.
 viewFilterProperty: tags
 targetViewFilterValues: []
 entityViewFilterValues: []
-# Regex per view that finds the tag in a name; the alias is the capture groups joined by "_"
 # One or more regexes per view that find the tag in a name; the alias is the capture
-# groups joined by "_". aliasSelection: all | longest when several patterns match
+# groups joined by "-". aliasSelection: all | longest when several patterns match
 timeseriesAliasPattern:
-  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-timeseriesAliasSelection: all
+  - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[A-Z][-_][A-Z]{1,3})'
+  - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[-_][A-Z]{1,3})'
+  - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})'
+timeseriesAliasSelection: longest
 assetAliasPattern:
-  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+  - '([A-Z]{2,4}[-_.:][0-9]{4,5})'
+  - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[A-Z][-_][A-Z]{1,3})'
+  - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[-_][A-Z]{1,3})'
+  - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})'
 assetAliasSelection: all
 # Files default to document numbers as well: PH-25578-P-4110006-001.pdf gives
 # PH-25578-P-4110006-001 and PH-25578-P-4110006
 fileAliasPattern:
-  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+-[0-9]+)'
-  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+)(?:-[0-9]+)?'
-  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+  - '(?<![A-Z])([A-Z]{2,4}[-_][A-Z0-9]+[-_][A-Z][-_][0-9]+[-_][0-9]+)'
+  - '(?<![A-Z])([A-Z]{2,4}[-_][A-Z0-9]+[-_][A-Z][-_][0-9]+)(?=[-_][0-9]+)'
 fileAliasSelection: all
 
 # Authentication
@@ -167,7 +220,10 @@ workflowClientSecret: ${IDP_CLIENT_SECRET}
 entity_matching_processing_group_source_id: ${GROUP_SOURCE_ID}
 
 # Workflow Settings
-workflow: EntityMatching
+workflow: wf_ctx_entity_matching
+# Cron schedule. The default only fires on 29 February, so runs are started by hand;
+# set e.g. '0 2 * * *' for a nightly run
+workflowSchedule: '0 0 29 2 *'
 ```
 
 #### `viewFilterProperty`
@@ -175,8 +231,8 @@ workflow: EntityMatching
 `{{ viewFilterProperty }}` is the view property entity matching filters on: `filterProperty`
 on both `targetView` and `entityView` in the timeseries entity matching extraction
 pipeline config. It only narrows the instances considered when the matching
-`targetViewFilterValues` or `entityViewFilterValues` is non-empty. The metadata update
-function does not use it — that function writes `aliases` and nothing else.
+`targetViewFilterValues` or `entityViewFilterValues` is non-empty. Aliases update does
+not use it — that function writes `aliases` and nothing else.
 
 **Default:** `tags` — matches Cognite Data Model (CDM) views such as `CogniteAsset`, where filtering and metadata use the `tags` property.
 
@@ -193,21 +249,60 @@ entityViewFilterValues: []
 #### `targetViewSearchProperty` and `entityViewSearchProperty`
 
 These name the property whose value is handed to the matching model — `name` by default,
-often `aliases` when a source system tag differs from the display name. A list-valued
-property such as `aliases` contributes one match candidate per entry, so an instance with
-three aliases is offered to the model three times and keeps whichever match scores best.
+often `aliases` when a source system tag differs from the display name. Aliases update
+writes those normalized tags beforehand so entity matching can compare like-for-like
+strings (for example `23-KA-9101`) even when the display `name` still carries prefixes
+or separators.
 
-When the property holds nothing usable the instance falls back to matching on its `name`.
-That covers all three ways "nothing usable" can look, which are not distinguishable in
-practice: the property is unset and therefore absent from the API response, it is set to
-an empty list, or it is set to a blank string. Empty entries in an otherwise populated
-list are dropped rather than triggering the fallback, so `["pi:1", ""]` matches on
-`pi:1` alone.
+List-valued properties are reduced differently on each side:
+
+- **Entities** (`entityViewSearchProperty`): only the **longest** usable entry is used, so
+  one timeseries is not submitted as several match candidates.
+  `["DB-9101", "23-DB-9101"]` becomes `23-DB-9101`. Equal-length values keep the first.
+- **Targets** (`targetViewSearchProperty`): **every** usable entry is kept, so alternate
+  spellings on an asset remain matchable.
+
+A single string is used as-is. When the property holds nothing usable the instance falls
+back to matching on its `name`. That covers all three ways "nothing usable" can look,
+which are not distinguishable in practice: the property is unset and therefore absent
+from the API response, it is set to an empty list, or it is set to a blank string. Empty
+entries in an otherwise populated list are dropped rather than triggering the fallback,
+so `["pi:1", ""]` matches on `pi:1` alone.
 
 One consequence worth checking on setup: if you configure a property name that does not
 exist on the view — `alias` instead of `aliases`, say — every instance takes the fallback
 and the whole run silently matches on `name`. Matching still produces results, just not
 on the property you intended, so confirm the property name against your deployed view.
+
+#### `primaryScopeProperty` and `secondaryScopeProperty`
+
+Optional, and only used by the submit/collect function `fn_dm_context_entity_matching`.
+Both names must exist as properties on the **entity view and the target view**. Leave
+both empty (the module default) for one unscoped predict job against every target.
+
+```yaml
+primaryScopeProperty: ''
+secondaryScopeProperty: ''
+```
+
+When at least `primaryScopeProperty` is set, submit groups entities by
+`(primary, secondary)` and starts **one predict job per group** that has targets (rule
+matching runs on the same groups). Manual mappings stay global and are staged with the
+first job; the matching model fitted for that job is reused by the others.
+
+| Entity scope | Matched against |
+|---|---|
+| Primary and secondary both empty / missing | **Every** target (one job of its own). Logged as `Entities without scope … is tried matched against all Targets`. |
+| Primary set, secondary empty or set | Targets with the **same primary**, and the **same secondary** — unless the target’s `tags` include `ScopeWideDetect`, in which case it is a candidate in **every secondary** of that primary (never another primary). |
+| Non-empty scope with **no** matching targets | Skipped. Logged as `No assets in scope … source record(s) not matched`. |
+
+A missing property value is read as empty. An entity that has a primary but no secondary
+is therefore a distinct scope (`site_a`, `''`), not the same as “no scope at all”.
+
+To try scoped matching without an enterprise `site` / `unit` model, copy the test
+resources with [the testing helper](./testing/README.md). Do not leave those files in
+`data_modeling/` or `transformations/` unless you intend to deploy them. See also the
+[function README](./functions/fn_dm_context_entity_matching/README.md#primary-and-secondary-scope).
 
 #### `assetInstanceSpace`, `timeseriesInstanceSpace` and `fileInstanceSpace`
 
@@ -224,48 +319,56 @@ timeseriesInstanceSpace:
 
 #### `timeseriesAliasPattern`, `assetAliasPattern`, `fileAliasPattern` and their `AliasSelection`
 
-The regular expressions the metadata update function uses to find the tag inside an
-instance's `name`. One list per view, so time series, assets and files can follow
-different naming conventions. The alias it writes back is a pattern's capture groups
-joined by `_`, so the default turns `VAL_23-KA-9101:X.Value` into the alias `23_KA_9101` —
-which is what makes entity matching on `aliases` work across differently formatted names.
+The regular expressions aliases update uses to find the tag inside an instance's
+`name`. One list per view, so time series, assets and files can follow different
+naming conventions. The alias it writes back is a pattern's capture groups joined
+by `-`, so the default turns `VAL_23-KA-9101:X.Value` into the alias `23-KA-9101` —
+which is what makes entity matching on `aliases` work across differently formatted
+names. Separators inside a captured group (`_`, `.`, `:`) are rewritten to `-` as
+well.
 
 A name no pattern reads produces no alias. It is logged as `No alias extracted based on
-input regular expression for name: …`, and a run full of those warnings points at the
-pattern, not the data.
+configured <view> regular expression for name: …` (the first ten names, then a total),
+and a run full of those warnings points at the pattern, not the data. When nothing is
+extracted, `aliases` is written as null so a previous list is cleared; an empty list
+would leave the old values in place.
 
 List several patterns for a view whose names follow more than one convention. That view's
 `AliasSelection` then decides what to keep when more than one matches: `all` (the
 default) writes one alias per matching pattern, `longest` writes only the longest one.
-Each view has its own, so time series can keep every alias while files keep one:
+Each view has its own, so time series can keep one alias while assets keep every match:
 
 ```yaml
 timeseriesAliasPattern:
-  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-  - '([A-Z]{3})[-_]?([0-9]{4})'
-timeseriesAliasSelection: all
+  - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})'
+  - '([A-Z]{2,4}[-_.:][0-9]{4,5})'
+timeseriesAliasSelection: longest
 assetAliasPattern:
-  - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-assetAliasSelection: longest
+  - '([A-Z]{2,4}[-_.:][0-9]{4,5})'
+  - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})'
+assetAliasSelection: all
 ```
 
-`fileAliasPattern` defaults to document numbers as well as the equipment tag, so
-`PH-25578-P-4110006-001.pdf` yields `PH-25578-P-4110006-001` and `PH-25578-P-4110006`.
-That pair needs `fileAliasSelection: all`, since `longest` would drop the shorter number.
-Files also get their file name without its final extension, which the selection never
-discards. See
+`fileAliasPattern` defaults to document numbers, so `PH-25578-P-4110006-001.pdf` yields
+`PH-25578-P-4110006-001` and `PH-25578-P-4110006`. That pair needs `fileAliasSelection:
+all`, since `longest` would drop the shorter number. Files also get their file name
+without its final extension, separators rewritten to `-`, but **only when a pattern
+matches**; a name that matches nothing produces no alias. `aliasSelection` never
+discards that stem. See
 [Document numbers](functions/fn_dm_context_aliases_update/README.md#document-numbers)
-before adapting those patterns — capturing a number in several groups would rewrite its
-dashes as underscores.
+before adapting those patterns.
 
 Write character classes rather than backslash escapes — `[0-9]`, not `\d` — because
 Toolkit substitutes variables as a regex replacement and a backslash escape fails the
-build. Keep `_` among the separators the pattern accepts, so the function still
-recognises the aliases it generated on earlier runs. Both rules and the `updateAll` /
-`removeOldAliases` interaction are covered in the
-[metadata update README](functions/fn_dm_context_aliases_update/README.md#alias-pattern).
+build. Accept `-` as a separator between groups: generated aliases join groups with
+`-`, and the function identifies its own earlier output by feeding a stored alias back
+through the pattern. Prefer also accepting `_` so aliases written by an earlier
+underscore-normalising run are still recognised. A pattern that cannot match `-` never
+recognises its own aliases, so `updateAll` leaves stale ones in place. Both rules and
+the `updateAll` / `removeOldAliases` interaction are covered in the
+[aliases update README](functions/fn_dm_context_aliases_update/README.md#alias-pattern).
 
-Instances are read from every listed space, and both the entity matching and metadata
+Instances are read from every listed space, and both the entity matching and aliases
 update functions write each instance back to the space it was read from. Matching is not
 restricted by space — a time series in one space can match an asset in another — which is
 what lets per-source time series spaces work against a shared asset space.
@@ -338,8 +441,6 @@ variables:
   modules:
     cdf_entity_matching:
       function_version: v1.0.0
-      location_name: Your Location
-      source_name: your_source
       dbName: db_asset_entity_matching
       schemaSpace: cdf_cdm
       viewVersion: v1
@@ -347,13 +448,16 @@ variables:
       timeseriesInstanceSpace: your_instances
       fileInstanceSpace: your_instances
       functionSpace: sp_entity_matching_fn
-      AssetViewExternalId: CogniteAsset
-      TimeSeriesViewExternalId: CogniteTimeSeries
-      FileViewExternalId: CogniteFile
+      assetViewExternalId: CogniteAsset
+      timeseriesViewExternalId: CogniteTimeSeries
+      fileSchemaSpace: cdf_cdm
+      fileViewExternalId: CogniteFile
       targetViewExternalId: CogniteAsset
       entityViewExternalId: CogniteTimeSeries
       targetViewSearchProperty: name
       entityViewSearchProperty: name
+      primaryScopeProperty: ''
+      secondaryScopeProperty: ''
       viewFilterProperty: tags  # use labels for CFIHOS (dm_dom_oil_and_gas)
       targetViewFilterValues: []
       entityViewFilterValues: []
@@ -386,8 +490,8 @@ cdf workflows deploy
 ### 4. Configure Workflows
 
 The module includes automated workflows that:
-1. **Trigger entity matching** on new timeseries data
-2. **Update metadata** for improved searchability
+1. **Write aliases** on timeseries, assets and files
+2. **Run entity matching** (submit, then collect) on timeseries
 3. **Monitor processing** and handle errors
 4. **Maintain state** for incremental updates
 
@@ -395,7 +499,7 @@ The module includes automated workflows that:
 
 ```bash
 # Check function logs
-cdf functions logs fn_dm_context_timeseries_entity_matching
+cdf functions logs fn_dm_context_entity_matching
 
 # Monitor workflow execution
 cdf workflows status EntityMatching
@@ -408,17 +512,22 @@ cdf raw rows list contextualization_state contextualization_state_store
 
 ```mermaid
 graph TD
-    A[Timeseries Data] --> B[Entity Matching Function]
-    C[Asset Data] --> B
-    D[Rule Definitions] --> B
-    B --> E[Matched Relationships]
-    E --> F[Metadata Update Function]
-    F --> G[Enhanced Metadata]
-    G --> H[Improved Search & Discovery]
-    
-    I[Workflow Trigger] --> B
-    B --> J[State Storage]
-    J --> K[Incremental Processing]
+    A[Timeseries Data] --> AU[Aliases Update]
+    C[Asset Data] --> AU
+    Files[File Data] --> AU
+    AU --> S[Submit stage]
+    D[Rule and Manual Mappings] --> S
+    S --> Q[Predict job queue in RAW]
+    S --> F[Target cache file in CDF]
+    S --> P[Predict job on CDF]
+    P --> L[Collect stage]
+    Q --> L
+    L --> E[Matched Relationships]
+    E --> H[Improved Search and Discovery]
+
+    I[Workflow Trigger] --> AU
+    S --> J[State Storage]
+    L --> J
 ```
 
 ## 🎯 Use Cases
@@ -435,7 +544,7 @@ graph TD
 - **Predictive Maintenance**: Support ML models with contextualized data
 
 ### Data Discovery
-- **Enhanced Search**: Improve data findability through optimized metadata
+- **Enhanced Search**: Improve data findability through normalized aliases
 - **Data Lineage**: Track relationships between assets and measurements
 - **Compliance**: Support regulatory reporting with proper data classification
 
@@ -453,14 +562,14 @@ The module is designed to handle large-scale industrial deployments right out of
 
 - **Extend Batch Processing**: Increase batch sizes or implement parallel batch processing for higher throughput
 - **Optimize Matching Algorithms**: Customize rule-based matching or integrate advanced ML models for domain-specific requirements
-- **Scale Metadata Operations**: Leverage the built-in caching and optimization for efficient metadata updates at scale
+- **Scale alias writes**: Leverage the built-in caching and batching for efficient alias updates at scale
 - **Add Custom Matching Logic**: Easily integrate domain-specific matching rules or expert knowledge through the manual mapping system
 
 The codebase has been optimized through multiple production deployments, ensuring you get enterprise-grade performance without the months of optimization work typically required.
 
 ### Function-Specific Metrics
 - **Entity Matching**: 40-60% improvement in matching accuracy
-- **Metadata Update**: 70%+ cache hit rate for optimized processing
+- **Aliases Update**: LRU-cached alias generation for repeated tag patterns
 - **Batch Processing**: 25-40% faster API interactions
 
 ## 🧪 Testing
@@ -471,30 +580,26 @@ From the **repository root**:
 
 ```bash
 uv sync --group dev
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ -q
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py -q
+uv run pytest modules/contextualization/cdf_entity_matching/tests -q
 ```
 
 Run a handler locally (set `CDF_*` / `IDP_*` env vars first):
 
 ```bash
-cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching
-uv run python handler.py
+cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching
+uv run python handler.py submit
+uv run python handler.py collect
 ```
 
 - **Local deps:** edit `pyproject.toml`, then `uv lock` and `uv sync --group dev`.
 - **CDF deploy deps:** edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
+- **Scoped matching in CDF:** [testing/README.md](./testing/README.md) copies a test-only `site`/`unit` model into the module; do not commit those copies.
 
 ### Module Testing
 
 ```bash
-# Entity matching optimizations (also runnable directly)
-cd functions/fn_dm_context_timeseries_entity_matching
-uv run python test_optimizations.py
-
-# Metadata update tests
-cd functions/fn_dm_context_aliases_update
-uv run python test_alias_optimizations.py
+# Aliases update tests
+uv run pytest modules/contextualization/cdf_entity_matching/tests/fn_dm_context_aliases_update/test_alias_optimizations.py
 ```
 
 ### Integration Testing
@@ -520,8 +625,7 @@ cdf workflows logs EntityMatching
 
 2. **Memory Issues**
    - Reduce batch sizes in function configurations
-   - Enable debug mode for limited processing
-   - Monitor memory usage in function logs
+   - Set `dmUpdate: false` to skip data-model writes while still writing RAW
 
 3. **`Property '<name>' does not exist in view '<view>'` (400)**
    - `viewFilterProperty` names a property the configured views do not have. The
@@ -532,6 +636,9 @@ cdf workflows logs EntityMatching
      filter, so a wrong name can sit unnoticed until you start filtering
 
 4. **Workflow Failures**
+   - Every task fails its function call on error, so the workflow stops instead of
+     matching on stale aliases or partial input. Submit is not retried, since a retry
+     could queue a second predict job; the next workflow run picks the entities up again
    - Check extraction pipeline configurations
    - Verify data model compatibility
    - Review authentication and permissions
@@ -544,22 +651,24 @@ cdf workflows logs EntityMatching
    - Remember that a manual mapping applies to every copy of an external ID
    - See [`assetInstanceSpace`, `timeseriesInstanceSpace` and `fileInstanceSpace`](#assetinstancespace-timeseriesinstancespace-and-fileinstancespace)
 
-### Debug Mode
+### Logging
 
-Enable debug mode for detailed troubleshooting:
+Set log verbosity in the function input data (workflow already uses `DEBUG`):
 
-```yaml
-# In extraction pipeline config
-parameters:
-  debug: true
-  batch_size: 100
-  log_level: DEBUG
+```json
+{
+  "stage": "submit",
+  "logLevel": "DEBUG",
+  "ExtractionPipelineExtId": "ep_ctx_entity_matching"
+}
 ```
+
+Use `dmUpdate: false` in the extraction pipeline config to skip data-model writes.
 
 ## 📚 Documentation
 
-- [**Timeseries Entity Matching Function**](./functions/fn_dm_context_timeseries_entity_matching/README.md) - Detailed documentation for entity matching
-- [**Metadata Update Function**](./functions/fn_dm_context_aliases_update/README.md) - Comprehensive guide for metadata optimization
+- [**Entity Matching Function**](./functions/fn_dm_context_entity_matching/README.md) - Submit and collect stages (`data.stage`)
+- [**Aliases Update**](./functions/fn_dm_context_aliases_update/README.md) - Normalized aliases on timeseries, assets and files
 - **CDF Toolkit Documentation** - General deployment and configuration guidance
 
 ## 🤝 Contributing

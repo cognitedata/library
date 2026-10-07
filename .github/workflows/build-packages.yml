@@ -14,10 +14,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Install uv
-      uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       with:
         enable-cache: true
 
@@ -25,18 +25,17 @@ jobs:
       run: uv sync --group dev
 
     - name: Lint with ruff
-      uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3
+      uses: astral-sh/ruff-action@278981a28ce3188b1e39527901f38254bf3aac89 # v4.1.0
 
     - name: Type check with pyright
-      uses: jakebailey/pyright-action@6cabc0f01c4994be48fd45cd9dbacdd6e1ee6e5e # v2
+      uses: jakebailey/pyright-action@8ec14b5cfe41f26e5f41686a31eb6012758217ef # v3.0.2
 
     - name: Run tests
       env:
         PYTHONPATH: .
       run: |
         uv run pytest tests/ -q
-        uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching/ --rootdir=. -q
-        uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py --rootdir=. -q
+        uv run pytest modules/contextualization/cdf_entity_matching/tests/ --rootdir=. -q
         uv run pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/ --rootdir=. -q
 
     - name: Validate packages.toml
@@ -48,14 +47,14 @@ jobs:
 
     - name: Upload packages artifact
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: packages
         path: packages.zip
 
     - name: Create/Update Release
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
+      uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
       with:
         tag_name: latest
         name: Latest Release

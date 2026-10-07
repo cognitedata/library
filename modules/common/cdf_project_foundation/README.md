@@ -300,7 +300,7 @@ The wizard (`scripts/setup_project.py`) is split across four helper modules:
 1. Resolves which pack (`foundation` or `demo`) this project is set up for — see [Which pack am I on?](#which-pack-am-i-on). Shown in the header; only prompts if genuinely ambiguous.
 2. Prompts for which environments to set up (all three, dev only, dev+prod, or custom).
 3. Asks for the CDF project name for each selected environment (pre-filled on re-run).
-4. Asks for an required site / location name — used as access-group suffix, source system location, and entity-matching `location_name`.
+4. Asks for an required site / location name — used as access-group suffix and source system location.
 5. Prompts for source system integration owner and data owner contacts (shared or per-module).
    - For the CFIHOS data model: prompts for **data model owner** name and email (renamed from "integration owner" to reflect its purpose).
 6. Prompts for group source IDs (Entra ID object IDs) and writes them to `.env`.

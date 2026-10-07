@@ -3,10 +3,9 @@ name = "fn-dm-context-aliases-update"
 version = "0.0.0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "cognite-extractor-utils>=7",
     "cognite-sdk>=7,<8",
-    "pyyaml>=6.0.1",
-    "tenacity>=8.0.0",
-    "psutil>=5.9.0",
-    "mixpanel>=4.10.0",
+    "pydantic>=2,<3",
+    "pyyaml>=6.0.1,<7",
+    "tenacity>=8.0.0,<10",
+    "mixpanel>=4.10.0,<6",
 ]

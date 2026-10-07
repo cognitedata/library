@@ -1,13 +1,12 @@
-# Entity Matching Metadata Update Function
+# Aliases Update
 
-This module provides optimized metadata update functionality for timeseries, assets and files in Cognite Data Fusion (CDF) with enhanced performance, monitoring, and error handling.
+This function writes normalized `aliases` on timeseries, assets and files in Cognite Data Fusion (CDF) ahead of entity matching, with paged reads, batch writes, and retry handling.
 
 ## 🚀 Features
 
 - **35-55% faster execution** compared to legacy implementation
-- **Memory usage optimization** with automatic cleanup
+- **Paged reads** of only the properties aliases need, written page by page
 - **Batch processing** with retry logic for robust API interactions
-- **Performance monitoring** with detailed benchmarking
 - **Enhanced error handling** with comprehensive logging
 - **Caching mechanisms** for improved performance
 - **Automatic optimization** applied by default
@@ -24,7 +23,6 @@ fn_dm_context_aliases_update/
 ├── constants.py                  # Module constants
 ├── requirements.txt              # Direct deploy dependencies for CDF
 ├── pyproject.toml                # uv package definition
-├── test_alias_optimizations.py   # Comprehensive test suite
 └── README.md                     # This file
 ```
 
@@ -55,7 +53,6 @@ The module reads configuration from the extraction pipeline in CDF:
 # Example extraction pipeline config
 ExtractionPipelineExtId: "ep_ctx_aliases_update"
 parameters:
-  debug: false
   run_all: false
   update_all: false
   remove_old_aliases: false
@@ -93,9 +90,8 @@ data:
 
 | Parameter | Purpose |
 |-----------|---------|
-| `debug` | Write DEBUG log messages; it does not narrow which instances are processed |
 | `runAll` | Fetch all instances (not only those missing `aliases`) |
-| `updateAll` | Reset managed metadata and reprocess every fetched instance (implies `runAll`) |
+| `updateAll` | Rebuild generated aliases on every fetched instance (implies `runAll`). A DM write — and the “updated” count — happens only when the rebuilt list differs from what is already stored |
 | `removeOldAliases` | Discard every existing alias and write only what this run produces (implies `runAll`) |
 
 Every view is fetched on the presence of `aliases` alone, so `runAll`, `updateAll` and
@@ -112,12 +108,12 @@ before file support existed keeps working untouched.
 
 `aliasPattern` is the regular expression that finds the tag inside an instance's `name`.
 Each view configures its own, so timeseries, assets and files can follow different naming
-conventions. The alias written back is the pattern's **capture groups joined by `_`** —
+conventions. The alias written back is the pattern's **capture groups joined by `-`** —
 the groups decide the alias, not the whole match — so with the default pattern
-`VAL_23-KA-9101:X.Value` yields `23_KA_9101`. When a pattern uses one capture group for
-the whole tag, separators inside that group (`-`, `.`, `:`) are still rewritten to `_`
-for equipment tags starting with a two-digit area code. Document numbers and pump codes
-are left unchanged. Every pattern defaults to the shape above, so a configuration written
+`VAL_23-KA-9101:X.Value` yields `23-KA-9101`. When a pattern uses one capture group for
+the whole tag, separators inside that group (`_`, `.`, `:`) are still rewritten to `-`
+for every generated alias, including letter-prefixed tags (`DB_9101` → `DB-9101`) and
+document numbers. Every pattern defaults to the shape above, so a configuration written
 before this setting existed keeps behaving the same.
 
 When no pattern extracts anything from a name, **no alias is produced**. The `aliases`
@@ -149,7 +145,7 @@ aliasSelection: longest
 ```
 
 Given that config, `VAL_23-KA-9101_PMP1234:X.Value` matches both patterns; `all` writes
-`23_KA_9101` and `PMP_1234`, `longest` writes only `23_KA_9101`. When two aliases are
+`23-KA-9101` and `PMP-1234`, `longest` writes only `23-KA-9101`. When two aliases are
 equally long the first matching pattern in the list wins, so the order you configure is
 also the precedence. A single pattern may still be given as a plain string rather than a
 list.
@@ -163,11 +159,13 @@ Two rules when writing a pattern:
 - **Use character classes, not backslash escapes** — `[0-9]`, not `\d`. Toolkit
   substitutes module variables as a regex replacement, and a backslash escape in the
   value fails the build with `bad escape \d`.
-- **Accept `_` as a separator between the groups.** The generated alias joins the groups
-  with `_`, and the function identifies its own earlier output by feeding a stored alias
-  back through the pattern and checking it rebuilds unchanged. A pattern that cannot
-  match `_` never recognises its own aliases, so `updateAll` leaves stale ones in place.
-  For example prefer `([A-Z]{3})[-_]?([0-9]{4})` over `([A-Z]{3})([0-9]{4})`.
+- **Accept `-` as a separator between the groups.** The generated alias joins the groups
+  with `-`, and the function identifies its own earlier output by feeding a stored alias
+  back through the pattern and checking it rebuilds unchanged. Prefer also accepting `_`
+  so aliases written by an earlier underscore-normalising run are still recognised.
+  A pattern that cannot match `-` never recognises its own aliases, so `updateAll` leaves
+  stale ones in place. For example prefer `([A-Z]{3})[-_]?([0-9]{4})` over
+  `([A-Z]{3})([0-9]{4})`.
 
 Deploying a changed pattern does not retire aliases generated by the previous one; they
 are no longer recognised as generated and are treated as hand-curated from then on.
@@ -175,9 +173,10 @@ are no longer recognised as generated and are treated as hand-curated from then 
 ### File aliases
 
 Files get the name with its final extension removed **in addition to** the usual
-pattern-derived aliases, so a document is findable both by its bare file name and by the
-tag it refers to. `PID_23-KA-9101_rev3.pdf` yields `PID_23-KA-9101_rev3` and
-`23_KA_9101`. A name with no extension is used as it stands.
+pattern-derived aliases **only when a pattern matches**, so a document is findable both
+by its bare file name and by the tag it refers to. `PID_23-KA-9101_rev3.pdf` yields
+`PID-23-KA-9101-rev3` and `23-KA-9101`. A name that matches no pattern, such as
+`23-1ST STAGE COMP ENCLOSURE-PH.pdf`, produces no alias.
 
 `aliasSelection` does not apply to the extension-stripped name — that alias is not a
 pattern match, so it is always kept.
@@ -190,18 +189,18 @@ number without its sheet number, `PH-25578-P-4110006`:
 
 ```yaml
 fileAliasPattern:
-  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+-[0-9]+)'
-  - '(?<![A-Z])([A-Z]{2,4}-[0-9]+-[A-Z]-[0-9]+)(?:-[0-9]+)?'
+  - '(?<![A-Z])([A-Z]{2,4}[-_][0-9]+[-_][A-Z][-_][0-9]+[-_][0-9]+)'
+  - '(?<![A-Z])([A-Z]{2,4}[-_][0-9]+[-_][A-Z][-_][0-9]+)(?:[-_][0-9]+)?'
   - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
 ```
 
 Three details make that work, and are worth copying when adapting the patterns to a
 different document numbering scheme:
 
-- **One capture group per pattern.** The alias is the groups joined by `_`, so capturing
-  the number in four groups would write `PH_25578_P_4110006` instead. A single group
-  spanning the whole number keeps the dashes as they are.
-- **The sheet number sits outside the group and is optional** — `(?:-[0-9]+)?`. Optional
+- **Accept `_` as well as `-` between segments.** Generated aliases always use `-`, and
+  the function identifies its own earlier output by feeding a stored alias back through
+  the pattern.
+- **The sheet number sits outside the group and is optional** — `(?:[-_][0-9]+)?`. Optional
   is what lets the shortened alias be recognised as generated when it is read back, so
   `updateAll` rebuilds it instead of treating it as hand-curated.
 - **`(?<![A-Z])` stops a match starting mid-prefix.** Without it a name like
@@ -217,9 +216,13 @@ it is ordinary text, not a pattern match. So renaming a file and rerunning with
 hand if that matters.
 
 For a full metadata refresh, set `updateAll: true` in the extraction pipeline config.
-"Reset" covers only the values this function generates — aliases matching the view's
-`aliasPattern`. Hand-curated aliases are preserved, including aliases that merely mention
-a tag (for example `spare for 23-AB-1234`).
+That rebuilds only the values this function generates — aliases matching the view's
+`aliasPattern` — while hand-curated aliases are preserved, including aliases that merely
+mention a tag (for example `spare for 23-AB-1234`). After the rebuild, the function
+compares the new list to what is already on the instance: if they are the same, it
+skips the DM write and does not count the instance as updated. Use `updateAll` to retire
+stale generated aliases or pick up a changed pattern; do not expect every fetched
+instance to appear in the update count on a no-op rerun.
 
 To replace the entire `aliases` list — generated and hand-curated alike — set
 `removeOldAliases: true`. The function then writes only the aliases it produces on this
@@ -273,7 +276,7 @@ data = {
 
 # Run the optimized handler
 result = handle(data, client)
-print(f"Status: {result['status']}")
+print(result)
 ```
 
 ## 🔍 Functionality
@@ -284,41 +287,38 @@ print(f"Status: {result['status']}")
 - Processes timeseries, asset and file metadata with caching
 - Adds normalized tag aliases for entity matching, and for files the file name without
   its extension
-- Handles batch updates with memory management
+- Handles batch updates one page at a time
+
+Entity matching (submit/collect) then reads those aliases via
+`entityViewSearchProperty` / `targetViewSearchProperty`: entities use the **longest**
+alias as the match string; targets keep **all** aliases. See
+[fn_dm_context_entity_matching](../fn_dm_context_entity_matching/README.md#how-aliases-are-used).
 
 #### 2. **BatchProcessor**
 - Applies node updates in configurable batches (default 1000, the SDK's own chunk size)
 - Retries each batch with exponential backoff, then splits into smaller chunks on failure
 
-#### 3. **PerformanceBenchmark**
-- Monitors execution time for all operations
-- Tracks memory usage throughout processing
-- Provides detailed performance statistics
-
 ### Processing Flow
 
-1. **Initialization**: Apply global optimizations and setup monitoring
+1. **Initialization**: Set up logging
 2. **Configuration**: Load parameters from extraction pipeline
 3. **Timeseries Processing**:
-   - Fetch every timeseries in scope in one call (the SDK paginates internally)
+   - Read the timeseries in scope 1000 at a time, with only `name` and `aliases`, and
+     retry a page that fails on a transient error
    - Add normalized aliases when tag patterns match
-   - Update metadata with optimized batch operations
-4. **Asset Processing**:
-   - Fetch every asset in scope in one call (the SDK paginates internally)
-   - Add normalized aliases when tag patterns match
-   - Update with batch operations
-5. **File Processing** (only when `fileView` is configured):
-   - Fetch every file in scope in one call (the SDK paginates internally)
-   - Add the file name without its extension, plus a normalized alias when the tag
-     pattern matches
-   - Update with batch operations
-6. **Cleanup**: Memory cleanup and performance reporting
+   - Write each page's updates before reading the next
+4. **Asset Processing**: as for timeseries
+5. **File Processing** (only when `fileView` is configured): as for timeseries, adding
+   the file name without its extension as well
+6. **Summary**: Log processed and updated counts, and names no pattern could read
+
+A failed read or write fails the function call rather than returning a failure status,
+so the workflow stops before entity matching runs on stale aliases.
 
 ### Performance Optimizations
 
 - **Caching**: LRU-cached alias generation for repeated tag patterns
 - **Batch Processing**: Configurable batch sizes with retry logic
-- **Memory Management**: Automatic cleanup and monitoring
 - **Error Recovery**: Robust error handling with fallback mechanisms
 
 ## 🧪 Testing
@@ -328,39 +328,25 @@ print(f"Status: {result['status']}")
 From the repository root:
 
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py -q
-```
-
-Or run the script directly:
-
-```bash
-cd modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update
-uv run python test_alias_optimizations.py
+uv run pytest modules/contextualization/cdf_entity_matching/tests/fn_dm_context_aliases_update -q
 ```
 
 ### Test Categories
 
 #### 1. **Unit Tests**
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py::TestOptimizedMetadataProcessor -v
+uv run pytest modules/contextualization/cdf_entity_matching/tests/fn_dm_context_aliases_update/test_alias_optimizations.py::TestOptimizedMetadataProcessor -v
 ```
 
-#### 2. **Performance Tests**
+#### 2. **Integration Tests**
 ```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py::TestPerformanceBenchmark -v
-```
-
-#### 3. **Integration Tests**
-```bash
-uv run pytest modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update/test_alias_optimizations.py::TestIntegrationScenarios -v
+uv run pytest modules/contextualization/cdf_entity_matching/tests/fn_dm_context_aliases_update/test_alias_optimizations.py::TestIntegrationScenarios -v
 ```
 
 ### Test Coverage
 
 The test suite covers:
 - ✅ All optimization classes and functions
-- ✅ Performance benchmarking
-- ✅ Memory management
 - ✅ Error handling scenarios
 - ✅ Batch processing logic
 - ✅ Caching mechanisms
@@ -377,9 +363,9 @@ The module provides detailed monitoring:
 ⏱️ Time: Configuration processing took 0.15 seconds
 ⏱️ Time: Timeseries processing took 45.30 seconds
 ⏱️ Time: Asset processing took 32.10 seconds
-🧠 Memory: Pipeline start Memory usage: 145.2 MB
-🧠 Memory: Pipeline end Memory usage: 152.1 MB
 ```
+
+Step timings are logged at DEBUG.
 
 ## 🛠️ Dependencies
 
@@ -388,7 +374,6 @@ See `pyproject.toml` for local dev dependencies; `requirements.txt` lists direct
 ```txt
 cognite-sdk>=7.0.0
 tenacity>=8.0.0
-psutil>=5.9.0
 ```
 
 ## 🔧 Troubleshooting
@@ -397,7 +382,6 @@ psutil>=5.9.0
 
 1. **Memory Issues**
    - Reduce batch size in configuration
-   - Monitor memory usage in logs
 
 2. **API Rate Limits**
    - Retry logic handles temporary failures
@@ -431,7 +415,7 @@ data = {
 
 ### Performance Logs
 
-At **INFO**, expect startup, extraction pipeline id, loaded configuration summary, per-view progress, batch apply counts, and processing stats. Timing, memory, and performance summaries are **DEBUG** only.
+At **INFO**, expect startup, extraction pipeline id, loaded configuration summary, per-view progress, batch apply counts, and processing stats. Step timings are **DEBUG** only.
 
 ```
 Starting Aliases Update with loglevel = INFO
@@ -439,7 +423,6 @@ Reading parameters from extraction pipeline config: ep_ctx_aliases_update
 Configuration loading took 0.13s
 Loaded extraction pipeline configuration:
   parameters:
-    debug: False
     runAll: True
     ...
 📊 Processing Stats: 1000 processed, 800 updated, 80.00% update rate

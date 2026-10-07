@@ -1,6 +1,6 @@
-externalId: 'ds_timeseries_{{location_name}}'
-name:  'timeseries:{{location_name}}'
-description: 'TimeSeries data for {{location_name}}'
+externalId: 'ds_entity_matching'
+name: 'ds:entity:matching'
+description: 'Entity matching data'
 metadata:
-  consoleSource: '{"names": ["{{source_name}}"]}'
-  rawTables: '[{"databaseName": "{{ dbName }}", "tableName": "contextualization_good"}, {"databaseName": "{{ dbName }}", "tableName": "contextualization_bad"}, {"databaseName": "{{ dbName }}", "tableName": "contextualization_manual_input"}, {"databaseName": "{{ dbName }}", "tableName": "contextualization_state_store"}]'
+  consoleSource: '{"names": ["entity_matching"]}'
+  rawTables: '[{"databaseName": "{{ dbName }}", "tableName": "contextualization_good"}, {"databaseName": "{{ dbName }}", "tableName": "contextualization_bad"}, {"databaseName": "{{ dbName }}", "tableName": "contextualization_manual_input"}, {"databaseName": "{{ dbName }}", "tableName": "contextualization_rule_input"}, {"databaseName": "{{ dbName }}", "tableName": "contextualization_state_store"}]'
