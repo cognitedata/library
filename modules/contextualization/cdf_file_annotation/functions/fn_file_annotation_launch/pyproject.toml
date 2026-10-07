@@ -6,7 +6,7 @@ dependencies = [
     "cognite-sdk>=7.76.0,<8",
     "msal==1.37.0",
     "pydantic>=2.12.4,<3.0.0",
-    "PyJWT>=2.13.0,<3.0",
+    "PyJWT>=2.15.0,<3.0",
     "python-dotenv>=1.2.2,<2.0",
     "PyYAML>=6.0.2,<7.0",
     "mixpanel>=4.10.0",
