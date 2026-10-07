@@ -32,7 +32,7 @@ ASSET = {
 def _config(**parameters: object) -> Config:
     return Config.model_validate(
         {
-            "parameters": {"rawData": {"rawDb": "db_file_annotation"}, **parameters},
+            "parameters": parameters,
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",

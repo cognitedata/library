@@ -58,12 +58,16 @@ CORE_ANNOTATION_VERSION: Final = "v1"
 FILE_ANNOTATION_TYPE: Final = "diagrams.FileLink"
 TARGET_ANNOTATION_TYPE: Final = "diagrams.AssetLink"
 
+# Must match the module's raw/ resources, the access group's RAW scope, the extraction pipeline
+# rawTables list, the transformations, and the Annotation Quality dashboard.
+RAW_DB: Final = "db_file_annotation"
 RAW_TABLE_CACHE: Final = "annotation_entities_cache"
 RAW_TABLE_DOC_TAG: Final = "annotation_documents_tags"
 RAW_TABLE_DOC_DOC: Final = "annotation_documents_docs"
 RAW_TABLE_DOC_PATTERN: Final = "annotation_documents_patterns"
 RAW_TABLE_PROMOTE_CACHE: Final = "annotation_tags_cache"
 RAW_TABLE_MANUAL_PATTERNS: Final = "manual_patterns_catalog"
+RAW_TABLE_ANNOTATION_STATUS_REPORT: Final = "annotation_file_status_report"
 
 TAG_ANNOTATED: Final = "Annotated"
 TAG_ANNOTATION_FAILED: Final = "AnnotationFailed"

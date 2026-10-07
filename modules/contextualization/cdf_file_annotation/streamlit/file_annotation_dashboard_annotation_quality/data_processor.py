@@ -15,6 +15,27 @@ class DataProcessor:
         if not isinstance(col, str):
             return col
         return f"file{col[0].upper()}{col[1:]}"
+
+    @staticmethod
+    def resolve_scope_column(df: pd.DataFrame | None, property_name: str | None, raw_column: str) -> str | None:
+        """Column holding scope values: RAW fixed name from ApplyService, else file-prefixed property."""
+        if not property_name or df is None or df.empty:
+            return None
+        if raw_column in df.columns:
+            return raw_column
+        prefixed = DataProcessor.set_file_prefix(property_name)
+        if prefixed in df.columns:
+            return prefixed
+        return None
+
+    @staticmethod
+    def unique_filter_options(df: pd.DataFrame | None, column: str | None) -> list:
+        options = [FieldNames.ALL_TITLE_CASE]
+        if not column or df is None or df.empty or column not in df.columns:
+            return options
+        values = [v for v in df[column].dropna().unique().tolist() if str(v).strip()]
+        options.extend(sorted(values, key=str))
+        return options
     @staticmethod
     def derive_normalized_status(row: pd.Series) -> str:
         tags = row.get(FieldNames.TAGS_LOWER_CASE)

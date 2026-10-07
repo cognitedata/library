@@ -138,6 +138,7 @@ class CacheServiceConfig:
 
 @dataclass
 class LaunchFunctionConfig:
+    primary_scope_property: str
     secondary_scope_property: str
     asset_resource_property: str
     file_resource_property: str
@@ -146,11 +147,18 @@ class LaunchFunctionConfig:
     @classmethod
     def from_dict(cls, d: dict | None):
         if not isinstance(d, dict):
-            return cls(cache_service=CacheServiceConfig.from_dict(None))
+            return cls(
+                primary_scope_property=None,
+                secondary_scope_property=None,
+                asset_resource_property=None,
+                file_resource_property=None,
+                cache_service=CacheServiceConfig.from_dict(None),
+            )
 
         cache_service = d.get(FieldNames.CACHE_SERVICE_CAMEL_CASE)
 
         return cls(
+            primary_scope_property=d.get(FieldNames.PRIMARY_SCOPE_PROPERTY_CAMEL_CASE),
             secondary_scope_property=d.get(FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE),
             asset_resource_property=d.get(FieldNames.ASSET_RESOURCE_PROPERTY_CAMEL_CASE),
             file_resource_property=d.get(FieldNames.FILE_RESOURCE_PROPERTY_CAMEL_CASE),
@@ -191,21 +199,21 @@ class ExtractionPipelineConfig:
         if "parameters" in d and "data" in d:
             parameters = d["parameters"]
             views = d["data"]
-            raw_data = parameters.get("rawData") or {}
-            # Defaults match fa_constants in fn_file_annotation, used when a table name is not configured.
+            # Must match the RAW_* constants in fn_file_annotation/fa_constants.py.
             raw_tables = {
-                "rawDb": raw_data.get("rawDb"),
-                "rawTableDocPattern": raw_data.get("rawTableDocPattern") or "annotation_documents_patterns",
-                "rawTableDocTag": raw_data.get("rawTableDocTag") or "annotation_documents_tags",
-                "rawTableDocDoc": raw_data.get("rawTableDocDoc") or "annotation_documents_docs",
-                "rawManualPatternsCatalog": raw_data.get("rawManualPatternsCatalog") or "manual_patterns_catalog",
-                "rawTableCache": raw_data.get("rawTableCache") or "annotation_entities_cache",
-                "rawTablePromoteCache": raw_data.get("rawTablePromoteCache") or "annotation_tags_cache",
+                "rawDb": "db_file_annotation",
+                "rawTableDocPattern": "annotation_documents_patterns",
+                "rawTableDocTag": "annotation_documents_tags",
+                "rawTableDocDoc": "annotation_documents_docs",
+                "rawManualPatternsCatalog": "manual_patterns_catalog",
+                "rawTableCache": "annotation_entities_cache",
+                "rawTablePromoteCache": "annotation_tags_cache",
             }
             file_view_data = views.get("fileView", {})
             target_view_data = views.get("targetEntitiesView", {})
             d = {
                 "launchFunction": {
+                    "primaryScopeProperty": parameters.get("primaryScopeProperty"),
                     "secondaryScopeProperty": parameters.get("secondaryScopeProperty"),
                     "fileResourceProperty": file_view_data.get("resourceProperty"),
                     "targetEntityResourceProperty": target_view_data.get("resourceProperty"),
@@ -248,15 +256,23 @@ class ExtractionPipelineConfig:
 
     @property
     def file_resource_property(self) -> str | None:
-        return getattr(self.launch_function, FieldNames.FILE_RESOURCE_PROPERTY_SNAKE_CASE, None)
+        value = getattr(self.launch_function, FieldNames.FILE_RESOURCE_PROPERTY_SNAKE_CASE, None)
+        return value.strip() if isinstance(value, str) and value.strip() else None
 
     @property
     def asset_resource_property(self) -> str | None:
-        return getattr(self.launch_function, FieldNames.ASSET_RESOURCE_PROPERTY_SNAKE_CASE, None)
+        value = getattr(self.launch_function, FieldNames.ASSET_RESOURCE_PROPERTY_SNAKE_CASE, None)
+        return value.strip() if isinstance(value, str) and value.strip() else None
+
+    @property
+    def primary_scope_property(self) -> str | None:
+        value = getattr(self.launch_function, FieldNames.PRIMARY_SCOPE_PROPERTY_SNAKE_CASE, None)
+        return value.strip() if isinstance(value, str) and value.strip() else None
 
     @property
     def secondary_scope_property(self) -> str | None:
-        return getattr(self.launch_function, FieldNames.SECONDARY_SCOPE_PROPERTY_SNAKE_CASE, None)
+        value = getattr(self.launch_function, FieldNames.SECONDARY_SCOPE_PROPERTY_SNAKE_CASE, None)
+        return value.strip() if isinstance(value, str) and value.strip() else None
 
     @property
     def db_name(self) -> str | None:

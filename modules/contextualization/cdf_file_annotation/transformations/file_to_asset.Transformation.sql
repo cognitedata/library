@@ -28,7 +28,7 @@ SELECT
   ) AS assets
 
 FROM
-  `{{ rawDb }}`.`{{ rawTableDocTag }}`
+  `db_file_annotation`.`annotation_documents_tags`
 
 WHERE
   -- Only include approved annotations

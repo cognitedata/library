@@ -1,2 +1,2 @@
-dbName: {{ rawDb }}
-tableName: {{ rawTableAnnotationStatusReport }}
+dbName: db_file_annotation
+tableName: annotation_file_status_report

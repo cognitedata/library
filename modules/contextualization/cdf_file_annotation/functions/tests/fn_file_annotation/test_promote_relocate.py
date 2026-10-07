@@ -15,7 +15,6 @@ ASSET_LINK = "diagrams.AssetLink"
 
 def _config(*, asset_suggest: float = 0.6, file_suggest: float | None = None) -> Config:
     parameters: dict[str, object] = {
-        "rawData": {"rawDb": "db_file_annotation"},
         "assetAutoSuggestThreshold": asset_suggest,
         "assetAutoApprovalThreshold": max(asset_suggest, 0.8),
     }

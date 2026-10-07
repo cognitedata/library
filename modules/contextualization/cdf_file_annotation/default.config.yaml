@@ -26,15 +26,6 @@ targetEntityVersion: v1
 targetEntitySearchProperty: aliases
 targetEntityResourceProperty: ""
 
-# used in /raw and /extraction_pipelines
-rawDb: db_file_annotation
-rawTableDocTag: annotation_documents_tags
-rawTableDocDoc: annotation_documents_docs
-rawTableDocPattern: annotation_documents_patterns
-rawTableCache: annotation_entities_cache
-rawManualPatternsCatalog: manual_patterns_catalog
-rawTablePromoteCache: annotation_tags_cache
-rawTableAnnotationStatusReport: annotation_file_status_report
 
 # used in /extraction_pipelines
 extractionPipelineExternalId: ep_ctx_file_annotation
@@ -50,8 +41,8 @@ cleanOldAnnotations: false
 # fileAuto* apply to file links (diagrams.FileLink).
 assetAutoApprovalThreshold: 0.85
 assetAutoSuggestThreshold: 0.7
-fileAutoApprovalThreshold: 0.25
-fileAutoSuggestThreshold: 0.2
+fileAutoApprovalThreshold: 0.50
+fileAutoSuggestThreshold: 0.30
 # Scope properties are property NAMES (for example site / unit), not values. The property must
 # be a text property with the same name on both the file view and the target entity view; the
 # site value is read from each instance. Empty disables that grouping level. Instances without

@@ -155,7 +155,6 @@ def test_config_wires_pattern_flags_from_pattern_promote() -> None:
     config = Config.model_validate(
         {
             "parameters": {
-                "rawData": {"rawDb": "db_file_annotation"},
                 "patternPromote": {
                     "patternMode": False,
                     "structuralAutoPatterns": False,

@@ -16,7 +16,7 @@ ASSET_LINK = "diagrams.AssetLink"
 def _config(file_space: str | None, target_space: str | None, state_space: str | None = "sp_state") -> Config:
     return Config.model_validate(
         {
-            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
+            "parameters": {},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",

@@ -30,14 +30,6 @@ parameters:
   fileEntitiesTags: {{ fileEntitiesTags }}
   targetEntitiesTags: {{ targetEntitiesTags }}
   debugFileExternalId: {{ debugFileExternalId }}
-  rawData:
-    rawDb: {{ rawDb }}
-    rawTableDocTag: {{ rawTableDocTag }}
-    rawTableDocDoc: {{ rawTableDocDoc }}
-    rawTableDocPattern: {{ rawTableDocPattern }}
-    rawTableCache: {{ rawTableCache }}
-    rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
-    rawTablePromoteCache: {{ rawTablePromoteCache }}
   patternPromote:
     patternMode: {{ patternMode }}
     structuralAutoPatterns: {{ structuralAutoPatterns }}
@@ -59,8 +51,6 @@ parameters:
 - `targetEntitiesTags` is the Launch IN filter for assets used as diagram-detect match entities (default `DetectInDiagrams`).
 - `debugFileExternalId` (default empty) restricts every stage to one file, for debugging. The file is looked up in `data.fileView.instanceSpace` (required when this is set). Prepare picks the file regardless of its `ToAnnotate`/`Annotated` tags (only `AnnotationInProcess` is skipped), Launch and Finalize only handle that file's annotation state, Promote only handles edges that start at the file, and no other files are annotated. Match entities are still read in full: Launch retrieves all `DetectInDiagrams`/`ScopeWideDetect` assets and files as usual, so the debug file is matched against the same entities as in a normal run. Each stage logs a `DEBUG MODE` line in its config header. Leave empty for normal runs.
 - Possible pipeline tags: `ToAnnotate`, `DetectInDiagrams`, `ScopeWideDetect`, `AnnotationInProcess`, `Annotated`, `AnnotationFailed`, `PromoteAttempted`, `PromotedAuto`, `AmbiguousMatch`.
-- `rawData.rawDb` is the shared database for result and cache tables.
-- The `rawData.rawTable*` and `rawData.rawManualPatternsCatalog` keys name the function's result, cache, and catalog tables. They must match the Toolkit RAW resources and the extraction pipeline's `rawTables` list.
 - `entityNormalizationPatterns` / `fileNormalizationPatterns` are separate lists (same capture-group semantics as aliases_update `aliasPattern`). Asset aliases and AssetLink promote use the entity list; file aliases and FileLink promote use the file list. Longest match wins. An **empty list** disables filtering for that source only (avoids false-positive structural samples from mixing unrelated shapes).
 - Casing is preserved: DMS alias `IN` filters are case-sensitive exact matches. Built-in rules remove non-alphanumeric characters and strip leading zeros after extraction.
 
@@ -126,6 +116,25 @@ Pipeline limits and promote cleanup:
 - Ambiguous Suggested edges remain in DMS for review
 - Annotation types, state/status filters, and standard tags
 
+### RAW database and tables
+
+All result, cache, and catalog tables live in one RAW database. The names are fixed
+constants, not configuration. The Toolkit RAW resources (`raw/`), the access group's
+RAW scope (`auth/`), the extraction pipeline's `rawTables` list, the transformations, and
+the Annotation Quality dashboard use the same literal names, so a rename must be made in
+all of those places.
+
+| Constant | Name | Contents |
+|----------|------|----------|
+| `RAW_DB` | `db_file_annotation` | Database for all tables below |
+| `RAW_TABLE_DOC_TAG` | `annotation_documents_tags` | Regular detect links to assets |
+| `RAW_TABLE_DOC_DOC` | `annotation_documents_docs` | File-to-file links |
+| `RAW_TABLE_DOC_PATTERN` | `annotation_documents_patterns` | Pattern-mode detections and promote outcomes |
+| `RAW_TABLE_CACHE` | `annotation_entities_cache` | Entity sync state and auto pattern samples |
+| `RAW_TABLE_MANUAL_PATTERNS` | `manual_patterns_catalog` | Manual pattern overrides |
+| `RAW_TABLE_PROMOTE_CACHE` | `annotation_tags_cache` | Promote text-to-entity cache |
+| `RAW_TABLE_ANNOTATION_STATUS_REPORT` | `annotation_file_status_report` | Output of `tr_file_annotation_status_report` |
+
 ### Diagram Detect matching (`DiagramDetectConfig`)
 
 Launch passes these constants into Cognite Diagram Detect via
@@ -157,7 +166,11 @@ not part of `DiagramDetectConfig`.
 
 ## Migration from the four-function config
 
-Remove `dataModelViews`, `rawTables`, `prepareFunction`, `launchFunction`, `finalizeFunction`, and `promoteFunction`. Replace them with the `parameters` and `data` blocks above, and add the matching keys to `default.config.yaml` (or your `config.<env>.yaml` module variables). Query target views, fixed tags/statuses, limits, and promote cleanup flags are no longer configurable. RAW table names stay in `default.config.yaml` and go under `parameters.rawData`.
+Remove `dataModelViews`, `rawTables`, `prepareFunction`, `launchFunction`, `finalizeFunction`, and `promoteFunction`. Replace them with the `parameters` and `data` blocks above, and add the matching keys to `default.config.yaml` (or your `config.<env>.yaml` module variables). Query target views, fixed tags/statuses, limits, promote cleanup flags, and RAW database/table names are no longer configurable.
+
+### Migration from configurable RAW names
+
+The `rawDb` / `rawTable*` / `rawManualPatternsCatalog` module variables and the `parameters.rawData` block are removed. RAW names are now the constants listed under [RAW database and tables](#raw-database-and-tables). Delete those keys from your `config.<env>.yaml`. A `parameters.rawData` block left in an extraction-pipeline config is ignored. If you deployed with non-default names, move the existing rows to the fixed tables, or edit the constants and the Toolkit files that repeat them.
 
 `patternMode`, `structuralAutoPatterns`, and `filterPatternPromoteByScope` are read from `parameters.patternPromote`. Left directly under `parameters`, they are ignored. The first two default to `true`; the scope filter defaults to `false`.
 

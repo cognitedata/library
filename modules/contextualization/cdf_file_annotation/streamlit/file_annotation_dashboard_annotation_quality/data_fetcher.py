@@ -87,6 +87,9 @@ class DataFetcher:
             FieldNames.END_NODE_CAMEL_CASE,
             FieldNames.END_NODE_SPACE_CAMEL_CASE,
             FieldNames.TAGS_LOWER_CASE,
+            # Written by ApplyService when primaryScopeProperty / secondaryScopeProperty are configured.
+            FieldNames.PRIMARY_SCOPE_PROPERTY_CAMEL_CASE,
+            FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE,
         ]
 
         actual_df: pd.DataFrame = pd.DataFrame(columns=annotation_columns)
@@ -193,6 +196,7 @@ class DataFetcher:
     def fetch_entities_metadata(_client: CogniteClient, extraction_pipeline_cfg: ExtractionPipelineConfig | None = None, entity_type: str | None = None, _filter_expression: object | None = None):
         entity_view_cfg = None
         entity_resource_type_property = None
+        primary_scope_property = None
         secondary_scope_property = None
         if extraction_pipeline_cfg is not None:
             if entity_type == FieldNames.ASSET_TITLE_CASE:
@@ -204,6 +208,7 @@ class DataFetcher:
             else:
                 entity_view_cfg = extraction_pipeline_cfg.file_view_cfg
                 entity_resource_type_property = extraction_pipeline_cfg.file_resource_property
+            primary_scope_property = extraction_pipeline_cfg.primary_scope_property
             secondary_scope_property = extraction_pipeline_cfg.secondary_scope_property
 
         entity_space = entity_view_cfg.instance_space if entity_view_cfg is not None else None
@@ -213,6 +218,9 @@ class DataFetcher:
             FieldNames.SOURCE_ID_CAMEL_CASE,
             FieldNames.NAME_LOWER_CASE,
         ]
+
+        if primary_scope_property:
+            metadata_columns.append(primary_scope_property)
 
         if secondary_scope_property:
             metadata_columns.append(secondary_scope_property)

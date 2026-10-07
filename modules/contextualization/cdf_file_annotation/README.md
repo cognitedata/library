@@ -375,7 +375,7 @@ filesToAnnotateTags:
 
 ## 📊 Reporting & RAW Tables
 
-Finalize and promote write annotation results to RAW. Use these tables for auditing — not the helper `FileAnnotationState` view, which tracks job status per file rather than individual tag strings.
+Finalize and promote write annotation results to the RAW database `db_file_annotation`. The database and table names are fixed in `functions/fn_file_annotation/fa_constants.py` (see [CONFIG.md](./detailed_guides/CONFIG.md#raw-database-and-tables)). Use these tables for auditing — not the helper `FileAnnotationState` view, which tracks job status per file rather than individual tag strings.
 
 `FileAnnotationState.pipelineUpdatedTime` is the clock launch and finalize write when they change a file's annotation state. Stuck-job recovery and the finalize claim order use that property. States written before this property existed are still recovered from `sourceUpdatedTime` until the next stage touches them.
 
@@ -443,16 +443,6 @@ fileVersion: <insert>
 fileSearchProperty: aliases
 fileResourceProperty: ""
 
-# RAW Tables
-rawDb: db_file_annotation
-rawTableDocTag: annotation_documents_tags       # Doc-to-tag results (matched assets)
-rawTableDocDoc: annotation_documents_docs       # Doc-to-doc results
-rawTableDocPattern: annotation_documents_patterns
-rawTableCache: annotation_entities_cache
-rawManualPatternsCatalog: manual_patterns_catalog
-rawTablePromoteCache: annotation_tags_cache
-rawTableAnnotationStatusReport: annotation_file_status_report
-
 # Extraction Pipeline
 extractionPipelineExternalId: ep_file_annotation
 patternMode: true
@@ -504,9 +494,9 @@ groupSourceId: ${GROUP_SOURCE_ID}
 ### Pipeline Configuration (`ep_file_annotation.config.yaml`)
 
 The extraction pipeline follows the same concise `parameters` / `data` structure as the
-entity-matching module. Operator knobs, view property names, RAW table names, and tag
-filters are Toolkit variables in `default.config.yaml`. Fixed limits, queries,
-cleanup behavior, and Diagram Detect matching defaults
+entity-matching module. Operator knobs, view property names, and tag filters are
+Toolkit variables in `default.config.yaml`. RAW database and table names, fixed limits,
+queries, cleanup behavior, and Diagram Detect matching defaults
 (`DiagramDetectConfig` fields such as `minFuzzyScore`, connection flags, and
 fuzziness) live in `functions/fn_file_annotation/fa_constants.py` — edit that file
 and redeploy the function to change them; they are not Toolkit variables. See
@@ -535,14 +525,6 @@ parameters:
   targetEntitiesTags:
     - DetectInDiagrams
   debugFileExternalId: "" # set to one file's externalId to process only that file
-  rawData:
-    rawDb: db_file_annotation
-    rawTableDocTag: annotation_documents_tags
-    rawTableDocDoc: annotation_documents_docs
-    rawTableDocPattern: annotation_documents_patterns
-    rawTableCache: annotation_entities_cache
-    rawManualPatternsCatalog: manual_patterns_catalog
-    rawTablePromoteCache: annotation_tags_cache
   patternPromote:
     patternMode: true
     structuralAutoPatterns: true
@@ -619,7 +601,7 @@ Launch creates one batch per `site` + `unit` combination:
   `ScopeWideDetect` makes an entity visible to every unit **within the same site**, never across sites.
 - `PID-0002` (PlantB / U200) is matched against `45-PB-2001` only.
 
-Each scope gets its own manual patterns lookup in `rawManualPatternsCatalog` (keys `GLOBAL`,
+Each scope gets its own manual patterns lookup in `manual_patterns_catalog` (keys `GLOBAL`,
 `PlantA`, `PlantA_U100`). The 500,000-entity limit then applies per scope, so if one site is still too
 large, add `secondaryScopeProperty`. The entities of all scopes come from one read of the view
 (see [Reading the match entities](#reading-the-match-entities)).
@@ -643,11 +625,11 @@ different containers, and the OR with `ScopeWideDetect` keeps DMS from paging it
   A page that times out is read again 20% smaller, down to 100 instances.
 - The instances carrying one of the configured tags or `ScopeWideDetect` are kept in the CDF
   file `fa_entity_cache_<key>.json` in the annotation data set. The sync cursor is stored in
-  `rawTableCache` under `entity_sync_state_<key>`. The key changes with the view, space,
+  `annotation_entities_cache` under `entity_sync_state_<key>`. The key changes with the view, space,
   selected properties and tags.
 - A run with no changes downloads the file instead of reading the data model. Changes, a tag
   added or removed included, are merged into the file.
-- The auto pattern samples of each scope are stored in `rawTableCache` under
+- The auto pattern samples of each scope are stored in `annotation_entities_cache` under
   `pattern_samples:<scope>` and reused while the scope's entities and the normalization settings
   are unchanged.
 - A long first read is stored every 5 minutes and Launch keeps reading until it is complete,
@@ -855,7 +837,6 @@ variables:
       fileExternalId: YourFile                  # UPDATE REQUIRED
       fileVersion: v1.0                         # UPDATE REQUIRED
       fileSearchProperty: aliases
-      rawDb: db_file_annotation
       patternMode: true
       structuralAutoPatterns: true
       cleanOldAnnotations: true
@@ -929,12 +910,12 @@ cdf functions logs fn_file_annotation
 cdf workflows status wf_file_annotation
 
 # View annotation results in RAW
-cdf raw rows list <db> rawTableDocTag
-cdf raw rows list <db> rawTableDocPattern
+cdf raw rows list db_file_annotation annotation_documents_tags
+cdf raw rows list db_file_annotation annotation_documents_patterns
 
 # Build per-file matched/unmatched report (after promote)
 cdf transformations run tr_file_annotation_status_report
-cdf raw rows list <db> annotation_file_status_report
+cdf raw rows list db_file_annotation annotation_file_status_report
 ```
 
 ## 📊 Data Flow
@@ -1048,7 +1029,7 @@ cdf workflows trigger wf_file_annotation
 cdf workflows logs wf_file_annotation
 
 # Verify results
-cdf raw rows list <db> rawTableDocTag --limit 10
+cdf raw rows list db_file_annotation annotation_documents_tags --limit 10
 ```
 
 ## 🔧 Troubleshooting

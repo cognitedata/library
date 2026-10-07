@@ -30,7 +30,9 @@ class PipelineHealthUI:
 
         placeholder = "-- Select a Pipeline --"
         options = [placeholder, *pipeline_ids]
-        selected_pipeline = st.selectbox("Select a pipeline:", options=options, index=0, key="ph_pipeline")
+        selected_pipeline = st.selectbox(
+            "Select File Annotation Extractor pipeline:", options=options, index=0, key="ph_pipeline"
+        )
 
         if not selected_pipeline or selected_pipeline == placeholder:
             st.session_state.selected_pipeline = None
@@ -51,6 +53,13 @@ class PipelineHealthUI:
             return
 
         extraction_pipeline_cfg = ExtractionPipelineConfig.from_dict(pipeline_config)
+
+        if extraction_pipeline_cfg.annotation_state_view_cfg is None:
+            st.error(
+                f"Pipeline '{selected_pipeline}' config has no annotation state view. "
+                "Expected views under `data.annotationStateView` (or legacy `dataModelViews`)."
+            )
+            return
 
         with st.spinner(f"Fetching annotation states from view '{selected_pipeline}'..."):
             df_annotation_states = DataFetcher.fetch_annotation_states(self.client, extraction_pipeline_cfg)

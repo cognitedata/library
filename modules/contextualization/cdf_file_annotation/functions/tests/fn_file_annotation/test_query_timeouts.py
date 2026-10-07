@@ -18,7 +18,7 @@ from services.ConfigService import Config
 def _config() -> Config:
     return Config.model_validate(
         {
-            "parameters": {"rawData": {"rawDb": "db_file_annotation"}},
+            "parameters": {},
             "data": {
                 "fileView": {
                     "schemaSpace": "cdf_cdm",

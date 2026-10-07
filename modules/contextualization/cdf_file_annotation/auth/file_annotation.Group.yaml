@@ -33,7 +33,7 @@ capabilities:
       scope:
         tableScope:
           dbsToTables:
-            {{ rawDb }}: []
+            db_file_annotation: []
   - dataModelInstancesAcl:
       actions:
         - READ

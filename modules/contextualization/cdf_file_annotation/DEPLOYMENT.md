@@ -153,12 +153,6 @@ variables:
         fileSearchProperty: aliases
         fileResourceProperty: ""
 
-        # used in /raw and /extraction_pipelines
-        rawDb: db_file_annotation
-        rawTableDocTag: annotation_documents_tags
-        rawTableDocDoc: annotation_documents_docs
-        rawTableCache: annotation_entities_cache
-
         # used in /extraction_pipelines
         extractionPipelineExternalId: ep_file_annotation
         patternMode: true

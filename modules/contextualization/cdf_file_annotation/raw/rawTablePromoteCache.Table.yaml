@@ -1,2 +1,2 @@
-dbName: {{ rawDb }}
-tableName: {{ rawTablePromoteCache }}
+dbName: db_file_annotation
+tableName: annotation_tags_cache

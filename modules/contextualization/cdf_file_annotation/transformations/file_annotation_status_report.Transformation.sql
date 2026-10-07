@@ -5,8 +5,8 @@
 -- tables written by the finalize and promote stages of fn_file_annotation.
 --
 -- Sources:
---   - {{ rawTableDocTag }}     Regular diagram detect → asset links
---   - {{ rawTableDocPattern }} Pattern-mode detections and promote outcomes
+--   - annotation_documents_tags     Regular diagram detect → asset links
+--   - annotation_documents_patterns Pattern-mode detections and promote outcomes
 --
 -- Match categories (aligned with the Annotation Quality dashboard):
 --   matched   : status = 'Approved' (tag linked to an asset external ID)
@@ -26,7 +26,7 @@ WITH regular_asset_annotations AS (
     , cast(endNode AS STRING) AS assetExternalId
     , trim(cast(status AS STRING)) AS status
     , cast(sourceUpdatedTime AS STRING) AS sourceUpdatedTime
-  FROM `{{ rawDb }}`.`{{ rawTableDocTag }}`
+  FROM `db_file_annotation`.`annotation_documents_tags`
   WHERE coalesce(cast(startNodeSpace AS STRING), '{{ fileInstanceSpace }}') = '{{ fileInstanceSpace }}'
     AND startNode IS NOT NULL
     AND trim(cast(startNode AS STRING)) != ''
@@ -45,7 +45,7 @@ pattern_asset_annotations AS (
     , cast(endNode AS STRING) AS assetExternalId
     , trim(cast(status AS STRING)) AS status
     , cast(sourceUpdatedTime AS STRING) AS sourceUpdatedTime
-  FROM `{{ rawDb }}`.`{{ rawTableDocPattern }}`
+  FROM `db_file_annotation`.`annotation_documents_patterns`
   WHERE coalesce(cast(startNodeSpace AS STRING), '{{ fileInstanceSpace }}') = '{{ fileInstanceSpace }}'
     AND startNode IS NOT NULL
     AND trim(cast(startNode AS STRING)) != ''

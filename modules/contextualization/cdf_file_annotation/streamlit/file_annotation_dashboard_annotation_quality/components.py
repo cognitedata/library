@@ -61,15 +61,22 @@ class AnnotationComparisonComponent(Component):
 
         tag_column = FieldNames.START_NODE_TEXT_CAMEL_CASE
         file_external_id_column = FieldNames.FILE_EXTERNAL_ID_CAMEL_CASE
+        primary_scope_property = self.extraction_pipeline_cfg.primary_scope_property
         secondary_scope_property = self.extraction_pipeline_cfg.secondary_scope_property
-        prefixed_secondary_scope_column = DataProcessor.set_file_prefix(secondary_scope_property) if secondary_scope_property else None
-        secondary_scope_column = prefixed_secondary_scope_column if prefixed_secondary_scope_column else None
+        primary_scope_column = DataProcessor.resolve_scope_column(
+            actual_df, primary_scope_property, FieldNames.PRIMARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
+        secondary_scope_column = DataProcessor.resolve_scope_column(
+            actual_df, secondary_scope_property, FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
         resource_type_column = FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE if FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE in actual_df.columns else None
 
         per_file_group_keys = [tag_column, file_external_id_column]
 
         if resource_type_column:
             per_file_group_keys.append(resource_type_column)
+        if primary_scope_column:
+            per_file_group_keys.append(primary_scope_column)
         if secondary_scope_column:
             per_file_group_keys.append(secondary_scope_column)
 
@@ -94,6 +101,8 @@ class AnnotationComparisonComponent(Component):
         if FieldNames.START_NODE_TEXT_CAMEL_CASE in display_df.columns:
             display_df = display_df.rename(columns={FieldNames.START_NODE_TEXT_CAMEL_CASE: FieldNames.TAG_TITLE_CASE})
 
+        if primary_scope_column and primary_scope_property and primary_scope_column in display_df.columns:
+            display_df = display_df.rename(columns={primary_scope_column: primary_scope_property})
         if secondary_scope_column and secondary_scope_property and secondary_scope_column in display_df.columns:
             display_df = display_df.rename(columns={secondary_scope_column: secondary_scope_property})
 
@@ -103,7 +112,8 @@ class AnnotationComparisonComponent(Component):
             column_config={
                 FieldNames.TAG_TITLE_CASE: FieldNames.TAG_TITLE_CASE,
                 FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE: FieldNames.RESOURCE_TYPE_TITLE_CASE,
-                secondary_scope_column: secondary_scope_column,
+                primary_scope_property: primary_scope_property,
+                secondary_scope_property: secondary_scope_property,
                 FieldNames.OCCURRENCES_TITLE_CASE: FieldNames.OCCURRENCES_TITLE_CASE,
                 FieldNames.ASSOCIATED_FILES_TITLE_CASE: FieldNames.ASSOCIATED_FILES_TITLE_CASE,
                 normalized_status_property: FieldNames.STATUS_TITLE_CASE,
@@ -122,15 +132,22 @@ class AnnotationComparisonComponent(Component):
 
         tag_column = FieldNames.START_NODE_TEXT_CAMEL_CASE
         file_external_id_column = FieldNames.FILE_EXTERNAL_ID_CAMEL_CASE
+        primary_scope_property = self.extraction_pipeline_cfg.primary_scope_property
         secondary_scope_property = self.extraction_pipeline_cfg.secondary_scope_property
-        prefixed_secondary_scope_column = DataProcessor.set_file_prefix(secondary_scope_property) if secondary_scope_property else None
-        secondary_scope_column = prefixed_secondary_scope_column if prefixed_secondary_scope_column and prefixed_secondary_scope_column in potential_df.columns else None
+        primary_scope_column = DataProcessor.resolve_scope_column(
+            potential_df, primary_scope_property, FieldNames.PRIMARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
+        secondary_scope_column = DataProcessor.resolve_scope_column(
+            potential_df, secondary_scope_property, FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
         resource_type_column = FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE if FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE in potential_df.columns else None
 
         per_file_group_keys = [tag_column, file_external_id_column]
 
         if resource_type_column:
             per_file_group_keys.append(resource_type_column)
+        if primary_scope_column:
+            per_file_group_keys.append(primary_scope_column)
         if secondary_scope_column:
             per_file_group_keys.append(secondary_scope_column)
 
@@ -156,6 +173,8 @@ class AnnotationComparisonComponent(Component):
         if FieldNames.START_NODE_TEXT_CAMEL_CASE in display_df.columns:
             display_df = display_df.rename(columns={FieldNames.START_NODE_TEXT_CAMEL_CASE: FieldNames.TAG_TITLE_CASE})
 
+        if primary_scope_column and primary_scope_property and primary_scope_column in display_df.columns:
+            display_df = display_df.rename(columns={primary_scope_column: primary_scope_property})
         if secondary_scope_column and secondary_scope_property and secondary_scope_column in display_df.columns:
             display_df = display_df.rename(columns={secondary_scope_column: secondary_scope_property})
 
@@ -165,7 +184,8 @@ class AnnotationComparisonComponent(Component):
             column_config={
                 FieldNames.TAG_TITLE_CASE: FieldNames.TAG_TITLE_CASE,
                 FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE: FieldNames.RESOURCE_TYPE_TITLE_CASE,
-                secondary_scope_column: secondary_scope_column,
+                primary_scope_property: primary_scope_property,
+                secondary_scope_property: secondary_scope_property,
                 FieldNames.OCCURRENCES_TITLE_CASE: FieldNames.OCCURRENCES_TITLE_CASE,
                 FieldNames.ASSOCIATED_FILES_TITLE_CASE: FieldNames.ASSOCIATED_FILES_TITLE_CASE,
                 normalized_status_property: FieldNames.STATUS_TITLE_CASE,
@@ -178,9 +198,8 @@ class AnnotationComparisonComponent(Component):
         st.write(f"Row Count: {len(editable_data)}")
 
     def render(self) -> None:
-        secondary_scope_property = self.extraction_pipeline_cfg.secondary_scope_property
-        self.actual_df = self._apply_perfile_filters(self.actual_df, secondary_scope_property)
-        self.potential_df = self._apply_perfile_filters(self.potential_df, secondary_scope_property)
+        self.actual_df = self._apply_perfile_filters(self.actual_df)
+        self.potential_df = self._apply_perfile_filters(self.potential_df)
 
         selected_files = st.session_state.get("selected_perfile_files", None)
         self.actual_df = self._filter_by_files(self.actual_df, selected_files)
@@ -221,27 +240,35 @@ class AnnotationComparisonComponent(Component):
 
         return df
 
-    def _apply_perfile_filters(self, df: pd.DataFrame | None, secondary_scope_property: str | None) -> pd.DataFrame | None:
+    def _apply_perfile_filters(self, df: pd.DataFrame | None) -> pd.DataFrame | None:
         if df is None or df.empty:
             return df
 
         filters = st.session_state.get("perfile_filters", None)
-
         if not filters:
             return df
 
         resource_type_filter_value = filters.get(FieldNames.RESOURCE_TYPE_SNAKE_CASE)
-        resource_type_property = FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE
+        file_resource_type_property = self.extraction_pipeline_cfg.file_resource_property
+        prefixed_file_resource_type_property = (
+            DataProcessor.set_file_prefix(file_resource_type_property) if file_resource_type_property else None
+        )
+        if resource_type_filter_value and prefixed_file_resource_type_property in df.columns:
+            df = df[df[prefixed_file_resource_type_property] == resource_type_filter_value]
 
-        if resource_type_filter_value and resource_type_property in df.columns:
-            df = df[df[resource_type_property] == resource_type_filter_value]
+        primary_scope_filter_value = filters.get(FieldNames.PRIMARY_SCOPE_SNAKE_CASE)
+        primary_scope_column = DataProcessor.resolve_scope_column(
+            df, self.extraction_pipeline_cfg.primary_scope_property, FieldNames.PRIMARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
+        if primary_scope_filter_value and primary_scope_column:
+            df = df[df[primary_scope_column] == primary_scope_filter_value]
 
         secondary_scope_filter_value = filters.get(FieldNames.PATTERN_SCOPE_SNAKE_CASE)
-
-        if secondary_scope_filter_value and secondary_scope_property:
-            prefixed_secondary_scope_property = DataProcessor.set_file_prefix(secondary_scope_property)
-            if prefixed_secondary_scope_property in df.columns:
-                df = df[df[prefixed_secondary_scope_property] == secondary_scope_filter_value]
+        secondary_scope_column = DataProcessor.resolve_scope_column(
+            df, self.extraction_pipeline_cfg.secondary_scope_property, FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
+        if secondary_scope_filter_value and secondary_scope_column:
+            df = df[df[secondary_scope_column] == secondary_scope_filter_value]
 
         return df
 
@@ -360,21 +387,28 @@ class SecondaryScopeCoverageComponent(Component):
 
         st.markdown(f"### Annotation Coverage by '{secondary_scope_property}'")
 
-        prefixed_secondary_scope_property = DataProcessor.set_file_prefix(secondary_scope_property)
-        df_row = DataProcessor.coverage_grouped_row_based(self.actual_df, self.potential_df, prefixed_secondary_scope_property)
+        sample_df = self.actual_df if self.actual_df is not None and not self.actual_df.empty else self.potential_df
+        secondary_scope_column = DataProcessor.resolve_scope_column(
+            sample_df, secondary_scope_property, FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
+        if not secondary_scope_column:
+            st.info("No secondary-scope values found in RAW or file metadata for this pipeline.")
+            return
+
+        df_row = DataProcessor.coverage_grouped_row_based(self.actual_df, self.potential_df, secondary_scope_column)
 
         if df_row is None or df_row.empty:
             st.info("No file resource-level coverage data available.")
             return
 
-        df_row_chart = self._df_for_chart(df_row, prefixed_secondary_scope_property)
+        df_row_chart = self._df_for_chart(df_row, secondary_scope_column)
 
         base_row = alt.Chart(df_row_chart).mark_bar().encode(
-            x=alt.X(f"{prefixed_secondary_scope_property}:N", title=f"{secondary_scope_property}", sort=alt.EncodingSortField(field=FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, order="descending")),
+            x=alt.X(f"{secondary_scope_column}:N", title=f"{secondary_scope_property}", sort=alt.EncodingSortField(field=FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, order="descending")),
             y=alt.Y(f"{FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE}:Q", title=FieldNames.COVERAGE_TITLE_CASE),
             color=alt.value("#4C78A8"),
             tooltip=[
-                alt.Tooltip(prefixed_secondary_scope_property, title=secondary_scope_property),
+                alt.Tooltip(secondary_scope_column, title=secondary_scope_property),
                 alt.Tooltip(FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, title=FieldNames.COVERAGE_TITLE_CASE, format=".2f"),
                 alt.Tooltip(FieldNames.ACTUAL_COUNT_SNAKE_CASE, title=FieldNames.ACTUAL_ANNOTATIONS_TITLE_CASE),
                 alt.Tooltip(FieldNames.POTENTIAL_COUNT_SNAKE_CASE, title=FieldNames.POTENTIAL_ANNOTATIONS_TITLE_CASE),
@@ -401,24 +435,34 @@ class PerFileFiltersComponent(Component):
             annotations_df = pd.concat([annotations_df, self.potential_df], ignore_index=True)
 
         file_resource_type_property = self.extraction_pipeline_cfg.file_resource_property
+        primary_scope_property = self.extraction_pipeline_cfg.primary_scope_property
         secondary_scope_property = self.extraction_pipeline_cfg.secondary_scope_property
 
-        prefixed_file_resource_type_property = DataProcessor.set_file_prefix(file_resource_type_property) if file_resource_type_property else None
-        resource_type_options = [FieldNames.ALL_TITLE_CASE]
+        if not file_resource_type_property and not primary_scope_property and not secondary_scope_property:
+            st.info(
+                "No per-file filters configured. Set `fileView.resourceProperty`, "
+                "`primaryScopeProperty`, and/or `secondaryScopeProperty` on the extraction pipeline "
+                "to filter by file resource type or scope."
+            )
+            return
 
-        if prefixed_file_resource_type_property in annotations_df.columns:
-            resource_type_values = annotations_df[prefixed_file_resource_type_property].dropna().unique().tolist()
-            resource_type_options.extend(sorted(resource_type_values))
+        prefixed_file_resource_type_property = (
+            DataProcessor.set_file_prefix(file_resource_type_property) if file_resource_type_property else None
+        )
+        primary_scope_column = DataProcessor.resolve_scope_column(
+            annotations_df, primary_scope_property, FieldNames.PRIMARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
+        secondary_scope_column = DataProcessor.resolve_scope_column(
+            annotations_df, secondary_scope_property, FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
 
-        prefixed_secondary_scope = DataProcessor.set_file_prefix(secondary_scope_property) if secondary_scope_property else None
-        secondary_scope_options = [FieldNames.ALL_TITLE_CASE]
-
-        if prefixed_secondary_scope and prefixed_secondary_scope in annotations_df.columns:
-            secondary_scope_values = annotations_df[prefixed_secondary_scope].dropna().unique().tolist()
-            secondary_scope_options.extend(sorted(secondary_scope_values))
+        resource_type_options = DataProcessor.unique_filter_options(annotations_df, prefixed_file_resource_type_property)
+        primary_scope_options = DataProcessor.unique_filter_options(annotations_df, primary_scope_column)
+        secondary_scope_options = DataProcessor.unique_filter_options(annotations_df, secondary_scope_column)
 
         current_filters = st.session_state.get("perfile_filters", {})
         current_resource_type_filter_value = current_filters.get(FieldNames.RESOURCE_TYPE_SNAKE_CASE)
+        current_primary_scope_filter_value = current_filters.get(FieldNames.PRIMARY_SCOPE_SNAKE_CASE)
         current_secondary_scope_filter_value = current_filters.get(FieldNames.PATTERN_SCOPE_SNAKE_CASE)
 
         def _option_index(options: list, current_value) -> int:
@@ -429,35 +473,78 @@ class PerFileFiltersComponent(Component):
             except ValueError:
                 return 0
 
-        left, right = st.columns(2)
+        filter_slots = []
+        if file_resource_type_property:
+            filter_slots.append("resource")
+        if primary_scope_property:
+            filter_slots.append("primary")
+        if secondary_scope_property:
+            filter_slots.append("secondary")
 
-        with left:
-            resource_type_filter_value = st.selectbox(
-                f"{FieldNames.RESOURCE_TYPE_TITLE_CASE}",
-                resource_type_options,
-                index=_option_index(resource_type_options, current_resource_type_filter_value),
-                key="perfile_resource_selectbox",
-            )
-        with right:
-            secondary_scope_filter_value = st.selectbox(
-                f"{secondary_scope_property or FieldNames.SECONDARY_SCOPE_TITLE_CASE}",
-                secondary_scope_options,
-                index=_option_index(secondary_scope_options, current_secondary_scope_filter_value),
-                key="perfile_secondary_selectbox",
-            )
+        columns = st.columns(len(filter_slots))
+        resource_type_filter_value = current_resource_type_filter_value
+        primary_scope_filter_value = current_primary_scope_filter_value
+        secondary_scope_filter_value = current_secondary_scope_filter_value
 
-        resource_type_filter_value = None if resource_type_filter_value == FieldNames.ALL_TITLE_CASE else resource_type_filter_value
-        secondary_scope_filter_value = None if secondary_scope_filter_value == FieldNames.ALL_TITLE_CASE else secondary_scope_filter_value
+        for column, slot in zip(columns, filter_slots, strict=True):
+            with column:
+                if slot == "resource":
+                    resource_type_filter_value = st.selectbox(
+                        FieldNames.RESOURCE_TYPE_TITLE_CASE,
+                        resource_type_options,
+                        index=_option_index(resource_type_options, current_resource_type_filter_value),
+                        key="perfile_resource_selectbox",
+                        help="Values of fileView.resourceProperty on the annotated file.",
+                    )
+                elif slot == "primary":
+                    primary_scope_filter_value = st.selectbox(
+                        primary_scope_property or FieldNames.PRIMARY_SCOPE_TITLE_CASE,
+                        primary_scope_options,
+                        index=_option_index(primary_scope_options, current_primary_scope_filter_value),
+                        key="perfile_primary_selectbox",
+                        help="Values of primaryScopeProperty as written to RAW / read from the file.",
+                    )
+                else:
+                    secondary_scope_filter_value = st.selectbox(
+                        secondary_scope_property or FieldNames.SECONDARY_SCOPE_TITLE_CASE,
+                        secondary_scope_options,
+                        index=_option_index(secondary_scope_options, current_secondary_scope_filter_value),
+                        key="perfile_secondary_selectbox",
+                        help="Values of secondaryScopeProperty as written to RAW / read from the file.",
+                    )
 
-        if resource_type_filter_value != current_resource_type_filter_value or secondary_scope_filter_value != current_secondary_scope_filter_value:
-            st.session_state["perfile_filters"] = {
-                FieldNames.RESOURCE_TYPE_SNAKE_CASE: resource_type_filter_value,
-                FieldNames.PATTERN_SCOPE_SNAKE_CASE: secondary_scope_filter_value,
-            }
+        resource_type_filter_value = (
+            None if resource_type_filter_value == FieldNames.ALL_TITLE_CASE else resource_type_filter_value
+        )
+        primary_scope_filter_value = (
+            None if primary_scope_filter_value == FieldNames.ALL_TITLE_CASE else primary_scope_filter_value
+        )
+        secondary_scope_filter_value = (
+            None if secondary_scope_filter_value == FieldNames.ALL_TITLE_CASE else secondary_scope_filter_value
+        )
+
+        next_filters = {
+            FieldNames.RESOURCE_TYPE_SNAKE_CASE: resource_type_filter_value,
+            FieldNames.PRIMARY_SCOPE_SNAKE_CASE: primary_scope_filter_value,
+            FieldNames.PATTERN_SCOPE_SNAKE_CASE: secondary_scope_filter_value,
+        }
+        if next_filters != {
+            FieldNames.RESOURCE_TYPE_SNAKE_CASE: current_resource_type_filter_value,
+            FieldNames.PRIMARY_SCOPE_SNAKE_CASE: current_primary_scope_filter_value,
+            FieldNames.PATTERN_SCOPE_SNAKE_CASE: current_secondary_scope_filter_value,
+        }:
+            st.session_state["perfile_filters"] = next_filters
             st.rerun()
 
 class FileAggregationComponent(Component):
-    def _apply_filters(self, df: pd.DataFrame | None, filters: dict | None, file_resource_type_property: str | None, secondary_scope_property: str | None) -> pd.DataFrame:
+    def _apply_filters(
+        self,
+        df: pd.DataFrame | None,
+        filters: dict | None,
+        file_resource_type_property: str | None,
+        primary_scope_property: str | None,
+        secondary_scope_property: str | None,
+    ) -> pd.DataFrame:
         if df is None or df.empty:
             return pd.DataFrame()
 
@@ -465,17 +552,26 @@ class FileAggregationComponent(Component):
             return df
 
         resource_type_filter_value = filters.get(FieldNames.RESOURCE_TYPE_SNAKE_CASE)
-        prefixed_file_resource_type_property = DataProcessor.set_file_prefix(file_resource_type_property) if file_resource_type_property else None
+        prefixed_file_resource_type_property = (
+            DataProcessor.set_file_prefix(file_resource_type_property) if file_resource_type_property else None
+        )
 
         if resource_type_filter_value and prefixed_file_resource_type_property in df.columns:
             df = df[df[prefixed_file_resource_type_property] == resource_type_filter_value]
 
-        secondary_scope_filter_value = filters.get(FieldNames.PATTERN_SCOPE_SNAKE_CASE)
+        primary_scope_filter_value = filters.get(FieldNames.PRIMARY_SCOPE_SNAKE_CASE)
+        primary_scope_column = DataProcessor.resolve_scope_column(
+            df, primary_scope_property, FieldNames.PRIMARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
+        if primary_scope_filter_value and primary_scope_column:
+            df = df[df[primary_scope_column] == primary_scope_filter_value]
 
-        if secondary_scope_filter_value and secondary_scope_property:
-            prefixed_secondary_scope_property = DataProcessor.set_file_prefix(secondary_scope_property)
-            if prefixed_secondary_scope_property in df.columns:
-                df = df[df[prefixed_secondary_scope_property] == secondary_scope_filter_value]
+        secondary_scope_filter_value = filters.get(FieldNames.PATTERN_SCOPE_SNAKE_CASE)
+        secondary_scope_column = DataProcessor.resolve_scope_column(
+            df, secondary_scope_property, FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
+        if secondary_scope_filter_value and secondary_scope_column:
+            df = df[df[secondary_scope_column] == secondary_scope_filter_value]
 
         return df
 
@@ -488,12 +584,17 @@ class FileAggregationComponent(Component):
         st.markdown("### Files Aggregation")
 
         file_resource_type_property = self.extraction_pipeline_cfg.file_resource_property
+        primary_scope_property = self.extraction_pipeline_cfg.primary_scope_property
         secondary_scope_property = self.extraction_pipeline_cfg.secondary_scope_property
 
         filters = st.session_state.get("perfile_filters", None)
 
-        filtered_actual_df = self._apply_filters(self.actual_df, filters, file_resource_type_property, secondary_scope_property)
-        filtered_potential_df = self._apply_filters(self.potential_df, filters, file_resource_type_property, secondary_scope_property)
+        filtered_actual_df = self._apply_filters(
+            self.actual_df, filters, file_resource_type_property, primary_scope_property, secondary_scope_property
+        )
+        filtered_potential_df = self._apply_filters(
+            self.potential_df, filters, file_resource_type_property, primary_scope_property, secondary_scope_property
+        )
 
         file_external_id_property = FieldNames.FILE_EXTERNAL_ID_CAMEL_CASE
 
@@ -532,8 +633,15 @@ class FileAggregationComponent(Component):
         sample_rows = pd.concat([filtered_actual_df, filtered_potential_df], ignore_index=True) if not filtered_actual_df.empty or not filtered_potential_df.empty else pd.DataFrame()
         file_metadata_properties = []
 
-        prefixed_file_resource_type_property = DataProcessor.set_file_prefix(file_resource_type_property) if file_resource_type_property else None
-        prefixed_secondary_scope_property = DataProcessor.set_file_prefix(secondary_scope_property) if secondary_scope_property else None
+        prefixed_file_resource_type_property = (
+            DataProcessor.set_file_prefix(file_resource_type_property) if file_resource_type_property else None
+        )
+        primary_scope_column = DataProcessor.resolve_scope_column(
+            sample_rows, primary_scope_property, FieldNames.PRIMARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
+        secondary_scope_column = DataProcessor.resolve_scope_column(
+            sample_rows, secondary_scope_property, FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE
+        )
         prefixed_external_id = DataProcessor.set_file_prefix(FieldNames.EXTERNAL_ID_CAMEL_CASE)
         prefixed_source_id = DataProcessor.set_file_prefix(FieldNames.SOURCE_ID_CAMEL_CASE)
         prefixed_name = DataProcessor.set_file_prefix(FieldNames.NAME_LOWER_CASE)
@@ -544,9 +652,12 @@ class FileAggregationComponent(Component):
 
             if prefixed_file_resource_type_property and prefixed_file_resource_type_property in sample_rows.columns:
                 file_metadata_properties.append(prefixed_file_resource_type_property)
-            
-            if prefixed_secondary_scope_property and prefixed_secondary_scope_property in sample_rows.columns:
-                file_metadata_properties.append(prefixed_secondary_scope_property)
+
+            if primary_scope_column and primary_scope_column in sample_rows.columns:
+                file_metadata_properties.append(primary_scope_column)
+
+            if secondary_scope_column and secondary_scope_column in sample_rows.columns:
+                file_metadata_properties.append(secondary_scope_column)
 
             if prefixed_source_id and prefixed_source_id in sample_rows.columns:
                 file_metadata_properties.append(prefixed_source_id)
@@ -565,7 +676,8 @@ class FileAggregationComponent(Component):
             prefixed_external_id: FieldNames.EXTERNAL_ID_TITLE_CASE,
             prefixed_source_id: FieldNames.SOURCE_ID_TITLE_CASE,
             prefixed_file_resource_type_property: FieldNames.RESOURCE_TYPE_TITLE_CASE,
-            prefixed_secondary_scope_property: secondary_scope_property,
+            primary_scope_column: primary_scope_property,
+            secondary_scope_column: secondary_scope_property,
             FieldNames.ACTUAL_COUNT_SNAKE_CASE: FieldNames.ACTUAL_ANNOTATIONS_TITLE_CASE,
             FieldNames.POTENTIAL_COUNT_SNAKE_CASE: FieldNames.POTENTIAL_ANNOTATIONS_TITLE_CASE,
             FieldNames.TOTAL_POSSIBLE_SNAKE_CASE: FieldNames.TOTAL_ANNOTATIONS_TITLE_CASE,

@@ -13,7 +13,7 @@ from services.ConfigService import Config
 
 
 def _config(debug_file: str | None = None) -> Config:
-    parameters: dict[str, object] = {"rawData": {"rawDb": "db_file_annotation"}, "primaryScopeProperty": "site"}
+    parameters: dict[str, object] = {"primaryScopeProperty": "site"}
     if debug_file:
         parameters["debugFileExternalId"] = debug_file
     return Config.model_validate(
@@ -278,7 +278,6 @@ def test_swapped_approval_threshold_is_rejected() -> None:
     from pydantic import ValidationError
 
     parameters = {
-        "rawData": {"rawDb": "db_file_annotation"},
         "assetAutoApprovalThreshold": 0.5,
         "assetAutoSuggestThreshold": 0.8,
     }
@@ -290,7 +289,6 @@ def test_swapped_file_threshold_is_rejected() -> None:
     from pydantic import ValidationError
 
     parameters = {
-        "rawData": {"rawDb": "db_file_annotation"},
         "fileAutoApprovalThreshold": 0.2,
         "fileAutoSuggestThreshold": 0.5,
     }

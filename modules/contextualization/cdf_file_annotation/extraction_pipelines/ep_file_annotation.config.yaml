@@ -27,15 +27,6 @@ config:
     filesToAnnotateExcludeTags: {{ filesToAnnotateExcludeTags }}
     fileEntitiesTags: {{ fileEntitiesTags }}
     targetEntitiesTags: {{ targetEntitiesTags }}
-    
-    rawData:
-      rawDb: {{ rawDb }}
-      rawTableDocTag: {{ rawTableDocTag }}
-      rawTableDocDoc: {{ rawTableDocDoc }}
-      rawTableDocPattern: {{ rawTableDocPattern }}
-      rawTableCache: {{ rawTableCache }}
-      rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
-      rawTablePromoteCache: {{ rawTablePromoteCache }}
     patternPromote:
       patternMode: {{ patternMode }}
       structuralAutoPatterns: {{ structuralAutoPatterns }}
