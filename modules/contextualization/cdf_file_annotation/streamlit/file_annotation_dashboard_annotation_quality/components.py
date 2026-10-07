@@ -932,7 +932,7 @@ class PatternCatalogComponent(Component):
             duration=15,
         )
 
-        DataFetcher.fetch_manual_patterns.clear()
+        DataFetcher.fetch_manual_patterns.clear()  # pyright: ignore[reportFunctionMemberAccess]
 
         st.session_state["manual_patterns_editor_key"] = f"manual_patterns_editor_{uuid.uuid4().hex}"
         st.session_state["manual_patterns_changes"] = set()
