@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock
 
-import pytest
 from cognite.client.data_classes.data_modeling import Node, NodeApply
 from cognite.client.exceptions import CogniteAPIError
 from services.launch_service import GeneralLaunchService
@@ -77,6 +76,7 @@ def test_batch_without_entities_or_patterns_marks_its_files_failed() -> None:
 
 
 def test_regular_job_is_recorded_when_pattern_detect_fails() -> None:
+    """Pattern failure after a regular job started must still count as launched (no release/retry race)."""
     annotation_service = MagicMock()
     annotation_service.run_diagram_detect.return_value = (11, "token")
     annotation_service.run_pattern_mode_detect.side_effect = CogniteAPIError("too many jobs", code=429)
@@ -85,9 +85,9 @@ def test_regular_job_is_recorded_when_pattern_detect_fails() -> None:
     service.in_memory_cache = [{"external_id": "asset-1", "search_property": ["P-101"]}]
     service.in_memory_patterns = [{"sample": ["[A]-000"], "resource_type": "asset"}]
 
-    with pytest.raises(CogniteAPIError):
-        service._process_batch(_batch(service))
+    assert service._process_batch(_batch(service)) is True
 
     state = applied["state-1"]
     assert state["diagramDetectJobId"] == 11
     assert state["annotationStatus"] == "Processing"
+    assert "patternModeJobId" not in state

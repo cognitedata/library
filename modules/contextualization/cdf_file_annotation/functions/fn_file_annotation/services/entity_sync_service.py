@@ -219,7 +219,9 @@ class EntitySyncService:
                 return self.client.data_modeling.instances.sync(query), batch_size
             except CogniteAPIError as e:
                 attempt += 1
-                transient = e.code in (HTTP_STATUS_REQUEST_TIMEOUT, HTTP_STATUS_TOO_MANY_REQUESTS) or e.code >= 500
+                transient = e.code in (HTTP_STATUS_REQUEST_TIMEOUT, HTTP_STATUS_TOO_MANY_REQUESTS) or (
+                    e.code is not None and e.code >= 500
+                )
                 if attempt > ENTITY_SYNC_MAX_RETRIES or not transient:
                     raise
                 if e.code == HTTP_STATUS_REQUEST_TIMEOUT and batch_size > ENTITY_SYNC_MIN_BATCH_SIZE:

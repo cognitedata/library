@@ -216,6 +216,21 @@ def test_a_timed_out_page_is_read_again_smaller() -> None:
     assert limits[:2] == [1000, 800]
 
 
+def test_sync_page_with_no_http_status_does_not_crash() -> None:
+    """CogniteAPIError with code=None (e.g. connection failure) must not TypeError on `e.code >= 500`."""
+    from cognite.client.data_classes.data_modeling.query import NodeResultSetExpression, Query, Select
+    from services.entity_sync_service import EntitySyncService
+
+    client = MagicMock()
+    client.data_modeling.instances.sync.side_effect = CogniteAPIError("connection failed", code=None)
+    service = EntitySyncService(client, _config(), MagicMock(log_level="INFO"))
+    expression = NodeResultSetExpression(limit=100)
+    query = Query(with_={"entities": expression}, select={"entities": Select()})
+
+    with pytest.raises(CogniteAPIError, match="connection failed"):
+        service._sync_page(query, expression, batch_size=1000)
+
+
 def _raw_store(client: MagicMock) -> None:
     """Makes the mocked RAW table return the rows written to it."""
     rows: dict[str, Row] = {}

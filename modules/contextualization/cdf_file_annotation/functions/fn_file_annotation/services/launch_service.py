@@ -428,8 +428,9 @@ class GeneralLaunchService(AbstractLaunchService):
             True when a detect job was launched, False when the files were marked failed.
 
         Raises:
-            CogniteAPIError: If max concurrent jobs reached (429), handled gracefully. A regular job that
-                already started is recorded on the states first, so it is finalized and not launched twice.
+            CogniteAPIError: If max concurrent jobs reached (429) before any job for this batch started.
+                When pattern-mode fails after a regular job has already started, the regular job is
+                recorded and the batch is treated as launched (True) so files are not released.
         """
         if batch.is_empty():
             return False
@@ -484,13 +485,14 @@ class GeneralLaunchService(AbstractLaunchService):
                         pattern_job_id, pattern_job_token = self.annotation_service.run_pattern_mode_detect(
                             files=batch.file_references, pattern_samples=self.in_memory_patterns
                         )
-                    except CogniteAPIError:
+                    except CogniteAPIError as e:
                         if job_id is not None:
                             self.logger.warning(
                                 f"Pattern-mode detect failed after regular job {job_id} started. "
-                                "Recording the regular job; these files get no pattern-mode results."
+                                f"Recording the regular job; these files get no pattern-mode results: {e}"
                             )
                             self._record_launched_jobs(batch, update_properties, job_id, None)
+                            return True
                         raise
                     update_properties["patternModeJobId"] = pattern_job_id
                     update_properties["patternModeJobToken"] = pattern_job_token
