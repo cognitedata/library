@@ -3,9 +3,9 @@ annotationDatasetExternalId: ds_file_annotation
 
 # used in /data_models and /extraction_pipelines
 annotationStateExternalId: FileAnnotationState
-annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
+annotationStateSchemaSpace: dm_sol_file_annotation
 annotationStateVersion: v1.0.0
-patternModeInstanceSpace: sp_dat_pattern_mode_results
+patternModeInstanceSpace: inst_file_annotation_pattern_results
 patternDetectSink: pattern_detection_sink_node
 fileSchemaSpace: cdf_cdm
 # Instance spaces. Leave fileInstanceSpace / targetEntityInstanceSpace empty ("") to annotate
@@ -95,13 +95,13 @@ fileNormalizationPatterns:
 # used in /functions
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
-functionSpace: sp_file_annotation_fn # space where function code nodes are stored — created by this module
+functionSpace: inst_file_annotation_function # space where function code nodes are stored — created by this module
 functionExternalId: fn_file_annotation
 functionVersion: v1.0.0
 
 # used in /workflows
 workflowExternalId: wf_ctx_file_annotation
-# 00:00 on 29 February. This cron does not run the workflow.
+# 00:00 on 29 February, so the workflow only runs on its own in leap years.
 # Paste a daily cron when annotation should start unattended, for example "0 0 * * *".
 workflowSchedule: "0 0 29 2 *"
 
@@ -115,4 +115,6 @@ tagFilesToAnnotateTransformationExternalId: tr_tag_files_to_annotate
 # used in /auth
 # Update GROUP_SOURCE_ID to your group source ID
 groupSourceId: ${GROUP_SOURCE_ID}
+# Deployment environment, used in the group name producer_pp_file_annotation_<environment>
+environment: dev
 ApplicationOwner: <APPLICATION_OWNER> # Update to your application owner email id(s)

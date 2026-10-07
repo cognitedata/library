@@ -1,6 +1,6 @@
 - name: File annotation
   externalId: {{ functionExternalId }}
-  owner: "Anonymous"
+  owner: "{{ ApplicationOwner }}"
   description: "Prepare and launch file annotation jobs, then finalize and promote their results."
   metadata:
     version: {{ functionVersion }}

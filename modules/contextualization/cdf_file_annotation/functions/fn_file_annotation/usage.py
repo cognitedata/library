@@ -34,27 +34,28 @@ def report_usage(client: CogniteClient) -> None:
         return
     try:
         mixpanel = _tracker()
-        distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
+    except ImportError:
+        return
+    distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
 
-        def send() -> None:
-            try:
-                mixpanel.track(
-                    distinct_id,
-                    "fn-handle",
-                    {
-                        "source": _SOURCE,
-                        "tracker_version": _TRACKER_VERSION,
-                        "dp_version": _DP_VERSION,
-                        "type": "py-function",
-                        "cdf_cluster": client.config.cdf_cluster,
-                        "cdf_project": client.config.project,
-                    },
-                )
-            except Exception:
-                # Usage tracking is best-effort; must not affect the handler.
-                pass
+    def send() -> None:
+        from mixpanel import MixpanelException
 
-        threading.Thread(target=send, daemon=True).start()
-    except Exception:
-        # Usage tracking is best-effort; must not affect the handler.
-        pass
+        try:
+            mixpanel.track(
+                distinct_id,
+                "fn-handle",
+                {
+                    "source": _SOURCE,
+                    "tracker_version": _TRACKER_VERSION,
+                    "dp_version": _DP_VERSION,
+                    "type": "py-function",
+                    "cdf_cluster": client.config.cdf_cluster,
+                    "cdf_project": client.config.project,
+                },
+            )
+        except MixpanelException:
+            # Usage tracking is best-effort; must not affect the handler.
+            pass
+
+    threading.Thread(target=send, daemon=True).start()

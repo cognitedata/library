@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 if TYPE_CHECKING:
-    from services.FinalizeService import GeneralFinalizeService
+    from services.finalize_service import GeneralFinalizeService
 
 _FUNCTION_DIR = Path(__file__).resolve().parents[2] / "fn_file_annotation"
 sys.path.append(str(_FUNCTION_DIR))
@@ -49,7 +49,7 @@ def test_dispatch_routes_each_stage(monkeypatch: pytest.MonkeyPatch, stage: str)
     stage_handler = MagicMock(return_value=expected)
     monkeypatch.setattr(file_annotation_handler, "report_usage", MagicMock())
     monkeypatch.setitem(file_annotation_handler.STAGE_HANDLERS, stage, stage_handler)
-    data = {"stage": stage}
+    data = {"stage": stage, "ExtractionPipelineExtId": "ep_file_annotation"}
     client = MagicMock()
 
     assert file_annotation_handler.handle(data, {"call_id": 1}, client) == expected
@@ -67,7 +67,9 @@ def test_warning_run_reports_peak_memory_of_the_stage(
     monkeypatch.setattr(file_annotation_handler, "report_usage", MagicMock())
     monkeypatch.setitem(file_annotation_handler.STAGE_HANDLERS, stage, allocate_5_mib)
 
-    file_annotation_handler.handle({"stage": stage, "logLevel": "WARNING"}, {}, MagicMock())
+    file_annotation_handler.handle(
+        {"stage": stage, "ExtractionPipelineExtId": "ep_file_annotation", "logLevel": "WARNING"}, {}, MagicMock()
+    )
 
     (report,) = [line for line in capsys.readouterr().out.splitlines() if "Peak memory" in line]
     assert "[WARNING]" in report
@@ -90,14 +92,16 @@ def test_only_warning_runs_trace_memory(
     monkeypatch.setattr(file_annotation_handler, "report_usage", MagicMock())
     monkeypatch.setitem(file_annotation_handler.STAGE_HANDLERS, "launch", stage_handler)
 
-    file_annotation_handler.handle({"stage": "launch", "logLevel": log_level}, {}, MagicMock())
+    file_annotation_handler.handle(
+        {"stage": "launch", "ExtractionPipelineExtId": "ep_file_annotation", "logLevel": log_level}, {}, MagicMock()
+    )
 
     assert tracing_during_stage == [False]
     assert "Peak memory" not in capsys.readouterr().out
 
 
 def test_config_uses_parameters_and_data_shape() -> None:
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     config = Config.model_validate(
         {
@@ -129,7 +133,7 @@ def test_config_uses_parameters_and_data_shape() -> None:
                     "searchProperty": "aliases",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -139,7 +143,7 @@ def test_config_uses_parameters_and_data_shape() -> None:
         }
     )
 
-    assert config.raw_tables.raw_db == "db_file_annotation"
+    assert config.raw_tables.raw_db == "raw_file_annotation"
     assert config.data.file_view.search_property == "aliases"
     assert config.raw_tables.raw_table_doc_tag == "annotation_documents_tags"
     assert config.parameters.pattern_promote.text_normalization.entity_normalization_patterns == [r"^([A-Z]{2})-(.+)$"]
@@ -156,7 +160,7 @@ def test_config_ignores_raw_table_names_from_pipeline_config() -> None:
         RAW_TABLE_MANUAL_PATTERNS,
         RAW_TABLE_PROMOTE_CACHE,
     )
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     config = Config.model_validate(
         {
@@ -185,7 +189,7 @@ def test_config_ignores_raw_table_names_from_pipeline_config() -> None:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -206,7 +210,7 @@ def test_config_ignores_raw_table_names_from_pipeline_config() -> None:
 
 def test_config_uses_default_tag_filters() -> None:
     from fa_constants import EXCLUDED_PREPARE_TAGS, TAG_DETECT_IN_DIAGRAMS, TAG_TO_ANNOTATE
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     config = Config.model_validate(
         {
@@ -225,7 +229,7 @@ def test_config_uses_default_tag_filters() -> None:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -250,7 +254,7 @@ def test_config_uses_default_tag_filters() -> None:
 
 
 def test_config_uses_custom_tag_filters_and_include_overrides_exclude() -> None:
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     config = Config.model_validate(
         {
@@ -273,7 +277,7 @@ def test_config_uses_custom_tag_filters_and_include_overrides_exclude() -> None:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -344,7 +348,7 @@ def test_log_level_is_case_insensitive(factory: str, tmp_path: Path) -> None:
 
 def test_launch_releases_claimed_files_on_an_unexpected_error() -> None:
     """Files tagged AnnotationInProcess would otherwise stay locked out of Prepare forever."""
-    import services.LaunchService as launch_service
+    import services.launch_service as launch_service
 
     service = launch_service.GeneralLaunchService(
         MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), {}, MagicMock()
@@ -380,13 +384,13 @@ def test_promote_cleanup_policy_is_fixed() -> None:
 
 
 def test_deployed_rate_limit_policy_stops_the_stage() -> None:
-    import services.LaunchService as launch_service
+    import services.launch_service as launch_service
 
     assert launch_service.DeployedRateLimitPolicy().handle(MagicMock()) == "Done"
 
 
 def test_local_rate_limit_policy_waits_and_continues(monkeypatch: pytest.MonkeyPatch) -> None:
-    import services.LaunchService as launch_service
+    import services.launch_service as launch_service
 
     sleep = MagicMock()
     monkeypatch.setattr(launch_service.time, "sleep", sleep)
@@ -396,7 +400,7 @@ def test_local_rate_limit_policy_waits_and_continues(monkeypatch: pytest.MonkeyP
 
 
 def test_logger_skips_blank_lines(capsys: pytest.CaptureFixture[str]) -> None:
-    from services.LoggerService import CogniteFunctionLogger
+    from services.logger_service import CogniteFunctionLogger
 
     logger = CogniteFunctionLogger("INFO")
 
@@ -410,7 +414,7 @@ def test_logger_skips_blank_lines(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_logger_prefixes_lines_with_run_number(capsys: pytest.CaptureFixture[str]) -> None:
-    from services.LoggerService import CogniteFunctionLogger
+    from services.logger_service import CogniteFunctionLogger
 
     logger = CogniteFunctionLogger("INFO")
 
@@ -427,7 +431,7 @@ def test_logger_prefixes_lines_with_run_number(capsys: pytest.CaptureFixture[str
 
 
 def test_config_log_names_extraction_pipeline_source() -> None:
-    from services.ConfigService import (
+    from services.config_service import (
         Config,
         format_finalize_config,
         format_launch_config,
@@ -452,7 +456,7 @@ def test_config_log_names_extraction_pipeline_source() -> None:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -470,7 +474,7 @@ def test_config_log_names_extraction_pipeline_source() -> None:
 
 def test_config_validator_lets_pydantic_report_malformed_nested_dicts() -> None:
     from pydantic import ValidationError
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     with pytest.raises(ValidationError):
         Config.model_validate(
@@ -483,7 +487,7 @@ def test_config_validator_lets_pydantic_report_malformed_nested_dicts() -> None:
                         "version": "v1",
                     },
                     "annotationStateView": {
-                        "schemaSpace": "sp_hdm",
+                        "schemaSpace": "dm_sol_file_annotation",
                         "externalId": "FileAnnotationState",
                         "version": "v1",
                     },
@@ -495,7 +499,7 @@ def test_config_validator_lets_pydantic_report_malformed_nested_dicts() -> None:
 
 def test_config_validator_lets_pydantic_report_missing_sink_node() -> None:
     from pydantic import ValidationError
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     with pytest.raises(ValidationError):
         Config.model_validate(
@@ -513,7 +517,7 @@ def test_config_validator_lets_pydantic_report_missing_sink_node() -> None:
                         "version": "v1",
                     },
                     "annotationStateView": {
-                        "schemaSpace": "sp_hdm",
+                        "schemaSpace": "dm_sol_file_annotation",
                         "externalId": "FileAnnotationState",
                         "version": "v1",
                     },
@@ -523,8 +527,8 @@ def test_config_validator_lets_pydantic_report_missing_sink_node() -> None:
 
 
 def test_file_entity_resource_type_falls_back_when_property_is_missing() -> None:
-    from services.ConfigService import Config
-    from services.EntityCacheService import GeneralCacheService
+    from services.config_service import Config
+    from services.entity_cache_service import GeneralCacheService
 
     config = Config.model_validate(
         {
@@ -544,7 +548,7 @@ def test_file_entity_resource_type_falls_back_when_property_is_missing() -> None
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -565,8 +569,8 @@ def test_file_entity_resource_type_falls_back_when_property_is_missing() -> None
 
 
 def test_file_entity_conversion_uses_empty_properties_when_view_is_missing() -> None:
-    from services.ConfigService import Config
-    from services.EntityCacheService import GeneralCacheService
+    from services.config_service import Config
+    from services.entity_cache_service import GeneralCacheService
 
     config = Config.model_validate(
         {
@@ -585,7 +589,7 @@ def test_file_entity_conversion_uses_empty_properties_when_view_is_missing() -> 
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -607,8 +611,8 @@ def test_file_entity_conversion_uses_empty_properties_when_view_is_missing() -> 
 
 
 def test_asset_entity_conversion_uses_empty_properties_when_view_is_missing() -> None:
-    from services.ConfigService import Config
-    from services.EntityCacheService import GeneralCacheService
+    from services.config_service import Config
+    from services.entity_cache_service import GeneralCacheService
 
     config = Config.model_validate(
         {
@@ -628,7 +632,7 @@ def test_asset_entity_conversion_uses_empty_properties_when_view_is_missing() ->
                     "resourceProperty": "type",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -651,8 +655,8 @@ def test_asset_entity_conversion_uses_empty_properties_when_view_is_missing() ->
 
 def test_a_cleared_alias_property_falls_back_to_the_name() -> None:
     """Aliases can be cleared on either view; the name is what is left to match on."""
-    from services.ConfigService import Config
-    from services.EntityCacheService import GeneralCacheService
+    from services.config_service import Config
+    from services.entity_cache_service import GeneralCacheService
 
     config = Config.model_validate(
         {
@@ -671,7 +675,7 @@ def test_a_cleared_alias_property_falls_back_to_the_name() -> None:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -700,8 +704,8 @@ def test_a_cleared_alias_property_falls_back_to_the_name() -> None:
 
 def test_an_instance_without_aliases_or_a_name_has_nothing_to_search_on() -> None:
     """With neither, the entity is left out rather than sent as a null search field."""
-    from services.ConfigService import Config
-    from services.EntityCacheService import GeneralCacheService
+    from services.config_service import Config
+    from services.entity_cache_service import GeneralCacheService
 
     config = Config.model_validate(
         {
@@ -720,7 +724,7 @@ def test_an_instance_without_aliases_or_a_name_has_nothing_to_search_on() -> Non
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -748,8 +752,8 @@ def test_an_instance_without_aliases_or_a_name_has_nothing_to_search_on() -> Non
 
 
 def test_an_asset_without_aliases_still_matches_on_its_name() -> None:
-    from services.ConfigService import Config
-    from services.EntityCacheService import GeneralCacheService
+    from services.config_service import Config
+    from services.entity_cache_service import GeneralCacheService
 
     config = Config.model_validate(
         {
@@ -768,7 +772,7 @@ def test_an_asset_without_aliases_still_matches_on_its_name() -> None:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -789,8 +793,8 @@ def test_an_asset_without_aliases_still_matches_on_its_name() -> None:
 
 
 def test_launch_service_handles_file_node_with_none_properties() -> None:
-    import services.LaunchService as launch_service
-    from services.ConfigService import Config
+    import services.launch_service as launch_service
+    from services.config_service import Config
 
     config = Config.model_validate(
         {
@@ -809,7 +813,7 @@ def test_launch_service_handles_file_node_with_none_properties() -> None:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -840,9 +844,9 @@ def test_launch_service_handles_file_node_with_none_properties() -> None:
 
 
 def test_launch_omits_scope_logs_when_unscoped() -> None:
-    import services.LaunchService as launch_service
+    import services.launch_service as launch_service
     from cognite.client.data_classes.data_modeling import NodeId
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     config = Config.model_validate(
         {
@@ -861,7 +865,7 @@ def test_launch_omits_scope_logs_when_unscoped() -> None:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -909,9 +913,9 @@ def test_launch_omits_scope_logs_when_unscoped() -> None:
 
 
 def test_files_without_scope_values_warn_they_match_against_all_assets() -> None:
-    import services.LaunchService as launch_service
+    import services.launch_service as launch_service
     from cognite.client.data_classes.data_modeling import NodeId, ViewId
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     config = Config.model_validate(
         {
@@ -930,7 +934,7 @@ def test_files_without_scope_values_warn_they_match_against_all_assets() -> None
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -981,10 +985,10 @@ def _file_node_with_tags(file_id, tags: list[str]) -> MagicMock:
 
 def test_a_failed_launch_releases_the_files_it_claimed() -> None:
     """A stuck 'AnnotationInProcess' tag keeps Prepare from ever picking the file up again."""
-    import services.LaunchService as launch_service
+    import services.launch_service as launch_service
     from cognite.client.data_classes.data_modeling import NodeId
     from cognite.client.exceptions import CogniteAPIError
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     config = Config.model_validate(
         {
@@ -1003,7 +1007,7 @@ def test_a_failed_launch_releases_the_files_it_claimed() -> None:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -1043,10 +1047,10 @@ def test_a_failed_launch_releases_the_files_it_claimed() -> None:
 
 def test_a_rate_limited_launch_keeps_the_files_claimed() -> None:
     """429 means try again shortly, so the claim has to survive for the next run."""
-    import services.LaunchService as launch_service
+    import services.launch_service as launch_service
     from cognite.client.data_classes.data_modeling import NodeId
     from cognite.client.exceptions import CogniteAPIError
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     config = Config.model_validate(
         {
@@ -1065,7 +1069,7 @@ def test_a_rate_limited_launch_keeps_the_files_claimed() -> None:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -1100,9 +1104,9 @@ def test_a_rate_limited_launch_keeps_the_files_claimed() -> None:
 
 def test_batch_of_paired_nodes_create_file_reference_handles_none_properties() -> None:
     from cognite.client.data_classes.data_modeling import NodeId, ViewId
-    from utils.DataStructures import BatchOfPairedNodes
+    from utils.data_structures import BatchOfPairedNodes
 
-    state_view_id = ViewId("sp_hdm", "FileAnnotationState", "v1")
+    state_view_id = ViewId("dm_sol_file_annotation", "FileAnnotationState", "v1")
     file_node_id = NodeId("files", "file-1")
     state_node = MagicMock()
     state_node.properties = None
@@ -1115,7 +1119,7 @@ def test_batch_of_paired_nodes_create_file_reference_handles_none_properties() -
 
 
 def test_unique_tags_keeps_first_occurrence() -> None:
-    from utils.DataStructures import unique_tags
+    from utils.data_structures import unique_tags
 
     assert unique_tags(["ToAnnotate", "DetectInDiagrams", "Annotated", "Annotated"]) == [
         "ToAnnotate",
@@ -1125,7 +1129,7 @@ def test_unique_tags_keeps_first_occurrence() -> None:
 
 
 def test_replace_tag_does_not_duplicate_existing() -> None:
-    from utils.DataStructures import replace_tag
+    from utils.data_structures import replace_tag
 
     tags = ["ToAnnotate", "DetectInDiagrams", "Annotated", "AnnotationInProcess"]
 
@@ -1137,7 +1141,7 @@ def test_replace_tag_does_not_duplicate_existing() -> None:
 
 
 def test_add_unique_tags_skips_existing() -> None:
-    from utils.DataStructures import add_unique_tags
+    from utils.data_structures import add_unique_tags
 
     assert add_unique_tags(["PromoteAttempted"], "PromoteAttempted", "AmbiguousMatch") == [
         "PromoteAttempted",
@@ -1147,7 +1151,7 @@ def test_add_unique_tags_skips_existing() -> None:
 
 def test_tags_apply_deduplicates() -> None:
     from cognite.client.data_classes.data_modeling import ViewId
-    from utils.DataStructures import tags_apply
+    from utils.data_structures import tags_apply
 
     node_apply = tags_apply(
         MagicMock(), ViewId("cdf_cdm", "CogniteFile", "v1"), ["ToAnnotate", "Annotated", "Annotated"]
@@ -1159,7 +1163,7 @@ def test_tags_apply_deduplicates() -> None:
 def test_launch_overall_report_includes_stage_entities_and_patterns() -> None:
     from datetime import timedelta
 
-    from utils.DataStructures import PerformanceTracker
+    from utils.data_structures import PerformanceTracker
 
     tracker = PerformanceTracker()
     tracker.add_files(success=20)
@@ -1177,7 +1181,7 @@ def test_launch_overall_report_includes_stage_entities_and_patterns() -> None:
 
 
 def test_launch_overall_report_omits_patterns_when_not_used() -> None:
-    from utils.DataStructures import PerformanceTracker
+    from utils.data_structures import PerformanceTracker
 
     tracker = PerformanceTracker()
     tracker.set_detect_input(entities=10, patterns=None)
@@ -1189,7 +1193,7 @@ def test_launch_overall_report_omits_patterns_when_not_used() -> None:
 
 
 def _config_with_debug_file(debug_file_external_id: str | None, file_instance_space: str | None = "files"):
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     parameters: dict[str, object] = {}
     if debug_file_external_id is not None:
@@ -1211,7 +1215,7 @@ def _config_with_debug_file(debug_file_external_id: str | None, file_instance_sp
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -1241,7 +1245,7 @@ def test_debug_file_requires_file_view_instance_space() -> None:
 
 
 def test_prepare_in_debug_mode_only_retrieves_the_debug_file() -> None:
-    from services.DataModelService import GeneralDataModelService
+    from services.data_model_service import GeneralDataModelService
 
     client = MagicMock()
     client.data_modeling.instances.query.return_value = _query_page([], cursor=None)
@@ -1254,7 +1258,7 @@ def test_prepare_in_debug_mode_only_retrieves_the_debug_file() -> None:
 
 
 def test_launch_in_debug_mode_only_retrieves_the_debug_file_state() -> None:
-    from services.DataModelService import GeneralDataModelService
+    from services.data_model_service import GeneralDataModelService
 
     client = MagicMock()
     client.data_modeling.instances.query.return_value = _query_page([], cursor=None)
@@ -1268,7 +1272,7 @@ def test_launch_in_debug_mode_only_retrieves_the_debug_file_state() -> None:
 
 
 def test_finalize_in_debug_mode_only_claims_jobs_for_the_debug_file() -> None:
-    from services.RetrieveService import GeneralRetrieveService
+    from services.retrieve_service import GeneralRetrieveService
 
     service = GeneralRetrieveService(MagicMock(), _config_with_debug_file("PID-001"), MagicMock())
 
@@ -1278,7 +1282,7 @@ def test_finalize_in_debug_mode_only_claims_jobs_for_the_debug_file() -> None:
 
 
 def test_promote_in_debug_mode_only_retrieves_edges_from_the_debug_file() -> None:
-    from services.PromoteService import GeneralPromoteService
+    from services.promote_service import GeneralPromoteService
 
     client = MagicMock()
     service = GeneralPromoteService(
@@ -1293,7 +1297,7 @@ def test_promote_in_debug_mode_only_retrieves_edges_from_the_debug_file() -> Non
 
 def test_debug_mode_still_retrieves_all_match_entities() -> None:
     """The debug file limits what is annotated, not which assets and files it can be matched against."""
-    from services.DataModelService import GeneralDataModelService
+    from services.data_model_service import GeneralDataModelService
 
     client = MagicMock()
     client.raw.rows.retrieve.return_value = None
@@ -1319,7 +1323,7 @@ def _query_page(nodes: list, cursor: str | None) -> MagicMock:
 
 def test_match_entities_carry_only_the_properties_launch_uses() -> None:
     """Full nodes with every view property ran the function out of memory on large projects."""
-    from services.DataModelService import GeneralDataModelService
+    from services.data_model_service import GeneralDataModelService
 
     client = MagicMock()
     client.raw.rows.retrieve.return_value = None
@@ -1349,7 +1353,7 @@ def _file_node(tags: list[str]):
 
 
 def test_prepare_writes_only_the_tags_of_a_file() -> None:
-    from services.PrepareService import GeneralPrepareService
+    from services.prepare_service import GeneralPrepareService
 
     data_model_service = MagicMock()
     data_model_service.get_files_to_annotate.return_value = [_file_node(["ToAnnotate"])]
@@ -1367,8 +1371,8 @@ def _finalize_service_for_one_file(
     apply_service: MagicMock, job_result: object | None = None
 ) -> "GeneralFinalizeService":
     from cognite.client.data_classes.data_modeling import Node, NodeId
-    from services.FinalizeService import GeneralFinalizeService
-    from services.RetrieveService import DiagramDetectJobPoll, JobPollStatus
+    from services.finalize_service import GeneralFinalizeService
+    from services.retrieve_service import DiagramDetectJobPoll, JobPollStatus
 
     state_node = Node.load(
         {
@@ -1378,7 +1382,7 @@ def _finalize_service_for_one_file(
             "version": 1,
             "lastUpdatedTime": 0,
             "createdTime": 0,
-            "properties": {"sp_hdm": {"FileAnnotationState/v1": {"annotationStatus": "Finalizing"}}},
+            "properties": {"dm_sol_file_annotation": {"FileAnnotationState/v1": {"annotationStatus": "Finalizing"}}},
         }
     )
     retrieve_service = MagicMock()
@@ -1415,10 +1419,10 @@ def test_finalize_writes_only_the_tags_of_an_annotated_file() -> None:
 
 
 def test_failed_detect_job_marks_the_file_failed_and_does_not_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
-    from services.RetrieveService import DiagramDetectJobPoll, JobPollStatus
+    from services.retrieve_service import DiagramDetectJobPoll, JobPollStatus
 
     sleep = MagicMock()
-    monkeypatch.setattr("services.FinalizeService.time.sleep", sleep)
+    monkeypatch.setattr("services.finalize_service.time.sleep", sleep)
     apply_service = MagicMock()
     service = _finalize_service_for_one_file(
         apply_service, job_result=DiagramDetectJobPoll(status=JobPollStatus.FAILED)
@@ -1443,10 +1447,10 @@ def test_a_failed_pattern_job_fails_the_batch_when_the_regular_job_completed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from cognite.client.data_classes.data_modeling import NodeId
-    from services.RetrieveService import DiagramDetectJobPoll, JobPollStatus
+    from services.retrieve_service import DiagramDetectJobPoll, JobPollStatus
 
     sleep = MagicMock()
-    monkeypatch.setattr("services.FinalizeService.time.sleep", sleep)
+    monkeypatch.setattr("services.finalize_service.time.sleep", sleep)
     apply_service = MagicMock()
     service = _finalize_service_for_one_file(apply_service)
     file_id = NodeId("files", "doc-1")
@@ -1476,8 +1480,8 @@ def test_a_failed_pattern_job_fails_the_batch_when_the_regular_job_completed(
 
 def test_finalize_retrieves_every_file_in_the_job_once() -> None:
     from cognite.client.data_classes.data_modeling import Node, NodeId, NodeList
-    from services.FinalizeService import GeneralFinalizeService
-    from services.RetrieveService import DiagramDetectJobPoll, JobPollStatus
+    from services.finalize_service import GeneralFinalizeService
+    from services.retrieve_service import DiagramDetectJobPoll, JobPollStatus
 
     def state_node(external_id: str, file_external_id: str) -> Node:
         return Node.load(
@@ -1489,7 +1493,7 @@ def test_finalize_retrieves_every_file_in_the_job_once() -> None:
                 "lastUpdatedTime": 0,
                 "createdTime": 0,
                 "properties": {
-                    "sp_hdm": {
+                    "dm_sol_file_annotation": {
                         "FileAnnotationState/v1": {
                             "annotationStatus": "Finalizing",
                             "linkedFile": {"space": "files", "externalId": file_external_id},
@@ -1562,7 +1566,7 @@ def test_a_crashed_finalize_hands_the_claimed_job_back() -> None:
 
 
 def test_launch_does_not_serialize_entities_below_debug(monkeypatch: pytest.MonkeyPatch) -> None:
-    import services.LaunchService as launch_service
+    import services.launch_service as launch_service
 
     dumps = MagicMock(return_value="")
     monkeypatch.setattr(launch_service.json, "dumps", dumps)
@@ -1588,7 +1592,7 @@ def test_launch_does_not_serialize_entities_below_debug(monkeypatch: pytest.Monk
 def test_finalize_does_not_decode_job_response_text_below_debug(status: str) -> None:
     from unittest.mock import PropertyMock
 
-    from services.RetrieveService import GeneralRetrieveService
+    from services.retrieve_service import GeneralRetrieveService
 
     client = MagicMock()
     response = client.get.return_value

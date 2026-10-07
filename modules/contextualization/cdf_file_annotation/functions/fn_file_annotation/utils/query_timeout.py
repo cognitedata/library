@@ -4,7 +4,7 @@ import time
 
 from cognite.client.exceptions import CogniteAPIError
 from fa_constants import QUERY_TIMEOUT_BACKOFF_SECONDS, QUERY_TIMEOUT_MAX_RETRIES
-from services.LoggerService import CogniteFunctionLogger
+from services.logger_service import CogniteFunctionLogger
 
 HTTP_STATUS_REQUEST_TIMEOUT = 408
 

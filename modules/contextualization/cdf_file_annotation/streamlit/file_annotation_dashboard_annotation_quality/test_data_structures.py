@@ -16,7 +16,7 @@ VIEWS = {
         "version": "v1",
     },
     "annotationStateView": {
-        "schemaSpace": "sp_hdm",
+        "schemaSpace": "dm_sol_file_annotation",
         "instanceSpace": "files",
         "externalId": "FileAnnotationState",
         "version": "v1",
@@ -27,7 +27,7 @@ VIEWS = {
 def test_raw_table_names_are_the_fixed_function_names() -> None:
     config = ExtractionPipelineConfig.from_dict({"parameters": {}, "data": VIEWS})
 
-    assert config.raw_db == "db_file_annotation"
+    assert config.raw_db == "raw_file_annotation"
     assert config.raw_table_asset_tags == "annotation_documents_tags"
     assert config.raw_table_file_tags == "annotation_documents_docs"
     assert config.raw_table_pattern_tags == "annotation_documents_patterns"

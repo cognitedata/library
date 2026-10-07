@@ -23,7 +23,7 @@ The module ships helper transformations under `transformations/` that merge tags
 | `tr_tag_files_detect_in_diagrams` | `DetectInDiagrams` | File view (`fileExternalId`) |
 | `tr_tag_files_to_annotate` | `ToAnnotate` | File view (`fileExternalId`) |
 
-Configure `targetEntityInstanceSpace`, `fileInstanceSpace`, view external IDs, and versions in `default.config.yaml`, then run:
+Configure `targetEntityInstanceSpace`, `fileInstanceSpace`, view external IDs, and versions in `default.config.yaml`. An empty instance space tags instances in every space, and each instance is written back to its own space. Then run:
 
 ```bash
 cdf transformations run tr_tag_assets_detect_in_diagrams
@@ -145,7 +145,7 @@ variables:
         # used in /data_models and /extraction_pipelines
         annotationStateExternalId: FileAnnotationState
         annotationStateInstanceSpace: sp_dat_cdf_annotation_states
-        annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
+        annotationStateSchemaSpace: dm_sol_file_annotation
         annotationStateVersion: v1.0.1
         fileSchemaSpace: sp_enterprise_process_industry
         fileExternalId: txFile
@@ -179,12 +179,13 @@ variables:
 
         # used in /workflows
         workflowExternalId: wf_file_annotation
-        # 00:00 on 29 February. This cron does not run the workflow.
+        # 00:00 on 29 February, so the workflow only runs on its own in leap years.
         # Paste a daily cron when annotation should start unattended, for example "0 0 * * *".
         workflowSchedule: "0 0 29 2 *"
 
         # used in /auth
         groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
+        environment: dev # group name: producer_pp_file_annotation_<environment>
 
 
     # ...
@@ -196,7 +197,7 @@ variables:
 
 ### Step 4: Run the Workflow
 
-After deployment, the annotation process is managed by a workflow that orchestrates prepare, launch, finalize, and promote. The shipped `workflowSchedule` is `0 0 29 2 *` (00:00 on 29 February). That cron does not run the workflow, so copied defaults do not start annotation on their own. Start it from the CDF UI, or replace the schedule with a real cron when you want it to run unattended, for example a daily run at midnight:
+After deployment, the annotation process is managed by a workflow that orchestrates prepare, launch, finalize, and promote. The shipped `workflowSchedule` is `0 0 29 2 *` (00:00 on 29 February). That cron only fires in leap years, so copied defaults practically never start annotation on their own. The workflow allows one run at a time (`maxConcurrentExecutions: 1`); a run started while another is active waits in a queue, so pick a schedule interval longer than a typical run. Start it from the CDF UI, or replace the schedule with a real cron when you want it to run unattended, for example a daily run at midnight:
 
 ```yaml
 workflowSchedule: "0 0 * * *"

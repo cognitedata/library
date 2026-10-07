@@ -13,22 +13,22 @@ from dependencies import (
     get_pipeline_data_set_id,
 )
 from fa_constants import FUNCTION_TIME_BUDGET_MINUTES
-from services.AnnotationService import IAnnotationService
-from services.ConfigService import Config, format_launch_config
-from services.DataModelService import IDataModelService
-from services.EntityCacheService import ICacheService
-from services.LaunchService import (
+from services.annotation_service import IAnnotationService
+from services.config_service import Config, format_launch_config
+from services.data_model_service import IDataModelService
+from services.entity_cache_service import ICacheService
+from services.launch_service import (
     AbstractLaunchService,
     DeployedRateLimitPolicy,
     GeneralLaunchService,
     LocalRateLimitPolicy,
     RateLimitPolicy,
 )
-from services.LoggerService import CogniteFunctionLogger
-from services.PipelineService import IPipelineService
-from utils.DataStructures import PerformanceTracker
+from services.logger_service import CogniteFunctionLogger
+from services.pipeline_service import IPipelineService
+from utils.data_structures import PerformanceTracker
 
-from stages.stage_runtime import STAGE_REPORTABLE_ERRORS
+from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, StageInput
 
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
@@ -46,14 +46,13 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     """
     start_time = datetime.now(UTC)
     deadline = time.monotonic() + FUNCTION_TIME_BUDGET_MINUTES * 60
-    log_level = data.get("logLevel", "INFO")
+    stage_input = StageInput.model_validate(data)
+    pipeline_ext_id = stage_input.extraction_pipeline_ext_id
 
-    logger_instance = create_logger_service(log_level)
+    logger_instance = create_logger_service(stage_input.log_level)
     tracker_instance = PerformanceTracker()
-    pipeline_instance: IPipelineService = create_general_pipeline_service(
-        client, pipeline_ext_id=data["ExtractionPipelineExtId"]
-    )
-    run_status: str = "success"
+    pipeline_instance: IPipelineService = create_general_pipeline_service(client, pipeline_ext_id=pipeline_ext_id)
+    run_status: str = "failure"
     try:
         config_instance, client = create_config_service(function_data=data, client=client)
         launch_instance: AbstractLaunchService = _create_launch_service(
@@ -63,19 +62,19 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
             tracker=tracker_instance,
             function_call_info=function_call_info,
             rate_limit_policy=DeployedRateLimitPolicy(),
-            data_set_id=get_pipeline_data_set_id(client, data["ExtractionPipelineExtId"]),
+            data_set_id=get_pipeline_data_set_id(client, pipeline_ext_id),
             entity_read_deadline=deadline,
         )
 
-        logger_instance.info(format_launch_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
+        logger_instance.info(format_launch_config(config_instance, pipeline_ext_id), section="START")
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
             logger_instance.start_run()
             if launch_instance.run() == "Done":
-                return {"status": run_status, "data": data}
+                break
             logger_instance.info(tracker_instance.generate_local_report())
+        run_status = "success"
         return {"status": run_status, "data": data}
     except STAGE_REPORTABLE_ERRORS as e:
-        run_status = "failure"
         logger_instance.error(message="Launch stage failed", error=e, section="BOTH")
         raise
     finally:

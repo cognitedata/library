@@ -1,5 +1,6 @@
 import abc
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Literal
 
@@ -18,12 +19,17 @@ from cognite.client.data_classes.data_modeling import (
 )
 from cognite.client.data_classes.filters import And, ContainsAny, Equals, Filter, Or
 from cognite.client.exceptions import CogniteAPIError
-from fa_constants import TAG_SCOPE_WIDE_DETECT
-from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
-from services.EntitySearchService import EntitySearchService
-from services.LoggerService import CogniteFunctionLogger
-from services.PromoteCacheService import CachedEntityInfo, CacheService
-from utils.DataStructures import DiagramAnnotationStatus, PromoteTracker, add_unique_tags
+from fa_constants import (
+    PROMOTE_RAW_FETCH_WORKERS,
+    TAG_PROMOTE_ATTEMPTED,
+    TAG_SCOPE_WIDE_DETECT,
+    TRANSIENT_HTTP_CODES,
+)
+from services.config_service import Config, build_filter_from_query, get_limit_from_query
+from services.entity_search_service import EntitySearchService
+from services.logger_service import CogniteFunctionLogger
+from services.promote_cache_service import CachedEntityInfo, CacheService
+from utils.data_structures import DiagramAnnotationStatus, PromoteTracker, add_unique_tags
 
 
 @dataclass
@@ -155,6 +161,8 @@ class GeneralPromoteService(IPromoteService):
         # Injected service dependencies
         self.entity_search_service = entity_search_service
         self.cache_service = cache_service
+        # RAW pattern rows of the current batch, keyed by edge external id
+        self._raw_rows: dict[str, dict[str, object]] = {}
 
     def run(self) -> Literal["Done"] | None:
         """
@@ -188,7 +196,10 @@ class GeneralPromoteService(IPromoteService):
                 self.logger.info("No Promote candidates found.", section="END")
                 return "Done"
         except CogniteAPIError as e:
-            self.logger.error("Ran into the following error", error=e)
+            if e.code not in TRANSIENT_HTTP_CODES:
+                self.logger.error("Could not read Promote candidates", error=e, section="BOTH")
+                raise
+            self.logger.error("Ran into a transient error", error=e)
             self.logger.info("Retrying in 15 seconds")
             time.sleep(15)
             return None
@@ -196,15 +207,20 @@ class GeneralPromoteService(IPromoteService):
         self.logger.info(f"Found {len(candidates)} Promote candidates. Starting processing.")
 
         scope_by_file = self._scope_values_by_file(list(candidates))
+        self._raw_rows = self._fetch_raw_rows([edge.external_id for edge in candidates])
 
         # Group by text, type, space, and scope so two sites do not share one search result.
         grouped_candidates: dict[tuple[str, str, str, str, str], list[Edge]] = {}
+        # Edges without text can never match. They are rejected so the candidates query stops returning them.
+        textless_edges: list[Edge] = []
         for edge in candidates:
             properties: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view.as_view_id()) or {}
             text: object = properties.get("startNodeText")
             annotation_type: str = edge.type.external_id
 
-            if isinstance(text, str) and text and annotation_type:
+            if not (isinstance(text, str) and text):
+                textless_edges.append(edge)
+            elif annotation_type:
                 primary_value, secondary_value = scope_by_file.get(
                     (edge.start_node.space, edge.start_node.external_id), ("", "")
                 )
@@ -243,8 +259,6 @@ class GeneralPromoteService(IPromoteService):
 
         edges_to_update: list[EdgeApply] = []
         raw_rows_to_update: list[RowWrite] = []
-        # Think about whether we need to delete the corresponding raw row of edges that we delete OR if it should be placed in another RAW table when rejected
-        # raw_rows_to_delete: list[RowWrite] = []
         edges_to_delete: list[EdgeId] = []
         rejected_to_delete: int = 0
         ambiguous_to_delete: int = 0
@@ -255,6 +269,17 @@ class GeneralPromoteService(IPromoteService):
         batch_ambiguous: int = 0
 
         try:
+            for edge in textless_edges:
+                batch_rejected += 1
+                edge_apply, raw_row, _ = self._prepare_edge_update(edge, [])
+                if self.delete_rejected_edges:
+                    edges_to_delete.append(EdgeId(edge.space, edge.external_id))
+                    rejected_to_delete += 1
+                elif edge_apply is not None:
+                    edges_to_update.append(edge_apply)
+                if raw_row is not None:
+                    raw_rows_to_update.append(raw_row)
+
             # Process each unique text/type combination once
             # Iterate per annotation type so we can check the search flag once per type
             for annotation_type, texts_map in grouped_by_type.items():
@@ -297,9 +322,7 @@ class GeneralPromoteService(IPromoteService):
 
                         if len(found_entities) >= 2:
                             batch_ambiguous += 1
-                            edge_apply, raw_row, original_to_delete = self._prepare_ambiguous_edge(
-                                edge, found_entities
-                            )
+                            edge_apply, raw_row, original_to_delete = self._prepare_ambiguous_edge(edge, found_entities)
                             if edge_apply is not None:
                                 edges_to_update.append(edge_apply)
                             if raw_row is not None:
@@ -691,16 +714,8 @@ class GeneralPromoteService(IPromoteService):
         # Now create the write version
         edge_apply: EdgeApply = edge.as_write()
 
-        # Fetch existing RAW row to preserve all data
-        raw_data: dict[str, object] = {}
-        try:
-            existing_row: Row | None = self.client.raw.rows.retrieve(
-                db_name=self.raw_db, table_name=self.raw_pattern_table, key=edge.external_id
-            )
-            if existing_row and existing_row.columns:
-                raw_data = dict(existing_row.columns.items())
-        except CogniteAPIError as e:
-            self.logger.warning(f"Could not retrieve RAW row for edge {edge.external_id}: {e}")
+        # Existing RAW row, to preserve all data
+        raw_data: dict[str, object] = self._existing_raw_columns(edge.external_id)
 
         # Prepare update properties for the edge
         update_properties: dict[str, object] = {}
@@ -748,7 +763,7 @@ class GeneralPromoteService(IPromoteService):
                 f"\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
             )
             update_properties["status"] = DiagramAnnotationStatus.REJECTED.value
-            updated_tags = add_unique_tags(updated_tags, "PromoteAttempted")
+            updated_tags = add_unique_tags(updated_tags, TAG_PROMOTE_ATTEMPTED)
             # Update RAW row status
             raw_data["status"] = DiagramAnnotationStatus.REJECTED.value
 
@@ -772,7 +787,7 @@ class GeneralPromoteService(IPromoteService):
                     f"\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
                 )
             update_properties["status"] = DiagramAnnotationStatus.REJECTED.value
-            updated_tags = add_unique_tags(updated_tags, "PromoteAttempted")
+            updated_tags = add_unique_tags(updated_tags, TAG_PROMOTE_ATTEMPTED)
 
             # Update RAW row status
             raw_data["status"] = DiagramAnnotationStatus.REJECTED.value
@@ -791,6 +806,36 @@ class GeneralPromoteService(IPromoteService):
         raw_row: RowWrite | None = RowWrite(key=edge.external_id, columns=raw_data) if raw_data else None
 
         return edge_apply, raw_row, edge_to_relocate
+
+    def _retrieve_raw_columns(self, key: str) -> dict[str, object]:
+        """Columns of one RAW pattern row, or {} when it is missing or cannot be read."""
+        try:
+            row: Row | None = self.client.raw.rows.retrieve(
+                db_name=self.raw_db, table_name=self.raw_pattern_table, key=key
+            )
+        except CogniteAPIError as e:
+            self.logger.warning(f"Could not retrieve RAW row for edge {key}: {e}")
+            return {}
+        return dict(row.columns.items()) if row and row.columns else {}
+
+    def _fetch_raw_rows(self, keys: list[str]) -> dict[str, dict[str, object]]:
+        """RAW pattern rows of one batch, read in parallel.
+
+        Args:
+            keys: Edge external ids, which are also the RAW row keys.
+
+        Returns:
+            Columns per key.
+        """
+        unique_keys = list(dict.fromkeys(keys))
+        with ThreadPoolExecutor(max_workers=PROMOTE_RAW_FETCH_WORKERS) as pool:
+            return dict(zip(unique_keys, pool.map(self._retrieve_raw_columns, unique_keys), strict=True))
+
+    def _existing_raw_columns(self, key: str) -> dict[str, object]:
+        """A copy of the batch's RAW row for this edge, read now when the batch did not fetch it."""
+        if key not in self._raw_rows:
+            self._raw_rows[key] = self._retrieve_raw_columns(key)
+        return dict(self._raw_rows[key])
 
     def _suggest_threshold_for_type(self, annotation_type: str) -> float:
         """Configured auto-suggest threshold for this annotation type."""
@@ -821,20 +866,12 @@ class GeneralPromoteService(IPromoteService):
         edge_props: dict[str, object] = dict(edge.properties.get(view_id, {}) or {})
         current_tags: object = edge_props.get("tags", [])
         base_tags: list[str] = list(current_tags) if isinstance(current_tags, list) else []
-        candidate_tags = add_unique_tags(base_tags, "PromoteAttempted", "AmbiguousMatch")
+        candidate_tags = add_unique_tags(base_tags, TAG_PROMOTE_ATTEMPTED, "AmbiguousMatch")
         file_instance_space = edge.start_node.space
         annotation_type = edge.type.external_id
         confidence = self._suggest_threshold_for_type(annotation_type)
 
-        raw_data: dict[str, object] = {}
-        try:
-            existing_row: Row | None = self.client.raw.rows.retrieve(
-                db_name=self.raw_db, table_name=self.raw_pattern_table, key=edge.external_id
-            )
-            if existing_row and existing_row.columns:
-                raw_data = dict(existing_row.columns.items())
-        except CogniteAPIError as e:
-            self.logger.warning(f"Could not retrieve RAW row for edge {edge.external_id}: {e}")
+        raw_data: dict[str, object] = self._existing_raw_columns(edge.external_id)
 
         candidates = [
             entity

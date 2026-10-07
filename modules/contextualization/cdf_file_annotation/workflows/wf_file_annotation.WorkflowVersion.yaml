@@ -15,8 +15,8 @@
                 "logLevel": "INFO"
               }
           isAsyncComplete: false
-        name: Prepare File Annotations
-        retries: 0
+        name: Prepare file annotations
+        retries: 1
         timeout: 600
         onFailure: abortWorkflow
       - externalId: fn_launch
@@ -33,8 +33,8 @@
                 "logLevel": "INFO"
               }
           isAsyncComplete: false
-        name: Launch File Annotations
-        retries: 0
+        name: Launch file annotations
+        retries: 1
         timeout: 600
         onFailure: abortWorkflow
       - externalId: fn_finalize
@@ -51,8 +51,8 @@
                 "logLevel": "INFO"
               }
           isAsyncComplete: false
-        name: Finalize File Annotations
-        retries: 0
+        name: Finalize file annotations
+        retries: 1
         timeout: 600
         onFailure: abortWorkflow
       - externalId: fn_promote
@@ -69,8 +69,8 @@
                 "logLevel": "INFO"
               }
           isAsyncComplete: false
-        name: Promote File Annotations
-        retries: 0
+        name: Promote file annotations
+        retries: 1
         timeout: 600
         onFailure: abortWorkflow
       - externalId: tr_file_to_asset
@@ -81,7 +81,19 @@
           transformation:
             externalId: {{ fileToAssetTransformationExternalId }}
             concurrencyPolicy: fail
-        name: Link Files to Assets
+        name: Link files to assets
         retries: 1
         timeout: 1800
         onFailure: abortWorkflow
+      - externalId: tr_file_annotation_status_report
+        type: transformation
+        dependsOn:
+          - externalId: fn_promote
+        parameters:
+          transformation:
+            externalId: {{ fileAnnotationStatusReportTransformationExternalId }}
+            concurrencyPolicy: fail
+        name: Update file annotation status report
+        retries: 1
+        timeout: 1800
+        onFailure: skipTask

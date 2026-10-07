@@ -4,17 +4,18 @@ from typing import Literal
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import NodeApply, NodeList
 from cognite.client.exceptions import CogniteAPIError
-from services.ConfigService import Config, ViewPropertyConfig
-from services.DataModelService import IDataModelService
-from services.LoggerService import CogniteFunctionLogger
-from utils.DataStructures import (
+from fa_constants import EXCLUDED_PREPARE_TAGS, TAG_ANNOTATION_IN_PROCESS
+from services.config_service import Config, ViewPropertyConfig
+from services.data_model_service import IDataModelService
+from services.logger_service import CogniteFunctionLogger
+from utils.data_structures import (
     AnnotationState,
     AnnotationStatus,
     PerformanceTracker,
     node_tags,
     tags_apply,
 )
-from utils.QueryTimeout import QueryTimeoutRetry, is_query_timeout
+from utils.query_timeout import QueryTimeoutRetry, is_query_timeout
 
 
 class AbstractPrepareService(abc.ABC):
@@ -107,7 +108,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 else:
                     self.logger.info(f"Resetting {len(file_nodes_to_reset)} files")
                     reset_node_apply: list[NodeApply] = []
-                    tags_to_remove = {"AnnotationInProcess", "Annotated", "AnnotationFailed"}
+                    tags_to_remove = set(EXCLUDED_PREPARE_TAGS)
                     file_view_id = self.file_view.as_view_id()
                     for file_node in file_nodes_to_reset:
                         tags_property = node_tags(file_node, file_view_id)
@@ -161,8 +162,8 @@ class GeneralPrepareService(AbstractPrepareService):
             annotation_state_instances.append(annotation_node_apply)
 
             tags_property = node_tags(file_node, self.file_view.as_view_id())
-            if "AnnotationInProcess" not in tags_property:
-                tags_property.append("AnnotationInProcess")
+            if TAG_ANNOTATION_IN_PROCESS not in tags_property:
+                tags_property.append(TAG_ANNOTATION_IN_PROCESS)
                 file_apply_instances.append(tags_apply(file_node, self.file_view.as_view_id(), tags_property))
 
         try:

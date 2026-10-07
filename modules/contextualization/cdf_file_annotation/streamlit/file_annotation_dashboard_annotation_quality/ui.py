@@ -20,7 +20,7 @@ class AnnotationQualityUI:
             st.session_state.manual_patterns_editor_key = str(uuid.uuid4())
         if "manual_patterns_changes" not in st.session_state:
             st.session_state.manual_patterns_changes = set()
-        
+
         st.title("Annotation Quality")
         st.caption("See the quality metrics and manage patterns. Choose a pipeline to begin.")
 
@@ -56,8 +56,12 @@ class AnnotationQualityUI:
 
         with st.spinner(f"Loading annotations and metadata for pipeline '{selected_pipeline}'..."):
             annotation_frames = DataFetcher.fetch_annotations(self.client, extraction_pipeline_cfg)
-            files_metadata = DataFetcher.fetch_entities_metadata(self.client, extraction_pipeline_cfg=extraction_pipeline_cfg, entity_type=FieldNames.FILE_TITLE_CASE)
-            annotation_frames = DataProcessor.enrich_annotation_frames_with_files_metadata(annotation_frames, files_metadata)
+            files_metadata = DataFetcher.fetch_entities_metadata(
+                self.client, extraction_pipeline_cfg=extraction_pipeline_cfg, entity_type=FieldNames.FILE_TITLE_CASE
+            )
+            annotation_frames = DataProcessor.enrich_annotation_frames_with_files_metadata(
+                annotation_frames, files_metadata
+            )
 
         tab_options = ["Overall Quality Metrics", "Per-File Analysis", "Pattern Management"]
 
@@ -69,12 +73,23 @@ class AnnotationQualityUI:
         except ValueError:
             index = 0
 
-        selected_tab = st.radio("Tabs", tab_options, index=index, horizontal=True, key="annotation_quality_tab_selector")
+        selected_tab = st.radio(
+            "Tabs", tab_options, index=index, horizontal=True, key="annotation_quality_tab_selector"
+        )
 
         if selected_tab == "Overall Quality Metrics":
-            OverallTab().render(self.client, extraction_pipeline_cfg, actual_df=annotation_frames.actual_df, potential_df=annotation_frames.potential_df)
+            OverallTab().render(
+                self.client,
+                extraction_pipeline_cfg,
+                actual_df=annotation_frames.actual_df,
+                potential_df=annotation_frames.potential_df,
+            )
         elif selected_tab == "Per-File Analysis":
-            PerFileTab().render(self.client, extraction_pipeline_cfg, actual_df=annotation_frames.actual_df, potential_df=annotation_frames.potential_df)
+            PerFileTab().render(
+                self.client,
+                extraction_pipeline_cfg,
+                actual_df=annotation_frames.actual_df,
+                potential_df=annotation_frames.potential_df,
+            )
         elif selected_tab == "Pattern Management":
             PatternManagementTab().render(self.client, extraction_pipeline_cfg)
-

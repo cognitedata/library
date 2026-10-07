@@ -31,15 +31,15 @@ from cognite.client.data_classes.filters import (
     Range,
 )
 from fa_constants import LAUNCH_STATE_LIMIT, QUERY_PAGE_SIZE, TAG_ANNOTATION_IN_PROCESS, TAG_SCOPE_WIDE_DETECT
-from services.ConfigService import (
+from services.config_service import (
     Config,
     ViewPropertyConfig,
     build_filter_from_query,
     get_limit_from_query,
 )
-from services.EntitySyncService import EntityInstance, EntitySyncService
-from services.LoggerService import CogniteFunctionLogger
-from utils.DataStructures import AnnotationStatus
+from services.entity_sync_service import EntityInstance, EntitySyncService
+from services.logger_service import CogniteFunctionLogger
+from utils.data_structures import AnnotationStatus
 
 
 def _scope_text(properties: dict[str, object], property_name: str | None) -> str:

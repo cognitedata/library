@@ -8,9 +8,9 @@ import pytest
 
 sys.path.append(str(Path(__file__).parent))
 
-from services.FinalizeService import claimed_jobs_message
-from services.LaunchService import launch_state_update_message
-from services.LoggerService import CogniteFunctionLogger
+from services.finalize_service import claimed_jobs_message
+from services.launch_service import launch_state_update_message
+from services.logger_service import CogniteFunctionLogger
 
 
 def test_launch_and_finalize_summaries_omit_job_tokens() -> None:
@@ -24,27 +24,23 @@ def test_launch_and_finalize_summaries_omit_job_tokens() -> None:
     assert "17" in finalize_summary and "claimed 3 files" in finalize_summary
 
 
-def test_failed_job_result_request_logs_status_without_the_body() -> None:
-    from services.RetrieveService import GeneralRetrieveService
+def test_failed_job_result_request_raises_without_logging_the_token() -> None:
+    from cognite.client.exceptions import CogniteAPIError
+    from services.retrieve_service import GeneralRetrieveService
     from test_file_queries import _config
 
     token = "job-token-do-not-log"
     logger = MagicMock()
     logger.log_level = "INFO"
-    response = MagicMock(status_code=500, text=token, url="https://example.test/jobs/7")
     client = MagicMock()
     client.config.project = "project"
-    client.get.return_value = response
+    client.get.side_effect = CogniteAPIError("server error", code=500)
     service = GeneralRetrieveService(client, _config(), logger)
 
-    from services.RetrieveService import JobPollStatus
+    with pytest.raises(CogniteAPIError):
+        service.get_diagram_detect_job_result(7, token)
 
-    assert service.get_diagram_detect_job_result(7, token).status == JobPollStatus.RUNNING
-
-    logged = " ".join(str(call.args) for call in logger.info.call_args_list)
-    assert token not in logged
-    assert "500" in logged
-    assert "7" in logged
+    assert token not in str(logger.mock_calls)
 
 
 def test_error_log_includes_the_traceback(capsys: pytest.CaptureFixture[str]) -> None:

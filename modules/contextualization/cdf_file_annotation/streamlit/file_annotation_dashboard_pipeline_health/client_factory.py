@@ -32,8 +32,5 @@ class CogniteClientFactory:
             debug=debug,
         )
         client = CogniteClient(cnf)
-        global_config.apply_settings({
-            "max_retries": 5,
-            "disable_ssl": True
-        })
+        global_config.apply_settings({"max_retries": 5, "disable_ssl": True})
         return client

@@ -1,9 +1,9 @@
 externalId: {{ fileAnnotationStatusReportTransformationExternalId }}
 dataSetExternalId: {{ annotationDatasetExternalId }}
-name: File Annotation Status Report
+name: File annotation status report
 destination:
   type: raw
-  database: db_file_annotation
+  database: raw_file_annotation
   table: annotation_file_status_report
 ignoreNullFields: true
 isPublic: true

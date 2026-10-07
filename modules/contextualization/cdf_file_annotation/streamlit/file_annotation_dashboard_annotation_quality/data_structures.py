@@ -24,6 +24,7 @@ class ViewPropertyConfig:
     def as_view_id(self) -> ViewId:
         return ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
 
+
 @dataclass
 class AnnotationStatus(StrEnum):
     APPROVED = "Approved"
@@ -187,6 +188,7 @@ class ExtractionPipelineConfig:
     raw_tables: RawTablesConfig
     file_view_cfg: ViewPropertyConfig | None = None
     asset_view_cfg: ViewPropertyConfig | None = None
+
     @classmethod
     def from_dict(cls, d: dict | None):
         if not isinstance(d, dict):
@@ -201,7 +203,7 @@ class ExtractionPipelineConfig:
             views = d["data"]
             # Must match the RAW_* constants in fn_file_annotation/fa_constants.py.
             raw_tables = {
-                "rawDb": "db_file_annotation",
+                "rawDb": "raw_file_annotation",
                 "rawTableDocPattern": "annotation_documents_patterns",
                 "rawTableDocTag": "annotation_documents_tags",
                 "rawTableDocDoc": "annotation_documents_docs",

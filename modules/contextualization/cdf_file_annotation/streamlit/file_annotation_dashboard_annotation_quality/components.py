@@ -5,6 +5,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 from cognite.client import CogniteClient
+from cognite.client.exceptions import CogniteAPIError
 from constants import FieldNames
 from data_fetcher import DataFetcher
 from data_processor import DataProcessor
@@ -17,6 +18,7 @@ class Component(ABC):
     @abstractmethod
     def render(self) -> None:
         pass
+
 
 class OverallAnnotationCoverageComponent(Component):
     def __init__(self, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
@@ -41,15 +43,29 @@ class OverallAnnotationCoverageComponent(Component):
         left, right = st.columns(2)
 
         with left:
-            st.metric(label=FieldNames.OVERALL_COVERAGE_TITLE_CASE, value=f"{row_based_annotation_coverage_data.coverage_pct:.2f}%", help=help_row)
+            st.metric(
+                label=FieldNames.OVERALL_COVERAGE_TITLE_CASE,
+                value=f"{row_based_annotation_coverage_data.coverage_pct:.2f}%",
+                help=help_row,
+            )
 
         with right:
             st.caption(f"{FieldNames.ACTUAL_ANNOTATIONS_TITLE_CASE}: {row_based_annotation_coverage_data.actual_count}")
-            st.caption(f"{FieldNames.POTENTIAL_ANNOTATIONS_TITLE_CASE}: {row_based_annotation_coverage_data.potential_count}")
-            st.caption(f"{FieldNames.TOTAL_ANNOTATIONS_TITLE_CASE}: {row_based_annotation_coverage_data.total_possible}")
+            st.caption(
+                f"{FieldNames.POTENTIAL_ANNOTATIONS_TITLE_CASE}: {row_based_annotation_coverage_data.potential_count}"
+            )
+            st.caption(
+                f"{FieldNames.TOTAL_ANNOTATIONS_TITLE_CASE}: {row_based_annotation_coverage_data.total_possible}"
+            )
+
 
 class AnnotationComparisonComponent(Component):
-    def __init__(self, extraction_pipeline_cfg: ExtractionPipelineConfig, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
+    def __init__(
+        self,
+        extraction_pipeline_cfg: ExtractionPipelineConfig,
+        actual_df: pd.DataFrame | None = None,
+        potential_df: pd.DataFrame | None = None,
+    ):
         self.extraction_pipeline_cfg = extraction_pipeline_cfg
         self.actual_df = actual_df
         self.potential_df = potential_df
@@ -69,7 +85,11 @@ class AnnotationComparisonComponent(Component):
         secondary_scope_column = DataProcessor.resolve_scope_column(
             actual_df, secondary_scope_property, FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE
         )
-        resource_type_column = FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE if FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE in actual_df.columns else None
+        resource_type_column = (
+            FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE
+            if FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE in actual_df.columns
+            else None
+        )
 
         per_file_group_keys = [tag_column, file_external_id_column]
 
@@ -87,9 +107,19 @@ class AnnotationComparisonComponent(Component):
 
         aggregate_group_keys = [k for k in per_file_group_keys if k != file_external_id_column]
 
-        occurrences_per_group_df = actual_df.groupby(per_file_group_keys, sort=False).size().reset_index(name="occurrences_in_group")
-        total_occurrences_df = occurrences_per_group_df.groupby(aggregate_group_keys, sort=False)["occurrences_in_group"].sum().reset_index(name=FieldNames.OCCURRENCES_TITLE_CASE)
-        associated_files_df = occurrences_per_group_df.groupby(aggregate_group_keys, sort=False)[file_external_id_column].nunique().reset_index(name=FieldNames.ASSOCIATED_FILES_TITLE_CASE)
+        occurrences_per_group_df = (
+            actual_df.groupby(per_file_group_keys, sort=False).size().reset_index(name="occurrences_in_group")
+        )
+        total_occurrences_df = (
+            occurrences_per_group_df.groupby(aggregate_group_keys, sort=False)["occurrences_in_group"]
+            .sum()
+            .reset_index(name=FieldNames.OCCURRENCES_TITLE_CASE)
+        )
+        associated_files_df = (
+            occurrences_per_group_df.groupby(aggregate_group_keys, sort=False)[file_external_id_column]
+            .nunique()
+            .reset_index(name=FieldNames.ASSOCIATED_FILES_TITLE_CASE)
+        )
         grouped_df = total_occurrences_df.merge(associated_files_df, on=aggregate_group_keys, how="left")
 
         del occurrences_per_group_df
@@ -140,7 +170,11 @@ class AnnotationComparisonComponent(Component):
         secondary_scope_column = DataProcessor.resolve_scope_column(
             potential_df, secondary_scope_property, FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE
         )
-        resource_type_column = FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE if FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE in potential_df.columns else None
+        resource_type_column = (
+            FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE
+            if FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE in potential_df.columns
+            else None
+        )
 
         per_file_group_keys = [tag_column, file_external_id_column]
 
@@ -158,9 +192,19 @@ class AnnotationComparisonComponent(Component):
 
         aggregate_group_keys = [k for k in per_file_group_keys if k != file_external_id_column]
 
-        occurrences_per_group_df = potential_df.groupby(per_file_group_keys, sort=False).size().reset_index(name="occurrences_in_group")
-        total_occurrences_df = occurrences_per_group_df.groupby(aggregate_group_keys, sort=False)["occurrences_in_group"].sum().reset_index(name=FieldNames.OCCURRENCES_TITLE_CASE)
-        associated_files_df = occurrences_per_group_df.groupby(aggregate_group_keys, sort=False)[file_external_id_column].nunique().reset_index(name=FieldNames.ASSOCIATED_FILES_TITLE_CASE)
+        occurrences_per_group_df = (
+            potential_df.groupby(per_file_group_keys, sort=False).size().reset_index(name="occurrences_in_group")
+        )
+        total_occurrences_df = (
+            occurrences_per_group_df.groupby(aggregate_group_keys, sort=False)["occurrences_in_group"]
+            .sum()
+            .reset_index(name=FieldNames.OCCURRENCES_TITLE_CASE)
+        )
+        associated_files_df = (
+            occurrences_per_group_df.groupby(aggregate_group_keys, sort=False)[file_external_id_column]
+            .nunique()
+            .reset_index(name=FieldNames.ASSOCIATED_FILES_TITLE_CASE)
+        )
 
         grouped_df = total_occurrences_df.merge(associated_files_df, on=aggregate_group_keys, how="left")
 
@@ -220,10 +264,18 @@ class AnnotationComparisonComponent(Component):
             right_count = 0
 
         with left:
-            left.metric("✅ Actual Annotations", f"{left_count:,}", help="A list of all unique tags that have been successfully created (ground truth).")
+            left.metric(
+                "✅ Actual Annotations",
+                f"{left_count:,}",
+                help="A list of all unique tags that have been successfully created (ground truth).",
+            )
             self.render_actual(self.actual_df)
         with right:
-            right.metric("💡 Potential New Annotations", f"{right_count:,}", help="Unique tags detected by pattern-mode that are not yet created as actual annotations.")
+            right.metric(
+                "💡 Potential New Annotations",
+                f"{right_count:,}",
+                help="Unique tags detected by pattern-mode that are not yet created as actual annotations.",
+            )
             self.render_potential(self.potential_df)
 
     def _filter_by_files(self, df: pd.DataFrame | None, file_ids: list[str] | None) -> pd.DataFrame | None:
@@ -272,6 +324,7 @@ class AnnotationComparisonComponent(Component):
 
         return df
 
+
 class TagEntityResourceTypeCoverageComponent(Component):
     def __init__(self, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
         self.actual_df = actual_df
@@ -291,7 +344,9 @@ class TagEntityResourceTypeCoverageComponent(Component):
     def render(self) -> None:
         st.markdown("### Annotation Coverage by Tag Entity Resource Type")
 
-        df_row = DataProcessor.coverage_grouped_row_based(self.actual_df, self.potential_df, FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE)
+        df_row = DataProcessor.coverage_grouped_row_based(
+            self.actual_df, self.potential_df, FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE
+        )
 
         if df_row is None or df_row.empty:
             st.info("No tag entity resource-level coverage data available.")
@@ -299,23 +354,45 @@ class TagEntityResourceTypeCoverageComponent(Component):
 
         df_row_chart = self._df_for_chart(df_row)
 
-        base_row = alt.Chart(df_row_chart).mark_bar().encode(
-            x=alt.X(f"{FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE}:N", title=FieldNames.TAG_ENTITY_RESOURCE_TYPE_TITLE_CASE, sort=alt.EncodingSortField(field=FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, order="descending")),
-            y=alt.Y(f"{FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE}:Q", title=FieldNames.COVERAGE_TITLE_CASE),
-            color=alt.value("#4C78A8"),
-            tooltip=[
-                alt.Tooltip(FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE, title=FieldNames.TAG_ENTITY_RESOURCE_TYPE_TITLE_CASE),
-                alt.Tooltip(FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, title=FieldNames.COVERAGE_TITLE_CASE, format=".2f"),
-                alt.Tooltip(FieldNames.ACTUAL_COUNT_SNAKE_CASE, title=FieldNames.ACTUAL_ANNOTATIONS_TITLE_CASE),
-                alt.Tooltip(FieldNames.POTENTIAL_COUNT_SNAKE_CASE, title=FieldNames.POTENTIAL_ANNOTATIONS_TITLE_CASE),
-                alt.Tooltip(FieldNames.TOTAL_POSSIBLE_SNAKE_CASE, title=FieldNames.TOTAL_ANNOTATIONS_TITLE_CASE)
-            ]
-        ).properties(height=300, width=800, title="Annotation Coverage by Tag Entity Resource Type")
+        base_row = (
+            alt.Chart(df_row_chart)
+            .mark_bar()
+            .encode(
+                x=alt.X(
+                    f"{FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE}:N",
+                    title=FieldNames.TAG_ENTITY_RESOURCE_TYPE_TITLE_CASE,
+                    sort=alt.EncodingSortField(field=FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, order="descending"),
+                ),
+                y=alt.Y(f"{FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE}:Q", title=FieldNames.COVERAGE_TITLE_CASE),
+                color=alt.value("#4C78A8"),
+                tooltip=[
+                    alt.Tooltip(
+                        FieldNames.END_NODE_RESOURCE_TYPE_CAMEL_CASE,
+                        title=FieldNames.TAG_ENTITY_RESOURCE_TYPE_TITLE_CASE,
+                    ),
+                    alt.Tooltip(
+                        FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, title=FieldNames.COVERAGE_TITLE_CASE, format=".2f"
+                    ),
+                    alt.Tooltip(FieldNames.ACTUAL_COUNT_SNAKE_CASE, title=FieldNames.ACTUAL_ANNOTATIONS_TITLE_CASE),
+                    alt.Tooltip(
+                        FieldNames.POTENTIAL_COUNT_SNAKE_CASE, title=FieldNames.POTENTIAL_ANNOTATIONS_TITLE_CASE
+                    ),
+                    alt.Tooltip(FieldNames.TOTAL_POSSIBLE_SNAKE_CASE, title=FieldNames.TOTAL_ANNOTATIONS_TITLE_CASE),
+                ],
+            )
+            .properties(height=300, width=800, title="Annotation Coverage by Tag Entity Resource Type")
+        )
 
         st.altair_chart(base_row, use_container_width=True)
 
+
 class FileResourceTypeCoverageComponent(Component):
-    def __init__(self, extraction_pipeline_cfg: ExtractionPipelineConfig, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
+    def __init__(
+        self,
+        extraction_pipeline_cfg: ExtractionPipelineConfig,
+        actual_df: pd.DataFrame | None = None,
+        potential_df: pd.DataFrame | None = None,
+    ):
         self.extraction_pipeline_cfg = extraction_pipeline_cfg
         self.actual_df = actual_df
         self.potential_df = potential_df
@@ -341,29 +418,51 @@ class FileResourceTypeCoverageComponent(Component):
         st.markdown("### Annotation Coverage by File Resource Type")
 
         prefixed_file_resource_property = DataProcessor.set_file_prefix(file_resource_property)
-        df_row = DataProcessor.coverage_grouped_row_based(self.actual_df, self.potential_df, prefixed_file_resource_property)
+        df_row = DataProcessor.coverage_grouped_row_based(
+            self.actual_df, self.potential_df, prefixed_file_resource_property
+        )
 
         if df_row is None or df_row.empty:
-            st.info("No file resource-level coverage data available." )
+            st.info("No file resource-level coverage data available.")
             return
 
         df_row_chart = self._df_for_chart(df_row, prefixed_file_resource_property)
 
-        base_row = alt.Chart(df_row_chart).mark_bar().encode(
-            x=alt.X(f"{prefixed_file_resource_property}:N", title=FieldNames.FILE_RESOURCE_PROPERTY_TITLE_CASE, sort=alt.EncodingSortField(field=FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, order="descending")),
-            y=alt.Y(f"{FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE}:Q", title=FieldNames.COVERAGE_TITLE_CASE),
-            color=alt.value("#4C78A8"),
-            tooltip=[
-                alt.Tooltip(prefixed_file_resource_property, title=FieldNames.FILE_RESOURCE_PROPERTY_TITLE_CASE),
-                alt.Tooltip(FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, title=FieldNames.COVERAGE_TITLE_CASE, format=".2f"),
-                alt.Tooltip(FieldNames.ACTUAL_COUNT_SNAKE_CASE, title=FieldNames.ACTUAL_ANNOTATIONS_TITLE_CASE),
-                alt.Tooltip(FieldNames.POTENTIAL_COUNT_SNAKE_CASE, title=FieldNames.POTENTIAL_ANNOTATIONS_TITLE_CASE),
-                alt.Tooltip(FieldNames.TOTAL_POSSIBLE_SNAKE_CASE, title=FieldNames.TOTAL_ANNOTATIONS_TITLE_CASE)
-            ]
-        ).properties(height=300, width=800, title="Annotation Coverage by File Resource Property")
+        base_row = (
+            alt.Chart(df_row_chart)
+            .mark_bar()
+            .encode(
+                x=alt.X(
+                    f"{prefixed_file_resource_property}:N",
+                    title=FieldNames.FILE_RESOURCE_PROPERTY_TITLE_CASE,
+                    sort=alt.EncodingSortField(field=FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, order="descending"),
+                ),
+                y=alt.Y(f"{FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE}:Q", title=FieldNames.COVERAGE_TITLE_CASE),
+                color=alt.value("#4C78A8"),
+                tooltip=[
+                    alt.Tooltip(prefixed_file_resource_property, title=FieldNames.FILE_RESOURCE_PROPERTY_TITLE_CASE),
+                    alt.Tooltip(
+                        FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, title=FieldNames.COVERAGE_TITLE_CASE, format=".2f"
+                    ),
+                    alt.Tooltip(FieldNames.ACTUAL_COUNT_SNAKE_CASE, title=FieldNames.ACTUAL_ANNOTATIONS_TITLE_CASE),
+                    alt.Tooltip(
+                        FieldNames.POTENTIAL_COUNT_SNAKE_CASE, title=FieldNames.POTENTIAL_ANNOTATIONS_TITLE_CASE
+                    ),
+                    alt.Tooltip(FieldNames.TOTAL_POSSIBLE_SNAKE_CASE, title=FieldNames.TOTAL_ANNOTATIONS_TITLE_CASE),
+                ],
+            )
+            .properties(height=300, width=800, title="Annotation Coverage by File Resource Property")
+        )
         st.altair_chart(base_row, use_container_width=True)
+
+
 class SecondaryScopeCoverageComponent(Component):
-    def __init__(self, extraction_pipeline_cfg: ExtractionPipelineConfig, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
+    def __init__(
+        self,
+        extraction_pipeline_cfg: ExtractionPipelineConfig,
+        actual_df: pd.DataFrame | None = None,
+        potential_df: pd.DataFrame | None = None,
+    ):
         self.extraction_pipeline_cfg = extraction_pipeline_cfg
         self.actual_df = actual_df
         self.potential_df = potential_df
@@ -403,23 +502,42 @@ class SecondaryScopeCoverageComponent(Component):
 
         df_row_chart = self._df_for_chart(df_row, secondary_scope_column)
 
-        base_row = alt.Chart(df_row_chart).mark_bar().encode(
-            x=alt.X(f"{secondary_scope_column}:N", title=f"{secondary_scope_property}", sort=alt.EncodingSortField(field=FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, order="descending")),
-            y=alt.Y(f"{FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE}:Q", title=FieldNames.COVERAGE_TITLE_CASE),
-            color=alt.value("#4C78A8"),
-            tooltip=[
-                alt.Tooltip(secondary_scope_column, title=secondary_scope_property),
-                alt.Tooltip(FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, title=FieldNames.COVERAGE_TITLE_CASE, format=".2f"),
-                alt.Tooltip(FieldNames.ACTUAL_COUNT_SNAKE_CASE, title=FieldNames.ACTUAL_ANNOTATIONS_TITLE_CASE),
-                alt.Tooltip(FieldNames.POTENTIAL_COUNT_SNAKE_CASE, title=FieldNames.POTENTIAL_ANNOTATIONS_TITLE_CASE),
-                alt.Tooltip(FieldNames.TOTAL_POSSIBLE_SNAKE_CASE, title=FieldNames.TOTAL_ANNOTATIONS_TITLE_CASE),
-            ]
-        ).properties(height=300, width=800, title=f"Annotation Coverage by '{secondary_scope_property}'")
+        base_row = (
+            alt.Chart(df_row_chart)
+            .mark_bar()
+            .encode(
+                x=alt.X(
+                    f"{secondary_scope_column}:N",
+                    title=f"{secondary_scope_property}",
+                    sort=alt.EncodingSortField(field=FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, order="descending"),
+                ),
+                y=alt.Y(f"{FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE}:Q", title=FieldNames.COVERAGE_TITLE_CASE),
+                color=alt.value("#4C78A8"),
+                tooltip=[
+                    alt.Tooltip(secondary_scope_column, title=secondary_scope_property),
+                    alt.Tooltip(
+                        FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE, title=FieldNames.COVERAGE_TITLE_CASE, format=".2f"
+                    ),
+                    alt.Tooltip(FieldNames.ACTUAL_COUNT_SNAKE_CASE, title=FieldNames.ACTUAL_ANNOTATIONS_TITLE_CASE),
+                    alt.Tooltip(
+                        FieldNames.POTENTIAL_COUNT_SNAKE_CASE, title=FieldNames.POTENTIAL_ANNOTATIONS_TITLE_CASE
+                    ),
+                    alt.Tooltip(FieldNames.TOTAL_POSSIBLE_SNAKE_CASE, title=FieldNames.TOTAL_ANNOTATIONS_TITLE_CASE),
+                ],
+            )
+            .properties(height=300, width=800, title=f"Annotation Coverage by '{secondary_scope_property}'")
+        )
 
         st.altair_chart(base_row, use_container_width=True)
 
+
 class PerFileFiltersComponent(Component):
-    def __init__(self, extraction_pipeline_cfg: ExtractionPipelineConfig, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
+    def __init__(
+        self,
+        extraction_pipeline_cfg: ExtractionPipelineConfig,
+        actual_df: pd.DataFrame | None = None,
+        potential_df: pd.DataFrame | None = None,
+    ):
         self.extraction_pipeline_cfg = extraction_pipeline_cfg
         self.actual_df = actual_df
         self.potential_df = potential_df
@@ -456,7 +574,9 @@ class PerFileFiltersComponent(Component):
             annotations_df, secondary_scope_property, FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE
         )
 
-        resource_type_options = DataProcessor.unique_filter_options(annotations_df, prefixed_file_resource_type_property)
+        resource_type_options = DataProcessor.unique_filter_options(
+            annotations_df, prefixed_file_resource_type_property
+        )
         primary_scope_options = DataProcessor.unique_filter_options(annotations_df, primary_scope_column)
         secondary_scope_options = DataProcessor.unique_filter_options(annotations_df, secondary_scope_column)
 
@@ -536,6 +656,7 @@ class PerFileFiltersComponent(Component):
             st.session_state["perfile_filters"] = next_filters
             st.rerun()
 
+
 class FileAggregationComponent(Component):
     def _apply_filters(
         self,
@@ -575,7 +696,12 @@ class FileAggregationComponent(Component):
 
         return df
 
-    def __init__(self, extraction_pipeline_cfg: ExtractionPipelineConfig, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
+    def __init__(
+        self,
+        extraction_pipeline_cfg: ExtractionPipelineConfig,
+        actual_df: pd.DataFrame | None = None,
+        potential_df: pd.DataFrame | None = None,
+    ):
         self.extraction_pipeline_cfg = extraction_pipeline_cfg
         self.actual_df = actual_df
         self.potential_df = potential_df
@@ -600,17 +726,29 @@ class FileAggregationComponent(Component):
 
         actual_counts = pd.DataFrame()
         if not filtered_actual_df.empty and file_external_id_property in filtered_actual_df.columns:
-            actual_counts = filtered_actual_df.groupby(file_external_id_property).size().reset_index(name=FieldNames.ACTUAL_COUNT_SNAKE_CASE)
+            actual_counts = (
+                filtered_actual_df.groupby(file_external_id_property)
+                .size()
+                .reset_index(name=FieldNames.ACTUAL_COUNT_SNAKE_CASE)
+            )
 
         potential_counts = pd.DataFrame()
         if not filtered_potential_df.empty and file_external_id_property in filtered_potential_df.columns:
-            potential_counts = filtered_potential_df.groupby(file_external_id_property).size().reset_index(name=FieldNames.POTENTIAL_COUNT_SNAKE_CASE)
+            potential_counts = (
+                filtered_potential_df.groupby(file_external_id_property)
+                .size()
+                .reset_index(name=FieldNames.POTENTIAL_COUNT_SNAKE_CASE)
+            )
 
         files_df = pd.DataFrame()
         if not actual_counts.empty:
             files_df = actual_counts.copy()
         if not potential_counts.empty:
-            files_df = files_df.merge(potential_counts, on=file_external_id_property, how="outer") if not files_df.empty else potential_counts.copy()
+            files_df = (
+                files_df.merge(potential_counts, on=file_external_id_property, how="outer")
+                if not files_df.empty
+                else potential_counts.copy()
+            )
 
         if files_df.empty:
             st.info("No files match current filters.")
@@ -620,17 +758,34 @@ class FileAggregationComponent(Component):
         if FieldNames.ACTUAL_COUNT_SNAKE_CASE not in files_df.columns:
             files_df[FieldNames.ACTUAL_COUNT_SNAKE_CASE] = 0
         else:
-            files_df[FieldNames.ACTUAL_COUNT_SNAKE_CASE] = files_df[FieldNames.ACTUAL_COUNT_SNAKE_CASE].fillna(0).astype(int)
+            files_df[FieldNames.ACTUAL_COUNT_SNAKE_CASE] = (
+                files_df[FieldNames.ACTUAL_COUNT_SNAKE_CASE].fillna(0).astype(int)
+            )
 
         if FieldNames.POTENTIAL_COUNT_SNAKE_CASE not in files_df.columns:
             files_df[FieldNames.POTENTIAL_COUNT_SNAKE_CASE] = 0
         else:
-            files_df[FieldNames.POTENTIAL_COUNT_SNAKE_CASE] = files_df[FieldNames.POTENTIAL_COUNT_SNAKE_CASE].fillna(0).astype(int)
+            files_df[FieldNames.POTENTIAL_COUNT_SNAKE_CASE] = (
+                files_df[FieldNames.POTENTIAL_COUNT_SNAKE_CASE].fillna(0).astype(int)
+            )
 
-        files_df[FieldNames.TOTAL_POSSIBLE_SNAKE_CASE] = files_df[FieldNames.ACTUAL_COUNT_SNAKE_CASE] + files_df[FieldNames.POTENTIAL_COUNT_SNAKE_CASE]
-        files_df[FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE] = files_df.apply(lambda r: (r[FieldNames.ACTUAL_COUNT_SNAKE_CASE] / r[FieldNames.TOTAL_POSSIBLE_SNAKE_CASE] * 100) if r[FieldNames.TOTAL_POSSIBLE_SNAKE_CASE] > 0 else 0.0, axis=1)
+        files_df[FieldNames.TOTAL_POSSIBLE_SNAKE_CASE] = (
+            files_df[FieldNames.ACTUAL_COUNT_SNAKE_CASE] + files_df[FieldNames.POTENTIAL_COUNT_SNAKE_CASE]
+        )
+        files_df[FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE] = files_df.apply(
+            lambda r: (
+                (r[FieldNames.ACTUAL_COUNT_SNAKE_CASE] / r[FieldNames.TOTAL_POSSIBLE_SNAKE_CASE] * 100)
+                if r[FieldNames.TOTAL_POSSIBLE_SNAKE_CASE] > 0
+                else 0.0
+            ),
+            axis=1,
+        )
 
-        sample_rows = pd.concat([filtered_actual_df, filtered_potential_df], ignore_index=True) if not filtered_actual_df.empty or not filtered_potential_df.empty else pd.DataFrame()
+        sample_rows = (
+            pd.concat([filtered_actual_df, filtered_potential_df], ignore_index=True)
+            if not filtered_actual_df.empty or not filtered_potential_df.empty
+            else pd.DataFrame()
+        )
         file_metadata_properties = []
 
         prefixed_file_resource_type_property = (
@@ -663,12 +818,18 @@ class FileAggregationComponent(Component):
                 file_metadata_properties.append(prefixed_source_id)
 
         if not sample_rows.empty and file_external_id_property in sample_rows.columns and file_metadata_properties:
-            meta = sample_rows.groupby(file_external_id_property).first().reset_index()[[file_external_id_property, *file_metadata_properties]]
+            meta = (
+                sample_rows.groupby(file_external_id_property)
+                .first()
+                .reset_index()[[file_external_id_property, *file_metadata_properties]]
+            )
             files_df = files_df.merge(meta, on=file_external_id_property, how="left")
 
         display_df = files_df.reset_index(drop=True)
         display_df.insert(0, FieldNames.SELECT_TITLE_CASE, False)
-        display_df[FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE] = display_df[FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE].round(2)
+        display_df[FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE] = display_df[
+            FieldNames.COVERAGE_PERCENTAGE_SNAKE_CASE
+        ].round(2)
 
         column_config = {
             FieldNames.SELECT_TITLE_CASE: st.column_config.CheckboxColumn(required=True),
@@ -705,7 +866,7 @@ class FileAggregationComponent(Component):
             key="perfile_files_editor",
             column_config=column_config,
             use_container_width=True,
-            hide_index=True
+            hide_index=True,
         )
 
         st.write(f"Row Count: {len(editable_data)}")
@@ -724,58 +885,21 @@ class FileAggregationComponent(Component):
 
         CoverageThresholdMetricsComponent(files_df).render()
 
+
 class PatternCatalogComponent(Component):
-    def __init__(self, client: CogniteClient | None = None, extraction_pipeline_cfg: ExtractionPipelineConfig | None = None):
+    def __init__(
+        self, client: CogniteClient | None = None, extraction_pipeline_cfg: ExtractionPipelineConfig | None = None
+    ):
         self.client = client
         self.extraction_pipeline_cfg = extraction_pipeline_cfg
 
-    def _save_manual_pattern_changes(self, edited_df) -> None:
+    def _save_manual_pattern_changes(
+        self, all_patterns: pd.DataFrame, visible_patterns: pd.DataFrame, edited_df: pd.DataFrame
+    ) -> None:
         pattern_scopes = st.session_state.get("manual_patterns_changes", set())
-
-        upserts = {}
-        deletes = []
-
-        for pattern_scope in pattern_scopes:
-            subset = edited_df.loc[edited_df[FieldNames.PATTERN_SCOPE_SNAKE_CASE] == pattern_scope]
-            raw_patterns = subset.to_dict(orient="records")
-
-            patterns: list[dict] = []
-
-            for raw_pattern in raw_patterns:
-                pattern_value = None
-                entity_type_value = None
-                resource_type_value = None
-
-                if FieldNames.SAMPLE_LOWER_CASE in raw_pattern:
-                    pattern_value = raw_pattern.get(FieldNames.SAMPLE_LOWER_CASE)
-
-                if FieldNames.ANNOTATION_TYPE_SNAKE_CASE in raw_pattern:
-                    entity_type_value = raw_pattern.get(FieldNames.ANNOTATION_TYPE_SNAKE_CASE)
-
-                    if entity_type_value == FieldNames.FILE_TITLE_CASE:
-                        entity_type_value = FieldNames.DIAGRAMS_FILE_LINK_CUSTOM_CASE
-                    else:
-                        entity_type_value = FieldNames.DIAGRAMS_ASSET_LINK_CUSTOM_CASE
-
-                if FieldNames.RESOURCE_TYPE_SNAKE_CASE in raw_pattern:
-                   resource_type_value = raw_pattern.get(FieldNames.RESOURCE_TYPE_SNAKE_CASE)
-
-                persist_pattern: dict = {
-                    FieldNames.SAMPLE_LOWER_CASE: pattern_value,
-                    FieldNames.RESOURCE_TYPE_SNAKE_CASE: resource_type_value,
-                    FieldNames.ANNOTATION_TYPE_SNAKE_CASE: entity_type_value,
-                    FieldNames.CREATED_BY_SNAKE_CASE: FieldNames.STREAMLIT_LOWER_CASE,
-                }
-
-                if FieldNames.RESOURCE_TYPE_SNAKE_CASE in raw_pattern:
-                    persist_pattern[FieldNames.RESOURCE_TYPE_SNAKE_CASE] = raw_pattern.get(FieldNames.RESOURCE_TYPE_SNAKE_CASE)
-
-                patterns.append(persist_pattern)
-
-            if not patterns:
-                deletes.append(pattern_scope)
-            else:
-                upserts[pattern_scope] = patterns
+        upserts, deletes = DataProcessor.manual_patterns_payload(
+            all_patterns, visible_patterns, edited_df, set(pattern_scopes)
+        )
 
         upserted_rows = 0
         deleted_rows = 0
@@ -787,14 +911,14 @@ class PatternCatalogComponent(Component):
             try:
                 upserted_rows = DataUpdater.upsert_manual_patterns(self.client, self.extraction_pipeline_cfg, upserts)
                 upserted_pattern_scopes = list(upserts.keys())
-            except Exception as e:
+            except CogniteAPIError as e:
                 st.error(f"Failed to upsert manual patterns: {e}")
 
         if deletes:
             try:
                 deleted_rows = DataUpdater.delete_manual_patterns(self.client, self.extraction_pipeline_cfg, deletes)
                 deleted_pattern_scopes = deletes
-            except Exception as e:
+            except CogniteAPIError as e:
                 st.error(f"Failed to delete manual patterns: {e}")
 
         total_scopes = len(upserted_pattern_scopes) + len(deleted_pattern_scopes)
@@ -803,7 +927,10 @@ class PatternCatalogComponent(Component):
             st.toast("No manual pattern changes to apply.", duration=15)
             st.session_state["manual_patterns_changes"] = set()
             return
-        st.toast(f"Manual patterns applied: {upserted_rows} rows upserted across {len(upserted_pattern_scopes)} scopes; {deleted_rows} rows deleted across {len(deleted_pattern_scopes)} scopes.", duration=15)
+        st.toast(
+            f"Manual patterns applied: {upserted_rows} rows upserted across {len(upserted_pattern_scopes)} scopes; {deleted_rows} rows deleted across {len(deleted_pattern_scopes)} scopes.",
+            duration=15,
+        )
 
         DataFetcher.fetch_manual_patterns.clear()
 
@@ -812,12 +939,10 @@ class PatternCatalogComponent(Component):
 
         st.rerun()
 
-
     def _reset_manual_pattern_changes(self) -> None:
         st.session_state["manual_patterns_changes"] = set()
         st.session_state["manual_patterns_editor_key"] = f"manual_patterns_editor_{uuid.uuid4().hex}"
         st.rerun()
-
 
     def render(self) -> None:
         st.markdown("### Pattern Management")
@@ -839,36 +964,101 @@ class PatternCatalogComponent(Component):
                 return []
             return sorted(df[col].dropna().unique().tolist())
 
-        manual_patterns_entity_type_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(manual_df, FieldNames.ANNOTATION_TYPE_SNAKE_CASE)] if manual_df is not None else [FieldNames.ALL_TITLE_CASE]
-        manual_patterns_pattern_scope_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(manual_df, FieldNames.PATTERN_SCOPE_SNAKE_CASE)] if manual_df is not None else [FieldNames.ALL_TITLE_CASE]
-        manual_patterns_resource_type_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(manual_df, FieldNames.RESOURCE_TYPE_SNAKE_CASE)] if manual_df is not None else [FieldNames.ALL_TITLE_CASE]
+        manual_patterns_entity_type_opts = (
+            [FieldNames.ALL_TITLE_CASE, *_unique_sorted(manual_df, FieldNames.ANNOTATION_TYPE_SNAKE_CASE)]
+            if manual_df is not None
+            else [FieldNames.ALL_TITLE_CASE]
+        )
+        manual_patterns_pattern_scope_opts = (
+            [FieldNames.ALL_TITLE_CASE, *_unique_sorted(manual_df, FieldNames.PATTERN_SCOPE_SNAKE_CASE)]
+            if manual_df is not None
+            else [FieldNames.ALL_TITLE_CASE]
+        )
+        manual_patterns_resource_type_opts = (
+            [FieldNames.ALL_TITLE_CASE, *_unique_sorted(manual_df, FieldNames.RESOURCE_TYPE_SNAKE_CASE)]
+            if manual_df is not None
+            else [FieldNames.ALL_TITLE_CASE]
+        )
 
-        automatic_patterns_entity_type_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(automatic_df, FieldNames.ANNOTATION_TYPE_SNAKE_CASE)] if automatic_df is not None else [FieldNames.ALL_TITLE_CASE]
-        automatic_patterns_pattern_scope_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(automatic_df, FieldNames.PATTERN_SCOPE_SNAKE_CASE)] if automatic_df is not None else [FieldNames.ALL_TITLE_CASE]
-        automatic_patterns_resource_type_opts = [FieldNames.ALL_TITLE_CASE, *_unique_sorted(automatic_df, FieldNames.RESOURCE_TYPE_SNAKE_CASE)] if automatic_df is not None else [FieldNames.ALL_TITLE_CASE]
+        automatic_patterns_entity_type_opts = (
+            [FieldNames.ALL_TITLE_CASE, *_unique_sorted(automatic_df, FieldNames.ANNOTATION_TYPE_SNAKE_CASE)]
+            if automatic_df is not None
+            else [FieldNames.ALL_TITLE_CASE]
+        )
+        automatic_patterns_pattern_scope_opts = (
+            [FieldNames.ALL_TITLE_CASE, *_unique_sorted(automatic_df, FieldNames.PATTERN_SCOPE_SNAKE_CASE)]
+            if automatic_df is not None
+            else [FieldNames.ALL_TITLE_CASE]
+        )
+        automatic_patterns_resource_type_opts = (
+            [FieldNames.ALL_TITLE_CASE, *_unique_sorted(automatic_df, FieldNames.RESOURCE_TYPE_SNAKE_CASE)]
+            if automatic_df is not None
+            else [FieldNames.ALL_TITLE_CASE]
+        )
 
         left, right = st.columns(2)
 
         with left:
             st.subheader("Manual Patterns")
 
-            manual_patterns_entity_type_filter_value = st.selectbox(FieldNames.ENTITY_TYPE_TITLE_CASE, manual_patterns_entity_type_opts, index=0 if manual_patterns_entity_type_opts else None, key="pattern_manual_entity_type_filter")
-            manual_patterns_pattern_scope_filter_value = st.selectbox(FieldNames.PATTERN_SCOPE_TITLE_CASE, manual_patterns_pattern_scope_opts, index=0 if manual_patterns_pattern_scope_opts else None, key="pattern_manual_pattern_scope_filter")
-            manual_patterns_resource_type_filter_value = st.selectbox(FieldNames.RESOURCE_TYPE_TITLE_CASE, manual_patterns_resource_type_opts, index=0 if manual_patterns_resource_type_opts else None, key="pattern_manual_resource_type_filter")
+            manual_patterns_entity_type_filter_value = st.selectbox(
+                FieldNames.ENTITY_TYPE_TITLE_CASE,
+                manual_patterns_entity_type_opts,
+                index=0 if manual_patterns_entity_type_opts else None,
+                key="pattern_manual_entity_type_filter",
+            )
+            manual_patterns_pattern_scope_filter_value = st.selectbox(
+                FieldNames.PATTERN_SCOPE_TITLE_CASE,
+                manual_patterns_pattern_scope_opts,
+                index=0 if manual_patterns_pattern_scope_opts else None,
+                key="pattern_manual_pattern_scope_filter",
+            )
+            manual_patterns_resource_type_filter_value = st.selectbox(
+                FieldNames.RESOURCE_TYPE_TITLE_CASE,
+                manual_patterns_resource_type_opts,
+                index=0 if manual_patterns_resource_type_opts else None,
+                key="pattern_manual_resource_type_filter",
+            )
 
         with right:
             st.subheader("Automatic Patterns")
-    
-            automatic_patterns_entity_type_filter_value = st.selectbox(FieldNames.ENTITY_TYPE_TITLE_CASE, automatic_patterns_entity_type_opts, index=0, key="pattern_automatic_entity_type_filter")
-            automatic_patterns_pattern_scope_filter_value = st.selectbox(FieldNames.PATTERN_SCOPE_TITLE_CASE, automatic_patterns_pattern_scope_opts, index=0, key="pattern_automatic_pattern_scope_filter")
-            automatic_patterns_resource_type_filter_value = st.selectbox(FieldNames.RESOURCE_TYPE_TITLE_CASE, automatic_patterns_resource_type_opts, index=0, key="pattern_automatic_resource_type_filter")
 
-        def _apply_side_filters(df: pd.DataFrame | None, entity_type_filter_val: str, pattern_scope_filter_val: str, resource_type_filter_val: str | None = None) -> pd.DataFrame:
+            automatic_patterns_entity_type_filter_value = st.selectbox(
+                FieldNames.ENTITY_TYPE_TITLE_CASE,
+                automatic_patterns_entity_type_opts,
+                index=0,
+                key="pattern_automatic_entity_type_filter",
+            )
+            automatic_patterns_pattern_scope_filter_value = st.selectbox(
+                FieldNames.PATTERN_SCOPE_TITLE_CASE,
+                automatic_patterns_pattern_scope_opts,
+                index=0,
+                key="pattern_automatic_pattern_scope_filter",
+            )
+            automatic_patterns_resource_type_filter_value = st.selectbox(
+                FieldNames.RESOURCE_TYPE_TITLE_CASE,
+                automatic_patterns_resource_type_opts,
+                index=0,
+                key="pattern_automatic_resource_type_filter",
+            )
+
+        def _apply_side_filters(
+            df: pd.DataFrame | None,
+            entity_type_filter_val: str,
+            pattern_scope_filter_val: str,
+            resource_type_filter_val: str | None = None,
+        ) -> pd.DataFrame:
             if df is None or df.empty:
                 return pd.DataFrame()
-            entity_type_filter_val = None if entity_type_filter_val == FieldNames.ALL_TITLE_CASE else entity_type_filter_val
-            pattern_scope_filter_val = None if pattern_scope_filter_val == FieldNames.ALL_TITLE_CASE else pattern_scope_filter_val
-            resource_type_filter_val = None if resource_type_filter_val == FieldNames.ALL_TITLE_CASE else resource_type_filter_val
+            entity_type_filter_val = (
+                None if entity_type_filter_val == FieldNames.ALL_TITLE_CASE else entity_type_filter_val
+            )
+            pattern_scope_filter_val = (
+                None if pattern_scope_filter_val == FieldNames.ALL_TITLE_CASE else pattern_scope_filter_val
+            )
+            resource_type_filter_val = (
+                None if resource_type_filter_val == FieldNames.ALL_TITLE_CASE else resource_type_filter_val
+            )
 
             if entity_type_filter_val and FieldNames.ANNOTATION_TYPE_SNAKE_CASE in df.columns:
                 df = df[df[FieldNames.ANNOTATION_TYPE_SNAKE_CASE] == entity_type_filter_val]
@@ -878,14 +1068,28 @@ class PatternCatalogComponent(Component):
                 df = df[df[FieldNames.RESOURCE_TYPE_SNAKE_CASE] == resource_type_filter_val]
             return df
 
-        manual_df = _apply_side_filters(manual_df, manual_patterns_entity_type_filter_value, manual_patterns_pattern_scope_filter_value, manual_patterns_resource_type_filter_value)
-        automatic_df = _apply_side_filters(automatic_df, automatic_patterns_entity_type_filter_value, automatic_patterns_pattern_scope_filter_value, automatic_patterns_resource_type_filter_value)
+        all_manual_df = manual_df if manual_df is not None else pd.DataFrame()
+        manual_df = _apply_side_filters(
+            manual_df,
+            manual_patterns_entity_type_filter_value,
+            manual_patterns_pattern_scope_filter_value,
+            manual_patterns_resource_type_filter_value,
+        )
+        automatic_df = _apply_side_filters(
+            automatic_df,
+            automatic_patterns_entity_type_filter_value,
+            automatic_patterns_pattern_scope_filter_value,
+            automatic_patterns_resource_type_filter_value,
+        )
 
         manual_column_config = {
             FieldNames.SAMPLE_LOWER_CASE: FieldNames.PATTERN_TITLE_CASE,
             FieldNames.RESOURCE_TYPE_SNAKE_CASE: FieldNames.RESOURCE_TYPE_TITLE_CASE,
             FieldNames.PATTERN_SCOPE_SNAKE_CASE: FieldNames.PATTERN_SCOPE_TITLE_CASE,
-            FieldNames.ANNOTATION_TYPE_SNAKE_CASE: st.column_config.SelectboxColumn(label=FieldNames.ENTITY_TYPE_TITLE_CASE, options=[FieldNames.FILE_TITLE_CASE, FieldNames.ASSET_TITLE_CASE]),
+            FieldNames.ANNOTATION_TYPE_SNAKE_CASE: st.column_config.SelectboxColumn(
+                label=FieldNames.ENTITY_TYPE_TITLE_CASE,
+                options=[FieldNames.FILE_TITLE_CASE, FieldNames.ASSET_TITLE_CASE],
+            ),
         }
 
         automatic_column_config = {
@@ -918,7 +1122,9 @@ class PatternCatalogComponent(Component):
                 columns = [c for c in list(manual_column_config.keys()) if c in manual_df.columns]
                 display_df = manual_df.loc[:, columns]
 
-            capture_handler = DataEditorChangeCaptureFactory.make_change_capture_handler(display_df, manual_patterns_editor_key, FieldNames.PATTERN_SCOPE_SNAKE_CASE, "manual_patterns_changes")
+            capture_handler = DataEditorChangeCaptureFactory.make_change_capture_handler(
+                display_df, manual_patterns_editor_key, FieldNames.PATTERN_SCOPE_SNAKE_CASE, "manual_patterns_changes"
+            )
 
             edited = st.data_editor(
                 display_df,
@@ -934,7 +1140,7 @@ class PatternCatalogComponent(Component):
 
             with col_save:
                 if st.button("Save changes", key="manual_patterns_save_btn"):
-                    self._save_manual_pattern_changes(edited)
+                    self._save_manual_pattern_changes(all_manual_df, display_df, edited)
                     st.session_state["manual_patterns_changes"] = set()
             with col_reset:
                 if st.button("Reset changes", key="manual_patterns_reset_btn"):
@@ -953,6 +1159,7 @@ class PatternCatalogComponent(Component):
                     column_config=automatic_column_config,
                     hide_index=True,
                 )
+
 
 class CoverageThresholdMetricsComponent(Component):
     def __init__(self, files_df: pd.DataFrame | None = None):
@@ -979,7 +1186,9 @@ class CoverageThresholdMetricsComponent(Component):
             st.info("Coverage column not present on provided DataFrame.")
             return
 
-        files_df[coverage_percentage_property] = pd.to_numeric(files_df[coverage_percentage_property], errors='coerce').fillna(0.0)
+        files_df[coverage_percentage_property] = pd.to_numeric(
+            files_df[coverage_percentage_property], errors="coerce"
+        ).fillna(0.0)
 
         total_files = len(files_df)
 
@@ -1046,23 +1255,34 @@ class CoverageThresholdMetricsComponent(Component):
         threshold_df["sort_order"] = threshold_df["key"].map(sort_order_map)
 
         labels_order = [r["threshold_label"] for r in threshold_rows]
-        threshold_df["threshold_label"] = pd.Categorical(threshold_df["threshold_label"], categories=labels_order, ordered=True)
+        threshold_df["threshold_label"] = pd.Categorical(
+            threshold_df["threshold_label"], categories=labels_order, ordered=True
+        )
 
-        base = alt.Chart(threshold_df).mark_bar().encode(
-            x=alt.X("pct:Q", title="% of files", axis=alt.Axis(format=".1f")),
-            y=alt.Y("threshold_label:N", title=None, scale=alt.Scale(domain=labels_order)),
-            color=alt.Color("key:N", scale=alt.Scale(domain=order, range=colors), legend=None),
-            tooltip=[
-                alt.Tooltip("count:Q", title="Files"),
-                alt.Tooltip("pct:Q", title="Percent", format=".1f"),
-                alt.Tooltip("threshold_label:N", title="Threshold"),
-            ],
-        ).properties(height=180, width=600)
+        base = (
+            alt.Chart(threshold_df)
+            .mark_bar()
+            .encode(
+                x=alt.X("pct:Q", title="% of files", axis=alt.Axis(format=".1f")),
+                y=alt.Y("threshold_label:N", title=None, scale=alt.Scale(domain=labels_order)),
+                color=alt.Color("key:N", scale=alt.Scale(domain=order, range=colors), legend=None),
+                tooltip=[
+                    alt.Tooltip("count:Q", title="Files"),
+                    alt.Tooltip("pct:Q", title="Percent", format=".1f"),
+                    alt.Tooltip("threshold_label:N", title="Threshold"),
+                ],
+            )
+            .properties(height=180, width=600)
+        )
 
-        count_text = alt.Chart(threshold_df).mark_text(dx=7, align="left", baseline="middle", color="black").encode(
-            x=alt.X("pct:Q"),
-            y=alt.Y("threshold_label:N", scale=alt.Scale(domain=labels_order)),
-            text=alt.Text("count:Q", format=",")
+        count_text = (
+            alt.Chart(threshold_df)
+            .mark_text(dx=7, align="left", baseline="middle", color="black")
+            .encode(
+                x=alt.X("pct:Q"),
+                y=alt.Y("threshold_label:N", scale=alt.Scale(domain=labels_order)),
+                text=alt.Text("count:Q", format=","),
+            )
         )
 
         chart = (base + count_text).configure_view(strokeWidth=0)

@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from cognite.client import CogniteClient
 from dependencies import create_logger_service
 from stages import finalize, launch, prepare, promote
+from stages.stage_runtime import FunctionInput
 from usage import report_usage
 
 StageHandler = Callable[[dict, dict, CogniteClient], dict]
@@ -48,14 +49,15 @@ def peak_memory_report(stage: str, log_level: str) -> Iterator[None]:
 
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
-    """Run the stage named in the function input."""
-    stage = data.get("stage")
-    if stage not in STAGE_HANDLERS:
-        allowed = ", ".join(STAGE_HANDLERS)
-        raise ValueError(f"Invalid or missing 'stage'. Expected one of: {allowed}")
+    """Run the stage named in the function input.
+
+    Raises:
+        ValidationError: When `stage`, `ExtractionPipelineExtId` or `logLevel` is missing or invalid.
+    """
+    function_input = FunctionInput.model_validate(data)
     report_usage(client)
-    with peak_memory_report(stage, data.get("logLevel", "INFO")):
-        return STAGE_HANDLERS[stage](data, function_call_info, client)
+    with peak_memory_report(function_input.stage, function_input.log_level):
+        return STAGE_HANDLERS[function_input.stage](data, function_call_info, client)
 
 
 if __name__ == "__main__":

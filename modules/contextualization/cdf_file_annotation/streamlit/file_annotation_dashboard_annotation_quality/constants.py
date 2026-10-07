@@ -98,7 +98,6 @@ class FieldNames:
     PATTERNS_LOWER_CASE = "patterns"
     SAMPLE_LOWER_CASE = "sample"
 
-
     # -- Pascal Case Fields --
     PROMOTED_AUTO_PASCAL_CASE = "PromotedAuto"
     PROMOTE_ATTEMPTED_PASCAL_CASE = "PromoteAttempted"

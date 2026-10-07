@@ -2,6 +2,8 @@
 
 from typing import Final
 
+# Written as sourceCreatedUser on the instances and RAW rows this function creates; cleanup matches on it.
+FUNCTION_EXTERNAL_ID: Final = "fn_file_annotation"
 BATCH_SIZE: Final = 50
 PAGE_RANGE: Final = 50
 MAX_RETRY_ATTEMPTS: Final = 3
@@ -10,7 +12,11 @@ PREPARE_FILE_LIMIT: Final = 10000
 LAUNCH_STATE_LIMIT: Final = 1000
 QUERY_PAGE_SIZE: Final = 1000
 PROMOTE_CANDIDATE_LIMIT: Final = 500
+PROMOTE_RAW_FETCH_WORKERS: Final = 8  # RAW has no multi-key retrieve; rows of a batch are read in parallel
 FUNCTION_TIME_BUDGET_MINUTES: Final = 7
+DEBUG_RESPONSE_PREVIEW_CHARS: Final = 2000  # DEBUG logs show at most this much of a detect job response
+# The SDK already retried these; a stage waits and tries once more on the next loop iteration.
+TRANSIENT_HTTP_CODES: Final = frozenset({408, 429, 500, 502, 503, 504})
 LOCAL_RATE_LIMIT_SLEEP_SECONDS: Final = 900
 # A stage retries a run whose query timed out this many times in a row, waiting 15s, 30s, 60s, then fails.
 QUERY_TIMEOUT_MAX_RETRIES: Final = 3
@@ -60,7 +66,7 @@ TARGET_ANNOTATION_TYPE: Final = "diagrams.AssetLink"
 
 # Must match the module's raw/ resources, the access group's RAW scope, the extraction pipeline
 # rawTables list, the transformations, and the Annotation Quality dashboard.
-RAW_DB: Final = "db_file_annotation"
+RAW_DB: Final = "raw_file_annotation"
 RAW_TABLE_CACHE: Final = "annotation_entities_cache"
 RAW_TABLE_DOC_TAG: Final = "annotation_documents_tags"
 RAW_TABLE_DOC_DOC: Final = "annotation_documents_docs"

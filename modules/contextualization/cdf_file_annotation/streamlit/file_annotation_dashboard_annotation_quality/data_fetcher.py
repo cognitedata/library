@@ -14,11 +14,13 @@ from data_structures import (
     ExtractionPipelineConfig,
 )
 
+READ_BATCH_SIZE = 1000
+
 
 class DataFetcher:
     @staticmethod
     def _call_with_retries(
-        func: Callable[..., object], *args: object, max_attempts: int = 100, delay_seconds: float = 10.0, **kwargs: object
+        func: Callable[..., object], *args: object, max_attempts: int = 3, delay_seconds: float = 10.0, **kwargs: object
     ) -> object:
         attempt = 0
 
@@ -37,19 +39,21 @@ class DataFetcher:
     @staticmethod
     @st.cache_data(ttl=7200)
     def find_pipelines(_client: CogniteClient, name_filter: str = "file_annotation") -> list[str]:
-        all_pipelines = DataFetcher._call_with_retries(func=_client.extraction_pipelines.list, limit=-1)
-
-        if not all_pipelines:
-            return []
-
-        filtered_ids = [p.external_id for p in all_pipelines if name_filter in p.external_id]
+        filtered_ids = [
+            pipeline.external_id
+            for pipelines in _client.extraction_pipelines(chunk_size=READ_BATCH_SIZE)
+            for pipeline in pipelines
+            if name_filter in pipeline.external_id
+        ]
 
         return sorted(filtered_ids)
 
     @staticmethod
     @st.cache_data(ttl=7200)
     def load_pipeline_config(_client: CogniteClient, pipeline_external_id: str) -> dict | None:
-        ep_configuration = DataFetcher._call_with_retries(func=_client.extraction_pipelines.config.retrieve, external_id=pipeline_external_id)
+        ep_configuration = DataFetcher._call_with_retries(
+            func=_client.extraction_pipelines.config.retrieve, external_id=pipeline_external_id
+        )
 
         if not ep_configuration:
             return None
@@ -57,19 +61,21 @@ class DataFetcher:
         return yaml.safe_load(ep_configuration.config)
 
     @staticmethod
-    def fetch_raw_table_as_dataframe(_client: CogniteClient, db_name: str, table_name: str, columns: list[str] | None = None) -> pd.DataFrame:
-        rows = DataFetcher._call_with_retries(func=_client.raw.rows.list,
-            db_name=db_name,
-            table_name=table_name,
-            columns=columns,
-            limit=-1
-        )
+    def fetch_raw_table_as_dataframe(
+        _client: CogniteClient, db_name: str, table_name: str, columns: list[str] | None = None
+    ) -> pd.DataFrame:
+        chunks = [
+            rows.to_pandas()
+            for rows in _client.raw.rows(db_name, table_name, chunk_size=READ_BATCH_SIZE, columns=columns)
+        ]
 
-        return rows.to_pandas() if rows else None
+        return pd.concat(chunks) if chunks else pd.DataFrame(columns=columns)
 
     @staticmethod
     @st.cache_data(ttl=7200)
-    def fetch_annotations(_client: CogniteClient, extraction_pipeline_cfg: ExtractionPipelineConfig) -> AnnotationFrames:
+    def fetch_annotations(
+        _client: CogniteClient, extraction_pipeline_cfg: ExtractionPipelineConfig
+    ) -> AnnotationFrames:
         db_name = extraction_pipeline_cfg.raw_db
         pattern_tags_tbl_name = extraction_pipeline_cfg.raw_table_pattern_tags
         asset_tags_tbl_name = extraction_pipeline_cfg.raw_table_asset_tags
@@ -97,18 +103,12 @@ class DataFetcher:
 
         if db_name and asset_tags_tbl_name:
             actual_df = DataFetcher.fetch_raw_table_as_dataframe(
-                _client,
-                db_name=db_name,
-                table_name=asset_tags_tbl_name,
-                columns=annotation_columns
+                _client, db_name=db_name, table_name=asset_tags_tbl_name, columns=annotation_columns
             )
 
         if db_name and file_tags_tbl_name:
             docs_df = DataFetcher.fetch_raw_table_as_dataframe(
-                _client,
-                db_name=db_name,
-                table_name=file_tags_tbl_name,
-                columns=annotation_columns
+                _client, db_name=db_name, table_name=file_tags_tbl_name, columns=annotation_columns
             )
 
             if docs_df is not None and not docs_df.empty:
@@ -124,10 +124,7 @@ class DataFetcher:
 
         if db_name and pattern_tags_tbl_name:
             potential_df = DataFetcher.fetch_raw_table_as_dataframe(
-                _client,
-                db_name=db_name,
-                table_name=pattern_tags_tbl_name,
-                columns=annotation_columns
+                _client, db_name=db_name, table_name=pattern_tags_tbl_name, columns=annotation_columns
             )
             potential_df = DataFetcher._filter_empty_rows(potential_df)
 
@@ -146,7 +143,9 @@ class DataFetcher:
                         for col in actual_df.columns:
                             if col not in approved_rows.columns:
                                 approved_rows[col] = None
-                        actual_df = pd.concat([actual_df, approved_rows[actual_df.columns]], ignore_index=True, sort=False)
+                        actual_df = pd.concat(
+                            [actual_df, approved_rows[actual_df.columns]], ignore_index=True, sort=False
+                        )
                     else:
                         actual_df = approved_rows.reset_index(drop=True)
                     potential_df = potential_df[~approved_mask].reset_index(drop=True)
@@ -193,7 +192,12 @@ class DataFetcher:
 
     @staticmethod
     @st.cache_data(ttl=7200)
-    def fetch_entities_metadata(_client: CogniteClient, extraction_pipeline_cfg: ExtractionPipelineConfig | None = None, entity_type: str | None = None, _filter_expression: object | None = None):
+    def fetch_entities_metadata(
+        _client: CogniteClient,
+        extraction_pipeline_cfg: ExtractionPipelineConfig | None = None,
+        entity_type: str | None = None,
+        _filter_expression: object | None = None,
+    ):
         entity_view_cfg = None
         entity_resource_type_property = None
         primary_scope_property = None
@@ -230,14 +234,12 @@ class DataFetcher:
 
         entities_df = pd.DataFrame(columns=[FieldNames.EXTERNAL_ID_CAMEL_CASE, *metadata_columns])
 
-        for nodes in DataFetcher._call_with_retries(
-            func=_client.data_modeling.instances,
+        for nodes in _client.data_modeling.instances(
+            chunk_size=READ_BATCH_SIZE,
             instance_type="node",
             space=entity_space,
             sources=entity_sources,
             filter=_filter_expression,
-            chunk_size=1000,
-            limit=-1,
         ):
             chunk_rows: list[dict] = []
             for node in nodes:
@@ -263,7 +265,9 @@ class DataFetcher:
 
     @staticmethod
     @st.cache_data(ttl=7200)
-    def fetch_manual_patterns(_client: CogniteClient, extraction_pipeline_cfg: ExtractionPipelineConfig) -> pd.DataFrame:
+    def fetch_manual_patterns(
+        _client: CogniteClient, extraction_pipeline_cfg: ExtractionPipelineConfig
+    ) -> pd.DataFrame:
         if extraction_pipeline_cfg is None:
             return pd.DataFrame()
 
@@ -277,7 +281,7 @@ class DataFetcher:
 
         if df is None or df.empty:
             return pd.DataFrame()
-        
+
         rows: list[dict] = []
 
         for key, r in df.iterrows():
@@ -288,22 +292,19 @@ class DataFetcher:
                 sample_val = pattern.get(FieldNames.SAMPLE_LOWER_CASE)
                 resource_type = pattern.get(FieldNames.RESOURCE_TYPE_SNAKE_CASE)
                 annotation_type = pattern.get(FieldNames.ANNOTATION_TYPE_SNAKE_CASE)
+                created_by = pattern.get(FieldNames.CREATED_BY_SNAKE_CASE)
 
-                if isinstance(sample_val, (list, tuple, set)):
-                    for s in sample_val:
-                        rows.append({
+                samples = sample_val if isinstance(sample_val, (list, tuple, set)) else [sample_val]
+                for s in samples:
+                    rows.append(
+                        {
                             FieldNames.SAMPLE_LOWER_CASE: s,
                             FieldNames.RESOURCE_TYPE_SNAKE_CASE: resource_type,
                             FieldNames.ANNOTATION_TYPE_SNAKE_CASE: annotation_type,
                             FieldNames.PATTERN_SCOPE_SNAKE_CASE: pattern_scope,
-                        })
-                else:
-                    rows.append({
-                        FieldNames.SAMPLE_LOWER_CASE: sample_val,
-                        FieldNames.RESOURCE_TYPE_SNAKE_CASE: resource_type,
-                        FieldNames.ANNOTATION_TYPE_SNAKE_CASE: annotation_type,
-                        FieldNames.PATTERN_SCOPE_SNAKE_CASE: pattern_scope,
-                    })
+                            FieldNames.CREATED_BY_SNAKE_CASE: created_by,
+                        }
+                    )
 
         out = pd.DataFrame(rows)
 
@@ -311,9 +312,11 @@ class DataFetcher:
             return out
 
         out[FieldNames.ANNOTATION_TYPE_SNAKE_CASE] = out[FieldNames.ANNOTATION_TYPE_SNAKE_CASE].apply(
-            lambda x:
-                FieldNames.ASSET_TITLE_CASE if x == FieldNames.DIAGRAMS_ASSET_LINK_CUSTOM_CASE
+            lambda x: (
+                FieldNames.ASSET_TITLE_CASE
+                if x == FieldNames.DIAGRAMS_ASSET_LINK_CUSTOM_CASE
                 else (FieldNames.FILE_TITLE_CASE if x == FieldNames.DIAGRAMS_FILE_LINK_CUSTOM_CASE else None)
+            )
         )
 
         out = out.drop_duplicates().reset_index(drop=True)
@@ -322,7 +325,9 @@ class DataFetcher:
 
     @staticmethod
     @st.cache_data(ttl=7200)
-    def fetch_automatic_patterns(_client: CogniteClient, extraction_pipeline_cfg: ExtractionPipelineConfig) -> pd.DataFrame:
+    def fetch_automatic_patterns(
+        _client: CogniteClient, extraction_pipeline_cfg: ExtractionPipelineConfig
+    ) -> pd.DataFrame:
         if extraction_pipeline_cfg is None:
             return pd.DataFrame()
 
@@ -338,7 +343,7 @@ class DataFetcher:
             return pd.DataFrame()
 
         rows: list[dict] = []
- 
+
         for key, r in df.iterrows():
             pattern_scope = key
 
@@ -352,21 +357,25 @@ class DataFetcher:
 
                 if isinstance(sample_val, (list, tuple, set)):
                     for s in sample_val:
-                        rows.append({
-                            FieldNames.SAMPLE_LOWER_CASE: s,
+                        rows.append(
+                            {
+                                FieldNames.SAMPLE_LOWER_CASE: s,
+                                FieldNames.RESOURCE_TYPE_SNAKE_CASE: resource_type,
+                                FieldNames.ANNOTATION_TYPE_SNAKE_CASE: annotation_type,
+                                FieldNames.PATTERN_SCOPE_SNAKE_CASE: pattern_scope,
+                                FieldNames.ENTITY_TYPE_SNAKE_CASE: FieldNames.FILE_TITLE_CASE,
+                            }
+                        )
+                else:
+                    rows.append(
+                        {
+                            FieldNames.SAMPLE_LOWER_CASE: sample_val,
                             FieldNames.RESOURCE_TYPE_SNAKE_CASE: resource_type,
                             FieldNames.ANNOTATION_TYPE_SNAKE_CASE: annotation_type,
                             FieldNames.PATTERN_SCOPE_SNAKE_CASE: pattern_scope,
                             FieldNames.ENTITY_TYPE_SNAKE_CASE: FieldNames.FILE_TITLE_CASE,
-                        })
-                else:
-                    rows.append({
-                        FieldNames.SAMPLE_LOWER_CASE: sample_val,
-                        FieldNames.RESOURCE_TYPE_SNAKE_CASE: resource_type,
-                        FieldNames.ANNOTATION_TYPE_SNAKE_CASE: annotation_type,
-                        FieldNames.PATTERN_SCOPE_SNAKE_CASE: pattern_scope,
-                        FieldNames.ENTITY_TYPE_SNAKE_CASE: FieldNames.FILE_TITLE_CASE,
-                    })
+                        }
+                    )
 
             for asset_sample in asset_samples:
                 sample_val = asset_sample.get(FieldNames.SAMPLE_LOWER_CASE)
@@ -375,21 +384,25 @@ class DataFetcher:
 
                 if isinstance(sample_val, (list, tuple, set)):
                     for s in sample_val:
-                        rows.append({
-                            FieldNames.SAMPLE_LOWER_CASE: s,
+                        rows.append(
+                            {
+                                FieldNames.SAMPLE_LOWER_CASE: s,
+                                FieldNames.RESOURCE_TYPE_SNAKE_CASE: resource_type,
+                                FieldNames.ANNOTATION_TYPE_SNAKE_CASE: annotation_type,
+                                FieldNames.PATTERN_SCOPE_SNAKE_CASE: pattern_scope,
+                                FieldNames.ENTITY_TYPE_SNAKE_CASE: FieldNames.ASSET_TITLE_CASE,
+                            }
+                        )
+                else:
+                    rows.append(
+                        {
+                            FieldNames.SAMPLE_LOWER_CASE: sample_val,
                             FieldNames.RESOURCE_TYPE_SNAKE_CASE: resource_type,
                             FieldNames.ANNOTATION_TYPE_SNAKE_CASE: annotation_type,
                             FieldNames.PATTERN_SCOPE_SNAKE_CASE: pattern_scope,
                             FieldNames.ENTITY_TYPE_SNAKE_CASE: FieldNames.ASSET_TITLE_CASE,
-                        })
-                else:
-                    rows.append({
-                        FieldNames.SAMPLE_LOWER_CASE: sample_val,
-                        FieldNames.RESOURCE_TYPE_SNAKE_CASE: resource_type,
-                        FieldNames.ANNOTATION_TYPE_SNAKE_CASE: annotation_type,
-                        FieldNames.PATTERN_SCOPE_SNAKE_CASE: pattern_scope,
-                        FieldNames.ENTITY_TYPE_SNAKE_CASE: FieldNames.ASSET_TITLE_CASE,
-                    })
+                        }
+                    )
 
         out = pd.DataFrame(rows)
 
@@ -397,9 +410,11 @@ class DataFetcher:
             return out
 
         out[FieldNames.ANNOTATION_TYPE_SNAKE_CASE] = out[FieldNames.ANNOTATION_TYPE_SNAKE_CASE].apply(
-            lambda x:
-                FieldNames.ASSET_TITLE_CASE if x == FieldNames.DIAGRAMS_ASSET_LINK_CUSTOM_CASE
+            lambda x: (
+                FieldNames.ASSET_TITLE_CASE
+                if x == FieldNames.DIAGRAMS_ASSET_LINK_CUSTOM_CASE
                 else (FieldNames.FILE_TITLE_CASE if x == FieldNames.DIAGRAMS_FILE_LINK_CUSTOM_CASE else None)
+            )
         )
 
         out = out.drop_duplicates().reset_index(drop=True)

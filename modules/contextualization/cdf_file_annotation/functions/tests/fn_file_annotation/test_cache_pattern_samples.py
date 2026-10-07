@@ -6,14 +6,14 @@ from types import SimpleNamespace
 
 sys.path.append(str(Path(__file__).parent))
 
-from services.EntityCacheService import (
+from services.entity_cache_service import (
     GeneralCacheService,
     count_pattern_sample_strings,
     detectable_entities,
     entities_missing_search_property,
     split_entities_by_kind,
 )
-from services.LoggerService import CogniteFunctionLogger
+from services.logger_service import CogniteFunctionLogger
 
 
 def _cache_service(*, structural_auto_patterns: bool) -> GeneralCacheService:
@@ -35,7 +35,7 @@ def _cache_service(*, structural_auto_patterns: bool) -> GeneralCacheService:
             )
         ),
     )
-    service.db_name = "db_file_annotation"
+    service.db_name = "raw_file_annotation"
     service.file_view = SimpleNamespace(external_id="CogniteFile", search_property="aliases")
     service.target_entities_view = SimpleNamespace(external_id="CogniteAsset", search_property="aliases")
     return service
@@ -150,7 +150,7 @@ def test_empty_normalize_patterns_does_not_filter_structural_samples() -> None:
 
 
 def test_config_wires_pattern_flags_from_pattern_promote() -> None:
-    from services.ConfigService import Config
+    from services.config_service import Config
 
     config = Config.model_validate(
         {
@@ -176,7 +176,7 @@ def test_config_wires_pattern_flags_from_pattern_promote() -> None:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",

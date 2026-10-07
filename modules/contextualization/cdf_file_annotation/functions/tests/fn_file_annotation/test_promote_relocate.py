@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 sys.path.append(str(Path(__file__).parent))
 
 from cognite.client.data_classes.data_modeling import DirectRelationReference, EdgeApply, EdgeId, NodeOrEdgeData
-from services.ConfigService import Config
-from services.PromoteService import GeneralPromoteService, MatchedEntity
+from services.config_service import Config
+from services.promote_service import GeneralPromoteService, MatchedEntity
 
 ASSET_LINK = "diagrams.AssetLink"
 
@@ -38,7 +38,7 @@ def _config(*, asset_suggest: float = 0.6, file_suggest: float | None = None) ->
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "sp_state",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -235,9 +235,7 @@ def test_run_applies_ambiguous_edge_and_deletes_sink_edge() -> None:
             MatchedEntity(space="plant_a", external_id="asset-b"),
         ]
     )
-    service._prepare_ambiguous_edge = MagicMock(
-        return_value=(candidate, None, EdgeId("patterns", "pattern:file:tag"))
-    )
+    service._prepare_ambiguous_edge = MagicMock(return_value=(candidate, None, EdgeId("patterns", "pattern:file:tag")))
 
     service.run()
 

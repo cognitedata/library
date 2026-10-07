@@ -10,7 +10,7 @@ Every call requires a stage and the extraction-pipeline external ID:
 {"stage":"prepare","ExtractionPipelineExtId":"ep_file_annotation","logLevel":"INFO"}
 ```
 
-Valid stages are `prepare`, `launch`, `finalize`, and `promote`.
+The input is validated before any stage runs. Valid stages are `prepare`, `launch`, `finalize`, and `promote`. `logLevel` is optional, defaults to `INFO`, and accepts `DEBUG`, `INFO`, `WARNING`, or `ERROR` (case-insensitive). A missing or invalid field fails the call with a validation error.
 
 ## Parameters
 
@@ -126,7 +126,7 @@ all of those places.
 
 | Constant | Name | Contents |
 |----------|------|----------|
-| `RAW_DB` | `db_file_annotation` | Database for all tables below |
+| `RAW_DB` | `raw_file_annotation` | Database for all tables below |
 | `RAW_TABLE_DOC_TAG` | `annotation_documents_tags` | Regular detect links to assets |
 | `RAW_TABLE_DOC_DOC` | `annotation_documents_docs` | File-to-file links |
 | `RAW_TABLE_DOC_PATTERN` | `annotation_documents_patterns` | Pattern-mode detections and promote outcomes |

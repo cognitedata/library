@@ -9,14 +9,14 @@ from dependencies import (
     create_write_logger_service,
 )
 from fa_constants import FUNCTION_TIME_BUDGET_MINUTES
-from services.ConfigService import Config, format_prepare_config
-from services.DataModelService import IDataModelService
-from services.LoggerService import CogniteFunctionLogger
-from services.PipelineService import IPipelineService
-from services.PrepareService import AbstractPrepareService, GeneralPrepareService
-from utils.DataStructures import PerformanceTracker
+from services.config_service import Config, format_prepare_config
+from services.data_model_service import IDataModelService
+from services.logger_service import CogniteFunctionLogger
+from services.pipeline_service import IPipelineService
+from services.prepare_service import AbstractPrepareService, GeneralPrepareService
+from utils.data_structures import PerformanceTracker
 
-from stages.stage_runtime import STAGE_REPORTABLE_ERRORS
+from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, StageInput
 
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
@@ -33,14 +33,14 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     documentation on the calling a function can be found here...  https://api-docs.cognite.com/20230101/tag/Function-calls/operation/postFunctionsCall
     """
     start_time = datetime.now(UTC)
-    log_level = data.get("logLevel", "INFO")
+    stage_input = StageInput.model_validate(data)
 
-    logger_instance = create_logger_service(log_level)
+    logger_instance = create_logger_service(stage_input.log_level)
     tracker_instance = PerformanceTracker()
     pipeline_instance: IPipelineService = create_general_pipeline_service(
-        client, pipeline_ext_id=data["ExtractionPipelineExtId"]
+        client, pipeline_ext_id=stage_input.extraction_pipeline_ext_id
     )
-    run_status: str = "success"
+    run_status: str = "failure"
     try:
         config_instance, client = create_config_service(function_data=data, client=client)
         prepare_instance: AbstractPrepareService = _create_prepare_service(
@@ -51,15 +51,17 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
             function_call_info=function_call_info,
         )
 
-        logger_instance.info(format_prepare_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
+        logger_instance.info(
+            format_prepare_config(config_instance, stage_input.extraction_pipeline_ext_id), section="START"
+        )
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
             logger_instance.start_run()
             if prepare_instance.run() == "Done":
-                return {"status": run_status, "data": data}
+                break
             logger_instance.info(tracker_instance.generate_local_report())
+        run_status = "success"
         return {"status": run_status, "data": data}
     except STAGE_REPORTABLE_ERRORS as e:
-        run_status = "failure"
         logger_instance.error(message="Prepare stage failed", error=e, section="BOTH")
         raise
     finally:

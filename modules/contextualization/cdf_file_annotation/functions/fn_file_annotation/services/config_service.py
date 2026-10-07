@@ -62,7 +62,7 @@ from fa_constants import (
 )
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
-from utils.DataStructures import AnnotationStatus, FilterOperator
+from utils.data_structures import AnnotationStatus, FilterOperator
 
 
 # Configuration Classes

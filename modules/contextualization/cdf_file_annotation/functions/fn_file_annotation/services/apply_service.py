@@ -20,10 +20,10 @@ from cognite.client.data_classes.data_modeling import (
 )
 from cognite.client.data_classes.data_modeling.query import EdgeResultSetExpression, Query, Select
 from cognite.client.data_classes.filters import And, Equals, HasData, In
-from fa_constants import QUERY_PAGE_SIZE
-from services.ConfigService import Config
-from services.LoggerService import CogniteFunctionLogger
-from utils.DataStructures import DiagramAnnotationStatus
+from fa_constants import FUNCTION_EXTERNAL_ID, QUERY_PAGE_SIZE
+from services.config_service import Config
+from services.logger_service import CogniteFunctionLogger
+from utils.data_structures import DiagramAnnotationStatus
 
 
 class IApplyService(abc.ABC):
@@ -56,7 +56,7 @@ class GeneralApplyService(IApplyService):
     """
 
     EXTERNAL_ID_LIMIT: int = 256
-    FUNCTION_ID: str = "fn_file_annotation"
+    FUNCTION_ID: str = FUNCTION_EXTERNAL_ID
     # Legacy finalize function ID — still present on annotations from older deployments.
     OWN_SOURCE_CREATED_USERS: tuple[str, ...] = (FUNCTION_ID, "fn_file_annotation_finalize")
 
@@ -339,6 +339,10 @@ class GeneralApplyService(IApplyService):
             if self._is_bounding_box_covered(existing_bounding_boxes, page, bounding_box):
                 continue
 
+            entities = detect_annotation.get("entities", [])
+            if not entities:
+                continue
+
             coords = self._bounding_box_to_coords(bounding_box)
 
             for existing_page, existing_coords in list(existing_bounding_boxes.keys()):
@@ -347,10 +351,6 @@ class GeneralApplyService(IApplyService):
 
                 if self._bounding_box_contains(coords, existing_coords):
                     removed_external_ids.update(existing_bounding_boxes.pop((existing_page, existing_coords), set()))
-
-            entities = detect_annotation.get("entities", [])
-            if not entities:
-                continue
 
             file_entity = next((e for e in entities if e.get("annotation_type") == "diagrams.FileLink"), None)
             asset_entity = next((e for e in entities if e.get("annotation_type") == "diagrams.AssetLink"), None)

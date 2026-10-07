@@ -29,7 +29,7 @@ FILE_ANNOTATION_STREAMLIT_RUNTIME = [
     "altair",
     "PyYAML",
     "pyodide-http==0.2.1",
-    "cognite-sdk>=7.73.4,<8",
+    "cognite-sdk>=7.94.0,<8",
     "python-dotenv>=1.0.0",
 ]
 
@@ -51,7 +51,7 @@ FILE_ANNOTATION_STREAMLIT_DEPLOY = [
     "altair",
     "PyYaml",
     "pyodide-http==0.2.1",
-    "cognite-sdk==7.73.4",
+    "cognite-sdk==7.94.0",
     "python-dotenv>=1.0.0",
 ]
 

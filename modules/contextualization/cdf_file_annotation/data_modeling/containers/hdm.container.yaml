@@ -149,6 +149,11 @@
       properties:
         - diagramDetectJobId
       cursorable: true
+    linkedFile:
+      indexType: btree
+      properties:
+        - linkedFile
+      cursorable: true
     launchFunction:
       indexType: btree
       properties:

@@ -1,13 +1,13 @@
 externalId: {{ fileToAssetTransformationExternalId }}
 dataSetExternalId: {{ annotationDatasetExternalId }}
-name: File to Asset Connection from Annotations
+name: File to asset links from annotations
 destination:
   type: nodes
   view:
     space: {{ fileSchemaSpace }}
     externalId: {{ fileExternalId }}
     version: {{ fileVersion }}
-  instanceSpace: {{ fileInstanceSpace }}
+# Only the selected properties are written; the space column keeps each instance in its own space.
 ignoreNullFields: true
 isPublic: true
 conflictMode: upsert

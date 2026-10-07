@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).parent))
 
 from cognite.client.data_classes import Row
 from cognite.client.data_classes.data_modeling import NodeId
-from services.ConfigService import Config
+from services.config_service import Config
 
 ASSET_LINK = "diagrams.AssetLink"
 
@@ -31,7 +31,7 @@ def _config(file_space: str | None, target_space: str | None, state_space: str |
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": state_space,
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -51,7 +51,7 @@ def _file_node(space: str, external_id: str) -> MagicMock:
 
 
 def _launch_service(config: Config):
-    import services.LaunchService as launch_service
+    import services.launch_service as launch_service
 
     return launch_service.GeneralLaunchService(
         client=MagicMock(),
@@ -68,7 +68,7 @@ def _launch_service(config: Config):
 
 def test_prepare_stores_annotation_state_next_to_the_file_when_no_state_space_is_set() -> None:
     from cognite.client.data_classes.data_modeling import Node
-    from services.PrepareService import GeneralPrepareService
+    from services.prepare_service import GeneralPrepareService
 
     file_node = Node.load(
         {
@@ -149,7 +149,7 @@ def _query_page() -> MagicMock:
 
 
 def _entity_space_filters(config: Config, file_space: str | None) -> list[str]:
-    from services.DataModelService import GeneralDataModelService
+    from services.data_model_service import GeneralDataModelService
 
     client = MagicMock()
     client.raw.rows.retrieve.return_value = None
@@ -176,7 +176,7 @@ def test_a_configured_target_space_is_shared_by_files_from_every_space() -> None
 
 def test_scope_entities_come_from_the_file_space_and_are_not_written_to_raw() -> None:
     """The entity sync cache holds the entities; a per-scope RAW row keeps only their pattern samples."""
-    from services.EntityCacheService import GeneralCacheService
+    from services.entity_cache_service import GeneralCacheService
 
     client = MagicMock()
     client.raw.rows.retrieve.return_value = None
@@ -226,7 +226,7 @@ def _scope_config(*, enabled: bool, secondary: str | None = "unit") -> Config:
 
 
 def _run_promote(config: Config, files: list[object], edges: list[MagicMock]) -> tuple[MagicMock, MagicMock, MagicMock]:
-    from services.PromoteService import GeneralPromoteService
+    from services.promote_service import GeneralPromoteService
 
     client = MagicMock()
     client.data_modeling.instances.retrieve_nodes.return_value = files
@@ -245,7 +245,7 @@ def _run_promote(config: Config, files: list[object], edges: list[MagicMock]) ->
 
 
 def test_promote_searches_each_text_in_the_space_of_the_file_it_was_found_in() -> None:
-    from services.PromoteService import GeneralPromoteService
+    from services.promote_service import GeneralPromoteService
 
     entity_search = MagicMock()
     entity_search.find_entity.return_value = []
@@ -264,7 +264,7 @@ def test_promote_searches_each_text_in_the_space_of_the_file_it_was_found_in() -
 
 
 def test_promote_cache_does_not_return_an_entity_from_another_space() -> None:
-    from services.PromoteCacheService import CacheService
+    from services.promote_cache_service import CacheService
 
     rows = {
         "plant_b:P-101": Row(
@@ -283,7 +283,7 @@ def test_promote_cache_does_not_return_an_entity_from_another_space() -> None:
 
 def test_promote_cache_persistent_key_includes_space() -> None:
     """Same text in different spaces must not overwrite each other's RAW rows."""
-    from services.PromoteCacheService import CacheService
+    from services.promote_cache_service import CacheService
 
     client = MagicMock()
     cache = CacheService(_config(None, None), client, MagicMock(), normalize_fn=lambda text, _: text)
@@ -305,8 +305,8 @@ def _debug_messages(logger: MagicMock) -> list[str]:
 
 def test_no_match_cache_log_says_pattern_check_skipped_api_search() -> None:
     """A pattern miss must not read as if the text was searched and then cached."""
-    from services.PromoteCacheService import CacheService
-    from services.PromoteService import GeneralPromoteService
+    from services.promote_cache_service import CacheService
+    from services.promote_service import GeneralPromoteService
 
     logger = MagicMock()
     cache = CacheService(_config(None, None), MagicMock(), logger, normalize_fn=lambda text, _: text)
@@ -325,8 +325,8 @@ def test_no_match_cache_log_says_pattern_check_skipped_api_search() -> None:
 
 
 def test_no_match_cache_log_says_api_search_returned_no_entity() -> None:
-    from services.PromoteCacheService import CacheService
-    from services.PromoteService import GeneralPromoteService
+    from services.promote_cache_service import CacheService
+    from services.promote_service import GeneralPromoteService
 
     logger = MagicMock()
     cache = CacheService(_config(None, None), MagicMock(), logger, normalize_fn=lambda text, _: text)
@@ -345,14 +345,14 @@ def test_no_match_cache_log_says_api_search_returned_no_entity() -> None:
 
 
 def test_promote_runs_without_a_file_view_space() -> None:
-    from services.EntitySearchService import EntitySearchService
+    from services.entity_search_service import EntitySearchService
 
     EntitySearchService(_config(None, None), MagicMock(), MagicMock())
 
 
 def test_promote_finds_entities_with_search_and_contains_any_on_aliases() -> None:
     """A /list filter on aliases is not index-backed and times out on large spaces."""
-    from services.EntitySearchService import EntitySearchService
+    from services.entity_search_service import EntitySearchService
 
     client = MagicMock()
     client.data_modeling.instances.search.return_value = []
@@ -384,7 +384,7 @@ def test_promote_finds_entities_with_search_and_contains_any_on_aliases() -> Non
 
 
 def test_alias_hit_does_not_query_name_or_description() -> None:
-    from services.EntitySearchService import EntitySearchService
+    from services.entity_search_service import EntitySearchService
 
     client = MagicMock()
     client.data_modeling.instances.search.return_value = [MagicMock()]
@@ -396,7 +396,7 @@ def test_alias_hit_does_not_query_name_or_description() -> None:
 
 def test_entity_search_applies_a_scope_filter_to_both_searches() -> None:
     from cognite.client.data_classes.filters import Equals
-    from services.EntitySearchService import EntitySearchService
+    from services.entity_search_service import EntitySearchService
 
     client = MagicMock()
     client.data_modeling.instances.search.return_value = []
@@ -466,7 +466,7 @@ def test_promote_scope_filter_uses_only_the_primary_property_when_secondary_is_e
 
 
 def test_promote_cache_does_not_return_an_entity_from_another_scope() -> None:
-    from services.PromoteCacheService import CacheService
+    from services.promote_cache_service import CacheService
 
     rows = {
         "plant_a:site=PlantA:P-101": Row(

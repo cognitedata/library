@@ -62,7 +62,7 @@ from starting after its end, and prepare's safe protected-property handling and
 `CogniteDescribable.tags` helpers. Annotation-state audit fields now identify the unified
 `fn_file_annotation` function.
 
-`ConfigService.py`, `LoggerService.py`, `PipelineService.py`, and
-`DataModelService.py` are shared once. The launch and promote cache modules are named
-`EntityCacheService.py` and `PromoteCacheService.py` to make their different roles
+`config_service.py`, `logger_service.py`, `pipeline_service.py`, and
+`data_model_service.py` are shared once. The launch and promote cache modules are named
+`entity_cache_service.py` and `promote_cache_service.py` to make their different roles
 explicit.

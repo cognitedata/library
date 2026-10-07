@@ -12,14 +12,15 @@ from dependencies import (
     create_write_logger_service,
 )
 from fa_constants import FUNCTION_TIME_BUDGET_MINUTES
-from services.ApplyService import IApplyService
-from services.ConfigService import format_finalize_config
-from services.FinalizeService import AbstractFinalizeService, GeneralFinalizeService
-from services.PipelineService import IPipelineService
-from services.RetrieveService import IRetrieveService
-from utils.DataStructures import PerformanceTracker
+from services.apply_service import IApplyService
+from services.config_service import Config, format_finalize_config
+from services.finalize_service import AbstractFinalizeService, GeneralFinalizeService
+from services.logger_service import CogniteFunctionLogger
+from services.pipeline_service import IPipelineService
+from services.retrieve_service import IRetrieveService
+from utils.data_structures import PerformanceTracker
 
-from stages.stage_runtime import STAGE_REPORTABLE_ERRORS
+from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, StageInput
 
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
@@ -37,32 +38,34 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     documentation on the calling a function can be found here...  https://api-docs.cognite.com/20230101/tag/Function-calls/operation/postFunctionsCall
     """
     start_time = datetime.now(UTC)
-    log_level = data.get("logLevel", "INFO")
+    stage_input = StageInput.model_validate(data)
 
-    logger_instance = create_logger_service(log_level)
+    logger_instance = create_logger_service(stage_input.log_level)
     tracker_instance = PerformanceTracker()
     pipeline_instance: IPipelineService = create_general_pipeline_service(
-        client, pipeline_ext_id=data["ExtractionPipelineExtId"]
+        client, pipeline_ext_id=stage_input.extraction_pipeline_ext_id
     )
-    run_status: str = "success"
+    run_status: str = "failure"
     try:
         config_instance, client = create_config_service(function_data=data, client=client)
         finalize_instance = _create_finalize_service(
             config_instance, client, logger_instance, tracker_instance, function_call_info
         )
 
-        logger_instance.info(format_finalize_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
+        logger_instance.info(
+            format_finalize_config(config_instance, stage_input.extraction_pipeline_ext_id), section="START"
+        )
         # NOTE: a random delay to stagger API requests. Used to prevent API load shedding that can return empty results under high concurrency.
         delay = random.uniform(0.1, 1.0)
         time.sleep(delay)
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
             logger_instance.start_run()
             if finalize_instance.run() == "Done":
-                return {"status": run_status, "data": data}
+                break
             logger_instance.info(tracker_instance.generate_local_report(), "START")
+        run_status = "success"
         return {"status": run_status, "data": data}
     except STAGE_REPORTABLE_ERRORS as e:
-        run_status = "failure"
         logger_instance.error(message="Finalize stage failed", error=e, section="BOTH")
         raise
     finally:
@@ -118,7 +121,13 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None) -> Non
         logger_instance.close()
 
 
-def _create_finalize_service(config, client, logger, tracker, function_call_info) -> AbstractFinalizeService:
+def _create_finalize_service(
+    config: Config,
+    client: CogniteClient,
+    logger: CogniteFunctionLogger,
+    tracker: PerformanceTracker,
+    function_call_info: dict,
+) -> AbstractFinalizeService:
     """
     Instantiate Finalize with interfaces.
     """

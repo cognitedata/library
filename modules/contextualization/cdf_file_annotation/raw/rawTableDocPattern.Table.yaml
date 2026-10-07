@@ -1,2 +1,2 @@
-dbName: db_file_annotation
+dbName: raw_file_annotation
 tableName: annotation_documents_patterns

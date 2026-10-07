@@ -10,11 +10,12 @@ from cognite.client.data_classes.data_modeling import (
     NodeOrEdgeData,
 )
 from cognite.client.exceptions import CogniteAPIError
-from services.ApplyService import IApplyService
-from services.ConfigService import Config, ViewPropertyConfig
-from services.LoggerService import CogniteFunctionLogger
-from services.RetrieveService import DiagramDetectJobPoll, IRetrieveService, JobPollStatus
-from utils.DataStructures import (
+from fa_constants import TAG_ANNOTATED, TAG_ANNOTATION_FAILED, TAG_ANNOTATION_IN_PROCESS
+from services.apply_service import IApplyService
+from services.config_service import Config, ViewPropertyConfig
+from services.logger_service import CogniteFunctionLogger
+from services.retrieve_service import DiagramDetectJobPoll, IRetrieveService, JobPollStatus
+from utils.data_structures import (
     AnnotationStatus,
     BatchOfNodes,
     PerformanceTracker,
@@ -23,7 +24,7 @@ from utils.DataStructures import (
     replace_tag,
     tags_apply,
 )
-from utils.QueryTimeout import QueryTimeoutRetry, is_query_timeout
+from utils.query_timeout import QueryTimeoutRetry, is_query_timeout
 
 
 def _poll_completed(job: tuple[int, str] | None, poll: DiagramDetectJobPoll | None) -> bool:
@@ -96,6 +97,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
         self.query_timeout = QueryTimeoutRetry(logger)
         self.function_id: int | None = function_call_info.get("function_id")
         self.call_id: int | None = function_call_info.get("call_id")
+        # Jobs this run found still running. Skipped so finished jobs behind them are finalized first.
+        self._running_job_ids: set[int] = set()
 
     def run(self) -> Literal["Done"] | None:
         """
@@ -117,8 +120,16 @@ class GeneralFinalizeService(AbstractFinalizeService):
         """
         self.logger.info("Starting Finalize Function", section="START")
         try:
-            regular_job, pattern_mode_job, file_to_state_map = self.retrieve_service.get_job_id()
+            regular_job, pattern_mode_job, file_to_state_map = self.retrieve_service.get_job_id(self._running_job_ids)
             if (not regular_job and not pattern_mode_job) or not file_to_state_map:
+                if self._running_job_ids:
+                    self.logger.info(
+                        f"Only still-running detect jobs left ({len(self._running_job_ids)}). Sleeping for 30 seconds",
+                        section="END",
+                    )
+                    self._running_job_ids.clear()
+                    time.sleep(30)
+                    return None
                 self.logger.info("No diagram detect jobs found", section="END")
                 return "Done"
             self.logger.info(
@@ -222,8 +233,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 batch=BatchOfNodes(nodes=list(file_to_state_map.values())),
                 status=AnnotationStatus.PROCESSING,
             )
-            self.logger.info(message="Sleeping for 30 seconds")
-            time.sleep(30)
+            self._running_job_ids.update(job_id for job_id in (regular_job_id, pattern_job_id) if job_id is not None)
             return None
 
         job_results = regular_poll.results if regular_poll is not None else None
@@ -258,16 +268,26 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
         for (space, external_id), results in merged_results.items():
             file_id = NodeId(space, external_id)
-            file_node = files_by_id.get(file_id)
-            if file_node is None:
-                continue
-
             annotation_state_node = file_to_state_map[file_id]
             state_properties = (annotation_state_node.properties or {}).get(
                 self.annotation_state_view.as_view_id()
             ) or {}
             current_attempt = cast(int, state_properties.get("attemptCount") or 0)
             next_attempt = current_attempt + 1
+
+            file_node = files_by_id.get(file_id)
+            if file_node is None:
+                self.logger.warning(f"File {file_id} no longer exists. Marking its annotation state Failed.")
+                annotation_state_node_applies.append(
+                    self._process_annotation_state(
+                        annotation_state_node,
+                        AnnotationStatus.FAILED,
+                        next_attempt,
+                        annotation_message="File no longer exists",
+                    )
+                )
+                count_failed += 1
+                continue
 
             try:
                 self.logger.info(f"Processing file {file_id}:")
@@ -284,19 +304,12 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 self.logger.info(f"\t- {annotation_msg}")
                 self.logger.info(f"\t- {pattern_msg}")
 
-                # Logic to handle multi-page files
-                page_count = results.get("regular", {}).get("pageCount", 1)
+                # Logic to handle multi-page files. A pattern-only job carries the page count on its own item.
+                page_count = (results.get("regular") or results.get("pattern") or {}).get("pageCount", 1)
                 annotated_pages = self._check_all_pages_annotated(annotation_state_node, page_count)
 
                 if annotated_pages == page_count:
-                    tags = node_tags(file_node, self.file_view.as_view_id())
-                    if "AnnotationInProcess" in tags:
-                        tags = replace_tag(tags, "AnnotationInProcess", "Annotated")
-                    elif "Annotated" not in tags:
-                        self.logger.warning(
-                            f"File {file_id.external_id} was processed, but 'AnnotationInProcess' tag was not found."
-                        )
-                    file_node_applies.append(tags_apply(file_node, self.file_view.as_view_id(), tags))
+                    file_node_applies.append(self._finish_file_tag(file_node, TAG_ANNOTATED))
                     job_node_to_update = self._process_annotation_state(
                         annotation_state_node,
                         AnnotationStatus.ANNOTATED,
@@ -322,14 +335,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             except (CogniteAPIError, ValueError, RuntimeError) as e:
                 self.logger.error(f"Failed to process annotations for file {file_id}", error=e)
                 if next_attempt >= self.max_retries:
-                    tags = node_tags(file_node, self.file_view.as_view_id())
-                    if "AnnotationInProcess" in tags:
-                        tags = replace_tag(tags, "AnnotationInProcess", "AnnotationFailed")
-                    elif "AnnotationFailed" not in tags:
-                        self.logger.warning(
-                            f"File {file_id.external_id} failed processing, but 'AnnotationInProcess' tag was not found."
-                        )
-                    file_node_applies.append(tags_apply(file_node, self.file_view.as_view_id(), tags))
+                    file_node_applies.append(self._finish_file_tag(file_node, TAG_ANNOTATION_FAILED))
                     job_node_to_update = self._process_annotation_state(
                         annotation_state_node,
                         AnnotationStatus.FAILED,
@@ -554,18 +560,23 @@ class GeneralFinalizeService(AbstractFinalizeService):
             status=AnnotationStatus.FAILED,
             failed=True,
         )
-        file_applies: list[NodeApply] = []
-        for file_id, file_node in self._files_by_id(list(file_to_state_map)).items():
-            tags = node_tags(file_node, self.file_view.as_view_id())
-            if "AnnotationInProcess" in tags:
-                tags = replace_tag(tags, "AnnotationInProcess", "AnnotationFailed")
-            elif "AnnotationFailed" not in tags:
-                self.logger.warning(
-                    f"File {file_id.external_id} failed processing, but 'AnnotationInProcess' tag was not found."
-                )
-            file_applies.append(tags_apply(file_node, self.file_view.as_view_id(), tags))
+        file_applies = [
+            self._finish_file_tag(file_node, TAG_ANNOTATION_FAILED)
+            for file_node in self._files_by_id(list(file_to_state_map)).values()
+        ]
         if file_applies:
             self.apply_service.update_instances(list_node_apply=file_applies)
+
+    def _finish_file_tag(self, file_node: Node, final_tag: str) -> NodeApply:
+        """Swap the file's AnnotationInProcess tag for its final tag (Annotated or AnnotationFailed)."""
+        tags = node_tags(file_node, self.file_view.as_view_id())
+        if TAG_ANNOTATION_IN_PROCESS in tags:
+            tags = replace_tag(tags, TAG_ANNOTATION_IN_PROCESS, final_tag)
+        elif final_tag not in tags:
+            self.logger.warning(
+                f"File {file_node.external_id} was finalized, but '{TAG_ANNOTATION_IN_PROCESS}' tag was not found."
+            )
+        return tags_apply(file_node, self.file_view.as_view_id(), tags)
 
     def _update_batch_state(
         self,
@@ -591,29 +602,37 @@ class GeneralFinalizeService(AbstractFinalizeService):
             return None
 
         self.logger.info(message=f"Updating {len(batch.nodes)} annotation state instances")
+        view_id = self.annotation_state_view.as_view_id()
         if failed:
-            node_update_properties = {
-                "annotationStatus": status,
-                **annotation_clock(),
-                "diagramDetectJobId": None,
-                "patternModeJobId": None,
-            }
+            batch.update_node_properties(
+                new_properties={
+                    "annotationStatus": status,
+                    **annotation_clock(),
+                    "diagramDetectJobId": None,
+                    "patternModeJobId": None,
+                },
+                view_id=view_id,
+            )
         elif status == AnnotationStatus.PROCESSING:
-            state_properties = (batch.nodes[0].properties or {}).get(self.annotation_state_view.as_view_id(), {})
-            raw_time = state_properties.get("sourceUpdatedTime")
-            node_update_properties = {
-                "annotationStatus": status,
-                **annotation_clock(raw_time if isinstance(raw_time, str) else None),
-            }
+            # Each state keeps its own clock, so the stuck-job recovery still sees when it was launched.
+            for node in batch.nodes:
+                raw_time = ((node.properties or {}).get(view_id) or {}).get("sourceUpdatedTime")
+                properties = {
+                    "annotationStatus": status,
+                    **annotation_clock(raw_time if isinstance(raw_time, str) else None),
+                }
+                batch.apply.append(
+                    NodeApply(
+                        space=node.space,
+                        external_id=node.external_id,
+                        sources=[NodeOrEdgeData(source=view_id, properties=properties)],
+                    )
+                )
         else:
-            node_update_properties = {
-                "annotationStatus": status,
-                **annotation_clock(),
-            }
-        batch.update_node_properties(
-            new_properties=node_update_properties,
-            view_id=self.annotation_state_view.as_view_id(),
-        )
+            batch.update_node_properties(
+                new_properties={"annotationStatus": status, **annotation_clock()},
+                view_id=view_id,
+            )
         try:
             self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")

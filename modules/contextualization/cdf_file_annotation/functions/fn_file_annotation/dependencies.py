@@ -3,29 +3,26 @@ from pathlib import Path
 
 from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
-from services.AnnotationService import GeneralAnnotationService
-from services.ApplyService import GeneralApplyService
-from services.ConfigService import Config, load_config_parameters
-from services.DataModelService import GeneralDataModelService
-from services.EntityCacheService import GeneralCacheService
-from services.EntitySearchService import EntitySearchService
-from services.LoggerService import CogniteFunctionLogger
-from services.PipelineService import GeneralPipelineService
-from services.PromoteCacheService import CacheService as PromoteCacheService
-from services.RetrieveService import GeneralRetrieveService
-from utils.DataStructures import EnvConfig
+from services.annotation_service import GeneralAnnotationService
+from services.apply_service import GeneralApplyService
+from services.config_service import Config, load_config_parameters
+from services.data_model_service import GeneralDataModelService
+from services.entity_cache_service import GeneralCacheService
+from services.entity_search_service import EntitySearchService
+from services.logger_service import CogniteFunctionLogger
+from services.pipeline_service import GeneralPipelineService
+from services.promote_cache_service import CacheService as PromoteCacheService
+from services.retrieve_service import GeneralRetrieveService
+from utils.data_structures import EnvConfig
 
 
 def get_env_variables() -> EnvConfig:
     """Read CDF credentials from the environment. Used by local runs, not the CDF Functions runtime."""
     from dotenv import load_dotenv
 
-    print("Loading environment variables from .env...")
-
-    project_path = (Path(__file__).parent / ".env").resolve()
-    print(f"project_path is set to: {project_path}")
-
-    load_dotenv()
+    env_path = (Path(__file__).parent / ".env").resolve()
+    print(f"Loading environment variables from {env_path}")
+    load_dotenv(env_path)
 
     required_envvars = (
         "CDF_PROJECT",
@@ -48,24 +45,26 @@ def get_env_variables() -> EnvConfig:
     )
 
 
-def create_client(env_config: EnvConfig, debug: bool = False):
-    SCOPES = [f"https://{env_config.cdf_cluster}.cognitedata.com/.default"]
-    TOKEN_URL = f"https://login.microsoftonline.com/{env_config.tenant_id}/oauth2/v2.0/token"
+def create_client(env_config: EnvConfig, debug: bool = False) -> CogniteClient:
+    """Client for local runs. Set IDP_TOKEN_URL for identity providers other than Microsoft Entra ID."""
+    base_url = f"https://{env_config.cdf_cluster}.cognitedata.com"
+    token_url = os.environ.get(
+        "IDP_TOKEN_URL", f"https://login.microsoftonline.com/{env_config.tenant_id}/oauth2/v2.0/token"
+    )
     creds = OAuthClientCredentials(
-        token_url=TOKEN_URL,
+        token_url=token_url,
         client_id=env_config.client_id,
         client_secret=env_config.client_secret,
-        scopes=SCOPES,
+        scopes=[f"{base_url}/.default"],
     )
     cnf = ClientConfig(
-        client_name="DEV_Working",
+        client_name="fn_file_annotation_local",
         project=env_config.cdf_project,
-        base_url=f"https://{env_config.cdf_cluster}.cognitedata.com",  # NOTE: base_url might need to be adjusted if on PSAAS or Private Link
+        base_url=base_url,  # NOTE: base_url might need to be adjusted if on PSAAS or Private Link
         credentials=creds,
         debug=debug,
     )
-    client = CogniteClient(cnf)
-    return client
+    return CogniteClient(cnf)
 
 
 def create_config_service(

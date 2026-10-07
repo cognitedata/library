@@ -13,6 +13,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeOrEdgeData,
     ViewId,
 )
+from fa_constants import FUNCTION_EXTERNAL_ID
 
 
 @dataclass
@@ -99,8 +100,8 @@ class AnnotationState:
     sourceCreatedTime: str = field(default_factory=lambda: datetime.now(UTC).replace(microsecond=0).isoformat())
     sourceUpdatedTime: str = field(default_factory=lambda: datetime.now(UTC).replace(microsecond=0).isoformat())
     pipelineUpdatedTime: str = field(default_factory=lambda: datetime.now(UTC).replace(microsecond=0).isoformat())
-    sourceCreatedUser: str = "fn_file_annotation"
-    sourceUpdatedUser: str = "fn_file_annotation"
+    sourceCreatedUser: str = FUNCTION_EXTERNAL_ID
+    sourceUpdatedUser: str = FUNCTION_EXTERNAL_ID
 
     def _create_external_id(self) -> str:
         """

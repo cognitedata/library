@@ -9,15 +9,15 @@ from dependencies import (
     create_promote_cache_service,
 )
 from fa_constants import FUNCTION_TIME_BUDGET_MINUTES
-from services.ConfigService import Config, format_promote_config
-from services.EntitySearchService import EntitySearchService
-from services.LoggerService import CogniteFunctionLogger
-from services.PipelineService import IPipelineService
-from services.PromoteCacheService import CacheService
-from services.PromoteService import GeneralPromoteService
-from utils.DataStructures import PromoteTracker
+from services.config_service import Config, format_promote_config
+from services.entity_search_service import EntitySearchService
+from services.logger_service import CogniteFunctionLogger
+from services.pipeline_service import IPipelineService
+from services.promote_cache_service import CacheService
+from services.promote_service import GeneralPromoteService
+from utils.data_structures import PromoteTracker
 
-from stages.stage_runtime import STAGE_REPORTABLE_ERRORS
+from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, StageInput
 
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
@@ -49,13 +49,14 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         STAGE_REPORTABLE_ERRORS: Logged, then re-raised so the CDF function call fails.
     """
     start_time: datetime = datetime.now(UTC)
+    stage_input = StageInput.model_validate(data)
 
-    logger_instance: CogniteFunctionLogger = create_logger_service(data.get("logLevel", "INFO"), data.get("logPath"))
+    logger_instance: CogniteFunctionLogger = create_logger_service(stage_input.log_level, stage_input.log_path)
     tracker_instance: PromoteTracker = PromoteTracker()
     pipeline_instance: IPipelineService = create_general_pipeline_service(
-        client, pipeline_ext_id=data["ExtractionPipelineExtId"]
+        client, pipeline_ext_id=stage_input.extraction_pipeline_ext_id
     )
-    run_status: str = "success"
+    run_status: str = "failure"
     try:
         config_instance: Config
         config_instance, client = create_config_service(function_data=data, client=client)
@@ -74,7 +75,9 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
             cache_service=cache_service,
         )
 
-        logger_instance.info(format_promote_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
+        logger_instance.info(
+            format_promote_config(config_instance, stage_input.extraction_pipeline_ext_id), section="START"
+        )
         # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
             logger_instance.start_run()
@@ -84,9 +87,9 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
                 break
             # Log batch report and pause between batches
             logger_instance.info(tracker_instance.generate_local_report(), section="START")
+        run_status = "success"
         return {"status": run_status, "data": data}
     except STAGE_REPORTABLE_ERRORS as e:
-        run_status = "failure"
         logger_instance.error(message="Promote stage failed", error=e, section="BOTH")
         raise
     finally:
@@ -117,12 +120,6 @@ def run_locally(config_file: dict) -> None:
     Raises:
         ValueError: If required environment variables are missing
     """
-    from dependencies import create_client, get_env_variables
-    from utils.DataStructures import EnvConfig
-
-    env_vars: EnvConfig = get_env_variables()
-    client: CogniteClient = create_client(env_vars)
-
     logger_instance: CogniteFunctionLogger = create_logger_service(
         config_file.get("logLevel", "DEBUG"), config_file.get("logPath")
     )
@@ -162,3 +159,4 @@ def run_locally(config_file: dict) -> None:
     finally:
         # Generate overall summary report
         logger_instance.info(tracker_instance.generate_overall_report(), section="BOTH")
+        logger_instance.close()

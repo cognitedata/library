@@ -12,8 +12,6 @@ class PipelineHealthUI:
     def render(self):
         if "selected_pipeline" not in st.session_state:
             st.session_state.selected_pipeline = None
-        if "selected_status_file_index" not in st.session_state:
-            st.session_state.selected_status_file_index = None
         if "page_num" not in st.session_state:
             st.session_state.page_num = 0
 
@@ -38,12 +36,6 @@ class PipelineHealthUI:
             st.session_state.selected_pipeline = None
             st.info("Please select a pipeline from the dropdown above to load its data.")
             return
-
-        last = st.session_state.get("last_loaded_pipeline")
-
-        if last != selected_pipeline:
-            st.session_state["last_loaded_pipeline"] = selected_pipeline
-            st.session_state["selected_status_file_index"] = None
 
         with st.spinner(f"Loading pipeline configuration for '{selected_pipeline}'..."):
             pipeline_config = DataFetcher.load_pipeline_config(self.client, selected_pipeline)

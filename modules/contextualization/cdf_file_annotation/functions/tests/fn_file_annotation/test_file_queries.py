@@ -9,7 +9,7 @@ import pytest
 sys.path.append(str(Path(__file__).parent))
 
 from cognite.client.data_classes.data_modeling import Node, NodeId, NodeList
-from services.ConfigService import Config
+from services.config_service import Config
 
 
 def _config(debug_file: str | None = None) -> Config:
@@ -33,7 +33,7 @@ def _config(debug_file: str | None = None) -> Config:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -61,7 +61,10 @@ def _node(space: str, external_id: str, view: tuple[str, str], properties: dict[
 def _state(external_id: str, file_external_id: str, status: str) -> Node:
     linked = {"space": "files", "externalId": file_external_id}
     return _node(
-        "files", external_id, ("sp_hdm", "FileAnnotationState/v1"), {"linkedFile": linked, "annotationStatus": status}
+        "files",
+        external_id,
+        ("dm_sol_file_annotation", "FileAnnotationState/v1"),
+        {"linkedFile": linked, "annotationStatus": status},
     )
 
 
@@ -77,7 +80,7 @@ def _result(sets: dict[str, list[Node]]) -> MagicMock:
 
 
 def _data_model_service(config: Config, client: MagicMock):
-    from services.DataModelService import GeneralDataModelService
+    from services.data_model_service import GeneralDataModelService
 
     return GeneralDataModelService(config, client, MagicMock())
 
@@ -153,8 +156,8 @@ def test_the_reset_query_is_paged_and_reads_only_the_file_tags() -> None:
 
 
 def test_finalize_claims_a_pattern_only_job() -> None:
-    from services.ConfigService import build_filter_from_query
-    from services.RetrieveService import GeneralRetrieveService
+    from services.config_service import build_filter_from_query
+    from services.retrieve_service import GeneralRetrieveService
 
     dumped = str(build_filter_from_query(_config().finalize_function.retrieve_service.get_job_id_query).dump())
     assert "or" in dumped
@@ -164,7 +167,7 @@ def test_finalize_claims_a_pattern_only_job() -> None:
     job_state = _node(
         "files",
         "state-1",
-        ("sp_hdm", "FileAnnotationState/v1"),
+        ("dm_sol_file_annotation", "FileAnnotationState/v1"),
         {
             "linkedFile": {"space": "files", "externalId": "f1"},
             "patternModeJobId": 9,
@@ -185,12 +188,12 @@ def test_finalize_claims_a_pattern_only_job() -> None:
 
 
 def test_finalize_reads_at_most_one_launch_batch_of_states_per_job() -> None:
-    from services.RetrieveService import GeneralRetrieveService
+    from services.retrieve_service import GeneralRetrieveService
 
     job_state = _node(
         "files",
         "state-1",
-        ("sp_hdm", "FileAnnotationState/v1"),
+        ("dm_sol_file_annotation", "FileAnnotationState/v1"),
         {"linkedFile": {"space": "files", "externalId": "f1"}, "diagramDetectJobId": 7},
     )
     client = MagicMock()
@@ -217,7 +220,7 @@ def test_prepare_reads_only_the_file_tags() -> None:
 
 
 def _single_query(query: object):
-    from services.ConfigService import QueryConfig
+    from services.config_service import QueryConfig
 
     assert isinstance(query, QueryConfig)
     return query
@@ -260,7 +263,7 @@ def test_debug_prepare_excludes_in_process_tags_with_contains_any() -> None:
 
 
 def test_alias_search_uses_contains_any() -> None:
-    from services.EntitySearchService import EntitySearchService
+    from services.entity_search_service import EntitySearchService
 
     client = MagicMock()
     client.data_modeling.instances.search.return_value = []
@@ -297,7 +300,7 @@ def test_swapped_file_threshold_is_rejected() -> None:
 
 
 def test_pipeline_config_must_be_a_parameters_and_data_document() -> None:
-    from services.ConfigService import load_config_parameters
+    from services.config_service import load_config_parameters
 
     client = MagicMock()
     raw_config = MagicMock()

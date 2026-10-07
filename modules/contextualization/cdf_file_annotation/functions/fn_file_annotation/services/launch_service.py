@@ -14,22 +14,25 @@ from cognite.client.data_classes.data_modeling import (
     NodeOrEdgeData,
 )
 from cognite.client.exceptions import CogniteAPIError
-from fa_constants import LOCAL_RATE_LIMIT_SLEEP_SECONDS, TAG_ANNOTATION_IN_PROCESS
-from services.AnnotationService import IAnnotationService
-from services.ConfigService import Config, ViewPropertyConfig
-from services.DataModelService import IDataModelService
-from services.EntityCacheService import ICacheService, count_pattern_sample_strings, split_entities_by_kind
-from services.EntitySyncService import EntitySyncIncompleteError
-from services.LoggerService import CogniteFunctionLogger
-from utils.DataStructures import (
+from fa_constants import LOCAL_RATE_LIMIT_SLEEP_SECONDS, TAG_ANNOTATION_FAILED, TAG_ANNOTATION_IN_PROCESS
+from services.annotation_service import IAnnotationService
+from services.config_service import Config, ViewPropertyConfig
+from services.data_model_service import IDataModelService
+from services.entity_cache_service import ICacheService, count_pattern_sample_strings, split_entities_by_kind
+from services.entity_sync_service import EntitySyncIncompleteError
+from services.logger_service import CogniteFunctionLogger
+from utils.data_structures import (
     AnnotationStatus,
     BatchOfPairedNodes,
     FileProcessingBatch,
     PerformanceTracker,
     annotation_clock,
+    node_tags,
+    replace_tag,
+    tags_apply,
     unique_tags,
 )
-from utils.QueryTimeout import QueryTimeoutRetry, is_query_timeout
+from utils.query_timeout import QueryTimeoutRetry, is_query_timeout
 
 
 def _scope_group_value(node_props: object, property_name: str | None) -> str:
@@ -193,8 +196,16 @@ class GeneralLaunchService(AbstractLaunchService):
 
         processing_batches: list[FileProcessingBatch] = self._organize_files_for_processing(file_nodes)
 
-        total_files_processed = 0
+        counts = {"launched": 0, "failed": 0}
+        # Files whose state this run wrote: launched, or marked failed. The rest are released on error.
         launched_file_ids: set[NodeId] = set()
+
+        def process(current_batch: BatchOfPairedNodes) -> None:
+            batch_file_ids = list(current_batch.batch_files.ids)
+            outcome = "launched" if self._process_batch(current_batch) else "failed"
+            counts[outcome] += len(batch_file_ids)
+            launched_file_ids.update(batch_file_ids)
+
         try:
             for batch in processing_batches:
                 primary_scope_value = batch.primary_scope_value
@@ -213,17 +224,12 @@ class GeneralLaunchService(AbstractLaunchService):
                         annotation_state_view_id=self.annotation_state_view.as_view_id(),
                     )
                     current_batch.add_pair(file_node, file_reference)
-                    total_files_processed += 1
                     if current_batch.size() == self.max_batch_size:
                         self.logger.info(message=f"Processing batch - Max batch size ({self.max_batch_size}) reached")
-                        batch_file_ids = list(current_batch.batch_files.ids)
-                        self._process_batch(current_batch)
-                        launched_file_ids.update(batch_file_ids)
+                        process(current_batch)
                 if not current_batch.is_empty():
                     self.logger.info(message=f"Processing remaining {current_batch.size()} files in batch")
-                    batch_file_ids = list(current_batch.batch_files.ids)
-                    self._process_batch(current_batch)
-                    launched_file_ids.update(batch_file_ids)
+                    process(current_batch)
                 if scoped:
                     self.logger.info(message=f"Finished processing for {msg}", section="END")
         except CogniteAPIError as e:
@@ -249,7 +255,7 @@ class GeneralLaunchService(AbstractLaunchService):
             self._release_unlaunched_files(file_nodes, launched_file_ids)
             raise
         finally:
-            self.tracker.add_files(success=total_files_processed)
+            self.tracker.add_files(success=counts["launched"], failed=counts["failed"])
 
         self.query_timeout.reset()
         return None
@@ -387,47 +393,46 @@ class GeneralLaunchService(AbstractLaunchService):
         scope = (file_space, primary_scope_value, secondary_scope_value)
         if self._cached_scope != scope or not self.in_memory_cache:
             self.logger.info("Refreshing in memory cache")
-            try:
-                self.in_memory_cache, self.in_memory_patterns = self.cache_service.get_entities(
-                    self.data_model_service,
-                    primary_scope_value,
-                    secondary_scope_value,
-                    file_space,
-                )
-                self._cached_scope = scope
-                assets, files = split_entities_by_kind(self.in_memory_cache)
-                pattern_count = count_pattern_sample_strings(self.in_memory_patterns)
-                self.tracker.set_detect_input(
-                    entities=len(self.in_memory_cache),
-                    patterns=pattern_count if self.config.launch_function.pattern_mode else None,
-                )
-                self.logger.info(
-                    f"In-memory cache ready for scope space={file_space!r} primary={primary_scope_value!r} "
-                    f"secondary={secondary_scope_value!r}: "
-                    f"{len(assets)} assets, {len(files)} files, "
-                    f"{pattern_count} pattern sample string(s)"
-                )
-            except CogniteAPIError as e:
-                raise e
+            self.in_memory_cache, self.in_memory_patterns = self.cache_service.get_entities(
+                self.data_model_service,
+                primary_scope_value,
+                secondary_scope_value,
+                file_space,
+            )
+            self._cached_scope = scope
+            assets, files = split_entities_by_kind(self.in_memory_cache)
+            pattern_count = count_pattern_sample_strings(self.in_memory_patterns)
+            self.tracker.set_detect_input(
+                entities=len(self.in_memory_cache),
+                patterns=pattern_count if self.config.launch_function.pattern_mode else None,
+            )
+            self.logger.info(
+                f"In-memory cache ready for scope space={file_space!r} primary={primary_scope_value!r} "
+                f"secondary={secondary_scope_value!r}: "
+                f"{len(assets)} assets, {len(files)} files, "
+                f"{pattern_count} pattern sample string(s)"
+            )
 
-    def _process_batch(self, batch: BatchOfPairedNodes):
+    def _process_batch(self, batch: BatchOfPairedNodes) -> bool:
         """
         Processes a batch of files by initiating diagram detection jobs and updating state.
 
         Runs both regular and pattern mode diagram detection (if enabled) for all files in the batch,
-        then updates annotation state instances with job IDs and processing status.
+        then updates annotation state instances with job IDs and processing status. A batch whose scope
+        has neither entities nor patterns is marked Failed, so Launch does not pick the same files up again.
 
         Args:
             batch: BatchOfPairedNodes containing file references and their annotation state nodes.
 
         Returns:
-            None
+            True when a detect job was launched, False when the files were marked failed.
 
         Raises:
-            CogniteAPIError: If max concurrent jobs reached (429), handled gracefully.
+            CogniteAPIError: If max concurrent jobs reached (429), handled gracefully. A regular job that
+                already started is recorded on the states first, so it is finalized and not launched twice.
         """
         if batch.is_empty():
-            return
+            return False
 
         try:
             # Run regular diagram detect
@@ -475,26 +480,73 @@ class GeneralLaunchService(AbstractLaunchService):
                             f"Pattern group {group.get('resource_type')}/{group.get('annotation_type')}: "
                             f"{len(samples)} samples → {samples[:20]}" + (" ..." if len(samples) > 20 else "")
                         )
-                    pattern_job_id, pattern_job_token = self.annotation_service.run_pattern_mode_detect(
-                        files=batch.file_references, pattern_samples=self.in_memory_patterns
-                    )
+                    try:
+                        pattern_job_id, pattern_job_token = self.annotation_service.run_pattern_mode_detect(
+                            files=batch.file_references, pattern_samples=self.in_memory_patterns
+                        )
+                    except CogniteAPIError:
+                        if job_id is not None:
+                            self.logger.warning(
+                                f"Pattern-mode detect failed after regular job {job_id} started. "
+                                "Recording the regular job; these files get no pattern-mode results."
+                            )
+                            self._record_launched_jobs(batch, update_properties, job_id, None)
+                        raise
                     update_properties["patternModeJobId"] = pattern_job_id
                     update_properties["patternModeJobToken"] = pattern_job_token
                 else:
                     self.logger.info("Skipping pattern-mode diagram detect: no sample patterns available.")
 
             if "diagramDetectJobId" not in update_properties and "patternModeJobId" not in update_properties:
-                self.logger.info("No jobs launched: no entities and no patterns available. Skipping batch.")
-                return
+                self.logger.warning(
+                    f"No jobs launched for {batch.size()} files: no entities and no patterns in their scope. "
+                    "Marking them Failed."
+                )
+                self._mark_batch_failed(batch, "No entities or pattern samples found for the file's scope")
+                return False
 
-            batch.batch_states.update_node_properties(
-                new_properties=update_properties,
-                view_id=self.annotation_state_view.as_view_id(),
-            )
-            self.data_model_service.update_annotation_state(batch.batch_states.apply)
-            self.logger.info(
-                message=launch_state_update_message(job_id, pattern_job_id),
-                section="END",
-            )
+            self._record_launched_jobs(batch, update_properties, job_id, pattern_job_id)
+            return True
         finally:
             batch.clear_pair()
+
+    def _record_launched_jobs(
+        self,
+        batch: BatchOfPairedNodes,
+        update_properties: dict[str, object],
+        job_id: int | None,
+        pattern_job_id: int | None,
+    ) -> None:
+        """Store the launched job ids on the batch's annotation states."""
+        batch.batch_states.update_node_properties(
+            new_properties=update_properties,
+            view_id=self.annotation_state_view.as_view_id(),
+        )
+        self.data_model_service.update_annotation_state(batch.batch_states.apply)
+        self.logger.info(
+            message=launch_state_update_message(job_id, pattern_job_id),
+            section="END",
+        )
+
+    def _mark_batch_failed(self, batch: BatchOfPairedNodes, message: str) -> None:
+        """Set the batch's states to Failed and swap the files' AnnotationInProcess tag for AnnotationFailed."""
+        batch.batch_states.update_node_properties(
+            new_properties={
+                "annotationStatus": AnnotationStatus.FAILED,
+                **annotation_clock(),
+                "annotationMessage": message,
+                "launchFunctionId": self.function_id,
+                "launchFunctionCallId": self.call_id,
+            },
+            view_id=self.annotation_state_view.as_view_id(),
+        )
+        file_view_id = self.file_view.as_view_id()
+        file_applies = [
+            tags_apply(
+                file_node,
+                file_view_id,
+                replace_tag(node_tags(file_node, file_view_id), TAG_ANNOTATION_IN_PROCESS, TAG_ANNOTATION_FAILED),
+            )
+            for file_node in batch.batch_files.nodes
+        ]
+        self.data_model_service.update_annotation_state(batch.batch_states.apply + file_applies)

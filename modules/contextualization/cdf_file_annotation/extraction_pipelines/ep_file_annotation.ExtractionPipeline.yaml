@@ -1,22 +1,22 @@
-name: 'ctx:file:annotation'
+name: File annotation
 externalId: {{ extractionPipelineExternalId }}
 dataSetExternalId: {{ annotationDatasetExternalId }}
 description: "Pipeline holding configuration and run history for file annotation."
 # Fixed names, defined in functions/fn_file_annotation/fa_constants.py.
 rawTables:
-  - dbName: db_file_annotation
+  - dbName: raw_file_annotation
     tableName: annotation_documents_tags
-  - dbName: db_file_annotation
+  - dbName: raw_file_annotation
     tableName: annotation_documents_docs
-  - dbName: db_file_annotation
+  - dbName: raw_file_annotation
     tableName: annotation_documents_patterns
-  - dbName: db_file_annotation
+  - dbName: raw_file_annotation
     tableName: annotation_entities_cache
-  - dbName: db_file_annotation
+  - dbName: raw_file_annotation
     tableName: manual_patterns_catalog
-  - dbName: db_file_annotation
+  - dbName: raw_file_annotation
     tableName: annotation_tags_cache
-  - dbName: db_file_annotation
+  - dbName: raw_file_annotation
     tableName: annotation_file_status_report
 source: "Files"
 documentation: >

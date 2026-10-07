@@ -7,8 +7,8 @@ from cognite.client.data_classes.contextualization import (
     DiagramDetectResults,
     FileReference,
 )
-from services.ConfigService import Config
-from services.LoggerService import CogniteFunctionLogger
+from services.config_service import Config
+from services.logger_service import CogniteFunctionLogger
 
 
 class IAnnotationService(abc.ABC):
@@ -27,7 +27,6 @@ class IAnnotationService(abc.ABC):
         pass
 
 
-# maybe a different class for debug mode and run mode?
 class GeneralAnnotationService(IAnnotationService):
     """
     Build a queue of files that are in the annotation process and return the jobId
@@ -40,14 +39,13 @@ class GeneralAnnotationService(IAnnotationService):
 
         self.annotation_config = config.launch_function.annotation_service
         self.diagram_detect_config: DiagramDetectConfig | None = None
+        self.pattern_detect_config: DiagramDetectConfig | None = None
         if config.launch_function.annotation_service.diagram_detect_config:
             self.diagram_detect_config = config.launch_function.annotation_service.diagram_detect_config.as_config()
-            # NOTE: Remove Leading Zeros has a weird interaction with pattern mode so will always turn off
-            if config.launch_function.pattern_mode:
-                # NOTE: Shallow copy that still references Mutable objects in self.diagram_detect_config.
-                # Since RemoveLeadingZeros is a boolean value, it is immutable and we can modify the copy without effecting the original.
-                self.pattern_detect_config = copy.copy(self.diagram_detect_config)
-                self.pattern_detect_config.remove_leading_zeros = False
+            # Remove leading zeros interferes with pattern mode, so it is always off there.
+            # A shallow copy is enough: the flag is a bool, so the regular config is not affected.
+            self.pattern_detect_config = copy.copy(self.diagram_detect_config)
+            self.pattern_detect_config.remove_leading_zeros = False
 
     def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, object]]) -> tuple[int, str]:
         """
@@ -61,7 +59,7 @@ class GeneralAnnotationService(IAnnotationService):
             The job ID of the initiated diagram detection job.
 
         Raises:
-            Exception: If the API call does not return a valid job ID.
+            RuntimeError: If the API call does not return a valid job ID.
         """
         detect_job: DiagramDetectResults = self.client.diagrams.detect(
             file_references=files,
@@ -74,7 +72,7 @@ class GeneralAnnotationService(IAnnotationService):
         if detect_job.job_id and detect_job.job_token:
             return detect_job.job_id, detect_job.job_token
         else:
-            raise Exception("API call to diagram/detect did not return a job ID or job Token")
+            raise RuntimeError("API call to diagram/detect did not return a job ID or job Token")
 
     def run_pattern_mode_detect(
         self, files: list[FileReference], pattern_samples: list[dict[str, object]]
@@ -93,7 +91,7 @@ class GeneralAnnotationService(IAnnotationService):
             The job ID of the initiated pattern mode diagram detection job.
 
         Raises:
-            Exception: If the API call does not return a valid job ID.
+            RuntimeError: If the API call does not return a valid job ID.
         """
         detect_job: DiagramDetectResults = self.client.diagrams.detect(
             file_references=files,
@@ -107,4 +105,4 @@ class GeneralAnnotationService(IAnnotationService):
         if detect_job.job_id and detect_job.job_token:
             return detect_job.job_id, detect_job.job_token
         else:
-            raise Exception("API call to diagram/detect in pattern mode did not return a job ID and/or job Token")
+            raise RuntimeError("API call to diagram/detect in pattern mode did not return a job ID and/or job Token")

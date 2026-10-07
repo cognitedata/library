@@ -10,7 +10,7 @@ from data_structures import ExtractionPipelineConfig  # isort: skip
 VIEWS = {
     "fileView": {"schemaSpace": "cdf_cdm", "instanceSpace": "files", "externalId": "CogniteFile", "version": "v1"},
     "annotationStateView": {
-        "schemaSpace": "sp_hdm",
+        "schemaSpace": "dm_sol_file_annotation",
         "instanceSpace": "files",
         "externalId": "FileAnnotationState",
         "version": "v1",
@@ -34,7 +34,7 @@ def test_views_are_read_from_legacy_data_model_views() -> None:
 
     assert config.file_view_cfg is not None
     assert config.annotation_state_view_cfg is not None
-    assert config.annotation_state_view_cfg.schema_space == "sp_hdm"
+    assert config.annotation_state_view_cfg.schema_space == "dm_sol_file_annotation"
 
 
 def test_missing_views_return_empty_config() -> None:

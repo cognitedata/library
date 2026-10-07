@@ -41,8 +41,8 @@ from fa_constants import (
     ENTITY_SYNC_RETRY_BACKOFF_SECONDS,
     ENTITY_SYNC_STATE_KEY_PREFIX,
 )
-from services.ConfigService import Config, ViewPropertyConfig
-from services.LoggerService import CogniteFunctionLogger
+from services.config_service import Config, ViewPropertyConfig
+from services.logger_service import CogniteFunctionLogger
 
 HTTP_STATUS_BAD_REQUEST = 400
 HTTP_STATUS_REQUEST_TIMEOUT = 408

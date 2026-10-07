@@ -12,7 +12,7 @@ sys.path.append(str(Path(__file__).parent))
 from cognite.client.data_classes.data_modeling import NodeId, ViewId
 from cognite.client.exceptions import CogniteAPIError
 from fa_constants import QUERY_TIMEOUT_MAX_RETRIES
-from services.ConfigService import Config
+from services.config_service import Config
 
 
 def _config() -> Config:
@@ -33,7 +33,7 @@ def _config() -> Config:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -65,7 +65,7 @@ def _claimed_file() -> MagicMock:
 
 
 def _launch_service(data_model_service: MagicMock, cache_service: MagicMock | None = None):
-    from services.LaunchService import GeneralLaunchService
+    from services.launch_service import GeneralLaunchService
 
     return GeneralLaunchService(
         client=MagicMock(),
@@ -110,7 +110,7 @@ def test_launch_releases_its_files_when_the_entity_read_keeps_timing_out(sleeps:
 
 
 def test_launch_keeps_reading_entities_in_the_next_run_while_the_read_is_unfinished() -> None:
-    from services.EntitySyncService import EntitySyncIncompleteError
+    from services.entity_sync_service import EntitySyncIncompleteError
 
     file_node = _claimed_file()
     data_model_service = MagicMock()
@@ -123,7 +123,7 @@ def test_launch_keeps_reading_entities_in_the_next_run_while_the_read_is_unfinis
 
 
 def test_prepare_gives_up_on_a_files_query_that_keeps_timing_out(sleeps: list[float]) -> None:
-    from services.PrepareService import GeneralPrepareService
+    from services.prepare_service import GeneralPrepareService
 
     data_model_service = MagicMock()
     data_model_service.get_files_to_annotate.side_effect = _timeout()
@@ -133,7 +133,7 @@ def test_prepare_gives_up_on_a_files_query_that_keeps_timing_out(sleeps: list[fl
 
 
 def test_finalize_gives_up_on_a_jobs_query_that_keeps_timing_out(sleeps: list[float]) -> None:
-    from services.FinalizeService import GeneralFinalizeService
+    from services.finalize_service import GeneralFinalizeService
 
     retrieve_service = MagicMock()
     retrieve_service.get_job_id.side_effect = _timeout()
@@ -146,7 +146,7 @@ def test_finalize_gives_up_on_a_jobs_query_that_keeps_timing_out(sleeps: list[fl
 
 def test_the_entity_read_stops_at_the_function_deadline() -> None:
     """A read that runs past the function's time budget would be killed with nothing stored."""
-    from services.EntitySyncService import EntitySyncIncompleteError, EntitySyncService
+    from services.entity_sync_service import EntitySyncIncompleteError, EntitySyncService
 
     client = MagicMock()
     client.raw.rows.retrieve.return_value = None

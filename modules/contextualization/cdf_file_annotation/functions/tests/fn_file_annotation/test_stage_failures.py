@@ -151,6 +151,53 @@ def test_config_validation_error_records_pipeline_failure_and_reraises(
     pipeline.upload_extraction_pipeline.assert_called_once_with(status="failure")
 
 
+@pytest.mark.parametrize("stage_name", ["prepare", "launch", "finalize", "promote"])
+def test_unexpected_error_records_pipeline_failure(monkeypatch: pytest.MonkeyPatch, stage_name: str) -> None:
+    import importlib
+
+    stage = importlib.import_module(f"stages.{stage_name}")
+    pipeline = MagicMock()
+
+    def fail_config(**kwargs: object) -> None:
+        raise KeyError("missing")
+
+    monkeypatch.setattr(stage, "create_config_service", fail_config)
+    monkeypatch.setattr(stage, "create_logger_service", lambda *args, **kwargs: MagicMock())
+    monkeypatch.setattr(stage, "create_general_pipeline_service", lambda *args, **kwargs: pipeline)
+    if stage_name == "finalize":
+        monkeypatch.setattr(stage.time, "sleep", lambda seconds: None)
+
+    with pytest.raises(KeyError):
+        stage.handle({"ExtractionPipelineExtId": "ep_file_annotation"}, {}, MagicMock())
+
+    pipeline.upload_extraction_pipeline.assert_called_once_with(status="failure")
+
+
+@pytest.mark.parametrize("stage_name", ["prepare", "launch", "finalize", "promote"])
+def test_missing_pipeline_id_is_rejected(stage_name: str) -> None:
+    import importlib
+
+    stage = importlib.import_module(f"stages.{stage_name}")
+
+    with pytest.raises(ValidationError):
+        stage.handle({"logLevel": "INFO"}, {}, MagicMock())
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"ExtractionPipelineExtId": "ep_file_annotation"},
+        {"stage": "unknown", "ExtractionPipelineExtId": "ep_file_annotation"},
+        {"stage": "prepare", "ExtractionPipelineExtId": "ep_file_annotation", "logLevel": "VERBOSE"},
+    ],
+)
+def test_handler_rejects_invalid_input(data: dict[str, str]) -> None:
+    from handler import handle
+
+    with pytest.raises(ValidationError):
+        handle(data, {}, MagicMock())
+
+
 def test_handler_imports_without_python_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
     """CDF Functions does not install python-dotenv. The handler must still import."""
     import importlib

@@ -7,9 +7,10 @@ from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node
 from cognite.client.data_classes.raw import Row
 from cognite.client.exceptions import CogniteAPIError
-from services.ConfigService import Config, ViewPropertyConfig
-from services.LoggerService import CogniteFunctionLogger
-from utils.DataStructures import CacheMarker
+from fa_constants import FUNCTION_EXTERNAL_ID
+from services.config_service import Config, ViewPropertyConfig
+from services.logger_service import CogniteFunctionLogger
+from utils.data_structures import CacheMarker
 
 
 @dataclass
@@ -136,7 +137,7 @@ class CacheService(ICacheService):
         self.raw_db: str = config.raw_tables.raw_db
         self.cache_table_name: str = config.raw_tables.raw_table_promote_cache
 
-        self.function_id = "fn_file_annotation"
+        self.function_id = FUNCTION_EXTERNAL_ID
 
         # In-memory cache: {(text, type, space): CachedEntityInfo or CacheMarker}
         # Memory cache values can be:

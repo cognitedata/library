@@ -12,7 +12,7 @@ sys.path.append(str(Path(__file__).parent))
 from cognite.client.data_classes import Row
 from cognite.client.data_classes.data_modeling import Node
 from cognite.client.exceptions import CogniteAPIError
-from services.ConfigService import Config
+from services.config_service import Config
 
 
 def _config(primary: str | None = None, secondary: str | None = None) -> Config:
@@ -40,7 +40,7 @@ def _config(primary: str | None = None, secondary: str | None = None) -> Config:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "files",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
@@ -83,7 +83,7 @@ def _client(asset_pages: list[MagicMock], state: Row | None = None, cached: list
 
 
 def _targets(config: Config, client: MagicMock, primary: str = "", secondary: str | None = None) -> list[str]:
-    from services.DataModelService import GeneralDataModelService
+    from services.data_model_service import GeneralDataModelService
 
     targets, _ = GeneralDataModelService(config, client, MagicMock()).get_instances_entities(primary, secondary, None)
     return sorted(target.external_id for target in targets)
@@ -123,7 +123,7 @@ def test_entities_are_filtered_by_tag_and_grouped_by_scope_in_memory() -> None:
 
 def test_entities_without_scope_values_are_matched_against_every_document() -> None:
     """Assets with no site/unit still match; they go in the unscoped set used for every file."""
-    from services.DataModelService import GeneralDataModelService
+    from services.data_model_service import GeneralDataModelService
 
     client = _client(
         [
@@ -149,7 +149,7 @@ def test_entities_without_scope_values_are_matched_against_every_document() -> N
 
 
 def test_a_file_entity_without_aliases_is_kept_to_match_on_its_name() -> None:
-    from services.DataModelService import GeneralDataModelService
+    from services.data_model_service import GeneralDataModelService
 
     file_node = Node.load(
         {
@@ -229,7 +229,7 @@ def _raw_store(client: MagicMock) -> None:
 
 def _scope_entities(aliases: list[str]):
     from cognite.client.data_classes.data_modeling import ViewId
-    from services.EntitySyncService import EntityInstance
+    from services.entity_sync_service import EntityInstance
 
     view_id = ViewId("cdf_cdm", "CogniteAsset", "v1")
     return [EntityInstance("assets", alias, {view_id: {"name": alias, "aliases": [alias]}}) for alias in aliases]
@@ -237,7 +237,7 @@ def _scope_entities(aliases: list[str]):
 
 def test_pattern_samples_are_reused_while_the_scope_entities_are_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
     """Generating samples runs regexes over every alias, which is wasted work when nothing changed."""
-    from services.EntityCacheService import GeneralCacheService
+    from services.entity_cache_service import GeneralCacheService
 
     client = MagicMock()
     _raw_store(client)
@@ -260,9 +260,9 @@ def test_pattern_samples_are_reused_while_the_scope_entities_are_unchanged(monke
 def test_a_first_read_that_outlasts_the_budget_is_stored_and_continued_next_run(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from services.EntitySyncService import EntitySyncIncompleteError
+    from services.entity_sync_service import EntitySyncIncompleteError
 
-    monkeypatch.setattr("services.EntitySyncService.ENTITY_SYNC_CHECKPOINT_SECONDS", 0)
+    monkeypatch.setattr("services.entity_sync_service.ENTITY_SYNC_CHECKPOINT_SECONDS", 0)
     client = _client([_page([_asset("A-1", tags=["OMD"])], cursor="partial")], state=Row("state", {"batchSize": 1}))
 
     with pytest.raises(EntitySyncIncompleteError):

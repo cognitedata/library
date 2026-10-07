@@ -1,3 +1,5 @@
 externalId: {{ workflowExternalId }}
 description: Submit file annotation jobs, collect their results, and link files to assets.
 dataSetExternalId: {{ annotationDatasetExternalId }}
+# Runs started while one is active wait in a queue, so two runs never launch jobs for the same files.
+maxConcurrentExecutions: 1

@@ -10,8 +10,8 @@ from cognite.client.data_classes.data_modeling import EdgeApply, NodeId, ViewId
 sys.path.append(str(Path(__file__).parent))
 
 from fa_constants import MIN_FUZZY_SCORE  # isort: skip
-from services.ApplyService import GeneralApplyService  # isort: skip
-from services.ConfigService import Config  # isort: skip
+from services.apply_service import GeneralApplyService  # isort: skip
+from services.config_service import Config  # isort: skip
 
 FILE_ID = NodeId("inst_location", "file_PH-ME-P-0153-001.pdf")
 FILE_VIEW_ID = ViewId("cdf_cdm", "CogniteFile", "v1")
@@ -47,12 +47,15 @@ def _config(**parameters: object) -> Config:
                     "version": "v1",
                 },
                 "annotationStateView": {
-                    "schemaSpace": "sp_hdm",
+                    "schemaSpace": "dm_sol_file_annotation",
                     "instanceSpace": "inst_location",
                     "externalId": "FileAnnotationState",
                     "version": "v1",
                 },
-                "sinkNode": {"space": "sp_dat_pattern_mode_results", "externalId": "pattern_detection_sink_node"},
+                "sinkNode": {
+                    "space": "inst_file_annotation_pattern_results",
+                    "externalId": "pattern_detection_sink_node",
+                },
             },
         }
     )
@@ -134,6 +137,15 @@ def test_a_suggested_annotation_is_replaced_by_an_enclosing_pattern() -> None:
 
     assert "file_PH-ME-P-0152-001.pdf" not in _status_by_end_node(edges)
     assert _doc_doc_rows(client) == []
+
+
+def test_an_enclosing_pattern_without_entities_keeps_the_annotation() -> None:
+    """The pattern writes nothing for an empty result, so removing the annotation would lose the link."""
+    pattern = {"annotations": [{"entities": [], "region": ENCLOSING, "text": "PH-ME-P-0152-001 REV 2"}]}
+
+    edges, _ = _apply(_config(), [_detection(LINKED_FILE, 1.0)], pattern)
+
+    assert _status_by_end_node(edges)["file_PH-ME-P-0152-001.pdf"] == "Approved"
 
 
 def test_file_links_and_asset_links_use_their_own_thresholds() -> None:

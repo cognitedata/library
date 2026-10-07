@@ -62,7 +62,7 @@ cdf_file_annotation/
 │   ├── 📄 tag_assets_detect_in_diagrams.Transformation.{yaml,sql}   # Helper: merge DetectInDiagrams on assets
 │   ├── 📄 tag_files_detect_in_diagrams.Transformation.{yaml,sql}    # Helper: merge DetectInDiagrams on files
 │   ├── 📄 tag_files_to_annotate.Transformation.{yaml,sql}         # Helper: merge ToAnnotate on files
-│   ├── 📄 file_to_asset.Transformation.{yaml,sql}                 # Populate Files.assets from annotations
+│   ├── 📄 file_to_asset.Transformation.{yaml,sql}                 # Add approved annotation assets to Files.assets
 │   └── 📄 file_annotation_status_report.Transformation.{yaml,sql}   # Per-file matched/unmatched tag report
 ├── 📁 data_modeling/                       # Data model definitions
 │   ├── 📁 containers/                             # Container definitions
@@ -209,8 +209,10 @@ flowchart TD
 
     GetJobId --> FindFiles[Find ALL files with<br/>the same job ID]
     FindFiles --> CheckJobs{Both standard<br/>and pattern jobs<br/>complete?}
-    CheckJobs -->|No| ResetStatus[Update AnnotationStates<br/>back to Processing<br/>Wait 30 seconds]
+    CheckJobs -->|No| ResetStatus[Update AnnotationStates<br/>back to Processing<br/>Skip these jobs for this run]
     ResetStatus --> QueryState
+    CheckState -->|Only skipped jobs left| Wait[Wait 30 seconds<br/>and clear the skip list]
+    Wait --> QueryState
 
     CheckJobs -->|Yes| RetrieveResults[Retrieve results from<br/>both completed jobs]
     RetrieveResults --> MergeResults[Merge regular and pattern<br/>results by file ID<br/>Creates unified result per file]
@@ -351,7 +353,7 @@ The module ships transformations under `transformations/` that **merge** tags wi
 | `tr_tag_files_detect_in_diagrams` | `DetectInDiagrams` | File view (`fileExternalId`) |
 | `tr_tag_files_to_annotate` | `ToAnnotate` | File view (`fileExternalId`) |
 
-Each reads from `cdf_nodes(instanceSpace, viewExternalId, version)` and upserts only the `tags` property (`ignoreNullFields: true`).
+Each reads from `cdf_nodes(schemaSpace, viewExternalId, version)`, keeps the instances in the configured instance space (`fileInstanceSpace` / `targetEntityInstanceSpace`, or every space when it is empty), and upserts only the `tags` property (`ignoreNullFields: true`). Each instance is written back to its own space.
 
 ```bash
 cdf transformations run tr_tag_assets_detect_in_diagrams
@@ -375,7 +377,7 @@ filesToAnnotateTags:
 
 ## 📊 Reporting & RAW Tables
 
-Finalize and promote write annotation results to the RAW database `db_file_annotation`. The database and table names are fixed in `functions/fn_file_annotation/fa_constants.py` (see [CONFIG.md](./detailed_guides/CONFIG.md#raw-database-and-tables)). Use these tables for auditing — not the helper `FileAnnotationState` view, which tracks job status per file rather than individual tag strings.
+Finalize and promote write annotation results to the RAW database `raw_file_annotation`. The database and table names are fixed in `functions/fn_file_annotation/fa_constants.py` (see [CONFIG.md](./detailed_guides/CONFIG.md#raw-database-and-tables)). Use these tables for auditing — not the helper `FileAnnotationState` view, which tracks job status per file rather than individual tag strings.
 
 `FileAnnotationState.pipelineUpdatedTime` is the clock launch and finalize write when they change a file's annotation state. Stuck-job recovery and the finalize claim order use that property. States written before this property existed are still recovered from `sourceUpdatedTime` until the next stage touches them.
 
@@ -405,7 +407,7 @@ The **Annotation Quality** Streamlit dashboard reads the same RAW tables and map
 
 ### Status report transformation
 
-`tr_file_annotation_status_report` aggregates `annotation_documents_tags` and `annotation_documents_patterns` **per file** for a configured instance space (`fileInstanceSpace`):
+`tr_file_annotation_status_report` aggregates `annotation_documents_tags` and `annotation_documents_patterns` **per file** for a configured instance space (`fileInstanceSpace`, or every space when it is empty). The workflow runs it after promote; a failed report run does not stop the workflow:
 
 | Output column | Description |
 |---|---|
@@ -415,7 +417,7 @@ The **Annotation Quality** Streamlit dashboard reads the same RAW tables and map
 
 ```bash
 cdf transformations run tr_file_annotation_status_report
-cdf raw rows list db_file_annotation annotation_file_status_report --limit 20
+cdf raw rows list raw_file_annotation annotation_file_status_report --limit 20
 ```
 
 Run after finalize and promote so pattern rows have final status values.
@@ -430,9 +432,9 @@ annotationDatasetExternalId: ds_file_annotation
 
 # Annotation State Data Model
 annotationStateExternalId: FileAnnotationState
-annotationStateSchemaSpace: sp_hdm              # Helper data model space
+annotationStateSchemaSpace: dm_sol_file_annotation              # Annotation state data model space
 annotationStateVersion: v1.0.0
-patternModeInstanceSpace: sp_dat_pattern_mode_results
+patternModeInstanceSpace: inst_file_annotation_pattern_results
 patternDetectSink: pattern_detection_sink_node
 
 # File View Configuration (UPDATE REQUIRED)
@@ -489,6 +491,7 @@ workflowSchedule: "0 0 29 2 *"
 
 # Auth Group (UPDATE REQUIRED)
 groupSourceId: ${GROUP_SOURCE_ID}
+environment: dev                  # group name: producer_pp_file_annotation_<environment>
 ```
 
 ### Pipeline Configuration (`ep_file_annotation.config.yaml`)
@@ -545,7 +548,7 @@ data:
   annotationStateView:
     # schemaSpace, instanceSpace, externalId, version
   sinkNode:
-    space: sp_dat_pattern_mode_results
+    space: inst_file_annotation_pattern_results
     externalId: pattern_detection_sink_node
 ```
 
@@ -638,7 +641,7 @@ different containers, and the OR with `ScopeWideDetect` keeps DMS from paging it
 - A query that times out (408) is retried by the stage after 15, 30 and 60 seconds. If it still
   times out, the stage fails with the error, and Launch releases the files it had claimed.
 
-This needs `filesAcl: READ, WRITE` on the annotation data set, which the `gp_file_annotation`
+This needs `filesAcl: READ, WRITE` on the annotation data set, which the `producer_pp_file_annotation_<environment>`
 group includes.
 
 ### Multiple instance spaces in one configuration
@@ -828,9 +831,9 @@ variables:
     cdf_file_annotation:
       annotationDatasetExternalId: ds_file_annotation
       annotationStateExternalId: FileAnnotationState
-      annotationStateSchemaSpace: sp_hdm
+      annotationStateSchemaSpace: dm_sol_file_annotation
       annotationStateVersion: v1.0.0
-      patternModeInstanceSpace: sp_dat_pattern_mode_results
+      patternModeInstanceSpace: inst_file_annotation_pattern_results
       patternDetectSink: pattern_detection_sink_node
       fileSchemaSpace: your_schema_space        # UPDATE REQUIRED
       fileInstanceSpace: your_instances         # UPDATE REQUIRED
@@ -864,6 +867,7 @@ fileNormalizationPatterns: []
       # Paste a daily cron when annotation should start unattended, for example "0 0 * * *".
       workflowSchedule: "0 0 29 2 *"
       groupSourceId: your-azure-ad-group-source-id  # UPDATE REQUIRED
+      environment: dev
 ```
 
 ### 4. Deploy the Module
@@ -910,12 +914,12 @@ cdf functions logs fn_file_annotation
 cdf workflows status wf_file_annotation
 
 # View annotation results in RAW
-cdf raw rows list db_file_annotation annotation_documents_tags
-cdf raw rows list db_file_annotation annotation_documents_patterns
+cdf raw rows list raw_file_annotation annotation_documents_tags
+cdf raw rows list raw_file_annotation annotation_documents_patterns
 
 # Build per-file matched/unmatched report (after promote)
 cdf transformations run tr_file_annotation_status_report
-cdf raw rows list db_file_annotation annotation_file_status_report
+cdf raw rows list raw_file_annotation annotation_file_status_report
 ```
 
 ## 📊 Data Flow
@@ -1009,15 +1013,14 @@ uv sync --group dev
 
 After changing local dependencies: `uv lock`. After changing CDF deploy dependencies: edit `deploy_dependencies` in `scripts/generate_uv_member_projects.py`, then `python scripts/export_deploy_requirements.py`.
 
-Run handlers locally (set `CDF_*` / `IDP_*` in `.env` first):
+Run handlers locally (set `CDF_*` / `IDP_*` in `.env` first; set `IDP_TOKEN_URL` when your identity provider is not Entra ID):
 
 ```bash
 cd functions/fn_file_annotation
 uv run python handler.py
-
-cd functions/fn_file_annotation
-uv run python handler.py
 ```
+
+The function and both dashboards send anonymous usage events (project, cluster and app name). Set `CDF_USAGE_REPORTING=false` to turn this off.
 
 ### Integration Testing
 
@@ -1029,7 +1032,7 @@ cdf workflows trigger wf_file_annotation
 cdf workflows logs wf_file_annotation
 
 # Verify results
-cdf raw rows list db_file_annotation annotation_documents_tags --limit 10
+cdf raw rows list raw_file_annotation annotation_documents_tags --limit 10
 ```
 
 ## 🔧 Troubleshooting
@@ -1042,6 +1045,7 @@ cdf raw rows list db_file_annotation annotation_documents_tags --limit 10
    - Ensure `FileAnnotationState` view is deployed
 
 2. **No Entities Sent to Diagram Detect**
+   - Launch marks such files `Failed` with the message "No entities or pattern samples found for the file's scope" and tags them `AnnotationFailed`; fix the entities, then reset the files to re-run them
    - Assets and reference files need the `DetectInDiagrams` tag (run `tr_tag_assets_detect_in_diagrams` / `tr_tag_files_detect_in_diagrams`)
    - Verify `aliases` are populated — launch searches aliases, not `name`, unless aliases are missing entirely
    - Check scope properties match your instance data (`primaryScopeProperty`, `secondaryScopeProperty`)
@@ -1054,7 +1058,7 @@ cdf raw rows list db_file_annotation annotation_documents_tags --limit 10
 
 4. **Status Report Returns Zero Rows**
    - Confirm RAW tables contain data for your `fileInstanceSpace` (`startNodeSpace`)
-   - Run the report after promote so pattern rows have final status
+   - The workflow runs the report after promote; if you run it by hand, run it after promote so pattern rows have final status
    - Rebuild with `cdf build` so `{{ fileInstanceSpace }}` substitutes correctly
 
 5. **Annotation Jobs Failing**

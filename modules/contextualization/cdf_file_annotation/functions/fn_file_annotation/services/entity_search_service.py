@@ -6,8 +6,8 @@ from cognite.client.data_classes.filters import And, ContainsAny, Filter
 from cognite.client.exceptions import CogniteAPIError
 from fa_constants import MAX_ENTITY_SEARCH_LIMIT
 from normalization import normalize_text, text_variations
-from services.ConfigService import Config
-from services.LoggerService import CogniteFunctionLogger
+from services.config_service import Config
+from services.logger_service import CogniteFunctionLogger
 
 # Token search on these text properties. AND requires every token of the input;
 # the property value may contain additional tokens.
@@ -221,7 +221,10 @@ class EntitySearchService(IEntitySearchService):
             search_filter: Hard filter applied together with the query.
 
         Returns:
-            Matching nodes, or [] on API error.
+            Matching nodes.
+
+        Raises:
+            CogniteAPIError: When the search fails. An empty result would read as "no match" and reject the edge.
         """
         try:
             # operator AND: every query token must match. Unused when query is omitted.
@@ -238,7 +241,7 @@ class EntitySearchService(IEntitySearchService):
             )
         except CogniteAPIError as e:
             self.logger.error(f"Error searching for entity '{log_text}' in space '{entity_space}': {e}")
-            return []
+            raise
         return list(entities)
 
     def _cap_matches(self, matched_entities: list[Node], text: str, entity_space: str) -> list[Node]:

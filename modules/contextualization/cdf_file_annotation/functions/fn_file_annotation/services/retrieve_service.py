@@ -11,17 +11,21 @@ from cognite.client.data_classes.data_modeling import (
     instances,
 )
 from cognite.client.data_classes.filters import (
+    And,
     Equals,
     Filter,
+    In,
+    Not,
 )
 from cognite.client.exceptions import CogniteAPIError
-from services.ConfigService import (
+from fa_constants import DEBUG_RESPONSE_PREVIEW_CHARS
+from services.config_service import (
     Config,
     ViewPropertyConfig,
     build_filter_from_query,
 )
-from services.LoggerService import CogniteFunctionLogger
-from utils.DataStructures import AnnotationStatus
+from services.logger_service import CogniteFunctionLogger
+from utils.data_structures import AnnotationStatus
 
 
 class JobPollStatus(StrEnum):
@@ -56,7 +60,7 @@ class IRetrieveService(abc.ABC):
 
     @abc.abstractmethod
     def get_job_id(
-        self,
+        self, skip_job_ids: set[int] | None = None
     ) -> tuple[tuple[int, str] | None, tuple[int, str] | None, dict[NodeId, Node]] | tuple[None, None, None]:
         pass
 
@@ -87,8 +91,8 @@ class GeneralRetrieveService(IRetrieveService):
         """
         Retrieves the results of a diagram detection job by job ID.
 
-        A non-200 response is treated as still running, so the next workflow pass retries it.
-        Failed and Cancelled are terminal and are not retried.
+        A failed request raises CogniteAPIError; Finalize then sets the files to Retry.
+        Failed and Cancelled jobs are terminal and are not retried.
 
         Args:
             job_id: The diagram detection job ID to retrieve results for.
@@ -99,9 +103,6 @@ class GeneralRetrieveService(IRetrieveService):
         """
         url = f"{self.job_api}/{job_id}"
         response = self.client.get(url, headers={"X-Job-Token": job_token})
-        if response.status_code != 200:
-            self.logger.info(f"Request to get job {job_id} failed - HTTP {response.status_code}")
-            return DiagramDetectJobPoll(status=JobPollStatus.RUNNING)
 
         job_results: dict = response.json()
         status_count = job_results.get(
@@ -109,7 +110,8 @@ class GeneralRetrieveService(IRetrieveService):
         )
         status = job_results.get("status")
         if self.logger.log_level == "DEBUG":
-            self.logger.debug(f"Below is the full response:\n{response.text}")
+            preview = response.text[:DEBUG_RESPONSE_PREVIEW_CHARS]
+            self.logger.debug(f"Response (first {DEBUG_RESPONSE_PREVIEW_CHARS} chars):\n{preview}")
         if status == "Completed":
             self.logger.info(f"Job complete - {status_count} - {job_id}")
             return DiagramDetectJobPoll(status=JobPollStatus.COMPLETED, results=job_results)
@@ -121,7 +123,7 @@ class GeneralRetrieveService(IRetrieveService):
         return DiagramDetectJobPoll(status=JobPollStatus.RUNNING)
 
     def get_job_id(
-        self,
+        self, skip_job_ids: set[int] | None = None
     ) -> tuple[tuple[int, str] | None, tuple[int, str] | None, dict[NodeId, Node]] | tuple[None, None, None]:
         """
         Retrieves and claims an available diagram detection job for processing.
@@ -131,7 +133,7 @@ class GeneralRetrieveService(IRetrieveService):
         by updating their status to "Finalizing".
 
         Args:
-            None
+            skip_job_ids: Regular or pattern-mode job ids this run already found still running.
 
         Returns:
             A tuple containing:
@@ -162,12 +164,20 @@ class GeneralRetrieveService(IRetrieveService):
             )
         )
 
+        job_filter = self.filter_jobs
+        if skip_job_ids:
+            skipped = sorted(skip_job_ids)
+            job_filter = And(
+                job_filter,
+                Not(In(self.annotation_state_view.as_property_ref("diagramDetectJobId"), skipped)),
+                Not(In(self.annotation_state_view.as_property_ref("patternModeJobId"), skipped)),
+            )
         annotation_state_instance: NodeList = self.client.data_modeling.instances.list(
             instance_type="node",
             sources=self.annotation_state_view.as_view_id(),
             space=self.annotation_state_view.instance_space,
             limit=1,
-            filter=self.filter_jobs,
+            filter=job_filter,
             sort=sort_by_time,
         )
 
@@ -202,10 +212,8 @@ class GeneralRetrieveService(IRetrieveService):
             filter=filter_job_id,
             sort=sort_by_time,
         )
-        try:
-            self._attempt_to_claim(list_job_nodes.as_write())
-        except CogniteAPIError as e:
-            raise e  # NOTE: let the main loop handle error -> if error occurs should be version error
+        # A version conflict means another run claimed the job; the main loop picks another.
+        self._attempt_to_claim(list_job_nodes.as_write())
 
         # NOTE: could bundle this with the attempt to claim loop. Chose not to since the run time gains is negligible and improves readability.
         file_to_state_map: dict[NodeId, Node] = {}

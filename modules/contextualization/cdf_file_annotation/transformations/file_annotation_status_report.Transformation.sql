@@ -13,7 +13,7 @@
 --   unmatched : pattern rows with status 'Rejected' or 'Suggested' (no asset link)
 --
 -- Scope:
---   Limited to file instances in {{ fileInstanceSpace }} (startNodeSpace).
+--   Limited to file instances in {{ fileInstanceSpace }} (startNodeSpace), or every space when it is empty.
 --   Rows with a missing startNodeSpace are treated as belonging to that space.
 -- =============================================================================
 
@@ -26,8 +26,8 @@ WITH regular_asset_annotations AS (
     , cast(endNode AS STRING) AS assetExternalId
     , trim(cast(status AS STRING)) AS status
     , cast(sourceUpdatedTime AS STRING) AS sourceUpdatedTime
-  FROM `db_file_annotation`.`annotation_documents_tags`
-  WHERE coalesce(cast(startNodeSpace AS STRING), '{{ fileInstanceSpace }}') = '{{ fileInstanceSpace }}'
+  FROM `raw_file_annotation`.`annotation_documents_tags`
+  WHERE ('{{ fileInstanceSpace }}' = '' OR coalesce(cast(startNodeSpace AS STRING), '{{ fileInstanceSpace }}') = '{{ fileInstanceSpace }}')
     AND startNode IS NOT NULL
     AND trim(cast(startNode AS STRING)) != ''
     AND startNodeText IS NOT NULL
@@ -45,8 +45,8 @@ pattern_asset_annotations AS (
     , cast(endNode AS STRING) AS assetExternalId
     , trim(cast(status AS STRING)) AS status
     , cast(sourceUpdatedTime AS STRING) AS sourceUpdatedTime
-  FROM `db_file_annotation`.`annotation_documents_patterns`
-  WHERE coalesce(cast(startNodeSpace AS STRING), '{{ fileInstanceSpace }}') = '{{ fileInstanceSpace }}'
+  FROM `raw_file_annotation`.`annotation_documents_patterns`
+  WHERE ('{{ fileInstanceSpace }}' = '' OR coalesce(cast(startNodeSpace AS STRING), '{{ fileInstanceSpace }}') = '{{ fileInstanceSpace }}')
     AND startNode IS NOT NULL
     AND trim(cast(startNode AS STRING)) != ''
     AND startNodeText IS NOT NULL

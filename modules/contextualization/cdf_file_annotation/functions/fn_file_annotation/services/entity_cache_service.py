@@ -11,11 +11,11 @@ from cognite.client.data_classes import Row
 from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
 from fa_constants import PATTERN_SAMPLES_KEY_PREFIX, PATTERN_SAMPLES_VERSION
 from normalization import extract_forms
-from services.ConfigService import Config, ViewPropertyConfig
-from services.DataModelService import IDataModelService
-from services.EntitySyncService import EntityInstance
-from services.LoggerService import CogniteFunctionLogger
-from utils.DataStructures import entity
+from services.config_service import Config, ViewPropertyConfig
+from services.data_model_service import IDataModelService
+from services.entity_sync_service import EntityInstance
+from services.logger_service import CogniteFunctionLogger
+from utils.data_structures import entity
 
 
 def count_pattern_sample_strings(pattern_groups: list[dict]) -> int:
