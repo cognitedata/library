@@ -1,14 +1,8 @@
-"""
-Metadata Update Optimization Module
+"""Alias derivation, retried batch writes and step timing for the metadata update function."""
 
-This module provides optimization utilities for metadata update functions to improve
-performance, reduce memory usage, and enhance reliability.
-"""
-
-import gc
 import re
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
@@ -16,11 +10,11 @@ from functools import lru_cache
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeApply, NodeOrEdgeData, ViewId
 from cognite.client.exceptions import CogniteAPIError
-from psutil import Process
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from constants import DEFAULT_ALIAS_PATTERN  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
+
 
 @dataclass(frozen=True)
 class AliasRule:
@@ -58,6 +52,7 @@ _DEFAULT_ALIAS_RULE = AliasRule((re.compile(DEFAULT_ALIAS_PATTERN),))
 
 # ===== PERFORMANCE MONITORING =====
 
+
 @contextmanager
 def time_operation(operation_name: str, logger: CogniteFunctionLogger):
     """Context manager for timing operations"""
@@ -69,36 +64,22 @@ def time_operation(operation_name: str, logger: CogniteFunctionLogger):
         logger.debug(f"⏱️ {operation_name} took {duration:.2f} seconds")
 
 
-def monitor_memory_usage(logger: CogniteFunctionLogger, operation_name: str = ""):
-    """Monitor memory usage"""
-    try:
-        process = Process()
-        memory_mb = process.memory_info().rss / 1024 / 1024
-        logger.debug(f"📊 Memory: {operation_name} - {memory_mb:.1f} MB")
-    except Exception as e:
-        logger.debug(f"Could not monitor memory: {e}")
-
-
-def cleanup_memory():
-    """Force garbage collection"""
-    gc.collect()
-
-
 # ===== BATCH PROCESSING UTILITIES =====
+
 
 def is_retryable(error: Exception) -> bool:
     """Whether a failed request stands a chance of succeeding on a retry.
 
     A client error - a rejected property, a missing view, missing capabilities - means
-    the request itself is wrong, so repeating it only delays the failure. Rate limiting
-    and server-side errors are transient, as is anything the SDK re-raises unclassified
+    the request itself is wrong, so repeating it only delays the failure. Read timeouts,
+    rate limiting and server-side errors are transient, as is anything the SDK re-raises unclassified
     from its transport layer, which is why the default is to retry. Bugs in this function
     are the exception: they fail the same way every time. ValueError is deliberately not
     one of them - it covers JSONDecodeError, which a half-read response raises and a
     second read can clear.
     """
     if isinstance(error, CogniteAPIError):
-        return error.code == 429 or (error.code is not None and error.code >= 500)
+        return error.code in (408, 429) or (error.code is not None and error.code >= 500)
     return not isinstance(error, (TypeError, AttributeError, NameError, KeyError, IndexError))
 
 
@@ -114,31 +95,34 @@ def _worth_another_attempt(error: BaseException) -> bool:
 
 class BatchProcessor:
     """Applies metadata updates to CDF in retried batches"""
-    
+
     def __init__(self, batch_size: int = 1000):
         self.batch_size = batch_size
-    
-    def apply_updates_in_batches(self, client: CogniteClient,
-                                updates: list[NodeApply],
-                                logger: CogniteFunctionLogger,
-                                batch_size: int | None = None) -> int:
+
+    def apply_updates_in_batches(
+        self,
+        client: CogniteClient,
+        updates: list[NodeApply],
+        logger: CogniteFunctionLogger,
+        batch_size: int | None = None,
+    ) -> int:
         """Apply updates in optimized batches with retry logic"""
-        
+
         if not updates:
             return 0
-        
+
         batch_size = batch_size or self.batch_size
         total_applied = 0
-        
+
         with time_operation(f"Applying {len(updates)} updates in batches", logger):
             for i in range(0, len(updates), batch_size):
-                batch = updates[i:i + batch_size]
-                
+                batch = updates[i : i + batch_size]
+
                 try:
                     self._apply_batch_with_retry(client, batch, logger)
                     total_applied += len(batch)
-                    logger.info(f"Applied batch {i//batch_size + 1}: {len(batch)} updates")
-                    
+                    logger.info(f"Applied batch {i // batch_size + 1}: {len(batch)} updates")
+
                 except CogniteAPIError as e:
                     # Splitting only helps a batch the API refused for its size. A
                     # rejected property or view fails identically in a smaller batch.
@@ -149,12 +133,12 @@ class BatchProcessor:
                     # divides to zero, which range() rejects.
                     small_batch_size = max(1, batch_size // 4)
                     for j in range(0, len(batch), small_batch_size):
-                        small_batch = batch[j:j + small_batch_size]
+                        small_batch = batch[j : j + small_batch_size]
                         self._apply_batch_with_retry(client, small_batch, logger)
                         total_applied += len(small_batch)
-        
+
         return total_applied
-    
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
@@ -174,32 +158,31 @@ class BatchProcessor:
 
 # ===== UTILITY FUNCTIONS =====
 
-# Equipment tags start with a two-digit area code. Document numbers and pump codes do not,
-# so only tag-shaped aliases get separator normalization.
-_TAG_ALIAS_SHAPE = re.compile(r"^[0-9]{2}[-_.:[A-Z0-9]")
+# Separators that aliases always rewrite to a single underscore.
+_ALIAS_SEPARATORS = re.compile(r"[-_.:]+")
 
 
 def _normalize_alias_tokens(alias: str) -> str:
-    """Replace tag separator characters with underscores between tokens.
+    """Replace separator characters with hyphens between tokens.
 
-    Multi-group patterns already join their groups with "_". A single capture group that
-    holds the whole tag still carries "-", "." or ":" from the name unless those are
-    rewritten here.
+    Multi-group patterns already join their groups with "-". A single capture group that
+    holds the whole tag still carries "_", "." or ":" from the name unless those are
+    rewritten here. Applied to every generated alias, including letter-prefixed tags and
+    document numbers.
     """
-    if not _TAG_ALIAS_SHAPE.match(alias):
-        return alias
-    return re.sub(r"[-_.:]+", "_", alias)
+    return _ALIAS_SEPARATORS.sub("-", alias)
 
 
 def _generated_alias(name: str, pattern: re.Pattern[str]) -> str | None:
-    """The alias derived from a name - the pattern's capture groups joined by "_".
+    """The alias derived from a name - the pattern's capture groups joined by "-".
 
     A configured pattern may make a group optional, and an optional group that does not
     participate in the match captures None. Those are left out rather than joined, which
     would raise a TypeError.
 
-    Tag-shaped aliases always use "_" between tokens, whether the pattern captured several
-    groups or one group holding the whole tag.
+    Tag-shaped aliases always use "-" between tokens, whether the pattern captured several
+    groups or one group holding the whole tag. Letter-prefixed tags and document numbers
+    are rewritten the same way.
 
     Returns:
         The alias, or None when the name holds no tag.
@@ -207,7 +190,7 @@ def _generated_alias(name: str, pattern: re.Pattern[str]) -> str | None:
     match = pattern.search(name)
     if not match:
         return None
-    alias = "_".join(group for group in match.groups() if group is not None)
+    alias = "-".join(group for group in match.groups() if group is not None)
     return _normalize_alias_tokens(alias) if alias else None
 
 
@@ -241,22 +224,32 @@ def _generated_aliases(name: str, rule: AliasRule) -> list[str]:
     return aliases
 
 
+def _is_generated_alias(alias: str, rule: AliasRule) -> bool:
+    """Whether this function produced `alias`, including a pre-normalization spelling.
+
+    An alias is ours when feeding it back through any of the rule's patterns yields the
+    same string after separator rewrite. That treats `23_DB_9101` as generated once the
+    function writes `23-DB-9101`, so updateAll rebuilds it instead of keeping both.
+    """
+    normalized = _normalize_alias_tokens(alias)
+    return any(
+        generated is not None and generated in {alias, normalized}
+        for generated in (_generated_alias(alias, pattern) for pattern in rule.patterns)
+    )
+
+
 def _unmanaged_aliases(aliases: list[str], rule: AliasRule) -> list[str]:
     """Return the aliases this function did not generate, preserving their order.
 
     An alias is ours when feeding it back through any of the rule's patterns reproduces
-    it exactly. That leaves hand-curated values alone whether they merely contain a tag
-    ("spare for 23-AB-1234") or spell one differently ("23-KA-9101").
+    it after separator normalization. That leaves hand-curated values alone, including
+    notes that merely mention a tag ("spare for 23-AB-1234").
 
     Every pattern is checked even under "longest", so an alias a previous run wrote from
     a pattern that no longer wins - or from a longer pattern list - is still recognised
     and rebuilt rather than left behind.
     """
-    return [
-        alias
-        for alias in aliases
-        if not any(_generated_alias(alias, pattern) == alias for pattern in rule.patterns)
-    ]
+    return [alias for alias in aliases if not _is_generated_alias(alias, rule)]
 
 
 def _dedupe_preserve_order(aliases: Sequence[str]) -> list[str]:
@@ -322,11 +315,25 @@ def _merge_file_aliases(
     name: str,
     rule: AliasRule,
 ) -> tuple[str, ...]:
-    """Return existing aliases plus the file name stem and any tag aliases from the name."""
+    """Return existing aliases plus pattern aliases, and the file stem when a pattern hit.
+
+    The stem is only added when a pattern produced a tag. A name that matches nothing
+    must not be rewritten into an alias, and a leftover stem from an earlier run is
+    dropped.
+    """
+    generated = _generated_aliases(name, rule)
+    stem = _file_name_without_extension(name)
+    stem_spellings = {stem, _normalize_alias_tokens(stem)} if stem else set()
+    if not generated:
+        return tuple(alias for alias in existing if alias not in stem_spellings)
+
     aliases = list(existing)
-    for candidate in [_file_name_without_extension(name), *_generated_aliases(name, rule)]:
-        if candidate and candidate not in aliases:
-            aliases.append(candidate)
+    normalized_stem = _normalize_alias_tokens(stem) if stem else ""
+    if normalized_stem and normalized_stem not in aliases:
+        aliases.append(normalized_stem)
+    for alias in generated:
+        if alias not in aliases:
+            aliases.append(alias)
     return tuple(aliases)
 
 
@@ -340,7 +347,7 @@ _MAX_MISSING_ALIAS_WARNINGS = 10
 
 class OptimizedMetadataProcessor:
     """Optimized metadata processing with caching and batch operations"""
-    
+
     def __init__(
         self,
         logger: CogniteFunctionLogger,
@@ -355,9 +362,9 @@ class OptimizedMetadataProcessor:
         self.asset_alias_rule = asset_alias_rule
         self.file_alias_rule = file_alias_rule
         self.stats = {
-            'processed': 0,
-            'updated': 0,
-            'names_without_alias': 0,
+            "processed": 0,
+            "updated": 0,
+            "names_without_alias": 0,
         }
 
     def _warn_name_without_alias(self, name: str, entity_label: str) -> None:
@@ -370,26 +377,22 @@ class OptimizedMetadataProcessor:
             name: Instance name property value that did not match any pattern.
             entity_label: Human-readable view kind, e.g. ``Configured timeseries``.
         """
-        self.stats['names_without_alias'] += 1
-        if self.stats['names_without_alias'] <= _MAX_MISSING_ALIAS_WARNINGS:
-            self.logger.warning(
-                f"No alias extracted based on {entity_label} regular expression "
-                f"for name: {name}"
-            )
+        self.stats["names_without_alias"] += 1
+        if self.stats["names_without_alias"] <= _MAX_MISSING_ALIAS_WARNINGS:
+            self.logger.warning(f"No alias extracted based on {entity_label} regular expression for name: {name}")
 
     def log_missing_alias_summary(self) -> None:
         """Report the total of names no pattern read, when some were left unlogged.
 
         Below the cap every name is already in the log, and a total would only repeat it.
         """
-        total = self.stats['names_without_alias']
+        total = self.stats["names_without_alias"]
         if total > _MAX_MISSING_ALIAS_WARNINGS:
             self.logger.warning(
                 f"No alias could be extracted from {total} names in total. "
                 f"Only the first {_MAX_MISSING_ALIAS_WARNINGS} are listed above."
             )
 
-    
     def process_timeseries_metadata(
         self,
         node: Node,
@@ -399,7 +402,7 @@ class OptimizedMetadataProcessor:
         remove_old_aliases: bool = False,
     ) -> NodeApply | None:
         """Process timeseries metadata with optimizations"""
-        
+
         try:
             ext_id = node.external_id
             # Skip rather than recompute from an empty payload, which under updateAll
@@ -411,9 +414,7 @@ class OptimizedMetadataProcessor:
 
             name = str(properties.get("name", ""))
             aliases_raw = properties.get("aliases", [])
-            org_aliases = (
-                [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
-            )
+            org_aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
             # Only the generated aliases are rebuilt; hand-curated ones are preserved unless
             # removeOldAliases clears the list first.
             aliases = _starting_aliases(
@@ -424,9 +425,7 @@ class OptimizedMetadataProcessor:
             )
 
             upd_aliases = list(
-                self._get_timeseries_alias_list_optimized(
-                    name, tuple(aliases), self.timeseries_alias_rule
-                )
+                self._get_timeseries_alias_list_optimized(name, tuple(aliases), self.timeseries_alias_rule)
             )
             if name and not upd_aliases and not _generated_aliases(name, self.timeseries_alias_rule):
                 self._warn_name_without_alias(name, "Configured timeseries")
@@ -436,16 +435,16 @@ class OptimizedMetadataProcessor:
             update_needed = False
             properties_dict: dict[str, list[str] | None] = {}
 
-            if update_all or upd_aliases != org_aliases:
+            if upd_aliases != org_aliases:
                 properties_dict["aliases"] = _alias_property_value(upd_aliases)
                 update_needed = True
-            
-            self.stats['processed'] += 1
-            
+
+            self.stats["processed"] += 1
+
             if update_needed:
-                self.stats['updated'] += 1
+                self.stats["updated"] += 1
                 self.logger.debug(f"Updating TS: {name} with {len(properties_dict)} properties")
-                
+
                 return NodeApply(
                     space=node_space,
                     external_id=ext_id,
@@ -456,13 +455,13 @@ class OptimizedMetadataProcessor:
                         )
                     ],
                 )
-            
+
             return None
-            
+
         except Exception as e:
             self.logger.error(f"Error processing timeseries {node.external_id}: {e}")
             return None
-    
+
     def process_asset_metadata(
         self,
         node: Node,
@@ -472,7 +471,7 @@ class OptimizedMetadataProcessor:
         remove_old_aliases: bool = False,
     ) -> NodeApply | None:
         """Process asset metadata with optimizations"""
-        
+
         try:
             ext_id = node.external_id
             # Skip rather than recompute from an empty payload, which under updateAll
@@ -484,9 +483,7 @@ class OptimizedMetadataProcessor:
 
             name = str(properties.get("name", ""))
             aliases_raw = properties.get("aliases", [])
-            org_aliases = (
-                [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
-            )
+            org_aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
             # Only the generated aliases are rebuilt; hand-curated ones are preserved unless
             # removeOldAliases clears the list first.
             aliases = _starting_aliases(
@@ -496,11 +493,7 @@ class OptimizedMetadataProcessor:
                 remove_old_aliases=remove_old_aliases,
             )
 
-            upd_aliases = list(
-                self._get_asset_alias_list_optimized(
-                    name, tuple(aliases), self.asset_alias_rule
-                )
-            )
+            upd_aliases = list(self._get_asset_alias_list_optimized(name, tuple(aliases), self.asset_alias_rule))
             if name and not upd_aliases and not _generated_aliases(name, self.asset_alias_rule):
                 self._warn_name_without_alias(name, "Configured asset")
 
@@ -509,16 +502,16 @@ class OptimizedMetadataProcessor:
             update_needed = False
             properties_dict: dict[str, list[str] | None] = {}
 
-            if update_all or upd_aliases != org_aliases:
+            if upd_aliases != org_aliases:
                 properties_dict["aliases"] = _alias_property_value(upd_aliases)
                 update_needed = True
-            
-            self.stats['processed'] += 1
-            
+
+            self.stats["processed"] += 1
+
             if update_needed:
-                self.stats['updated'] += 1
+                self.stats["updated"] += 1
                 self.logger.debug(f"Updating asset: {ext_id} with {len(properties_dict)} properties")
-                
+
                 return NodeApply(
                     space=node_space,
                     external_id=ext_id,
@@ -529,13 +522,13 @@ class OptimizedMetadataProcessor:
                         )
                     ],
                 )
-            
+
             return None
-            
+
         except Exception as e:
             self.logger.error(f"Error processing asset {node.external_id}: {e}")
             return None
-    
+
     def process_file_metadata(
         self,
         node: Node,
@@ -577,21 +570,19 @@ class OptimizedMetadataProcessor:
                 remove_old_aliases=remove_old_aliases,
             )
 
-            upd_aliases = list(
-                self._get_file_alias_list_optimized(name, tuple(aliases), self.file_alias_rule)
-            )
+            upd_aliases = list(self._get_file_alias_list_optimized(name, tuple(aliases), self.file_alias_rule))
 
             if name and not upd_aliases and not _generated_aliases(name, self.file_alias_rule):
                 self._warn_name_without_alias(name, "Configured file")
 
             upd_aliases = _dedupe_preserve_order(upd_aliases)
 
-            self.stats['processed'] += 1
+            self.stats["processed"] += 1
 
-            if not update_all and not remove_old_aliases and upd_aliases == org_aliases:
+            if upd_aliases == org_aliases:
                 return None
 
-            self.stats['updated'] += 1
+            self.stats["updated"] += 1
             self.logger.debug(f"Updating file: {ext_id} with {len(upd_aliases)} aliases")
 
             return NodeApply(
@@ -618,7 +609,7 @@ class OptimizedMetadataProcessor:
     ) -> tuple[str, ...]:
         """Optimized timeseries alias generation with caching"""
         return _merge_generated_aliases(aliases_tuple, name, rule)
-    
+
     @staticmethod
     @lru_cache(maxsize=5000)
     def _get_asset_alias_list_optimized(
@@ -628,7 +619,7 @@ class OptimizedMetadataProcessor:
     ) -> tuple[str, ...]:
         """Optimized asset alias generation with caching"""
         return _merge_generated_aliases(aliases_tuple, name, rule)
-    
+
     @staticmethod
     @lru_cache(maxsize=5000)
     def _get_file_alias_list_optimized(
@@ -638,87 +629,25 @@ class OptimizedMetadataProcessor:
     ) -> tuple[str, ...]:
         """Optimized file alias generation with caching.
 
-        A document is searched for both by its bare file name and by the tag it refers
-        to, so it gets the name with the extension removed plus the usual tag aliases.
-        The name is not a pattern match, so aliasSelection does not apply to it.
+        A document that matches a pattern is searched for both by its bare file name and
+        by the tag it refers to. A name that matches no pattern produces no alias.
         """
         return _merge_file_aliases(aliases_tuple, name, rule)
 
     def get_stats(self) -> dict[str, float | int]:
         """Get processing statistics"""
         return {
-            'processed': self.stats['processed'],
-            'updated': self.stats['updated'],
-            'update_rate': self.stats['updated'] / self.stats['processed'] if self.stats['processed'] > 0 else 0,
+            "processed": self.stats["processed"],
+            "updated": self.stats["updated"],
+            "update_rate": self.stats["updated"] / self.stats["processed"] if self.stats["processed"] > 0 else 0,
         }
-
-
-# ===== PERFORMANCE BENCHMARK =====
-
-class PerformanceBenchmark:
-    """Performance benchmarking utilities"""
-    
-    def __init__(self, logger: CogniteFunctionLogger):
-        self.logger = logger
-        self.benchmarks: dict[str, list[float]] = {}
-    
-    def benchmark_function(self, name: str, func: Callable[..., object], *args: object, **kwargs: object) -> object:
-        """Benchmark a function call"""
-        start = time.time()
-        try:
-            result = func(*args, **kwargs)
-            duration = time.time() - start
-            
-            if name not in self.benchmarks:
-                self.benchmarks[name] = []
-            
-            self.benchmarks[name].append(duration)
-            self.logger.debug(f"🚀 {name} took {duration:.2f}s")
-            
-            return result
-        except Exception as e:
-            duration = time.time() - start
-            self.logger.error(f"❌ {name} failed after {duration:.2f}s: {e}")
-            raise
-    
-    def log_summary(self):
-        """Log performance summary"""
-        if not self.benchmarks:
-            return
-        
-        self.logger.debug("📊 Performance Summary:")
-        for name, times in self.benchmarks.items():
-            avg_time = sum(times) / len(times)
-            total_time = sum(times)
-            self.logger.debug(f"  {name}: {len(times)} calls, avg {avg_time:.2f}s, total {total_time:.2f}s")
-
-
-def optimize_metadata_processing():
-    """Apply global optimizations for metadata processing"""
-    
-    # Increase garbage collection threshold
-    gc.set_threshold(700, 10, 10)
-    
-    # Set process priority if possible
-    try:
-        import os
-        os.nice(-5)
-    except Exception:
-        # Process priority adjustment is optional and may fail on some platforms.
-        pass
-    
-    return True
 
 
 # ===== EXPORT MAIN CLASSES =====
 
 __all__ = [
-    'AliasRule',
-    'BatchProcessor',
-    'OptimizedMetadataProcessor',
-    'PerformanceBenchmark',
-    'cleanup_memory',
-    'monitor_memory_usage',
-    'optimize_metadata_processing',
-    'time_operation',
-] 
+    "AliasRule",
+    "BatchProcessor",
+    "OptimizedMetadataProcessor",
+    "time_operation",
+]

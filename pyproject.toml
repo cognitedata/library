@@ -6,7 +6,6 @@ requires-python = ">=3.13"
 [dependency-groups]
 dev = [
     "cognite-sdk>=7,<8",
-    "psutil>=5.9",
     "pydantic>=2.12.4,<3.0.0",
     "pytest>=7",
     "python-dotenv>=1",
@@ -21,8 +20,8 @@ package = false
 members = [
     "modules/common/cdf_common/functions/contextualization_connection_writer",
     "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update",
-    "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching",
     "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation",
+    "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching",
     "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_annotation_quality",
     "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_pipeline_health",
     "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation",

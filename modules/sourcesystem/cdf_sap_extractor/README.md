@@ -14,7 +14,7 @@ cdf_sap_extractor/
 │   ├── ep_sap.ExtractionPipeline.yaml          # Single pipeline, all entity types
 │   └── ep_sap.ExtractionPipeline.Config.yaml   # Full SAP OData extractor config template
 ├── raw/
-│   ├── db_sap.Database.yaml                    # db_{{location}}_sap
+│   ├── db_sap.Database.yaml                    # raw_asset_{{location}}_{{sourceSystem}}
 │   ├── functional_location.Table.yaml          # SAP FunclocListSet  (master, weekly)
 │   ├── equipment.Table.yaml                    # SAP EquipmentListSet (master, weekly)
 │   ├── workorder.Table.yaml                    # SAP ExHeaderSet      (orders, daily)
@@ -47,11 +47,23 @@ SAP OData Extractor (single pipeline, 6 entity queries)
 
 | Resource | External ID | Purpose |
 |---|---|---|
-| ExtractionPipeline | `ep_{{location}}_sap` | Pipeline health tracking and config delivery |
-| RAW Database | `db_{{location}}_sap` | SAP entity landing zone |
+| ExtractionPipeline | `ep_asset_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
+| RAW Database | `raw_asset_{{location}}_{{sourceSystem}}` | SAP entity landing zone |
 | RAW Tables | `functional_location`, `equipment`, `workorder`, `workpackage`, `worktask`, `workitem`, `state_store` | One per OData query plus an extractor-managed state-store table |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer_{{location}}_ep_sap_{{environment}}` | Scoped service-principal group for the SAP extractor |
+| Access Group | `producer_{{location}}_ep_sap_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
+
+Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/deploy/reference/cdf_resource_naming_conventions):
+pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
+pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
+
+The producer group follows the least-privilege scoping in the GVD data onboarding SOP:
+`extractionConfigs:READ`, `extractionRuns:WRITE`, and `extractionPipelines:READ` on the
+pipeline's data set, with no `extractionPipelines:WRITE`. There is no `sessions:CREATE`
+either: the extractor authenticates with its own client credentials, and
+[sessions](https://docs.cognite.com/api-reference/concepts/20230101/sessions) are only
+needed by background workloads such as transformations, functions, and workflows. The
+extractor only stages data in RAW, so the group has no data-model instance access.
 
 ## Configuration
 
@@ -61,8 +73,9 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_sap_extractor:
-      location: "oslo"                                        # Site code, used in externalIds (ep_<location>_sap, db_<location>_sap)
-      instanceSpace: "sp_oslo_sap"                           # Per-extractor DM instance space — computed by setup_project.py
+      location: "oslo"                                        # Site code, used in externalIds (ep_asset_<location>_<sourceSystem>, raw_asset_<location>_<sourceSystem>)
+      sourceSystem: "sap"                                     # Source system token, used in the pipeline ID and group name
+      instanceSpace: "inst_oslo_sap"                           # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_sap_oslo"                                  # ds_<data_type>_<location> — computed by setup_project.py
       sapPlant: "1000"                                        # SAP plant code, used in OData filter expressions (MaintPlant eq '<sapPlant>')
       sapDisableSsl: false                                    # Set true only if SAP server uses an untrusted self-signed certificate
@@ -118,7 +131,7 @@ authoring the downstream transformations into ISA Manufacturing Extension.
 
 - `models/isa_manufacturing_extension` deployed (downstream target)
 - SAP OData Extractor installed with network access to SAP NW Gateway
-- Extractor service account with read/write to the `db_{{location}}_sap` RAW
+- Extractor service account with read/write to the `raw_asset_{{location}}_{{sourceSystem}}` RAW
   database and read access to the `{{dataset}}` data set
 - SAP service account with READ access to PM/AM entities
 
@@ -130,8 +143,41 @@ cdf deploy modules/sourcesystem/cdf_sap_extractor --env your-environment
 
 ### Configure and run the extractor
 
-The extractor config is delivered via the `ep_{{location}}_sap` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+The extractor config is delivered via the `ep_asset_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+
+### Migrating from earlier versions
+
+The pipeline external ID changed from `ep_{{location}}_sap` to
+`ep_asset_{{location}}_{{sourceSystem}}`, and the access group from
+`producer_{{location}}_ep_sap_{{environment}}` to
+`producer_{{location}}_ep_sap_{{sourceSystem}}_{{environment}}`. To upgrade an existing
+deployment:
+
+1. Add `sourceSystem` to `cdf_sap_extractor` in each `config.<env>.yaml`.
+2. Run `cdf deploy`. This creates the new pipeline and group alongside the old ones.
+3. Update `extraction-pipeline.external-id` in the extractor host's local `config.yaml`,
+   then restart the extractor.
+4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
+   in Fusion. Toolkit does not remove them for you, and the new group keeps the same
+   `sourceId`, so no IdP change is needed.
+
+The RAW database also changed from `db_{{location}}_sap` to
+`raw_asset_{{location}}_{{sourceSystem}}`. The `state_store` table lives in that
+database, so the extractor starts without delta checkpoints and runs a full extraction of
+every endpoint. Point downstream transformations at the new name, then delete the old
+database.
+
+The instance space also changed from `sp_{{location}}_sap` to `inst_{{location}}_sap`
+(`setup_project.py` writes the new name on its next run). Instances already in the old
+space are not moved: the extractor creates new instances in the new space on its next
+run. Verify the new instances, then delete the old space. To keep the old space instead,
+set `instanceSpace` back to its old value after running the wizard;
+`setup_project.py --check` then reports it as drift.
+
+The producer group's capabilities were also narrowed (see [Resources Created](#resources-created)).
+If anything else uses this group's service principal, check that it does not rely on the
+removed capabilities.
 
 ### Verify
 
-Check that all seven RAW tables under `db_{{location}}_sap` are populated in CDF Data Explorer (the master tables — `functional_location`, `equipment` — populate weekly; the order/notification tables populate daily).
+Check that all seven RAW tables under `raw_asset_{{location}}_{{sourceSystem}}` are populated in CDF Data Explorer (the master tables — `functional_location`, `equipment` — populate weekly; the order/notification tables populate daily).

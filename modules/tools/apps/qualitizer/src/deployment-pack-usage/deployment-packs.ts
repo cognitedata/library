@@ -43,7 +43,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     description: `Entity matching functions (modules/contextualization/cdf_entity_matching). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       functionExternalIds: [
-        "fn_dm_context_timeseries_entity_matching",
+        "fn_dm_context_entity_matching",
         "fn_dm_context_aliases_update",
       ],
     },

@@ -32,9 +32,20 @@ PI .NET Extractor   (time-series.space-id: {{instanceSpace}})
 
 | Resource | External ID | Purpose |
 |---|---|---|
-| ExtractionPipeline | `ep_{{location}}_pi` | Pipeline health tracking and config delivery |
+| ExtractionPipeline | `ep_timeseries_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer_{{location}}_ep_pi_{{environment}}` | Scoped service-principal group for the PI extractor |
+| Access Group | `producer_{{location}}_ep_pi_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
+
+Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/deploy/reference/cdf_resource_naming_conventions):
+pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
+pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
+
+The producer group follows the least-privilege scoping in the GVD data onboarding SOP:
+`extractionConfigs:READ`, `extractionRuns:WRITE`, and `extractionPipelines:READ` on the
+pipeline's data set, with no `extractionPipelines:WRITE`. There is no `sessions:CREATE`
+either: the extractor authenticates with its own client credentials, and
+[sessions](https://docs.cognite.com/api-reference/concepts/20230101/sessions) are only
+needed by background workloads such as transformations, functions, and workflows.
 
 ## Configuration
 
@@ -44,8 +55,9 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_pi_extractor:
-      location: "oslo"                                       # Site code, used in externalIds (ep_<location>_pi)
-      instanceSpace: "sp_oslo_pi"                           # Per-extractor DM instance space — computed by setup_project.py
+      location: "oslo"                                       # Site code, used in externalIds (ep_timeseries_<location>_<sourceSystem>)
+      sourceSystem: "pi"                                     # Source system token, used in the pipeline ID and group name
+      instanceSpace: "inst_oslo_pi"                           # Per-extractor DM instance space — computed by setup_project.py
       dataset: "ds_pi_oslo"                                 # ds_<data_type>_<location> — computed by setup_project.py
       piIdPrefix: "pi:"                                     # External ID prefix for all PI tag timeseries
 
@@ -108,7 +120,35 @@ cdf deploy modules/sourcesystem/cdf_pi_extractor --env your-environment
 
 ### Configure and run the extractor
 
-The extractor config is delivered via the `ep_{{location}}_pi` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+The extractor config is delivered via the `ep_timeseries_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+
+### Migrating from earlier versions
+
+The pipeline external ID changed from `ep_{{location}}_pi` to
+`ep_timeseries_{{location}}_{{sourceSystem}}`, and the access group from
+`producer_{{location}}_ep_pi_{{environment}}` to
+`producer_{{location}}_ep_pi_{{sourceSystem}}_{{environment}}`. To upgrade an existing
+deployment:
+
+1. Add `sourceSystem` to `cdf_pi_extractor` in each `config.<env>.yaml`.
+2. Run `cdf deploy`. This creates the new pipeline and group alongside the old ones.
+3. Update `extraction-pipeline.external-id` in the extractor host's local `config.yaml`,
+   then restart the extractor.
+4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
+   in Fusion. Toolkit does not remove them for you, and the new group keeps the same
+   `sourceId`, so no IdP change is needed.
+
+The instance space also changed from `sp_{{location}}_pi` to `inst_{{location}}_pi`
+(`setup_project.py` writes the new name on its next run). Instances already in the old
+space are not moved: the extractor creates new time series in the new space on its next
+run and backfills datapoint history into them from the PI Data Archive. Verify the new
+time series, then delete the old space. To keep the old space instead, set
+`instanceSpace` back to its old value after running the wizard;
+`setup_project.py --check` then reports it as drift.
+
+The producer group's capabilities were also narrowed (see [Resources Created](#resources-created)).
+If anything else uses this group's service principal, check that it does not rely on the
+removed capabilities.
 
 ### Verify
 

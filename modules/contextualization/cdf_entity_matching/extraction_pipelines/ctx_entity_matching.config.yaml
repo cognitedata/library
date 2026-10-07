@@ -1,0 +1,33 @@
+externalId: 'ep_ctx_entity_matching'
+config:
+  parameters:
+    runAll: False
+    dmUpdate: True
+    removeOldLinks: False
+    rawDb: '{{ dbName }}'
+    rawTableState: 'contextualization_state_store'
+    rawTableCtxGood: 'contextualization_good'
+    rawTableCtxBad: 'contextualization_bad'
+    rawTableCtxManual: 'contextualization_manual_input'
+    rawTableCtxRule: 'contextualization_rule_input'
+    autoApprovalThreshold: 0.85
+    dataSetExternalId: 'ds_entity_matching'
+    primaryScopeProperty: '{{ primaryScopeProperty }}'  # empty = unscoped matching
+    secondaryScopeProperty: '{{ secondaryScopeProperty }}'
+  data:
+    targetView: # target view to match timeseries to, ex: Asset, Tags, Equipment, etc.
+      schemaSpace: {{ schemaSpace }}
+      instanceSpace: {{ assetInstanceSpace }}
+      externalId: {{ targetViewExternalId }}
+      version: {{ viewVersion }}
+      searchProperty: {{ targetViewSearchProperty }}  # list OK — all values used as match targets
+      filterProperty: {{ viewFilterProperty }}
+      filterValues: {{ targetViewFilterValues }}
+    entityView: # entity our source for values to be matched against, ex: TimeSeries, etc.
+      schemaSpace: {{ schemaSpace }}
+      instanceSpace: {{ timeseriesInstanceSpace }}
+      externalId: {{ entityViewExternalId }}
+      version: {{ viewVersion }}
+      searchProperty: {{ entityViewSearchProperty }}  # if list, only the longest value is used
+      filterProperty: {{ viewFilterProperty }}
+      filterValues: {{ entityViewFilterValues }}

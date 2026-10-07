@@ -1,5 +1,5 @@
-externalId: "ep_{{location}}_pi"
-name: "ep:{{location}}:pi"
+externalId: "ep_timeseries_{{location}}_{{sourceSystem}}"
+name: "PI time series extraction for site {{location}}"
 dataSetExternalId: "{{dataset}}"
 description: "PI .NET Extractor pipeline for site {{location}} — writes PI tags and values directly to the Core Data Model `ExtractorTimeSeries` view in {{instanceSpace}} (no RAW staging)"
 source: PI
@@ -78,7 +78,7 @@ documentation: |
          scopes:
            - $${CDF_URL}/.default
        extraction-pipeline:
-         external-id: ep_{{location}}_pi
+         external-id: ep_timeseries_{{location}}_{{sourceSystem}}
      ```
 
   ### References
