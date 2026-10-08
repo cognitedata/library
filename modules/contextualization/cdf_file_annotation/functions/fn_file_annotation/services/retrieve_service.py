@@ -215,7 +215,7 @@ class GeneralRetrieveService(IRetrieveService):
         # A version conflict means another run claimed the job; the main loop picks another.
         self._attempt_to_claim(list_job_nodes.as_write())
 
-        # NOTE: could bundle this with the attempt to claim loop. Chose not to since the run time gains is negligible and improves readability.
+        # NOTE: Could bundle with the claim loop; skipped for readability (runtime gain is negligible).
         file_to_state_map: dict[NodeId, Node] = {}
         for node in list_job_nodes:
             state_properties = (node.properties or {}).get(self.annotation_state_view.as_view_id()) or {}
@@ -252,25 +252,27 @@ class GeneralRetrieveService(IRetrieveService):
 
         NOTE: (Optimistic locking based off the node version)
         Attempt to 'claim' the annotation state nodes by updating the annotation status property.
-        This relies on how the API applies changes to nodes. Specifically... if an existing version is provided in the nodes
-        that are used for the .apply() endpoint, a version conflict will occur if another thread has already claimed the job.
+        This relies on how the API applies changes to nodes. Specifically, if an existing version
+        is provided on nodes for the .apply() endpoint, a version conflict occurs if another
+        thread has already claimed the job.
 
-        NOTE: The optimistic locking works most of the time. However, a race condition can occur due to a
-              read-after-write consistency gap, especially when a thread fails a claim and immediately retries getting a new job.
+        NOTE: Optimistic locking works most of the time. A race can still occur from a
+              read-after-write consistency gap when a thread fails a claim and immediately
+              retries getting a new job.
 
               Scenario:
-              1. Thread A successfully claims a job, updating nodes to version=2 and status="Finalizing".
-              2. Thread B fails its first claim on the same job due to a version conflict (expected behavior).
+              1. Thread A claims a job, updating nodes to version=2 and status="Finalizing".
+              2. Thread B fails its first claim on the same job due to a version conflict.
               3. Thread B immediately re-queries for nodes with status="Processing".
-                 Due to a minuscule replication lag in the underlying database, the query's filter may still
-                 see the just-claimed nodes as "Processing" and return them.
-              4. However, the full node data retrieved in this new query result will correctly have version=2.
-              5. This allows Thread B's second `apply()` call to succeed because it is now providing the correct, latest version, bypassing the lock
-                 and leading to duplicate processing.
+                 Due to a minuscule replication lag, the query filter may still see the
+                 just-claimed nodes as "Processing" and return them.
+              4. The full node data in that result correctly has version=2.
+              5. Thread B's second apply() then succeeds with the latest version, bypassing
+                 the lock and leading to duplicate processing.
 
-        The 'elif' check below solves this by validating it on the client-side. It verifies the status from the retrieved properties.
-        If a node was fetched by a filter for "Processing" but its properties already show "Finalizing", we have detected this race condition and
-        must manually raise an error to prevent the duplicate claim.
+        The 'elif' check below validates status on the client side from retrieved properties.
+        If a node was fetched by a "Processing" filter but already shows "Finalizing", we have
+        detected this race and must raise an error to prevent the duplicate claim.
         """
         for node_apply in list_job_nodes_to_claim:
             if not node_apply.sources or node_apply.sources[0].properties is None:

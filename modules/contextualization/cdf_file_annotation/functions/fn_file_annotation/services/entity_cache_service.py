@@ -762,7 +762,7 @@ class GeneralCacheService(ICacheService):
                     samples_set.add(cast(str, sample_val))
                 # Set annotation_type if not already set (auto-patterns take precedence)
                 if not bucket.get("annotation_type"):
-                    # NOTE: UI that creates manual patterns will need to also have the annotation type as a required entry
+                    # NOTE: Manual-pattern UI must also require annotation type
                     bucket["annotation_type"] = item.get("annotation_type", "diagrams.AssetLink")
 
         # Convert the merged dictionary back to the required list format

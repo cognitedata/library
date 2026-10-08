@@ -13,7 +13,10 @@ def _service(client: MagicMock) -> GeneralAnnotationService:
 
 def test_pattern_mode_runs_without_a_diagram_detect_config() -> None:
     client = MagicMock()
-    client.diagrams.detect.return_value = MagicMock(job_id=7, job_token="token")  # noqa: S106 - test double, not a credential
+    client.diagrams.detect.return_value = MagicMock(
+        job_id=7,
+        job_token="token",  # noqa: S106 - test double, not a credential
+    )
 
     assert _service(client).run_pattern_mode_detect([], []) == (7, "token")
     assert client.diagrams.detect.call_args.kwargs["configuration"] is None

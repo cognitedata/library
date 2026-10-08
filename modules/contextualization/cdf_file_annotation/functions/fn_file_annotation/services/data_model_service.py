@@ -151,8 +151,9 @@ class GeneralDataModelService(IDataModelService):
         Returns:
             NodeList of file instances to reset, or None if no reset query is configured.
 
-        NOTE: Not building the filter in the object instantiation because the filter will only ever be used once throughout all runs of prepare
-              Furthermore, there is an implicit guarantee that a filter will be returned b/c launch checks if the query exists.
+        NOTE: Not building the filter at object instantiation because it is only used once
+              across all prepare runs. Launch also guarantees the query exists.
+
         """
         if not self.config.prepare_function.get_files_for_annotation_reset_query:
             return None

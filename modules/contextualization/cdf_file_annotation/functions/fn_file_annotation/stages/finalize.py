@@ -35,7 +35,8 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     NOTE: Cognite functions have a run-time limit of 10 minutes.
     Don't want the function to die at the 10minute mark since there's no guarantee all code will execute.
     Thus we set a timelimit of 7 minutes (conservative) so that code execution is guaranteed.
-    documentation on the calling a function can be found here...  https://api-docs.cognite.com/20230101/tag/Function-calls/operation/postFunctionsCall
+    Documentation on calling a function:
+    https://api-docs.cognite.com/20230101/tag/Function-calls/operation/postFunctionsCall
     """
     start_time = datetime.now(UTC)
     stage_input = StageInput.model_validate(data)
@@ -55,7 +56,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         logger_instance.info(
             format_finalize_config(config_instance, stage_input.extraction_pipeline_ext_id), section="START"
         )
-        # NOTE: a random delay to stagger API requests. Used to prevent API load shedding that can return empty results under high concurrency.
+        # NOTE: Random delay to stagger API requests and avoid empty results under high concurrency.
         delay = random.uniform(0.1, 1.0)
         time.sleep(delay)
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):

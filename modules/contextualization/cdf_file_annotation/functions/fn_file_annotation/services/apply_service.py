@@ -124,7 +124,8 @@ class GeneralApplyService(IApplyService):
             )
 
         # Step 1: Process regular annotations and collect their spatial locations
-        # Mapping dict stores tuples [key being (page, (x_min, y_min, x_max, y_max)), value being set of external_ids] to prevent duplicate annotations
+        # Mapping dict: key=(page, (x_min, y_min, x_max, y_max)), value=set of external_ids
+        # Used to prevent duplicate annotations
         regular_edges, doc_rows, tag_rows = [], [], []
         processed_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]] = {}
         if regular_item and regular_item.get("annotations"):
@@ -214,7 +215,7 @@ class GeneralApplyService(IApplyService):
         counts = {"doc": 0, "tag": 0, "pattern": 0}
         std_edges = self._list_annotations_for_file(
             file_id, file_id.space
-        )  # NOTE: Annotations produced from regular diagram detect are stored in the same instance space as the file node
+        )  # NOTE: Regular diagram detect annotations are stored in the file's instance space
         if std_edges:
             edge_ids, doc_keys, tag_keys = [], [], []
             for edge in std_edges:
@@ -316,8 +317,9 @@ class GeneralApplyService(IApplyService):
         Args:
             result_item: Dictionary containing pattern mode detection results with 'annotations' key.
             file_node: The file node being annotated.
-            existing_bounding_boxes: mapping dict of key being (page, (x_min, y_min, x_max, y_max)), values being sets of external IDs
-                                    produced by regular annotations that met confidence thresholds. Used to avoid duplicate annotations.
+            existing_bounding_boxes: Mapping of (page, (x_min, y_min, x_max, y_max)) to sets of
+                external IDs from regular annotations that met confidence thresholds.
+                Used to avoid duplicate annotations.
 
         Returns:
             A tuple containing:
@@ -446,15 +448,18 @@ class GeneralApplyService(IApplyService):
 
         Creates annotation edges linking the file to detected entities, applying confidence thresholds
         to determine approval/suggestion status. Also creates corresponding RAW table entries.
-        Only annotations meeting confidence thresholds are added to the processed_bounding_boxes dict for spatial deduplication with pattern mode results.
+        Only annotations meeting confidence thresholds are added to the
+        processed_bounding_boxes dict for spatial deduplication with pattern mode results.
 
         Args:
             file_instance_id: NodeId of the file being annotated.
             source_id: Source ID of the file for RAW table logging.
             doc_doc: List to append doc-to-doc annotation RAW rows to (modified in place).
             doc_tag: List to append doc-to-tag annotation RAW rows to (modified in place).
-            detect_annotation: Dictionary containing a single detection result with 'region', 'entities', 'confidence', and 'text' keys.
-            processed_bounding_boxes: mapping dict [key is (page, (x_min, y_min, x_max, y_max)), value is set of external IDs] for regular annotations (modified in place).
+            detect_annotation: Dictionary containing a single detection result with
+                'region', 'entities', 'confidence', and 'text' keys.
+            processed_bounding_boxes: Mapping of (page, (x_min, y_min, x_max, y_max)) to
+                sets of external IDs for regular annotations (modified in place).
             scope_columns: File primary/secondary scope values to store on each RAW row.
 
         Returns:
@@ -559,7 +564,8 @@ class GeneralApplyService(IApplyService):
         Generates a stable hash for an annotation to enable unique identification.
 
         Creates a deterministic hash based on annotation text, page, and bounding box coordinates.
-        This hash is used as part of the annotation external ID to ensure stable, reproducible annotation identifiers across re-runs.
+        This hash is used as part of the annotation external ID to ensure stable, reproducible
+        annotation identifiers across re-runs.
 
         Args:
             raw_annotation: Dictionary containing annotation detection data with 'text' and 'region' keys.
@@ -583,7 +589,9 @@ class GeneralApplyService(IApplyService):
         """
         Creates a unique external ID for a regular annotation edge.
 
-        Combines file ID, entity ID, detected text, and a stable hash to create a human-readable yet unique identifier, truncating if necessary to stay within CDF's 256 character limit.
+        Combines file ID, entity ID, detected text, and a stable hash to create a
+        human-readable yet unique identifier, truncating if necessary to stay within
+        CDF's 256 character limit.
 
         Args:
             file_id: NodeId of the file being annotated.
@@ -676,10 +684,10 @@ class GeneralApplyService(IApplyService):
         Record an annotation external_id for a given page/coords key.
 
         Args:
-            processed_bounding_boxes: mapping dict [key is (page, (x_min, y_min, x_max, y_max)), value is set of external_ids].
-                Each `external_id` is the unique identification of the annotation edge created for a detection
-                The mapping is used for spatial deduplication and to identify/remove regular annotations
-                when pattern results supersede them.
+            processed_bounding_boxes: Mapping of (page, (x_min, y_min, x_max, y_max)) to
+                sets of external_ids. Each external_id identifies an annotation edge.
+                Used for spatial deduplication and to remove regular annotations when
+                pattern results supersede them.
             page: Page number where the bounding box is located.
             bounding_box: BoundingBox object for the detection region.
             external_id: The external id of the created annotation edge to record.
@@ -721,7 +729,8 @@ class GeneralApplyService(IApplyService):
         """
         Creates annotation properties dictionary from a detection result.
 
-        Extracts common annotation properties including confidence, status, text, page number, and bounding box coordinates for use in EdgeApply objects or RAW table entries.
+        Extracts common annotation properties including confidence, status, text, page number,
+        and bounding box coordinates for use in EdgeApply objects or RAW table entries.
 
         Args:
             file_id: NodeId of the file being annotated.
@@ -732,7 +741,8 @@ class GeneralApplyService(IApplyService):
                          the detection region.
 
         Returns:
-            Dictionary of annotation properties ready for EdgeApply or RAW table insertion, including standard fields and bounding box coordinates.
+            Dictionary of annotation properties ready for EdgeApply or RAW table insertion,
+            including standard fields and bounding box coordinates.
         """
         region = detect_annotation.get("region") or {}
         if bounding_box is None:

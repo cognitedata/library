@@ -89,7 +89,8 @@ def annotation_clock(preserved: str | None = None) -> dict[str, str]:
 @dataclass
 class AnnotationState:
     """
-    Data structure holding the mpcAnnotationState view properties. Time will convert to Timestamp when ingested into CDF.
+    Data structure holding the mpcAnnotationState view properties.
+    Time will convert to Timestamp when ingested into CDF.
     """
 
     annotationStatus: AnnotationStatus
@@ -105,7 +106,8 @@ class AnnotationState:
 
     def _create_external_id(self) -> str:
         """
-        Create a deterministic external ID so that we can replace mpcAnnotationState of files that have been updated and aren't new
+        Create a deterministic external ID so we can replace mpcAnnotationState for
+        files that have been updated and aren't new.
         """
         prefix = "an_state"
         linked_file_space = self.linkedFile["space"]
@@ -228,10 +230,9 @@ class BatchOfPairedNodes:
         The current implementation of the detect api 20230101-beta only allows annotation of files up to 50 pages.
         Thus, this is my idea of how we can enables annotating files that are more than 50 pages long.
 
-        The annotatedPageCount and pageCount properties won't be set in the initial creation of the annotation state nodes.
-        That's because we don't know how many pages are in the pdf until we run the diagram detect job where the page count gets returned from the results of the job.
-        Thus, annotatedPageCount and pageCount get set in the finalize function.
-        The finalize function will set the page count properties based on the page count that returned from diagram detect job results.
+        annotatedPageCount and pageCount are not set when annotation state nodes are first
+        created, because page count is unknown until the diagram detect job returns it.
+        Finalize sets those properties from the diagram detect results.
             - If the pdf has less than 50 pages, say 3 pages, then...
                 - annotationStatus property will get set to 'complete'
                 - annotatedPageCount and pageCount properties will be set to 3.
@@ -241,10 +242,9 @@ class BatchOfPairedNodes:
                 - pageCount set to 80
                 - attemptCount doesn't get incremented
 
-        NOTE: Chose to create the file_reference here b/c I already have access to the file node and state node.
-        If I chose to have this logic in the launchService then we'd have to iterate on all of the nodes that have already been added.
-        Thus -> O(N) + O(N) to create the BatchOfPairedNodes and then to create the file references
-        Instead, this approach makes it just O(N)
+        NOTE: Create the file_reference here because we already have the file and state nodes.
+        Doing this in LaunchService would require another pass over the nodes already added
+        (O(N) + O(N)). This approach keeps it O(N).
         """
         annotation_state_node: Node = self.file_to_state_map[file_node_id]
         state_properties = (annotation_state_node.properties or {}).get(annotation_state_view_id) or {}
@@ -263,8 +263,8 @@ class BatchOfPairedNodes:
                 last_page=page_range,
             )
         else:
-            # NOTE: adding 1 here since that annotated_page_count variable holds the last page that was annotated. Thus we want to annotate the following page
-            # e.g.) first run annotates pages 1-50 second run would annotate 51-100
+            # NOTE: annotated_page_count is the last annotated page; start on the next page.
+            # e.g.) first run annotates pages 1-50; second run annotates 51-100.
             first_page = annotated_page_count + 1
             last_page = annotated_page_count + page_range
             if page_count <= last_page:

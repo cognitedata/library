@@ -40,7 +40,8 @@ def claimed_jobs_message(regular_job_id: int | None, pattern_job_id: int | None,
 class AbstractFinalizeService(abc.ABC):
     """
     Orchestrates the file annotation finalize process.
-    This service retrieves the results of the diagram detect jobs from the launch function and then applies annotations to the file.
+    This service retrieves diagram detect job results from the launch function and applies
+    annotations to the file.
     Additionally, it captures the file and asset annotations into separate RAW tables.
     """
 
@@ -365,7 +366,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
             try:
                 self.apply_service.update_instances(list_node_apply=(annotation_state_node_applies + file_node_applies))
                 self.logger.info(
-                    f"\t- {count_success} set to Annotated/New\n\t- {count_retry} set to Retry\n\t- {count_failed} set to Failed"
+                    f"\t- {count_success} set to Annotated/New\n"
+                    f"\t- {count_retry} set to Retry\n"
+                    f"\t- {count_failed} set to Failed"
                 )
             except CogniteAPIError as e:
                 self.logger.error(
@@ -408,8 +411,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
             NodeApply object ready to be applied to update the annotation state.
 
         NOTE: Create a node apply from the node passed into the function.
-        The annotatedPageCount and pageCount properties won't be set if this is the first time the job has been run for the specific node.
-        Thus, we set it here and include logic to handle the scneario where it is set.
+        The annotatedPageCount and pageCount properties won't be set if this is the first
+        time the job has been run for the specific node.
+        Thus, we set it here and include logic to handle the scenario where it is set.
         NOTE: Always want to use the latest page count from the diagram detect results
         e.g.) let page_range = 50
             - If the pdf has less than 50 pages, say 3 pages, then...
@@ -464,17 +468,17 @@ class GeneralFinalizeService(AbstractFinalizeService):
         Returns:
             Number of pages annotated after this batch (includes previous batches).
 
-        NOTE: The annotatedPageCount and pageCount properties won't be set if this is the first time the job has been run for the specific node.
+        NOTE: annotatedPageCount and pageCount are unset on the first run for a node.
         - if annotated_page_count is not set (first run):
-            - if page_range >= to the page count:
-                - annotated_page_count = page_count b/c all of the pages were passed into the FileReference during LaunchService
+            - if page_range >= page count:
+                - annotated_page_count = page_count (all pages passed in FileReference at launch)
             - else:
-                - annotated_page_count = page_range b/c there are more pages to annotate
+                - annotated_page_count = page_range (more pages remain to annotate)
         - else the annotation_page_count property is set:
             - if (annotated_page_count + page_range) >= page_count:
-                -  annotated_page_count = page_count b/c all of the pages were passed into the FileReference during LaunchService
+                - annotated_page_count = page_count (all pages passed in FileReference at launch)
             else:
-                - annotated_page_count = self.page_range + annotated_page_count b/c there are more pages to annotate
+                - annotated_page_count = self.page_range + annotated_page_count (more pages remain)
         """
         annotated_page_count: int | None = cast(
             int,

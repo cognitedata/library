@@ -42,7 +42,8 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     NOTE: Cognite functions have a run-time limit of 10 minutes.
     Don't want the function to die at the 10minute mark since there's no guarantee all code will execute.
     Thus we set a timelimit of 7 minutes (conservative) so that code execution is guaranteed.
-    documentation on the calling a function can be found here...  https://api-docs.cognite.com/20230101/tag/Function-calls/operation/postFunctionsCall
+    Documentation on calling a function:
+    https://api-docs.cognite.com/20230101/tag/Function-calls/operation/postFunctionsCall
     """
     start_time = datetime.now(UTC)
     deadline = time.monotonic() + FUNCTION_TIME_BUDGET_MINUTES * 60

@@ -78,7 +78,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         logger_instance.info(
             format_promote_config(config_instance, stage_input.extraction_pipeline_ext_id), section="START"
         )
-        # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
+        # Loop up to 7 minutes; serverless functions max out at ~10 minutes.
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
             logger_instance.start_run()
             result: str | None = promote_service.run()
@@ -144,7 +144,7 @@ def run_locally(config_file: dict[str, str]) -> None:
         logger_instance.info(
             format_promote_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START"
         )
-        # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
+        # Loop up to 7 minutes; serverless functions max out at ~10 minutes.
         while True:
             logger_instance.start_run()
             result: str | None = promote_service.run()

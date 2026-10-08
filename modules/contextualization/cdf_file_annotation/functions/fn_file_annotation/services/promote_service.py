@@ -249,7 +249,10 @@ class GeneralPromoteService(IPromoteService):
         total_grouped = sum(len(m) for m in grouped_by_type.values())
 
         self.logger.info(
-            message=f"Grouped {len(candidates)} candidates into {total_grouped} unique text/type combinations across {len(grouped_by_type)} types.",
+            message=(
+                f"Grouped {len(candidates)} candidates into {total_grouped} unique "
+                f"text/type combinations across {len(grouped_by_type)} types."
+            ),
         )
 
         self.logger.debug(
@@ -290,7 +293,8 @@ class GeneralPromoteService(IPromoteService):
 
                 if not is_searching_annotation_type:
                     self.logger.info(
-                        f"Search disabled for annotation type '{annotation_type}'. It will reject those edges without searching ({len(texts_map)} nodes).",
+                        f"Search disabled for annotation type '{annotation_type}'. "
+                        f"Rejecting those edges without searching ({len(texts_map)} nodes).",
                         section="START",
                     )
 
@@ -535,7 +539,8 @@ class GeneralPromoteService(IPromoteService):
         limit = get_limit_from_query(self.config.promote_function.get_candidates_query)
         # If limit is -1 (unlimited), use sensible default
         if limit == -1:
-            limit = 500  # NOTE: This may or may not be needed. The main benefit of this is having the ability to ensure edges are processed in the 10minute time constraint of Serverless Functions
+            # NOTE: Caps batch size so edges can finish within the 10-minute serverless limit.
+            limit = 500
 
         return self.client.data_modeling.instances.list(
             instance_type="edge",
@@ -726,7 +731,10 @@ class GeneralPromoteService(IPromoteService):
         ):  # Success - single match found
             matched_entity: MatchedEntity = found_entities[0]
             self.logger.debug(
-                f"✓ Found single match for '{edge_props.get('startNodeText')}' → {matched_entity.external_id}. \n\t- Promoting edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
+                f"✓ Found single match for '{edge_props.get('startNodeText')}' → "
+                f"{matched_entity.external_id}.\n"
+                f"\t- Promoting edge: ({edge.space}, {edge.external_id})\n"
+                f"\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
             )
 
             # Update edge to point to the found entity
