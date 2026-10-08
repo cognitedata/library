@@ -79,7 +79,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         tracker: PerformanceTracker,
         retrieve_service: IRetrieveService,
         apply_service: IApplyService,
-        function_call_info: dict,
+        function_call_info: dict[str, object],
     ):
         super().__init__(
             client,

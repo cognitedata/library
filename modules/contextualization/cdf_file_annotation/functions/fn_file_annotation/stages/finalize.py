@@ -18,9 +18,8 @@ from services.finalize_service import AbstractFinalizeService, GeneralFinalizeSe
 from services.logger_service import CogniteFunctionLogger
 from services.pipeline_service import IPipelineService
 from services.retrieve_service import IRetrieveService
-from utils.data_structures import PerformanceTracker
-
 from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, StageInput
+from utils.data_structures import PerformanceTracker
 
 
 def handle(data: dict[str, object], function_call_info: dict[str, object], client: CogniteClient) -> dict[str, object]:

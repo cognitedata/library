@@ -15,7 +15,7 @@ from services.config_service import Config, ViewPropertyConfig
 from services.data_model_service import IDataModelService
 from services.entity_sync_service import EntityInstance
 from services.logger_service import CogniteFunctionLogger
-from utils.data_structures import entity
+from utils.data_structures import Entity
 
 
 def count_pattern_sample_strings(pattern_groups: list[dict[str, object]]) -> int:
@@ -118,13 +118,13 @@ class ICacheService(abc.ABC):
         primary_scope_value: str,
         secondary_scope_value: str | None,
         file_space: str | None,
-    ) -> tuple[list[dict], list[dict]]:
+    ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
         pass
 
     @abc.abstractmethod
     def _generate_tag_samples_from_entities(
-        self, entities: list[dict], *, source_view: str, normalize_patterns: list[str]
-    ) -> list[dict]:
+        self, entities: list[dict[str, object]], *, source_view: str, normalize_patterns: list[str]
+    ) -> list[dict[str, object]]:
         pass
 
 
@@ -153,7 +153,7 @@ class GeneralCacheService(ICacheService):
         primary_scope_value: str,
         secondary_scope_value: str | None,
         file_space: str | None,
-    ) -> tuple[list[dict], list[dict]]:
+    ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
         """
         Builds the entities and pattern samples for diagram detection in one scope.
 
@@ -414,7 +414,7 @@ class GeneralCacheService(ICacheService):
                 instance_properties.get(target_entities_search_property),
                 fallback=instance_properties.get("name"),
             )
-            asset_entity = entity(
+            asset_entity = Entity(
                 external_id=instance.external_id,
                 name=instance_properties.get("name"),
                 space=instance.space,
@@ -433,7 +433,7 @@ class GeneralCacheService(ICacheService):
             file_entity_resource_type: str = (
                 instance_properties.get(file_resource_type_prop) if file_resource_type_prop else None
             ) or self.file_view.external_id
-            file_entity = entity(
+            file_entity = Entity(
                 external_id=instance.external_id,
                 name=instance_properties.get("name"),
                 space=instance.space,
@@ -450,11 +450,11 @@ class GeneralCacheService(ICacheService):
 
     def _generate_tag_samples_from_entities(
         self,
-        entities: list[dict],
+        entities: list[dict[str, object]],
         *,
         source_view: str,
         normalize_patterns: list[str],
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
         """
         Generates regex-like pattern samples from entity search properties for pattern mode detection.
 

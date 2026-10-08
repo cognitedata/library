@@ -142,7 +142,7 @@ class FileProcessingBatch:
 
 
 @dataclass
-class entity:
+class Entity:
     """
     data structure for the 'entities' fed into diagram detect,
     {
@@ -162,7 +162,7 @@ class entity:
     resource_type: str
     search_property: list[str] = field(default_factory=list)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, object]:
         return asdict(self)
 
 

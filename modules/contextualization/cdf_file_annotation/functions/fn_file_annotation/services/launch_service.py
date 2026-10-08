@@ -123,7 +123,7 @@ class GeneralLaunchService(AbstractLaunchService):
         data_model_service: IDataModelService,
         cache_service: ICacheService,
         annotation_service: IAnnotationService,
-        function_call_info: dict,
+        function_call_info: dict[str, object],
         rate_limit_policy: RateLimitPolicy,
     ):
         super().__init__(
