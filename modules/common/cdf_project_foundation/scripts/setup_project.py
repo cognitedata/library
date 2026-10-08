@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -1335,7 +1336,10 @@ def _run_cicd_wizard(pack_root: Path) -> list[Path]:
     cmd = [sys.executable, str(generate_script), "--force"]
     from _style import _C
     print(f"\n  {_C.DIM}{t('Running: {cmd}').format(cmd=' '.join(cmd))}{_C.RESET}")
-    result = subprocess.run(cmd, cwd=str(REPO_ROOT), capture_output=True, text=True)
+    # Output is parsed below by prefix match ("Wrote "/"Skipped ") — force English
+    # regardless of the caller's locale so that parsing stays stable.
+    env = {**os.environ, "CDF_LOCALE": "en"}
+    result = subprocess.run(cmd, cwd=str(REPO_ROOT), capture_output=True, text=True, env=env)
     if result.stdout:
         print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
 
@@ -2085,14 +2089,21 @@ def _run_check(
         stale_diagram_annotation = diagram_annotation_stale_paths(repo_root)
 
         if all_errors:
-            header = t("ERROR: Config file(s) out of sync with variant '{variant}':").format(variant=variant)
-            print(f"{header}\n")
+            diverge = t("WARNING: Config file(s) diverge from variant '{variant}' base defaults:").format(
+                variant=variant
+            )
+            print(f"{diverge}\n")
             for filename, errs in all_errors.items():
                 print(f"  {filename}")
                 for e in errs:
                     print(e)
-            print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
-            sys.exit(1)
+            notice = t(
+                "This is expected once a project extends or upgrades beyond the "
+                "foundation base (e.g. a data-model version bump). Run "
+                "python scripts/setup_project.py -y to re-sync intentionally, or "
+                "ignore if the divergence is intentional."
+            )
+            print(f"\n  {notice}\n")
         if stale_auth:
             print(t("ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):"))
             for p in stale_auth:
