@@ -45,7 +45,7 @@ structuralAutoPatterns: true
 # annotated file's primaryScopeProperty / secondaryScopeProperty values.
 # Ignored when both scope properties are empty. Default false keeps the previous
 # whole-space lookup. See README "Scoping by site".
-filterPatternPromoteByScope: false
+filterPatternPromoteByScope: true
 cleanOldAnnotations: false
 # Regular-detect thresholds. assetAuto* apply to asset links (diagrams.AssetLink);
 # fileAuto* apply to file links (diagrams.FileLink).
