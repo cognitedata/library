@@ -34,7 +34,6 @@ MESSAGES_JA: dict[str, str] = {
     "Which environments would you like to set up?": "どの環境をセットアップしますか？",
     "{persona} persona group  →  {var}": "{persona} ペルソナグループ  →  {var}",
     "Aborted — no changes written.": "中止しました — 変更は書き込まれていません。",
-    "ERROR: Config file(s) out of sync with variant '{variant}':": "エラー: 設定ファイルがデータモデル '{variant}' と一致していません:",
     "Run: python scripts/setup_project.py -y": "実行: python scripts/setup_project.py -y",
     "ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):": "エラー: 不要な認証ファイルが残っています（cdf_project_foundation でカバー済み）:",
     "OK: All config file(s) match variant '{variant}'. No stale auth files.": "OK: すべての設定ファイルがデータモデル '{variant}' と一致しています。不要な認証ファイルはありません。",
