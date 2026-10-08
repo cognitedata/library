@@ -41,14 +41,14 @@ def format_pattern_groups_for_log(
     return lines
 
 
-def split_entities_by_kind(entities: list[dict]) -> tuple[list[dict], list[dict]]:
+def split_entities_by_kind(entities: list[dict[str, object]]) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     """
     Split diagram-detect entities into asset-like vs file-like lists.
 
     Uses annotation_type when present; otherwise treats unknown as assets.
     """
-    assets: list[dict] = []
-    files: list[dict] = []
+    assets: list[dict[str, object]] = []
+    files: list[dict[str, object]] = []
     for row in entities:
         if row.get("annotation_type") == "diagrams.FileLink":
             files.append(row)
@@ -57,9 +57,9 @@ def split_entities_by_kind(entities: list[dict]) -> tuple[list[dict], list[dict]
     return assets, files
 
 
-def entities_missing_search_property(entities: list[dict]) -> list[dict]:
+def entities_missing_search_property(entities: list[dict[str, object]]) -> list[dict[str, object]]:
     """Return entities with nothing to search on (empty search_property after alias→name fallback)."""
-    missing: list[dict] = []
+    missing: list[dict[str, object]] = []
     for row in entities:
         search = row.get("search_property")
         if not search:
@@ -67,7 +67,7 @@ def entities_missing_search_property(entities: list[dict]) -> list[dict]:
     return missing
 
 
-def detectable_entities(entities: list[dict]) -> list[dict]:
+def detectable_entities(entities: list[dict[str, object]]) -> list[dict[str, object]]:
     """Return the entities diagram detect can match on.
 
     Conversion already falls back from aliases to ``name`` when aliases are empty. Only

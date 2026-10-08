@@ -11,7 +11,7 @@ from stages import finalize, launch, prepare, promote
 from stages.stage_runtime import FunctionInput
 from usage import report_usage
 
-StageHandler = Callable[[dict, dict, CogniteClient], dict]
+StageHandler = Callable[[dict[str, object], dict[str, object], CogniteClient], dict[str, object]]
 STAGE_HANDLERS: dict[str, StageHandler] = {
     "prepare": prepare.handle,
     "launch": launch.handle,
@@ -48,7 +48,7 @@ def peak_memory_report(stage: str, log_level: str) -> Iterator[None]:
         )
 
 
-def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
+def handle(data: dict[str, object], function_call_info: dict[str, object], client: CogniteClient) -> dict[str, object]:
     """Run the stage named in the function input.
 
     Raises:
