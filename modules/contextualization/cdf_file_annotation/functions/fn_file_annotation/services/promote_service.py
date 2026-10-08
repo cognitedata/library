@@ -820,9 +820,17 @@ class GeneralPromoteService(IPromoteService):
         raw_data["tags"] = updated_tags
         merged_properties = dict(edge_props)
         merged_properties.update(update_properties)
-        edge_apply.sources = [
-            NodeOrEdgeData(source=self.core_annotation_view.as_view_id(), properties=merged_properties)
-        ]
+        # EdgeApply.sources has no setter; mutate the list in place.
+        source_data = NodeOrEdgeData(
+            source=self.core_annotation_view.as_view_id(), properties=merged_properties
+        )
+        sources = edge_apply.sources
+        if sources:
+            sources[0] = source_data
+        elif sources is not None:
+            sources.append(source_data)
+        else:
+            raise ValueError(f"EdgeApply for ({edge_apply.space}, {edge_apply.external_id}) has no sources")
 
         # Create RowWrite object for RAW table update
         raw_row: RowWrite | None = RowWrite(key=edge.external_id, columns=raw_data) if raw_data else None
