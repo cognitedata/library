@@ -85,15 +85,3 @@
         retries: 1
         timeout: 1800
         onFailure: abortWorkflow
-      - externalId: tr_file_annotation_status_report
-        type: transformation
-        dependsOn:
-          - externalId: fn_promote
-        parameters:
-          transformation:
-            externalId: tr_file_annotation_status_report
-            concurrencyPolicy: fail
-        name: Update file annotation status report
-        retries: 1
-        timeout: 1800
-        onFailure: skipTask
