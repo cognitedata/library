@@ -70,7 +70,4 @@ if __name__ == "__main__":
     }
     module = {"prepare": prepare, "launch": launch, "finalize": finalize, "promote": promote}[stage_name]
     with peak_memory_report(stage_name, config_file["logLevel"]):
-        if stage_name == "promote":
-            module.run_locally(config_file)
-        else:
-            module.run_locally(config_file, config_file["logPath"])
+        module.run_locally(config_file, config_file["logPath"])

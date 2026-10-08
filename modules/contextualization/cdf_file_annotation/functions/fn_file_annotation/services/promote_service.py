@@ -820,7 +820,8 @@ class GeneralPromoteService(IPromoteService):
         raw_data["tags"] = updated_tags
         merged_properties = dict(edge_props)
         merged_properties.update(update_properties)
-        # EdgeApply.sources has no setter; mutate the list in place.
+        # EdgeApply.sources is a read-only property (no setter); mutate the list in place.
+        # Do not assign edge_apply.sources = [...] — that raises AttributeError.
         source_data = NodeOrEdgeData(
             source=self.core_annotation_view.as_view_id(), properties=merged_properties
         )

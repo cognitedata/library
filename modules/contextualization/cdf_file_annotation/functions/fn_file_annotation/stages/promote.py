@@ -7,6 +7,7 @@ from dependencies import (
     create_general_pipeline_service,
     create_logger_service,
     create_promote_cache_service,
+    create_write_logger_service,
 )
 from fa_constants import FUNCTION_TIME_BUDGET_MINUTES
 from services.config_service import Config, format_promote_config
@@ -101,7 +102,7 @@ def handle(data: dict[str, object], function_call_info: dict[str, object], clien
         pipeline_instance.upload_extraction_pipeline(status=run_status)
 
 
-def run_locally(config_file: dict[str, str]) -> None:
+def run_locally(config_file: dict[str, str], log_path: str | None = None) -> None:
     """
     Entry point for local execution and debugging.
 
@@ -112,7 +113,7 @@ def run_locally(config_file: dict[str, str]) -> None:
         config_file: Configuration dictionary containing:
             - ExtractionPipelineExtId: ID of extraction pipeline for config
             - logLevel: Logging level (DEBUG, INFO, WARNING, ERROR)
-            - logPath: Path for writing logs to file
+        log_path: Optional path for writing logs to file
 
     Returns:
         None (execution results are logged)
@@ -120,9 +121,13 @@ def run_locally(config_file: dict[str, str]) -> None:
     Raises:
         ValueError: If required environment variables are missing
     """
-    logger_instance: CogniteFunctionLogger = create_logger_service(
-        config_file.get("logLevel", "DEBUG"), config_file.get("logPath")
-    )
+    log_level = config_file.get("logLevel", "DEBUG")
+    if log_path:
+        logger_instance: CogniteFunctionLogger = create_write_logger_service(
+            log_level=log_level, filepath=log_path
+        )
+    else:
+        logger_instance = create_logger_service(log_level=log_level)
     tracker_instance: PromoteTracker = PromoteTracker()
     try:
         config_instance: Config
