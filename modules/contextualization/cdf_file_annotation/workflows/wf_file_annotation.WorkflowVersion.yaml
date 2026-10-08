@@ -79,7 +79,7 @@
           - externalId: fn_promote
         parameters:
           transformation:
-            externalId: {{ fileToAssetTransformationExternalId }}
+            externalId: tr_file_to_asset_from_annotations
             concurrencyPolicy: fail
         name: Link files to assets
         retries: 1
@@ -91,7 +91,7 @@
           - externalId: fn_promote
         parameters:
           transformation:
-            externalId: {{ fileAnnotationStatusReportTransformationExternalId }}
+            externalId: tr_file_annotation_status_report
             concurrencyPolicy: fail
         name: Update file annotation status report
         retries: 1

@@ -1,4 +1,4 @@
-externalId: {{ tagAssetsDetectInDiagramsTransformationExternalId }}
+externalId: tr_tag_assets_detect_in_diagrams
 dataSetExternalId: {{ annotationDatasetExternalId }}
 name: Tag assets with DetectInDiagrams
 destination:

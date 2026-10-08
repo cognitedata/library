@@ -1,4 +1,4 @@
-externalId: {{ fileAnnotationStatusReportTransformationExternalId }}
+externalId: tr_file_annotation_status_report
 dataSetExternalId: {{ annotationDatasetExternalId }}
 name: File annotation status report
 destination:

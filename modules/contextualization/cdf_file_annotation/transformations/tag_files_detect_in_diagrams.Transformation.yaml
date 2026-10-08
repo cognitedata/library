@@ -1,4 +1,4 @@
-externalId: {{ tagFilesDetectInDiagramsTransformationExternalId }}
+externalId: tr_tag_files_detect_in_diagrams
 dataSetExternalId: {{ annotationDatasetExternalId }}
 name: Tag files with DetectInDiagrams
 destination:

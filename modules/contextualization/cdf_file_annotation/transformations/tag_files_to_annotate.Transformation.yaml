@@ -1,4 +1,4 @@
-externalId: {{ tagFilesToAnnotateTransformationExternalId }}
+externalId: tr_tag_files_to_annotate
 dataSetExternalId: {{ annotationDatasetExternalId }}
 name: Tag files with ToAnnotate
 destination:

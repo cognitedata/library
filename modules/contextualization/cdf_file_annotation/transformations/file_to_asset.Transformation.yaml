@@ -1,4 +1,4 @@
-externalId: {{ fileToAssetTransformationExternalId }}
+externalId: tr_file_to_asset_from_annotations
 dataSetExternalId: {{ annotationDatasetExternalId }}
 name: File to asset links from annotations
 destination:

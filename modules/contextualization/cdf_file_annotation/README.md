@@ -467,13 +467,6 @@ targetEntityVersion: <insert>
 targetEntitySearchProperty: aliases
 targetEntityResourceProperty: ""
 
-# Transformations
-fileToAssetTransformationExternalId: tr_file_to_asset_from_annotations
-fileAnnotationStatusReportTransformationExternalId: tr_file_annotation_status_report
-tagAssetsDetectInDiagramsTransformationExternalId: tr_tag_assets_detect_in_diagrams
-tagFilesDetectInDiagramsTransformationExternalId: tr_tag_files_detect_in_diagrams
-tagFilesToAnnotateTransformationExternalId: tr_tag_files_to_annotate
-
 # Authentication
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}

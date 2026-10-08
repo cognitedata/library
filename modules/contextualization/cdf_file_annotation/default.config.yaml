@@ -1,6 +1,10 @@
 # used in /data_sets, /data_models, /functions, /extraction_pipelines, and /workflows
 annotationDatasetExternalId: ds_file_annotation
 
+# Deployment environment, used in the group name producer_pp_file_annotation_<environment>
+environment: dev
+ApplicationOwner: <APPLICATION_OWNER> # Update to your application owner email id(s)
+
 # used in /data_models and /extraction_pipelines
 annotationStateExternalId: FileAnnotationState
 annotationStateSchemaSpace: dm_sol_file_annotation
@@ -105,16 +109,6 @@ workflowExternalId: wf_ctx_file_annotation
 # Paste a daily cron when annotation should start unattended, for example "0 0 * * *".
 workflowSchedule: "0 0 29 2 *"
 
-# used in /transformations
-fileToAssetTransformationExternalId: tr_file_to_asset_from_annotations
-fileAnnotationStatusReportTransformationExternalId: tr_file_annotation_status_report
-tagAssetsDetectInDiagramsTransformationExternalId: tr_tag_assets_detect_in_diagrams
-tagFilesDetectInDiagramsTransformationExternalId: tr_tag_files_detect_in_diagrams
-tagFilesToAnnotateTransformationExternalId: tr_tag_files_to_annotate
-
 # used in /auth
 # Update GROUP_SOURCE_ID to your group source ID
 groupSourceId: ${GROUP_SOURCE_ID}
-# Deployment environment, used in the group name producer_pp_file_annotation_<environment>
-environment: dev
-ApplicationOwner: <APPLICATION_OWNER> # Update to your application owner email id(s)
