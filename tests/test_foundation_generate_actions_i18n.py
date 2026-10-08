@@ -2,8 +2,7 @@
 
 Covers write_file/remove_file's user-facing messages and the GitHub "Next steps"
 checklist: english-mode output stays unchanged, and japanese-mode output uses the
-reviewed translations. The Azure DevOps checklist is intentionally excluded — see
-UNMIGRATED_STRINGS.md.
+reviewed translations.
 """
 
 import sys
