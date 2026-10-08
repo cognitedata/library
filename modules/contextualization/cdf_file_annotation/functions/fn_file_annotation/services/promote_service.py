@@ -820,9 +820,9 @@ class GeneralPromoteService(IPromoteService):
         raw_data["tags"] = updated_tags
         merged_properties = dict(edge_props)
         merged_properties.update(update_properties)
-        edge_apply.sources[0] = NodeOrEdgeData(
-            source=self.core_annotation_view.as_view_id(), properties=merged_properties
-        )
+        edge_apply.sources = [
+            NodeOrEdgeData(source=self.core_annotation_view.as_view_id(), properties=merged_properties)
+        ]
 
         # Create RowWrite object for RAW table update
         raw_row: RowWrite | None = RowWrite(key=edge.external_id, columns=raw_data) if raw_data else None

@@ -2,7 +2,7 @@ import abc
 import json
 import time
 from collections import defaultdict
-from typing import Literal, cast
+from typing import Literal
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.contextualization import FileReference
@@ -279,7 +279,7 @@ class GeneralLaunchService(AbstractLaunchService):
         for file_node in file_nodes:
             if file_node.as_id() in launched_file_ids:
                 continue
-            tags: list[str] = cast(list[str], ((file_node.properties or {}).get(file_view_id) or {}).get("tags") or [])
+            tags = node_tags(file_node, file_view_id)
             if TAG_ANNOTATION_IN_PROCESS not in tags:
                 continue
             remaining_tags = [tag for tag in unique_tags(tags) if tag != TAG_ANNOTATION_IN_PROCESS]
