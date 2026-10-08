@@ -15,8 +15,9 @@ from services.logger_service import CogniteFunctionLogger
 from services.pipeline_service import IPipelineService
 from services.promote_cache_service import CacheService
 from services.promote_service import GeneralPromoteService
-from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, StageInput
 from utils.data_structures import PromoteTracker
+
+from stages.stage_runtime import STAGE_REPORTABLE_ERRORS, StageInput
 
 
 def handle(data: dict[str, object], function_call_info: dict[str, object], client: CogniteClient) -> dict[str, object]:
