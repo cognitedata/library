@@ -153,7 +153,7 @@ class TestPromptSiteAndProjectNames:
         monkeypatch.setattr(_i18n, "_locale", "ja")
         monkeypatch.setattr("builtins.input", _echo_input("Invalid Site!", "oslo"))
         assert sp._prompt_site("") == "oslo"
-        assert "小文字の英字、数字、ハイフン、アンダースコアのみを使用してください。" in capsys.readouterr().out
+        assert "小文字の英字、数字、アンダースコアのみを使用してください。" in capsys.readouterr().out
 
     def test_project_name_validation_error_in_japanese(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]

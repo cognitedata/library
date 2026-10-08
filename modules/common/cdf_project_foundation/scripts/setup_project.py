@@ -687,7 +687,7 @@ def _write_config_update(path: Path, project: str, overlay: dict, skip_backup: b
         from _style import _C
 
         _ok(
-            t("Updated  {path.name}  (backup: {backup.name})").format(
+            t("Updated  {path.name}  (backup: {backup})").format(
                 path=path,
                 backup=f"{_C.DIM}{backup.name}{_C.RESET}",
             )
@@ -2082,21 +2082,14 @@ def _run_check(
     stale_diagram_annotation = diagram_annotation_stale_paths(repo_root)
 
     if all_errors:
-        diverge = t("WARNING: Config file(s) diverge from variant '{variant}' base defaults:").format(
-            variant=variant
-        )
-        print(f"{diverge}\n")
+        header = t("ERROR: Config file(s) out of sync with variant '{variant}':").format(variant=variant)
+        print(f"{header}\n")
         for filename, errs in all_errors.items():
             print(f"  {filename}")
             for e in errs:
                 print(e)
-        notice = t(
-            "This is expected once a project extends or upgrades beyond the "
-            "foundation base (e.g. a data-model version bump). Run "
-            "python scripts/setup_project.py -y to re-sync intentionally, or "
-            "ignore if the divergence is intentional."
-        )
-        print(f"\n  {notice}\n")
+        print(f"\n  {t('Run: python scripts/setup_project.py -y')}")
+        sys.exit(1)
     if stale_auth:
         print(t("ERROR: Redundant auth file(s) still present (covered by cdf_project_foundation):"))
         for p in stale_auth:

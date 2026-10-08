@@ -73,7 +73,7 @@ MESSAGES_JA: dict[str, str] = {
     "One or more addresses look invalid. Use format: name@domain.com": "1 つ以上のアドレスが無効なようです。形式: name@domain.com",
     "Both config.staging.yaml and config.test.yaml exist — skipping automatic staging migration. Remove one manually.": "config.staging.yaml と config.test.yaml の両方が存在するため、自動的な staging 移行をスキップします。どちらか一方を手動で削除してください。",
     "Created  {path.name}": "作成しました: {path.name}",
-    "Updated  {path.name}  (backup: {backup.name})": "更新しました: {path.name}（バックアップ: {backup.name}）",
+    "Updated  {path.name}  (backup: {backup})": "更新しました: {path.name}（バックアップ: {backup}）",
     "Created  {path.name}  (replicated from existing config)": "作成しました: {path.name}（既存設定から複製）",
     "Removed redundant auth: {auth_file}": "不要な認証ファイルを削除しました: {auth_file}",
     "Created CDM instance space file: {path}": "CDM インスタンス用 space定義ファイルを作成しました: {path}",
