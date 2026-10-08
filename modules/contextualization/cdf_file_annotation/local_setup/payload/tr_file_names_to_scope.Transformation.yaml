@@ -1,0 +1,13 @@
+externalId: tr_file_names_to_scope
+name: File names to site and unit scope
+destination:
+  type: nodes
+  view:
+    space: "{{ scopeSchemaSpace }}"
+    externalId: ScopedFile
+    version: "{{ scopeDmVersion }}"
+  instanceSpace: "{{ fileInstanceSpace }}"
+dataSetExternalId: "{{ annotationDatasetExternalId }}"
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

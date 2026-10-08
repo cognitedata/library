@@ -86,7 +86,7 @@ cdf_file_annotation/
 │   ├── 📁 file_annotation_dashboard_annotation_quality/  # Annotation quality dashboard
 │   └── 📁 file_annotation_dashboard_pipeline_health/     # Pipeline health dashboard
 ├── 📁 upload_data/                         # Sample data for patterns
-├── 📁 local_setup/                         # Local dev environment (.env.tmpl, notebook, launch.json)
+├── 📁 local_setup/                         # Local dev (notebooks, launch.json, apply_scoped_matching.py)
 ├── 📄 default.config.yaml                  # Module configuration
 ├── 📄 module.toml                          # Module metadata
 ├── 📄 DEPLOYMENT.md                        # Deployment guide

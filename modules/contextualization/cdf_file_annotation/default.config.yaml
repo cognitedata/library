@@ -29,6 +29,12 @@ targetEntityExternalId: CogniteAsset
 targetEntityVersion: v1
 targetEntitySearchProperty: aliases
 targetEntityResourceProperty: ""
+# Used only after local_setup/apply_scoped_matching.py copies the test-only scope model
+# into this module. Harmless when those files are not present.
+scopeSchemaSpace: sp_file_annotation_scope
+scopeDmVersion: v1
+scopeDataModelExternalId: FileAnnotationScope_SOL
+
 
 
 # used in /extraction_pipelines

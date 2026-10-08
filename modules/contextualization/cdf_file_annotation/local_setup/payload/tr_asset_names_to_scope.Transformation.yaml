@@ -1,0 +1,13 @@
+externalId: tr_asset_names_to_scope
+name: Asset names to site and unit scope
+destination:
+  type: nodes
+  view:
+    space: "{{ scopeSchemaSpace }}"
+    externalId: Asset
+    version: "{{ scopeDmVersion }}"
+  instanceSpace: "{{ targetEntityInstanceSpace }}"
+dataSetExternalId: "{{ annotationDatasetExternalId }}"
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
