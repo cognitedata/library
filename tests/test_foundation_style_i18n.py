@@ -3,7 +3,7 @@
 Covers _display_width(), _banner()'s box sizing, _section()'s header rendering,
 and prompt_choice()'s numbered-menu alignment — each exercised with an ASCII-only,
 a Japanese-only, and a mixed EN/JA string, using real strings from
-``japanese_localization_strings.csv`` / ``_messages_ja.py`` where practical.
+``_messages_ja.py`` where practical.
 """
 
 import sys
