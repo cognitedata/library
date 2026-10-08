@@ -1,14 +1,13 @@
-# Contextualization Quality Dashboard — Records & Streams rebuild
+# Contextualization Quality Dashboard — Records & Streams Backend
 
 ## Overview
 
-This module is where the Context Quality Dashboard's Records & Streams (R&S) backend
-is being built from scratch, per the PRD's §7/§8 decision to move off the current
-module's flat-JSON-file metrics storage. It is deliberately a **new, separate module**
-from `dashboards/context_quality` rather than an in-place change to it: the backend is
-being developed fresh here and will replace `dashboards/context_quality` once it's
-ready, rather than evolving the existing module in place. Until then, both modules are
-registered and deployable independently.
+This module hosts the Context Quality Dashboard's Records & Streams (R&S) backend,
+per the PRD's §7/§8 decision to move off the current `dashboards/context_quality`
+module's flat-JSON-file metrics storage. It is a **separate module** from
+`dashboards/context_quality` so the two can be developed and deployed independently;
+this module will replace `dashboards/context_quality` once the backend function and
+Flow app are wired up against it.
 
 **Current scope:** the Records & Streams container/view/stream schema only (this
 module's `data_modeling/` and `streams/`). The backend extraction function and the
@@ -132,7 +131,7 @@ context_quality_v2/
 cdf modules add .
 ```
 
-Select **Dashboards** → **Contextualization Quality Dashboard (R&S rebuild)**. Then:
+Select **Dashboards** → **Contextualization Quality Dashboard — Records & Streams Backend**. Then:
 
 ```bash
 cdf build
