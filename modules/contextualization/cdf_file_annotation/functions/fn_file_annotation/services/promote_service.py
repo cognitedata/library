@@ -371,20 +371,8 @@ class GeneralPromoteService(IPromoteService):
             # Update tracker with batch results
             self.tracker.add_edges(promoted=batch_promoted, rejected=batch_rejected, ambiguous=batch_ambiguous)
 
-            try:
-                if edges_to_update:
-                    self.client.data_modeling.instances.apply(edges=edges_to_update)
-                    self.logger.info(
-                        f"Successfully updated {len(edges_to_update)} edges in data model:\n"
-                        f"  ├─ Promoted: {batch_promoted}\n"
-                        f"  ├─ Rejected: {batch_rejected}\n"
-                        f"  └─ Ambiguous: {batch_ambiguous}",
-                        section="BOTH",
-                    )
-            except CogniteAPIError as e:
-                self.logger.error("Error updating edges", error=e, section="BOTH")
-                raise
-
+            # Delete before apply: when recreating an edge with the same space/externalId
+            # (endNode is immutable in DMS), the old edge must be gone first.
             try:
                 if edges_to_delete:
                     self.client.data_modeling.instances.delete(edges=edges_to_delete)
@@ -400,6 +388,20 @@ class GeneralPromoteService(IPromoteService):
                         )
             except CogniteAPIError as e:
                 self.logger.error("Error deleting edges", error=e, section="BOTH")
+                raise
+
+            try:
+                if edges_to_update:
+                    self.client.data_modeling.instances.apply(edges=edges_to_update)
+                    self.logger.info(
+                        f"Successfully updated {len(edges_to_update)} edges in data model:\n"
+                        f"  ├─ Promoted: {batch_promoted}\n"
+                        f"  ├─ Rejected: {batch_rejected}\n"
+                        f"  └─ Ambiguous: {batch_ambiguous}",
+                        section="BOTH",
+                    )
+            except CogniteAPIError as e:
+                self.logger.error("Error updating edges", error=e, section="BOTH")
                 raise
 
             try:
@@ -703,8 +705,10 @@ class GeneralPromoteService(IPromoteService):
         - Updates RAW row with same changes
         - Returns both for atomic update
 
-        When a pattern-mode edge is promoted, it is written in the file instance space (same as
-        regular diagram-detect annotations) and the caller deletes the copy in the pattern space.
+        When a pattern-mode edge is promoted, endNode changes from the sink to the matched
+        entity. DMS treats startNode/endNode as immutable, so the caller must delete the old
+        edge and apply a new one (written in the file instance space). Rejection keeps the
+        sink endNode and can update the existing edge in place.
 
         Args:
             edge: The annotation edge to update (pattern-mode annotation)
@@ -716,7 +720,7 @@ class GeneralPromoteService(IPromoteService):
             Tuple of (EdgeApply, RowWrite, EdgeId | None):
             - EdgeApply: Edge update for data model
             - RowWrite: Row update for RAW table
-            - EdgeId: Pattern-space edge to delete after a successful relocate, if any
+            - EdgeId: Edge to delete before applying the promoted replacement, if any
         """
         # Get the current edge properties before creating the write version
         edge_props: dict[str, object] = edge.properties.get(self.core_annotation_view.as_view_id(), {})
@@ -747,20 +751,20 @@ class GeneralPromoteService(IPromoteService):
                 f"\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
             )
 
-            # Update edge to point to the found entity
+            # Update edge to point to the found entity.
+            # endNode is immutable in DMS: always delete the sink edge and create a replacement
+            # (also relocating into the file instance space when spaces differ).
             edge_apply.end_node = DirectRelationReference(matched_entity.space, matched_entity.external_id)
             update_properties["status"] = DiagramAnnotationStatus.APPROVED.value
             updated_tags = add_unique_tags(updated_tags, "PromotedAuto")
 
-            if edge.space != file_instance_space:
-                edge_to_relocate = EdgeId(edge.space, edge.external_id)
-                edge_apply.space = file_instance_space
-                # as_write() copies the pattern-space version; the file-space edge is a create.
-                edge_apply.existing_version = None
-                self.logger.debug(
-                    f"\t- Relocating promoted edge from ({edge.space}, {edge.external_id}) "
-                    f"to file space {file_instance_space}."
-                )
+            edge_to_relocate = EdgeId(edge.space, edge.external_id)
+            edge_apply.space = file_instance_space
+            edge_apply.existing_version = None
+            self.logger.debug(
+                f"\t- Recreating promoted edge in {file_instance_space} "
+                f"(delete ({edge.space}, {edge.external_id}); endNode is immutable)."
+            )
 
             # Update RAW row with new end node information
             raw_data["endNode"] = matched_entity.external_id
@@ -869,8 +873,9 @@ class GeneralPromoteService(IPromoteService):
 
         Other candidates are listed in ``description`` for a custom picker. Confidence is set to
         the configured auto-suggest threshold (not the pattern detect confidence of 1). The edge
-        is written in the file instance space so Fusion can resolve the end node; the caller
-        deletes the original pattern-space edge when relocating.
+        is written in the file instance space so Fusion can resolve the end node. Because DMS
+        treats endNode as immutable, the caller always deletes the original sink edge before
+        applying the Suggested replacement.
 
         When every candidate is unusable (self-reference or missing external id), the edge is
         rejected like a failed promote so it is not selected again on the next run.
@@ -880,9 +885,8 @@ class GeneralPromoteService(IPromoteService):
             found_entities: Two or more matched entities from search/cache.
 
         Returns:
-            EdgeApply, RAW row, and the original edge id to delete when space changes (or always
-            when replacing the sink stub in pattern space). On reject-with-delete, EdgeApply is
-            None and the third value is the edge to delete.
+            EdgeApply, RAW row, and the original edge id to delete before apply. On
+            reject-with-delete, EdgeApply is None and the third value is the edge to delete.
         """
         view_id = self.core_annotation_view.as_view_id()
         edge_props: dict[str, object] = dict(edge.properties.get(view_id, {}) or {})
@@ -928,21 +932,16 @@ class GeneralPromoteService(IPromoteService):
         properties["tags"] = list(candidate_tags)
         properties["description"] = description
 
-        edge_to_delete: EdgeId | None = None
-        edge_space = edge.space
-        existing_version: int | None = edge.version if hasattr(edge, "version") else None
-        if edge.space != file_instance_space:
-            edge_to_delete = EdgeId(edge.space, edge.external_id)
-            edge_space = file_instance_space
-            existing_version = None
+        # endNode is immutable in DMS: always delete the sink edge and create a replacement.
+        edge_to_delete = EdgeId(edge.space, edge.external_id)
 
         edge_apply = EdgeApply(
-            space=edge_space,
+            space=file_instance_space,
             external_id=edge.external_id,
             type=edge.type,
             start_node=edge.start_node,
             end_node=DirectRelationReference(primary.space, primary.external_id),
-            existing_version=existing_version,
+            existing_version=None,
             sources=[NodeOrEdgeData(source=view_id, properties=properties)],
         )
 

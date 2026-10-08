@@ -112,6 +112,49 @@ def test_prepare_edge_update_relocates_promoted_edge_to_file_instance_space() ->
     assert raw_row is not None
 
 
+def test_prepare_edge_update_recreates_when_already_in_file_instance_space() -> None:
+    """endNode is immutable: same-space promote must delete+recreate, not update in place."""
+    config = _config()
+    view_id = config.data_model_views.core_annotation_view.as_view_id()
+    edge_apply = EdgeApply(
+        space="plant_a",
+        external_id="pattern:file:tag",
+        type=DirectRelationReference(space="cdf_cdm", external_id=ASSET_LINK),
+        start_node=DirectRelationReference(space="plant_a", external_id="PID-1"),
+        end_node=DirectRelationReference(space="patterns", external_id="pattern_sink"),
+        existing_version=3,
+        sources=[
+            NodeOrEdgeData(
+                source=view_id,
+                properties={"startNodeText": "12-TW-96195", "confidence": 1, "tags": []},
+            )
+        ],
+    )
+    edge = MagicMock()
+    edge.space = "plant_a"
+    edge.external_id = "pattern:file:tag"
+    edge.start_node.space = "plant_a"
+    edge.start_node.external_id = "PID-1"
+    edge.type.external_id = ASSET_LINK
+    edge.properties = {view_id: {"startNodeText": "12-TW-96195", "confidence": 1, "tags": []}}
+    edge.as_write.return_value = edge_apply
+
+    client = MagicMock()
+    client.raw.rows.retrieve.return_value = None
+    service = GeneralPromoteService(client, config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+
+    updated, raw_row, relocate = service._prepare_edge_update(
+        edge, [MatchedEntity(space="plant_a", external_id="asset-1")]
+    )
+
+    assert relocate == EdgeId("plant_a", "pattern:file:tag")
+    assert updated is not None
+    assert updated.space == "plant_a"
+    assert updated.end_node.external_id == "asset-1"
+    assert updated.existing_version is None
+    assert raw_row is not None
+
+
 def test_run_deletes_pattern_space_copy_when_edge_is_relocated() -> None:
     config = _config()
     view_id = config.data_model_views.core_annotation_view.as_view_id()
@@ -152,8 +195,10 @@ def test_run_deletes_pattern_space_copy_when_edge_is_relocated() -> None:
 
     service.run()
 
-    client.data_modeling.instances.apply.assert_called_once_with(edges=[edge_apply])
     client.data_modeling.instances.delete.assert_called_once_with(edges=[EdgeId("patterns", "pattern:file:tag")])
+    client.data_modeling.instances.apply.assert_called_once_with(edges=[edge_apply])
+    method_names = [name for name, _args, _kwargs in client.data_modeling.instances.method_calls]
+    assert method_names.index("delete") < method_names.index("apply")
 
 
 def test_prepare_ambiguous_creates_one_suggested_edge_with_alternatives_in_description() -> None:
@@ -204,6 +249,45 @@ def test_prepare_ambiguous_creates_one_suggested_edge_with_alternatives_in_descr
     assert raw_row.key == edge.external_id
     assert raw_row.columns.get("confidence") == 0.6
     assert raw_row.columns.get("endNode") == "23-ESDV-92501-A-1"
+
+
+def test_prepare_ambiguous_recreates_when_already_in_file_instance_space() -> None:
+    """endNode is immutable: same-space ambiguous resolve must delete+recreate."""
+    config = _config(asset_suggest=0.6)
+    view_id = config.data_model_views.core_annotation_view.as_view_id()
+    edge = MagicMock()
+    edge.space = "plant_a"
+    edge.external_id = "pattern:file:tag"
+    edge.start_node = DirectRelationReference(space="plant_a", external_id="PID-1")
+    edge.type = DirectRelationReference(space="cdf_cdm", external_id=ASSET_LINK)
+    edge.version = 5
+    edge.properties = {
+        view_id: {
+            "startNodeText": "P-101",
+            "confidence": 1,
+            "status": "Suggested",
+            "tags": [],
+        }
+    }
+
+    client = MagicMock()
+    client.raw.rows.retrieve.return_value = None
+    service = GeneralPromoteService(client, config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+
+    apply, raw_row, delete_id = service._prepare_ambiguous_edge(
+        edge,
+        [
+            MatchedEntity(space="plant_a", external_id="asset-a"),
+            MatchedEntity(space="plant_a", external_id="asset-b"),
+        ],
+    )
+
+    assert delete_id == EdgeId("plant_a", "pattern:file:tag")
+    assert apply is not None
+    assert apply.space == "plant_a"
+    assert apply.existing_version is None
+    assert apply.end_node.external_id == "asset-a"
+    assert raw_row is not None
 
 
 def test_prepare_ambiguous_rejects_when_all_candidates_are_self_references() -> None:
@@ -384,5 +468,7 @@ def test_run_applies_ambiguous_edge_and_deletes_sink_edge() -> None:
 
     service.run()
 
-    client.data_modeling.instances.apply.assert_called_once_with(edges=[candidate])
     client.data_modeling.instances.delete.assert_called_once_with(edges=[EdgeId("patterns", "pattern:file:tag")])
+    client.data_modeling.instances.apply.assert_called_once_with(edges=[candidate])
+    method_names = [name for name, _args, _kwargs in client.data_modeling.instances.method_calls]
+    assert method_names.index("delete") < method_names.index("apply")
