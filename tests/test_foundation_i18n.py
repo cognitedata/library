@@ -87,19 +87,40 @@ class TestParseLocaleCode:
 
 
 class TestResolveLocale:
+    """Env-var fallback path — exercised on ``sys.platform == "linux"`` so these
+    stay deterministic regardless of the host OS running the suite (macOS/Windows
+    have their own OS-native detection paths, tested separately below)."""
+
     def test_cdf_locale_takes_priority_over_everything(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "linux")
         monkeypatch.setenv("CDF_LOCALE", "ja")
         monkeypatch.setenv("LC_ALL", "en_US.UTF-8")
         assert _i18n.resolve_locale() == "ja"
 
+    def test_cdf_locale_takes_priority_over_macos_detection(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "darwin")
+        monkeypatch.setattr(_i18n, "_detect_macos_ui_language", lambda: "en")
+        monkeypatch.setenv("CDF_LOCALE", "ja")
+        assert _i18n.resolve_locale() == "ja"
+
+    def test_cdf_locale_takes_priority_over_windows_detection(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(_i18n, "_detect_windows_ui_language", lambda: "en")
+        monkeypatch.setenv("CDF_LOCALE", "ja")
+        assert _i18n.resolve_locale() == "ja"
+
     def test_falls_back_to_lc_all_when_cdf_locale_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "linux")
         monkeypatch.setenv("LC_ALL", "ja_JP.UTF-8")
         assert _i18n.resolve_locale() == "ja"
 
     def test_lc_all_takes_priority_over_lc_messages_and_lang(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "linux")
         monkeypatch.setenv("LC_ALL", "ja_JP.UTF-8")
         monkeypatch.setenv("LC_MESSAGES", "en_US.UTF-8")
         monkeypatch.setenv("LANG", "en_US.UTF-8")
@@ -107,38 +128,53 @@ class TestResolveLocale:
 
     def test_lc_messages_takes_priority_over_lang(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "linux")
         monkeypatch.setenv("LC_MESSAGES", "ja_JP.UTF-8")
         monkeypatch.setenv("LANG", "en_US.UTF-8")
         assert _i18n.resolve_locale() == "ja"
 
     def test_falls_back_to_lang_when_lc_vars_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "linux")
         monkeypatch.setenv("LANG", "ja_JP.UTF-8")
         assert _i18n.resolve_locale() == "ja"
 
     def test_defaults_to_english_when_nothing_is_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "linux")
         assert _i18n.resolve_locale() == "en"
 
     def test_unsupported_locale_falls_back_to_english_silently(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "linux")
         monkeypatch.setenv("LANG", "fr_FR.UTF-8")
         assert _i18n.resolve_locale() == "en"
 
     def test_c_and_posix_locales_are_ignored_like_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "linux")
         monkeypatch.setenv("LANG", "C")
         assert _i18n.resolve_locale() == "en"
 
-    def test_windows_uses_locale_getlocale(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_windows_uses_ui_language_detection(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _clear_locale_env(monkeypatch)
         monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(_i18n, "_detect_windows_ui_language", lambda: "ja")
+        assert _i18n.resolve_locale() == "ja"
+
+    def test_windows_falls_back_to_locale_getlocale_when_ui_detection_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(_i18n, "_detect_windows_ui_language", lambda: None)
         monkeypatch.setattr(locale, "getlocale", lambda: ("Japanese_Japan", "932"))
         assert _i18n.resolve_locale() == "ja"
 
-    def test_windows_falls_back_to_english_when_getlocale_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_windows_falls_back_to_english_when_everything_fails(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _clear_locale_env(monkeypatch)
         monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(_i18n, "_detect_windows_ui_language", lambda: None)
 
         def _raise() -> tuple[str | None, str | None]:
             raise ValueError("unknown locale")
@@ -150,8 +186,93 @@ class TestResolveLocale:
         _clear_locale_env(monkeypatch)
         monkeypatch.setenv("LANG", "ja_JP.UTF-8")
         monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(_i18n, "_detect_windows_ui_language", lambda: None)
         monkeypatch.setattr(locale, "getlocale", lambda: (None, None))
         assert _i18n.resolve_locale() == "en"
+
+    def test_macos_uses_ui_language_detection(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "darwin")
+        monkeypatch.setattr(_i18n, "_detect_macos_ui_language", lambda: "ja")
+        monkeypatch.setenv("LANG", "en_US.UTF-8")
+        assert _i18n.resolve_locale() == "ja"
+
+    def test_macos_falls_back_to_env_vars_when_ui_detection_fails(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "darwin")
+        monkeypatch.setattr(_i18n, "_detect_macos_ui_language", lambda: None)
+        monkeypatch.setenv("LANG", "ja_JP.UTF-8")
+        assert _i18n.resolve_locale() == "ja"
+
+    def test_macos_defaults_to_english_when_everything_fails(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _clear_locale_env(monkeypatch)
+        monkeypatch.setattr(sys, "platform", "darwin")
+        monkeypatch.setattr(_i18n, "_detect_macos_ui_language", lambda: None)
+        assert _i18n.resolve_locale() == "en"
+
+
+class TestDetectMacosUiLanguage:
+    def test_returns_parsed_locale_from_apple_locale(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        class _Result:
+            returncode = 0
+            stdout = "ja_JP\n"
+
+        monkeypatch.setattr(_i18n.subprocess, "run", lambda *a, **kw: _Result())
+        assert _i18n._detect_macos_ui_language() == "ja"
+
+    def test_returns_none_when_command_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def _raise(*args: object, **kwargs: object) -> None:
+            raise FileNotFoundError("no defaults binary")
+
+        monkeypatch.setattr(_i18n.subprocess, "run", _raise)
+        assert _i18n._detect_macos_ui_language() is None
+
+    def test_returns_none_on_nonzero_exit(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        class _Result:
+            returncode = 1
+            stdout = ""
+
+        monkeypatch.setattr(_i18n.subprocess, "run", lambda *a, **kw: _Result())
+        assert _i18n._detect_macos_ui_language() is None
+
+    def test_returns_none_on_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import subprocess as subprocess_module
+
+        def _raise(*args: object, **kwargs: object) -> None:
+            raise subprocess_module.TimeoutExpired(cmd="defaults", timeout=2)
+
+        monkeypatch.setattr(_i18n.subprocess, "run", _raise)
+        assert _i18n._detect_macos_ui_language() is None
+
+
+class TestDetectWindowsUiLanguage:
+    def test_returns_parsed_locale_from_langid(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        class _FakeKernel32:
+            @staticmethod
+            def GetUserDefaultUILanguage() -> int:
+                return 0x0411  # ja-JP
+
+        class _FakeWindll:
+            kernel32 = _FakeKernel32()
+
+        monkeypatch.setattr(_i18n.ctypes, "windll", _FakeWindll(), raising=False)
+        assert _i18n._detect_windows_ui_language() == "ja"
+
+    def test_returns_none_when_windll_unavailable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delattr(_i18n.ctypes, "windll", raising=False)
+        assert _i18n._detect_windows_ui_language() is None
+
+    def test_returns_none_when_langid_unmapped(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        class _FakeKernel32:
+            @staticmethod
+            def GetUserDefaultUILanguage() -> int:
+                return 0
+
+        class _FakeWindll:
+            kernel32 = _FakeKernel32()
+
+        monkeypatch.setattr(_i18n.ctypes, "windll", _FakeWindll(), raising=False)
+        assert _i18n._detect_windows_ui_language() is None
 
 
 class TestLocaleOverride:

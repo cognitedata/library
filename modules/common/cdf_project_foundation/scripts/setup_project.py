@@ -596,11 +596,17 @@ def resolve_pack_kind_for_check(variant: str, sourcesystem_dir: Path) -> Literal
     detected = detect_pack_kind(sourcesystem_dir)
     if detected == "ambiguous":
         raise SystemExit(
-            "ERROR: Could not determine deployment pack kind from installed sourcesystem "
-            "modules under 'modules/sourcesystem/'\n"
-            "  (found both extractor and data-dump modules, or neither).\n"
-            "  A project should have either *_extractor modules (Foundation) or\n"
-            "  *_data_dump modules (Demo), not both or neither — fix the module selection."
+            "\n".join(
+                [
+                    t(
+                        "ERROR: Could not determine deployment pack kind from installed "
+                        "sourcesystem modules under 'modules/sourcesystem/'"
+                    ),
+                    t("  (found both extractor and data-dump modules, or neither)."),
+                    t("  A project should have either *_extractor modules (Foundation) or"),
+                    t("  *_data_dump modules (Demo), not both or neither — fix the module selection."),
+                ]
+            )
         )
     return detected
 
@@ -628,7 +634,11 @@ def _skeleton_config(env: str, project: str) -> dict:
 def _write_config_fresh(path: Path, env: str, project: str, overlay: dict) -> None:
     """Create a brand-new config file from the skeleton + overlay."""
     merged = deep_merge(_skeleton_config(env, project), overlay)
-    path.write_text(_YAML_HEADER + yaml.dump(merged, sort_keys=False, allow_unicode=True, default_flow_style=False))
+    path.write_text(
+        _YAML_HEADER
+        + yaml.dump(merged, sort_keys=False, allow_unicode=True, default_flow_style=False),
+        encoding="utf-8",
+    )
     _ok(t("Created  {path.name}").format(path=path))
 
 
@@ -638,7 +648,7 @@ def _write_config_update(path: Path, project: str, overlay: dict, skip_backup: b
     Returns ``True`` when at least one value changed.
     Set ``skip_backup=True`` when the file was just created (no prior version to back up).
     """
-    lines = path.read_text().splitlines(keepends=True)
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
     changed = False
 
     # Update environment.project.
@@ -683,7 +693,7 @@ def _write_config_update(path: Path, project: str, overlay: dict, skip_backup: b
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup = path.with_suffix(f".{timestamp}.bak")
         shutil.copy2(path, backup)
-    path.write_text("".join(lines))
+    path.write_text("".join(lines), encoding="utf-8")
     if not skip_backup:
         from _style import _C
 
@@ -714,11 +724,11 @@ def _replicate_config_from_existing(pack_root: Path, env: str, project: str) -> 
 
     dest = pack_root / f"config.{env}.yaml"
     shutil.copy2(source, dest)
-    lines = dest.read_text().splitlines(keepends=True)
+    lines = dest.read_text(encoding="utf-8").splitlines(keepends=True)
     _yaml_set_value(lines, "environment.name", env)
     _yaml_set_value(lines, "environment.validation-type", ENVIRONMENT_VALIDATION_TYPE.get(env, "dev"))
     _yaml_set_value(lines, "environment.project", project)
-    dest.write_text("".join(lines))
+    dest.write_text("".join(lines), encoding="utf-8")
     return dest
 
 
@@ -813,7 +823,7 @@ def restore_cdm_space_file(variant: str, repo_root: Path | None = None) -> Path 
     if space_file.exists():
         return None
     space_file.parent.mkdir(parents=True, exist_ok=True)
-    space_file.write_text(_CDM_INSTANCE_SPACE_CONTENT)
+    space_file.write_text(_CDM_INSTANCE_SPACE_CONTENT, encoding="utf-8")
     _ok(t("Created CDM instance space file: {path}").format(path=_CDM_INSTANCE_SPACE_REL_PATH))
     return space_file
 
@@ -842,10 +852,10 @@ def _migrate_staging_to_test(pack_root: Path) -> bool:
         )
         return False
 
-    lines = staging.read_text().splitlines(keepends=True)
+    lines = staging.read_text(encoding="utf-8").splitlines(keepends=True)
     _yaml_set_value(lines, "environment.name", "test")
     _yaml_set_value(lines, "environment.validation-type", "prod")
-    test.write_text("".join(lines))
+    test.write_text("".join(lines), encoding="utf-8")
     staging.unlink()
     _ok(t("Migrated config.staging.yaml → config.test.yaml  (validation-type: prod)"))
     return True
@@ -1014,13 +1024,13 @@ def diagram_annotation_stale_paths(repo_root: Path | None = None) -> list[Path]:
 
     workflow_path = _ingestion_workflow_path(repo_root)
     if workflow_path.exists():
-        text = workflow_path.read_text()
+        text = workflow_path.read_text(encoding="utf-8")
         if any(re.search(r"{{\s*" + var + r"\s*}}", text) for var in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS):
             stale.append(workflow_path)
 
     config_path = _ingestion_config_path(repo_root)
     if config_path.exists():
-        text = config_path.read_text()
+        text = config_path.read_text(encoding="utf-8")
         if any(f"{var}:" in text for var in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS):
             stale.append(config_path)
 
@@ -1050,10 +1060,10 @@ def remove_redundant_diagram_annotation(repo_root: Path | None = None) -> list[P
 
     workflow_path = _ingestion_workflow_path(repo_root)
     if workflow_path.exists():
-        lines = workflow_path.read_text().splitlines(keepends=True)
+        lines = workflow_path.read_text(encoding="utf-8").splitlines(keepends=True)
         task_count = _remove_ingestion_diagram_annotation_tasks(lines)
         if task_count:
-            workflow_path.write_text("".join(lines))
+            workflow_path.write_text("".join(lines), encoding="utf-8")
             removed.append(workflow_path)
             _ok(
                 t("Removed {n} redundant diagram-annotation task(s) from cdf_ingestion workflow.").format(
@@ -1063,10 +1073,10 @@ def remove_redundant_diagram_annotation(repo_root: Path | None = None) -> list[P
 
     config_path = _ingestion_config_path(repo_root)
     if config_path.exists():
-        lines = config_path.read_text().splitlines(keepends=True)
+        lines = config_path.read_text(encoding="utf-8").splitlines(keepends=True)
         changed = [_yaml_delete_key(lines, var) for var in _INGESTION_DIAGRAM_ANNOTATION_TASK_VARS]
         if any(changed):
-            config_path.write_text("".join(lines))
+            config_path.write_text("".join(lines), encoding="utf-8")
             removed.append(config_path)
 
     return removed
@@ -1097,11 +1107,11 @@ def patch_cfihos_auth_for_missing_search(repo_root: Path | None = None) -> list[
 
     patched: list[Path] = []
     for auth_file in sorted(cfihos_auth_dir.glob("*.yaml")):
-        original = auth_file.read_text()
+        original = auth_file.read_text(encoding="utf-8")
         # Remove any line that contains only the {{search_space}} list item.
         new_lines = [line for line in original.splitlines(keepends=True) if "{{search_space}}" not in line]
         if len(new_lines) < len(original.splitlines()):
-            auth_file.write_text("".join(new_lines))
+            auth_file.write_text("".join(new_lines), encoding="utf-8")
             patched.append(auth_file)
             rel_auth_file = auth_file.relative_to(data_models_dir.parent)
             _ok(t("Removed {{search_space}} from: {auth_file}").format(auth_file=rel_auth_file))
@@ -1431,7 +1441,7 @@ def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
             if prompt_yes_no(_include_prompt(env), default=(env in installed_envs))
         )
         if not selected:
-            raise SystemExit("No environments selected — nothing to do.")
+            raise SystemExit(t("No environments selected — nothing to do."))
         return selected
 
     which_envs = t("Which environments would you like to set up?")
@@ -1456,7 +1466,7 @@ def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
         if prompt_yes_no(_include_environment_prompt(env), default=True)
     )
     if not selected:
-        raise SystemExit("No environments selected — nothing to do.")
+        raise SystemExit(t("No environments selected — nothing to do."))
     return selected
 
 
@@ -1741,7 +1751,7 @@ def _write_env_if_dirty(
         _ok(t("Updated .env  (backup: {backup_env.name})").format(backup_env=backup_env))
     else:
         _ok(t("Created .env"))
-    env_path.write_text("".join(env_lines))
+    env_path.write_text("".join(env_lines), encoding="utf-8")
 
 
 def _finalize_wizard(
@@ -2037,10 +2047,18 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
                 disabled.append(f"{label}: data owner")
 
         if disabled:
-            print(t("WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:").format(env=env))
+            print(
+                t("WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:").format(
+                    env=env
+                )
+            )
             for entry in disabled:
                 print(f"  - {entry}")
-            print(f"{t('  These contacts will not be notified on pipeline failure. Run: python scripts/setup_project.py -y')}\n")
+            msg = t(
+                "  These contacts will not be notified on pipeline failure. "
+                "Run: python scripts/setup_project.py -y"
+            )
+            print(f"{msg}\n")
 
 
 def _run_check(
