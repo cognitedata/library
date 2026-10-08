@@ -325,15 +325,25 @@ class GeneralPromoteService(IPromoteService):
                         )
 
                         if len(found_entities) >= 2:
-                            batch_ambiguous += 1
                             edge_apply, raw_row, original_to_delete = self._prepare_ambiguous_edge(edge, found_entities)
+                            is_rejected = (
+                                raw_row is not None
+                                and raw_row.columns.get("status") == DiagramAnnotationStatus.REJECTED.value
+                            )
+                            if is_rejected:
+                                batch_rejected += 1
+                            else:
+                                batch_ambiguous += 1
                             if edge_apply is not None:
                                 edges_to_update.append(edge_apply)
                             if raw_row is not None:
                                 raw_rows_to_update.append(raw_row)
                             if original_to_delete is not None:
                                 edges_to_delete.append(original_to_delete)
-                                ambiguous_to_delete += 1
+                                if is_rejected:
+                                    rejected_to_delete += 1
+                                else:
+                                    ambiguous_to_delete += 1
                             continue
 
                         if len(found_entities) == 1 and not is_self_reference:
@@ -862,13 +872,17 @@ class GeneralPromoteService(IPromoteService):
         is written in the file instance space so Fusion can resolve the end node; the caller
         deletes the original pattern-space edge when relocating.
 
+        When every candidate is unusable (self-reference or missing external id), the edge is
+        rejected like a failed promote so it is not selected again on the next run.
+
         Args:
             edge: Pattern-mode annotation still pointing at the sink.
             found_entities: Two or more matched entities from search/cache.
 
         Returns:
             EdgeApply, RAW row, and the original edge id to delete when space changes (or always
-            when replacing the sink stub in pattern space).
+            when replacing the sink stub in pattern space). On reject-with-delete, EdgeApply is
+            None and the third value is the edge to delete.
         """
         view_id = self.core_annotation_view.as_view_id()
         edge_props: dict[str, object] = dict(edge.properties.get(view_id, {}) or {})
@@ -890,9 +904,13 @@ class GeneralPromoteService(IPromoteService):
         if not candidates:
             self.logger.warning(
                 f"Ambiguous match for '{edge_props.get('startNodeText')}' had no usable candidates; "
-                f"leaving sink edge ({edge.space}, {edge.external_id}) unchanged."
+                f"rejecting edge ({edge.space}, {edge.external_id})."
             )
-            return None, None, None
+            edge_apply, raw_row, _ = self._prepare_edge_update(edge, [])
+            edge_to_delete = EdgeId(edge.space, edge.external_id) if self.delete_rejected_edges else None
+            if self.delete_rejected_edges:
+                edge_apply = None
+            return edge_apply, raw_row, edge_to_delete
 
         primary = candidates[0]
         alternatives = candidates[1:]

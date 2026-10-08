@@ -206,6 +206,110 @@ def test_prepare_ambiguous_creates_one_suggested_edge_with_alternatives_in_descr
     assert raw_row.columns.get("endNode") == "23-ESDV-92501-A-1"
 
 
+def test_prepare_ambiguous_rejects_when_all_candidates_are_self_references() -> None:
+    """Unusable ambiguous matches must be rejected so they are not re-queued forever."""
+    config = _config()
+    view_id = config.data_model_views.core_annotation_view.as_view_id()
+    edge_apply = EdgeApply(
+        space="patterns",
+        external_id="pattern:file:PID-1:assetlink:abc",
+        type=DirectRelationReference(space="cdf_cdm", external_id=ASSET_LINK),
+        start_node=DirectRelationReference(space="plant_a", external_id="PID-1"),
+        end_node=DirectRelationReference(space="patterns", external_id="pattern_sink"),
+        sources=[
+            NodeOrEdgeData(
+                source=view_id,
+                properties={
+                    "startNodeText": "PID-1",
+                    "confidence": 1,
+                    "status": "Suggested",
+                    "tags": [],
+                },
+            )
+        ],
+    )
+    edge = MagicMock()
+    edge.space = "patterns"
+    edge.external_id = "pattern:file:PID-1:assetlink:abc"
+    edge.start_node = DirectRelationReference(space="plant_a", external_id="PID-1")
+    edge.type = DirectRelationReference(space="cdf_cdm", external_id=ASSET_LINK)
+    edge.properties = {
+        view_id: {
+            "startNodeText": "PID-1",
+            "confidence": 1,
+            "status": "Suggested",
+            "tags": [],
+        }
+    }
+    edge.as_write.return_value = edge_apply
+
+    client = MagicMock()
+    client.raw.rows.retrieve.return_value = None
+    service = GeneralPromoteService(client, config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    assert service.delete_rejected_edges is True
+
+    apply, raw_row, delete_id = service._prepare_ambiguous_edge(
+        edge,
+        [
+            MatchedEntity(space="plant_a", external_id="PID-1"),
+            MatchedEntity(space="plant_a", external_id="PID-1"),
+        ],
+    )
+
+    assert apply is None
+    assert delete_id == EdgeId("patterns", "pattern:file:PID-1:assetlink:abc")
+    assert raw_row is not None
+    assert raw_row.columns.get("status") == "Rejected"
+    assert "PromoteAttempted" in (raw_row.columns.get("tags") or [])
+
+
+def test_prepare_ambiguous_rejects_without_delete_when_delete_rejected_disabled() -> None:
+    config = _config()
+    view_id = config.data_model_views.core_annotation_view.as_view_id()
+    edge_apply = EdgeApply(
+        space="patterns",
+        external_id="pattern:file:PID-1:assetlink:abc",
+        type=DirectRelationReference(space="cdf_cdm", external_id=ASSET_LINK),
+        start_node=DirectRelationReference(space="plant_a", external_id="PID-1"),
+        end_node=DirectRelationReference(space="patterns", external_id="pattern_sink"),
+        sources=[
+            NodeOrEdgeData(
+                source=view_id,
+                properties={"startNodeText": "PID-1", "status": "Suggested", "tags": []},
+            )
+        ],
+    )
+    edge = MagicMock()
+    edge.space = "patterns"
+    edge.external_id = "pattern:file:PID-1:assetlink:abc"
+    edge.start_node = DirectRelationReference(space="plant_a", external_id="PID-1")
+    edge.type = DirectRelationReference(space="cdf_cdm", external_id=ASSET_LINK)
+    edge.properties = {view_id: {"startNodeText": "PID-1", "status": "Suggested", "tags": []}}
+    edge.as_write.return_value = edge_apply
+
+    client = MagicMock()
+    client.raw.rows.retrieve.return_value = None
+    service = GeneralPromoteService(client, config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    service.delete_rejected_edges = False
+
+    apply, raw_row, delete_id = service._prepare_ambiguous_edge(
+        edge,
+        [
+            MatchedEntity(space="plant_a", external_id="PID-1"),
+            MatchedEntity(space="plant_a", external_id=""),
+        ],
+    )
+
+    assert delete_id is None
+    assert apply is not None
+    assert apply.sources is not None
+    props = apply.sources[0].properties or {}
+    assert props.get("status") == "Rejected"
+    assert "PromoteAttempted" in (props.get("tags") or [])
+    assert raw_row is not None
+    assert raw_row.columns.get("status") == "Rejected"
+
+
 def test_run_applies_ambiguous_edge_and_deletes_sink_edge() -> None:
     config = _config()
     view_id = config.data_model_views.core_annotation_view.as_view_id()
