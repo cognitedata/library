@@ -310,6 +310,47 @@ def test_prepare_ambiguous_rejects_without_delete_when_delete_rejected_disabled(
     assert raw_row.columns.get("status") == "Rejected"
 
 
+def test_run_rejects_edge_with_missing_annotation_type() -> None:
+    """Missing annotation type must reject the edge so it is not re-queued forever."""
+    config = _config()
+    view_id = config.data_model_views.core_annotation_view.as_view_id()
+    edge = MagicMock()
+    edge.space = "patterns"
+    edge.external_id = "pattern:file:tag:notype"
+    edge.start_node.space = "plant_a"
+    edge.start_node.external_id = "PID-1"
+    edge.type.external_id = ""
+    edge.properties = {view_id: {"startNodeText": "P-101", "tags": []}}
+    edge_apply = EdgeApply(
+        space="patterns",
+        external_id="pattern:file:tag:notype",
+        type=DirectRelationReference(space="cdf_cdm", external_id=""),
+        start_node=DirectRelationReference(space="plant_a", external_id="PID-1"),
+        end_node=DirectRelationReference(space="patterns", external_id="pattern_sink"),
+        sources=[
+            NodeOrEdgeData(
+                source=view_id,
+                properties={"startNodeText": "P-101", "status": "Rejected", "tags": ["PromoteAttempted"]},
+            )
+        ],
+    )
+    edge.as_write.return_value = edge_apply
+
+    client = MagicMock()
+    client.raw.rows.retrieve.return_value = None
+    service = GeneralPromoteService(client, config, MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    service._get_promote_candidates = MagicMock(return_value=[edge])
+    service._scope_values_by_file = MagicMock(return_value={})
+    service._find_entity_with_cache = MagicMock()
+
+    service.run()
+
+    service._find_entity_with_cache.assert_not_called()
+    client.data_modeling.instances.delete.assert_called_once_with(
+        edges=[EdgeId("patterns", "pattern:file:tag:notype")]
+    )
+
+
 def test_run_applies_ambiguous_edge_and_deletes_sink_edge() -> None:
     config = _config()
     view_id = config.data_model_views.core_annotation_view.as_view_id()

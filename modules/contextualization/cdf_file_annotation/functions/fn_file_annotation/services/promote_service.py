@@ -211,16 +211,16 @@ class GeneralPromoteService(IPromoteService):
 
         # Group by text, type, space, and scope so two sites do not share one search result.
         grouped_candidates: dict[tuple[str, str, str, str, str], list[Edge]] = {}
-        # Edges without text can never match. They are rejected so the candidates query stops returning them.
+        # Edges without text or type can never match. Reject them so they stop reappearing as candidates.
         textless_edges: list[Edge] = []
         for edge in candidates:
             properties: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view.as_view_id()) or {}
             text: object = properties.get("startNodeText")
             annotation_type: str = edge.type.external_id
 
-            if not (isinstance(text, str) and text):
+            if not (isinstance(text, str) and text) or not annotation_type:
                 textless_edges.append(edge)
-            elif annotation_type:
+            else:
                 primary_value, secondary_value = scope_by_file.get(
                     (edge.start_node.space, edge.start_node.external_id), ("", "")
                 )
