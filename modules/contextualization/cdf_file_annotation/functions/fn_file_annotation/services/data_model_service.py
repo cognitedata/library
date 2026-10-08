@@ -385,7 +385,9 @@ class GeneralDataModelService(IDataModelService):
         or from file_space when it has none, and then narrowed to the scope in memory:
             - entities in the primary and secondary scope carrying one of the configured tags
             - or entities in the primary scope tagged ScopeWideDetect, whatever their secondary scope
-            - or entities with no value for the configured scope properties (matched against every document)
+            - or entities with no primary scope value (matched against every document)
+            - when the file itself has no primary scope value, every tagged entity is returned
+              (scoped and unscoped; secondary is ignored)
 
         Args:
             primary_scope_value: Primary scope identifier (e.g., site, facility).
@@ -432,8 +434,11 @@ class GeneralDataModelService(IDataModelService):
         """The entities of the view that the scope matches against; see get_instances_entities."""
         launch = self.config.launch_function
         primary_configured = bool((launch.primary_scope_property or "").strip())
+        # No primary value ⇒ unscoped file batch: match every tagged entity (ignore secondary too).
         primary_property = launch.primary_scope_property if primary_scope_value else None
-        secondary_property = launch.secondary_scope_property if secondary_scope_value else None
+        secondary_property = (
+            launch.secondary_scope_property if primary_scope_value and secondary_scope_value else None
+        )
         view_id = view.as_view_id()
 
         # The read does not depend on the scope, so it is shared by every scope in the space.

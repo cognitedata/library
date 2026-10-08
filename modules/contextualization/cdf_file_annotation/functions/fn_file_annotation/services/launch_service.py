@@ -327,9 +327,11 @@ class GeneralLaunchService(AbstractLaunchService):
         for file_node in list_files:
             node_props = (file_node.properties or {}).get(self.file_view.as_view_id()) or {}
             primary_value = _scope_group_value(node_props, self.primary_scope_property)
+            # Secondary only applies inside a primary scope; without primary, treat as fully unscoped
+            # so the file is matched against all tagged assets (scoped and unscoped).
             secondary_value = (
                 _scope_group_value(node_props, self.secondary_scope_property)
-                if self.secondary_scope_property
+                if self.secondary_scope_property and primary_value
                 else "__NONE__"
             )
             file_space = file_node.space if self.group_by_file_space else None

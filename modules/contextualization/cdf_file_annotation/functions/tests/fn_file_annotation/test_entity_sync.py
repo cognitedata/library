@@ -148,6 +148,27 @@ def test_entities_without_scope_values_are_matched_against_every_document() -> N
     assert any("unscoped" in message.lower() and "all documents" in message.lower() for message in warnings)
 
 
+def test_unscoped_files_are_matched_against_all_assets_when_site_and_unit_are_configured() -> None:
+    """Files with no site load every tagged asset — scoped and unscoped — across all sites/units."""
+
+    def assets_page() -> MagicMock:
+        return _page(
+            [
+                _asset("site-a-unit-1", tags=["DetectInDiagrams"], site="S1", unit="U1"),
+                _asset("site-a-unit-2", tags=["DetectInDiagrams"], site="S1", unit="U2"),
+                _asset("site-b", tags=["DetectInDiagrams"], site="S2", unit="U1"),
+                _asset("unscoped", tags=["DetectInDiagrams"]),
+                _asset("untagged", tags=["Other"], site="S1", unit="U1"),
+            ]
+        )
+
+    expected = ["site-a-unit-1", "site-a-unit-2", "site-b", "unscoped"]
+    # primary="" is the Launch batch for files missing the primary scope value.
+    # Secondary must not narrow the set: without a site, match every tagged asset.
+    assert _targets(_config("site", "unit"), _client([assets_page()]), primary="", secondary=None) == expected
+    assert _targets(_config("site", "unit"), _client([assets_page()]), primary="", secondary="U1") == expected
+
+
 def test_a_file_entity_without_aliases_is_kept_to_match_on_its_name() -> None:
     from services.data_model_service import GeneralDataModelService
 

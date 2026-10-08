@@ -565,9 +565,10 @@ Requirements:
   (`fileExternalId`) and the target entity view (`targetEntityExternalId`). Core
   `CogniteFile` / `CogniteAsset` have no such property, so use views that extend them.
   Direct relations are not supported (the filter compares against a string).
-- **Files and assets without a value are still matched.** Files without one go in an unscoped
-  batch and are matched against all tagged entities. Assets without one are included in every
-  file batch (unscoped assets against all documents). Both cases log a warning because they
+- **Files and assets without a value are still matched.** Files without a primary scope value
+  go in an unscoped batch and are matched against **all** tagged entities (scoped and unscoped;
+  secondary is ignored when primary is missing). Assets without a primary value are included in
+  every file batch (unscoped assets against all documents). Both cases log a warning because they
   can produce false-positive matches.
 - When both properties are empty, every file is matched against all tagged assets and files,
   and Launch warns that this can produce false-positive matching.

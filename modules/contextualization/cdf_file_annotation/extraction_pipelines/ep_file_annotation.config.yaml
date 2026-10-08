@@ -13,8 +13,8 @@ config:
     # the property must be a text property with the same name on both fileView and
     # targetEntitiesView. Launch groups files by their value and matches each group only
     # against assets/files with the same value. Empty string disables scoping.
-    # Files/assets without a value are still matched: files go in an unscoped batch against
-    # all tagged entities; unscoped assets are matched against all documents (warning).
+    # Files/assets without a primary value are still matched: unscoped files against all
+    # tagged entities (scoped and unscoped); unscoped assets against all documents (warning).
     # With both empty, every file is matched against all targets (warning: false positives).
     # Example: primaryScopeProperty: site, secondaryScopeProperty: unit
     #   A file with site = "PlantA", unit = "U100" is matched only against DetectInDiagrams

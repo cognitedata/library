@@ -7,7 +7,7 @@ ApplicationOwner: <APPLICATION_OWNER> # Update to your application owner email i
 
 # used in /data_models and /extraction_pipelines
 annotationStateExternalId: FileAnnotationState
-annotationStateSchemaSpace: dm_sol_file_annotation
+annotationStateSchemaSpace: dm_file_annotation
 annotationStateVersion: v1.0.0
 patternModeInstanceSpace: inst_file_annotation_pattern_results
 patternDetectSink: pattern_detection_sink_node
@@ -56,9 +56,10 @@ fileAutoSuggestThreshold: 0.30
 # Scope properties are property NAMES (for example site / unit), not values. The property must
 # be a text property with the same name on both the file view and the target entity view; the
 # site value is read from each instance. Empty disables that grouping level. Instances without
-# a value are still matched (unscoped files against all entities; unscoped assets against all
-# documents) and Launch warns. With both empty, every file is matched against all targets
-# (warning: false positives). See README "Scoping by site". Example:
+# a primary value are still matched: unscoped files against ALL tagged entities (scoped and
+# unscoped; secondary is ignored when primary is missing), unscoped assets against all
+# documents. Launch warns in both cases. With both empty, every file is matched against all
+# targets (warning: false positives). See README "Scoping by site". Example:
 #   primaryScopeProperty: site
 #   secondaryScopeProperty: unit
 primaryScopeProperty: ""

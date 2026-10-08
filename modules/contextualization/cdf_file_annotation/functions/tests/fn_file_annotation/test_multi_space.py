@@ -120,16 +120,19 @@ def test_launch_groups_files_when_a_scope_value_is_missing() -> None:
 
     present = scoped_file("with-site", {"site": "PlantA", "unit": "U100"})
     missing = scoped_file("without-site", {})
+    unit_only = scoped_file("unit-only", {"unit": "U100"})
     config = _config("files", "assets")
     config.launch_function.primary_scope_property = "site"
     config.launch_function.secondary_scope_property = "unit"
 
-    batches = _launch_service(config)._organize_files_for_processing([missing, present])
+    batches = _launch_service(config)._organize_files_for_processing([missing, unit_only, present])
 
-    assert [(batch.primary_scope_value, batch.secondary_scope_value) for batch in batches] == [
-        ("", None),
-        ("PlantA", "U100"),
+    # No primary ⇒ fully unscoped batch (secondary alone must not split or narrow matching).
+    assert [(batch.primary_scope_value, batch.secondary_scope_value, len(batch.files)) for batch in batches] == [
+        ("", None, 2),
+        ("PlantA", "U100", 1),
     ]
+    assert {file.external_id for file in batches[0].files} == {"without-site", "unit-only"}
 
 
 def test_launch_keeps_a_single_batch_when_every_view_has_a_space() -> None:
