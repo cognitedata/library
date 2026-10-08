@@ -269,7 +269,10 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
         for (space, external_id), results in merged_results.items():
             file_id = NodeId(space, external_id)
-            annotation_state_node = file_to_state_map[file_id]
+            annotation_state_node = file_to_state_map.get(file_id)
+            if annotation_state_node is None:
+                self.logger.warning(f"Annotation state node not found for file {file_id}. Skipping.")
+                continue
             state_properties = (annotation_state_node.properties or {}).get(
                 self.annotation_state_view.as_view_id()
             ) or {}

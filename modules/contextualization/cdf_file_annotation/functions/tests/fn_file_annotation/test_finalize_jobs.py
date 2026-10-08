@@ -57,3 +57,34 @@ def test_pattern_only_job_uses_the_pattern_page_count() -> None:
     assert properties["annotationStatus"] == "New"
     assert properties["pageCount"] == 80
     assert mapping[NodeId("files", "doc-1")] is not None
+
+
+def test_finalize_skips_detect_results_without_an_annotation_state() -> None:
+    """Detect results can include files whose state was skipped (e.g. missing linkedFile)."""
+    apply_service = MagicMock()
+    apply_service.process_and_apply_annotations_for_file.return_value = ("regular", "pattern")
+    service = _finalize_service_for_one_file(
+        apply_service,
+        DiagramDetectJobPoll(
+            status=JobPollStatus.COMPLETED,
+            results={
+                "items": [
+                    {
+                        "fileInstanceId": {"space": "files", "externalId": "doc-1"},
+                        "pageCount": 1,
+                        "annotations": [],
+                    },
+                    {
+                        "fileInstanceId": {"space": "files", "externalId": "orphan"},
+                        "pageCount": 1,
+                        "annotations": [],
+                    },
+                ]
+            },
+        ),
+    )
+
+    service.run()
+
+    apply_service.process_and_apply_annotations_for_file.assert_called_once()
+    assert apply_service.process_and_apply_annotations_for_file.call_args.args[0].external_id == "doc-1"
