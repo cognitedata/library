@@ -101,7 +101,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         pipeline_instance.upload_extraction_pipeline(status=run_status)
 
 
-def run_locally(config_file: dict) -> None:
+def run_locally(config_file: dict[str, str]) -> None:
     """
     Entry point for local execution and debugging.
 

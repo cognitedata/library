@@ -496,7 +496,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
         return annotated_page_count
 
-    def _log_detect_job_summary(self, label: str, job_results: dict | None) -> None:
+    def _log_detect_job_summary(self, label: str, job_results: dict[str, object] | None) -> None:
         """Log INFO/DEBUG summary of a diagram detect job payload."""
         if job_results is None:
             self.logger.info(f"Detect job summary ({label}): no results payload")

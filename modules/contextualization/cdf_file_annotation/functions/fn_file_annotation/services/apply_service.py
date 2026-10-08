@@ -35,8 +35,8 @@ class IApplyService(abc.ABC):
     def process_and_apply_annotations_for_file(
         self,
         file_node: Node,
-        regular_item: dict | None,
-        pattern_item: dict | None,
+        regular_item: dict[str, object] | None,
+        pattern_item: dict[str, object] | None,
         clean_old: bool,
     ) -> tuple[str, str]:
         pass

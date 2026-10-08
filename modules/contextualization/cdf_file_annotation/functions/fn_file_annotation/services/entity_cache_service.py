@@ -18,12 +18,14 @@ from services.logger_service import CogniteFunctionLogger
 from utils.data_structures import entity
 
 
-def count_pattern_sample_strings(pattern_groups: list[dict]) -> int:
+def count_pattern_sample_strings(pattern_groups: list[dict[str, object]]) -> int:
     """Count sample strings across pattern-mode entity groups."""
     return sum(len(group.get("sample") or []) for group in pattern_groups)
 
 
-def format_pattern_groups_for_log(pattern_groups: list[dict], *, max_samples_per_group: int = 80) -> list[str]:
+def format_pattern_groups_for_log(
+    pattern_groups: list[dict[str, object]], *, max_samples_per_group: int = 80
+) -> list[str]:
     """Format pattern sample groups as indented log lines."""
     lines: list[str] = []
     for group in pattern_groups:
