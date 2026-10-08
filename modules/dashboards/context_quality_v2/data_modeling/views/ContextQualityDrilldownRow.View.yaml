@@ -1,0 +1,135 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: "{{ drilldownRowViewExternalId }}"
+version: "{{ metricsVersion }}"
+name: Context Quality Drilldown Row
+description: >
+  Read surface for the current §9 drill-down backlog. A normal mutable node view — not
+  stream-backed — so it uses standard list/filter with cursor pagination, not the Records
+  lastUpdatedTime-range or sync/filter rules that apply to ContextQualityMetricSnapshot.
+properties:
+  metricId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: metricId
+    description: Which §9 drill-down list this row belongs to
+    name: Metric ID
+  dimensionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: dimensionId
+    description: One of the 7 quality dimensions (§4.1 / §9)
+    name: Dimension ID
+  tier:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: tier
+    description: Filterable, index-accelerated tier (§6)
+    name: Tier
+  facilityId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: facilityId
+    description: This entity's facility (SliceFilters.facilityId)
+    name: Facility ID
+  divisionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: divisionId
+    description: This entity's division (SliceFilters.divisionId)
+    name: Division ID
+  disciplineId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: disciplineId
+    description: This entity's discipline (SliceFilters.disciplineId)
+    name: Discipline ID
+  ownerId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: ownerId
+    description: Owner-mapping target for action routing, and SliceFilters.ownerId (same field, per matchesSlice)
+    name: Owner ID
+  entityId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: entityId
+    description: Stable identity (DrilldownRowDto.id / IssueDto.entityId) — the real upsert/delete key, not entityLabel
+    name: Entity ID
+  entityLabel:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: entityLabel
+    description: Human-readable entity name/ID for display
+    name: Entity label
+  entityRef:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: entityRef
+    description: >
+      Best-effort direct relation to the asset or time series node this row is about.
+      Optional: the mock's DrilldownRowDto/IssueDto carry only a plain string ID, not a
+      relation, and not every drill-down entity (e.g. a maintenance order, an annotation)
+      is guaranteed to implement CogniteDescribable — confirm with Jan Inge before relying
+      on this being populated.
+    name: Entity reference
+    source:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: view
+      version: v1
+  detail:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: detail
+    description: Free-text explanation for this row (e.g. suggested fix)
+    name: Detail
+  cellsJson:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: cellsJson
+    description: >
+      Serialized JSON of DrilldownRowDto.cells (Record<string,string>), for full
+      table/CSV-export column fidelity when a drill-down list has more columns than
+      entityLabel/detail capture. columnKeys (DrilldownDto.columnKeys) defines which keys
+      to expect.
+    name: Cells JSON
+  lastSeenRunId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: lastSeenRunId
+    description: The most recent run that confirmed this entity is still in the list
+    name: Last seen run ID
+  lastSeenTimestamp:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: lastSeenTimestamp
+    description: When lastSeenRunId last confirmed this row
+    name: Last seen timestamp

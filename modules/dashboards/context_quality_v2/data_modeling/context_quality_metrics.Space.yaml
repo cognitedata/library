@@ -1,0 +1,3 @@
+space: "{{ metricsSchemaSpace }}"
+name: "{{ metricsSchemaSpace }}"
+description: Schema space for the Context Quality Dashboard's pre-computed metric records (Records & Streams backend)

@@ -1,0 +1,4 @@
+[module]
+title = "Contextualization Quality Dashboard (R&S rebuild)"
+id = "dp:dashboards:context_quality_v2"
+package_id = "dp:dashboards"

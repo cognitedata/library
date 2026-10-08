@@ -1,0 +1,206 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: "{{ currentMetricContainerExternalId }}"
+usedFor: node
+name: Context Quality Current Metric
+description: >
+  The current raw count for one metric at the lowest reporting level the backend
+  function can read it at (e.g. a unit, not a whole facility, when the source view
+  supports that granularity) — per the 2026-10-07 backend design call: "you have the
+  raw data point in records and streams and then you do the calculation [in the app]
+  based on the scope you're reading into." This container does NOT store a
+  precomputed value per filter combination (facility+division+owner, etc.) — there is
+  no such thing as "the value for this scope" stored here. The Flow app computes any
+  rolled-up value by summing eligibleCount/passingCount across every row whose
+  facilityId/divisionId/disciplineId matches the active filter, then deriving percent
+  from those sums. valuePercent on this container is only trustworthy for this row's
+  own reportingUnitId — never sum or average it across rows.
+  Upserted every run: a node's externalId is deterministic from
+  (metricId, reportingUnitId, tier), so a re-run for the same metric/unit/tier
+  overwrites the previous value in place rather than accumulating history. History
+  lives separately in the immutable ContextQualityMetricSnapshot record container.
+properties:
+  metricId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Metric ID
+  dimensionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Dimension ID
+  reportingUnitId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Reporting unit ID
+  labelKey:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Label key
+  direction:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Direction
+  eligibleCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Eligible count
+  passingCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Passing count
+  issueCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Issue count
+  valuePercent:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Value percent
+  tier:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Tier
+  extended:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Extended
+  hasDrilldown:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Has drilldown
+  actionKey:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Action key
+  status:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Status
+  facilityId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Facility ID
+  divisionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Division ID
+  disciplineId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Discipline ID
+  ownerId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Owner ID
+  lastRunId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Last run ID
+  lastUpdatedAt:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Last updated at
+indexes:
+  metricFacility:
+    indexType: btree
+    properties:
+      - metricId
+      - facilityId
+    cursorable: true
+  dimensionTier:
+    indexType: btree
+    properties:
+      - dimensionId
+      - tier
+    cursorable: true

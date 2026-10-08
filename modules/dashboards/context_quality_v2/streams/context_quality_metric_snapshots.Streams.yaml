@@ -1,0 +1,4 @@
+externalId: "{{ snapshotStreamExternalId }}"
+settings:
+  template:
+    name: BasicArchive

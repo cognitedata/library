@@ -1,0 +1,155 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: "{{ drilldownRowContainerExternalId }}"
+usedFor: node
+name: Context Quality Drilldown Row
+description: >
+  One row per currently-broken entity named in a §9 drill-down list (e.g. an orphaned Tier
+  1 asset, a low-confidence annotation) — parity with the Flow app's DrilldownRowDto/
+  IssueDto (src/types/dto.ts). Already entity-level raw data, so it is unaffected by the
+  "lowest reporting level, app aggregates" correction applied to ContextQualityCurrentMetric
+  and ContextQualityMetricSnapshot — an individual entity is the finest possible grain.
+  Immutability is not needed here: the product need is "what's broken right now," not a
+  history of every past run's backlog, and immutable Records & Streams containers cannot be
+  deleted from once written. This container is upserted every run: a node's externalId is
+  deterministic from (metricId, entityId) — entityId, not entityLabel or entityRef, is the
+  stable identity, since labels can change and entityRef may be absent. A still-broken
+  entity's row is overwritten in place; a fixed entity's row is deleted; size tracks the
+  current backlog, never the run count. lastSeenRunId/lastSeenTimestamp record which run
+  last confirmed a row, without retaining prior runs' versions of it.
+properties:
+  metricId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Metric ID
+  dimensionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Dimension ID
+  tier:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Tier
+  facilityId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Facility ID
+  divisionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Division ID
+  disciplineId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Discipline ID
+  ownerId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Owner ID
+  entityId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Entity ID
+  entityLabel:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Entity label
+  entityRef:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Entity reference
+  detail:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Detail
+  cellsJson:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Cells JSON
+  lastSeenRunId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Last seen run ID
+  lastSeenTimestamp:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Last seen timestamp
+indexes:
+  metricFacility:
+    indexType: btree
+    properties:
+      - metricId
+      - facilityId
+    cursorable: true
+  dimensionTier:
+    indexType: btree
+    properties:
+      - dimensionId
+      - tier
+    cursorable: true

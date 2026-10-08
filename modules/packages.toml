@@ -134,6 +134,7 @@ description = "Dashboards for data quality and reporting."
 canCherryPick = true
 modules = [
     "dashboards/context_quality",
+    "dashboards/context_quality_v2",
 ]
 
 [packages.tools]

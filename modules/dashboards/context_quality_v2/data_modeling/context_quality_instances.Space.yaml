@@ -1,0 +1,6 @@
+space: "{{ metricsInstanceSpace }}"
+name: "{{ metricsInstanceSpace }}"
+description: >
+  Instance space for node instances written by the context quality backend workflow:
+  ContextQualityCurrentMetric and ContextQualityDrilldownRow. Separate from
+  metricsSchemaSpace, which holds only the container/view definitions.

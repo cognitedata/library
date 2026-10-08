@@ -1,0 +1,150 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: "{{ snapshotViewExternalId }}"
+version: "{{ metricsVersion }}"
+name: Context Quality Metric Snapshot
+description: >
+  Read surface for historical trend points at the lowest reporting level. Bound to the
+  context_quality_metric_snapshots stream via streamId. The Flow app sums
+  eligibleCount/passingCount across matching reportingUnitId rows for a given
+  run/timestamp to build a trend line at a rolled-up scope — it does not read
+  valuePercent for anything wider than a single reportingUnitId. See the module README
+  for the mandatory lastUpdatedTime range on filter/aggregate calls and the "fetch
+  latest run" pattern.
+streamId: "{{ snapshotStreamExternalId }}"
+properties:
+  runId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: runId
+    description: Correlates every snapshot written by a single dashboard run
+    name: Run ID
+  runTimestamp:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: runTimestamp
+    description: When the run that produced this snapshot executed (SnapshotPointDto.capturedAt)
+    name: Run timestamp
+  dimensionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: dimensionId
+    description: One of the 7 quality dimensions (§4.1 / §9)
+    name: Dimension ID
+  recordKind:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: recordKind
+    description: "aggregate | exclusionCount"
+    name: Record kind
+  metricId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: metricId
+    description: Which §9 metric this snapshot is for, when recordKind is aggregate
+    name: Metric ID
+  reportingUnitId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: reportingUnitId
+    description: The lowest-grain identifier this snapshot was captured at — not necessarily equal to facilityId
+    name: Reporting unit ID
+  tier:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: tier
+    description: Filterable tier (§6); null when the snapshot isn't tier-specific
+    name: Tier
+  facilityId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: facilityId
+    description: Denormalized hierarchy field for filtering/rollup (SliceFilters.facilityId)
+    name: Facility ID
+  divisionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: divisionId
+    description: Denormalized hierarchy field for filtering/rollup (SliceFilters.divisionId)
+    name: Division ID
+  disciplineId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: disciplineId
+    description: Denormalized hierarchy field for filtering/rollup (SliceFilters.disciplineId)
+    name: Discipline ID
+  ownerId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: ownerId
+    description: Best-effort only — see ContextQualityCurrentMetric's ownerId note; open question
+    name: Owner ID
+  valuePercent:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: valuePercent
+    description: Convenience value for this single reportingUnitId only — never sum/average across rows
+    name: Value percent
+  eligibleCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: eligibleCount
+    description: Raw denominator at this reporting unit and run — sum across rows to roll up
+    name: Eligible count
+  passingCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: passingCount
+    description: Raw numerator at this reporting unit and run — sum across rows to roll up
+    name: Passing count
+  issueCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: issueCount
+    description: Raw issue count at this reporting unit and run — sum across rows to roll up
+    name: Issue count
+  exclusionCategory:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: exclusionCategory
+    description: Which §6.1 default or §6.2 user-configured exclusion rule this count is for
+    name: Exclusion category
+  excludedCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: excludedCount
+    description: Count of entities excluded under exclusionCategory at this reporting unit and run
+    name: Excluded count

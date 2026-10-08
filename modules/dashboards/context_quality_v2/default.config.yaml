@@ -1,0 +1,21 @@
+creator_email: name@company.com
+
+# used in /data_modeling and /streams (Records & Streams metrics backend, §7/§8 of the PRD)
+metricsSchemaSpace: sp_context_quality_metrics
+metricsInstanceSpace: sp_dat_context_quality_metrics
+metricsVersion: v1
+
+# Historical trend points only — raw counts at the lowest reporting level, never a precomputed
+# scope-combination value (immutable, Records & Streams):
+snapshotStreamExternalId: context_quality_metric_snapshots
+snapshotContainerExternalId: ContextQualityMetricSnapshot
+snapshotViewExternalId: ContextQualityMetricSnapshot
+
+# Live current value at the lowest reporting level — raw counts, app aggregates up
+# (mutable node container, upserted every run — no history kept):
+currentMetricContainerExternalId: ContextQualityCurrentMetric
+currentMetricViewExternalId: ContextQualityCurrentMetric
+
+# Current drill-down backlog (mutable node container, upserted every run — no history kept):
+drilldownRowContainerExternalId: ContextQualityDrilldownRow
+drilldownRowViewExternalId: ContextQualityDrilldownRow

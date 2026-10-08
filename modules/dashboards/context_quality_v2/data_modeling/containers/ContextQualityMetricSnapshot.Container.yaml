@@ -1,0 +1,163 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: "{{ snapshotContainerExternalId }}"
+usedFor: record
+name: Context Quality Metric Snapshot
+description: >
+  One immutable historical trend point per run, per lowest-reporting-level unit —
+  never a precomputed value for a filter-combination scope. Per the 2026-10-07 backend
+  design call, the backend only ever writes raw counts at the lowest level it can read
+  (e.g. a unit, not a whole facility, when the source view supports that granularity);
+  the Flow app sums eligibleCount/passingCount across matching reportingUnitId rows for
+  a given run/timestamp to build a trend line at any rolled-up scope. recordKind
+  selects between a per-tier dimension aggregate and a §6.1/§6.2 excluded-content
+  count. This container exists only for genuine history/trending — the live "right
+  now" value is served by the mutable ContextQualityCurrentMetric node container
+  instead, since that doesn't need history. Record containers do not support indexes
+  or constraints.
+properties:
+  runId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Run ID
+  runTimestamp:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Run timestamp
+  dimensionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Dimension ID
+  recordKind:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Record kind
+  metricId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Metric ID
+  reportingUnitId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Reporting unit ID
+  tier:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Tier
+  facilityId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Facility ID
+  divisionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Division ID
+  disciplineId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Discipline ID
+  ownerId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Owner ID
+  valuePercent:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Value percent
+  eligibleCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Eligible count
+  passingCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Passing count
+  issueCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Issue count
+  exclusionCategory:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Exclusion category
+  excludedCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Excluded count
