@@ -723,7 +723,7 @@ class GeneralPromoteService(IPromoteService):
             - EdgeId: Edge to delete before applying the promoted replacement, if any
         """
         # Get the current edge properties before creating the write version
-        edge_props: dict[str, object] = edge.properties.get(self.core_annotation_view.as_view_id(), {})
+        edge_props: dict[str, object] = (edge.properties or {}).get(self.core_annotation_view.as_view_id(), {}) or {}
         current_tags: object = edge_props.get("tags", [])
         updated_tags: list[str] = list(current_tags) if isinstance(current_tags, list) else []
 
@@ -889,7 +889,7 @@ class GeneralPromoteService(IPromoteService):
             reject-with-delete, EdgeApply is None and the third value is the edge to delete.
         """
         view_id = self.core_annotation_view.as_view_id()
-        edge_props: dict[str, object] = dict(edge.properties.get(view_id, {}) or {})
+        edge_props: dict[str, object] = dict((edge.properties or {}).get(view_id, {}) or {})
         current_tags: object = edge_props.get("tags", [])
         base_tags: list[str] = list(current_tags) if isinstance(current_tags, list) else []
         candidate_tags = add_unique_tags(base_tags, TAG_PROMOTE_ATTEMPTED, "AmbiguousMatch")
