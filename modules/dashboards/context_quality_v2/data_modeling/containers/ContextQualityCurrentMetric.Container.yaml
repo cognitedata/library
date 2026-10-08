@@ -5,9 +5,8 @@ name: Context Quality Current Metric
 description: >
   The current raw count for one metric at the lowest reporting level the backend
   function can read it at (e.g. a unit, not a whole facility, when the source view
-  supports that granularity) — per the 2026-10-07 backend design call: "you have the
-  raw data point in records and streams and then you do the calculation [in the app]
-  based on the scope you're reading into." This container does NOT store a
+  supports that granularity). The raw data lives here; the scope-specific calculation
+  happens in the Flow app at read time. This container does NOT store a
   precomputed value per filter combination (facility+division+owner, etc.) — there is
   no such thing as "the value for this scope" stored here. The Flow app computes any
   rolled-up value by summing eligibleCount/passingCount across every row whose

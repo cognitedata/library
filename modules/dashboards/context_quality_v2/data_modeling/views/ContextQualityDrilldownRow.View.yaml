@@ -89,7 +89,7 @@ properties:
       Best-effort direct relation to the asset or time series node this row is about.
       Optional: the mock's DrilldownRowDto/IssueDto carry only a plain string ID, not a
       relation, and not every drill-down entity (e.g. a maintenance order, an annotation)
-      is guaranteed to implement CogniteDescribable — confirm with Jan Inge before relying
+      is guaranteed to implement CogniteDescribable — needs confirmation before relying
       on this being populated.
     name: Entity reference
     source:

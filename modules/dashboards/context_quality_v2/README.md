@@ -5,32 +5,27 @@
 This module is where the Context Quality Dashboard's Records & Streams (R&S) backend
 is being built from scratch, per the PRD's §7/§8 decision to move off the current
 module's flat-JSON-file metrics storage. It is deliberately a **new, separate module**
-from `dashboards/context_quality` rather than an in-place change to it — per the
-2026-10 Slack discussion with Valeriya Naumova: *"I would suggest to create a new
-module where we develop everything and then swap it with the context_quality one,
-unless there is a lot we can reuse from context_quality."* The intent is for this
-module to eventually replace `dashboards/context_quality` once the backend function
-and Flow app are wired up against it; until then, both modules are registered and
-deployable independently.
+from `dashboards/context_quality` rather than an in-place change to it: the backend is
+being developed fresh here and will replace `dashboards/context_quality` once it's
+ready, rather than evolving the existing module in place. Until then, both modules are
+registered and deployable independently.
 
 **Current scope:** the Records & Streams container/view/stream schema only (this
-module's `data_modeling/` and `streams/`). The backend extraction function
-(Abhishek's work, as of the 2026-10-07 design call) and the Flow app itself are
-separate, still-exploratory efforts that will land in this module as they're built —
-see "Status" below.
+module's `data_modeling/` and `streams/`). The backend extraction function and the
+Flow app itself are separate, still-exploratory efforts that will land in this module
+as they're built — see "Status" below.
 
 ## Status
 
 - **Schema:** committed here, matches the Flow app's DTOs (`src/types/dto.ts`,
   `src/types/filters.ts` in the dashboard repo) and
   `phase-7.5-backend-contract-audit.md` §6.
-- **Backend extraction function:** exploratory, not yet in this module. Per the
-  2026-10-07 call (Charan Raju, Jan Inge Bergseth, Dariush Ubaydi, Movindu
-  Rathnayake), one CDF Function using the Cognite SDK will read each configured
-  view/dataset and write raw counts to this schema, incrementally (checkpointed, not
-  a full re-read every run). Scope and exact view configuration are still being
-  worked out — see the "Lowest reporting level" principle below, which is the one
-  thing that's settled regardless of how many functions it ends up being.
+- **Backend extraction function:** exploratory, not yet in this module. The plan is
+  one CDF Function using the Cognite SDK that reads each configured view/dataset and
+  writes raw counts to this schema, incrementally (checkpointed, not a full re-read
+  every run). Scope and exact view configuration are still being worked out — see the
+  "lowest reporting level" principle below, which is the one thing that's settled
+  regardless of how many functions it ends up being.
 - **Flow app:** not yet pointed at this module's R&S backend; still reads from the
   mock services in the dashboard repo.
 
@@ -38,17 +33,17 @@ see "Status" below.
 
 ### The one settled architectural principle: lowest reporting level, app aggregates
 
-Per the 2026-10-07 backend design call: the backend never writes a precomputed value
-for a filter-combination scope (e.g. "68% for facility=X AND owner=Y"). It writes raw
+The backend never writes a precomputed value for a filter-combination scope (e.g. "68%
+for facility=X AND owner=Y"). It writes raw
 `eligibleCount`/`passingCount`/`issueCount` at the **lowest level it can read a given
 metric at** — a unit, a plant, or a facility, whichever grain the source view
 actually supports (this varies: equipment has a space per plant, assets use a `plant`
 property, time series use a per-plant space, and some metrics report at an even finer
 unit level). The Flow app sums those raw counts across whatever rows match the active
-`SliceFilters` and derives a percentage itself. *"You have the raw data point in
-records and streams and then you do the calculation [in the app] based on the scope
-you're reading into."* This is why `valuePercent` appears on these containers only as
-a per-row convenience value — it is never valid to sum or average across rows.
+`SliceFilters` and derives a percentage itself — the raw data lives in Records &
+Streams, and the scope-specific calculation happens in the app at read time. This is
+why `valuePercent` appears on these containers only as a per-row convenience value —
+it is never valid to sum or average across rows.
 
 Three containers, split by lifecycle need (not changed by the above — see
 `docs/records_and_streams_design.md` in the dashboard repo for the full rationale):
@@ -75,8 +70,8 @@ advance.
 `ownerId` is carried on every container as best-effort only — it's typically derived
 via prefix/path mapping (`OwnerMappingDto`), not a native property of a reporting
 unit, so owner-scoped rollups over `ContextQualityCurrentMetric`/
-`ContextQualityMetricSnapshot` are not guaranteed correct yet. Open question, not
-resolved as of the 2026-10-07 call.
+`ContextQualityMetricSnapshot` are not guaranteed correct yet. Open question, not yet
+resolved.
 
 ### Template: `BasicArchive` (immutable) — `ContextQualityMetricSnapshot` only
 
