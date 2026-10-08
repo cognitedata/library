@@ -16,6 +16,11 @@ snapshotViewExternalId: ContextQualityMetricSnapshot
 currentMetricContainerExternalId: ContextQualityCurrentMetric
 currentMetricViewExternalId: ContextQualityCurrentMetric
 
+# Live current exclusion counts — same idea as currentMetric, for §6.1/§6.2 exclusion
+# buckets (mutable node container, upserted every run — no history kept):
+currentExclusionContainerExternalId: ContextQualityCurrentExclusion
+currentExclusionViewExternalId: ContextQualityCurrentExclusion
+
 # Current drill-down backlog (mutable node container, upserted every run — no history kept):
 drilldownRowContainerExternalId: ContextQualityDrilldownRow
 drilldownRowViewExternalId: ContextQualityDrilldownRow

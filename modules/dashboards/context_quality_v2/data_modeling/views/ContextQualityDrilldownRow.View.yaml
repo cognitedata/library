@@ -23,6 +23,16 @@ properties:
     containerPropertyIdentifier: dimensionId
     description: One of the 7 quality dimensions (§4.1 / §9)
     name: Dimension ID
+  reportingUnitId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ drilldownRowContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: reportingUnitId
+    description: >
+      The reporting unit this entity was counted under. Lets an incremental run scope
+      its delete pass to just the unit(s) it processed.
+    name: Reporting unit ID
   tier:
     container:
       space: "{{ metricsSchemaSpace }}"

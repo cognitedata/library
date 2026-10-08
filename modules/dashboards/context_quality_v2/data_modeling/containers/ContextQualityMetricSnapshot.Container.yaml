@@ -3,17 +3,26 @@ externalId: "{{ snapshotContainerExternalId }}"
 usedFor: record
 name: Context Quality Metric Snapshot
 description: >
-  One immutable historical trend point per run, per lowest-reporting-level unit —
-  never a precomputed value for a filter-combination scope. Per the 2026-10-07 backend
-  design call, the backend only ever writes raw counts at the lowest level it can read
-  (e.g. a unit, not a whole facility, when the source view supports that granularity);
-  the Flow app sums eligibleCount/passingCount across matching reportingUnitId rows for
-  a given run/timestamp to build a trend line at any rolled-up scope. recordKind
-  selects between a per-tier dimension aggregate and a §6.1/§6.2 excluded-content
-  count. This container exists only for genuine history/trending — the live "right
-  now" value is served by the mutable ContextQualityCurrentMetric node container
-  instead, since that doesn't need history. Record containers do not support indexes
-  or constraints.
+  One immutable historical trend point per run, at the same grain as
+  ContextQualityCurrentMetric: (metricId, reportingUnitId, disciplineId, ownerId,
+  tier) for an aggregate record, or (dimensionId, exclusionCategory, reportingUnitId,
+  disciplineId, ownerId) for an exclusionCount record — see that container's
+  description for why disciplineId/ownerId are only non-null when the count was
+  actually produced at that granularity, and why tier is never mixed (null vs. 1/2/3)
+  for the same key.
+  Every field here is required to be non-null where the equivalent field is required
+  on ContextQualityCurrentMetric (reportingUnitId in particular — a snapshot without
+  a reporting unit cannot be summed correctly).
+  The Flow app sums eligibleCount/passingCount/valueSum across matching rows for a
+  given run to build a trend point at any rolled-up scope. This only produces a
+  correct trend if every run writes a COMPLETE regeneration of every current
+  combination, not just the ones that changed since the last run — a partial write
+  would understate that run's sum and the trend line would show a drop that didn't
+  happen. The backend function may read incrementally, but every run must still
+  regenerate the full current-state snapshot from ContextQualityCurrentMetric before
+  appending it here. See the module README for the sizing implications of this at
+  different run frequencies.
+  Record containers do not support indexes or constraints.
 properties:
   runId:
     type:
@@ -65,9 +74,27 @@ properties:
       collation: ucs_basic
       type: text
     immutable: false
-    nullable: true
+    nullable: false
     autoIncrement: false
     name: Reporting unit ID
+  disciplineId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Discipline ID
+  ownerId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Owner ID
   tier:
     type:
       list: false
@@ -94,32 +121,6 @@ properties:
     nullable: true
     autoIncrement: false
     name: Division ID
-  disciplineId:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Discipline ID
-  ownerId:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Owner ID
-  valuePercent:
-    type:
-      list: false
-      type: float64
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Value percent
   eligibleCount:
     type:
       list: false
@@ -144,6 +145,14 @@ properties:
     nullable: true
     autoIncrement: false
     name: Issue count
+  valueSum:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Value sum
   exclusionCategory:
     type:
       list: false

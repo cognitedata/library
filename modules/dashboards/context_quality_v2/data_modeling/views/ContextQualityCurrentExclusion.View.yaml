@@ -1,0 +1,90 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: "{{ currentExclusionViewExternalId }}"
+version: "{{ metricsVersion }}"
+name: Context Quality Current Exclusion
+description: >
+  Read surface for current exclusion counts (today's excluded buckets, as shown on
+  the Dimension page). A normal mutable node view — not stream-backed. History for
+  the same count over time lives in ContextQualityMetricSnapshot (recordKind:
+  exclusionCount) instead.
+properties:
+  dimensionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentExclusionContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: dimensionId
+    description: One of the 7 quality dimensions (§4.1 / §9)
+    name: Dimension ID
+  exclusionCategory:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentExclusionContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: exclusionCategory
+    description: Which §6.1 default or §6.2 user-configured exclusion rule this count is for
+    name: Exclusion category
+  reportingUnitId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentExclusionContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: reportingUnitId
+    description: The lowest-grain identifier this count was read at
+    name: Reporting unit ID
+  disciplineId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentExclusionContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: disciplineId
+    description: Non-null only when this count was produced at discipline granularity
+    name: Discipline ID
+  ownerId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentExclusionContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: ownerId
+    description: Non-null only when this count was produced at owner granularity
+    name: Owner ID
+  facilityId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentExclusionContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: facilityId
+    description: Denormalized, descriptive only
+    name: Facility ID
+  divisionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentExclusionContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: divisionId
+    description: Denormalized, descriptive only
+    name: Division ID
+  excludedCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentExclusionContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: excludedCount
+    description: Current count of entities excluded under this category at this reporting unit
+    name: Excluded count
+  lastRunId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentExclusionContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: lastRunId
+    description: Which run last computed this value
+    name: Last run ID
+  lastUpdatedAt:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentExclusionContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: lastUpdatedAt
+    description: When lastRunId last computed this value
+    name: Last updated at

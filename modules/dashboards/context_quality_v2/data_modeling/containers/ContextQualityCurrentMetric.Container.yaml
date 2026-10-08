@@ -3,20 +3,35 @@ externalId: "{{ currentMetricContainerExternalId }}"
 usedFor: node
 name: Context Quality Current Metric
 description: >
-  The current raw count for one metric at the lowest reporting level the backend
-  function can read it at (e.g. a unit, not a whole facility, when the source view
-  supports that granularity). The raw data lives here; the scope-specific calculation
-  happens in the Flow app at read time. This container does NOT store a
-  precomputed value per filter combination (facility+division+owner, etc.) — there is
-  no such thing as "the value for this scope" stored here. The Flow app computes any
-  rolled-up value by summing eligibleCount/passingCount across every row whose
-  facilityId/divisionId/disciplineId matches the active filter, then deriving percent
-  from those sums. valuePercent on this container is only trustworthy for this row's
-  own reportingUnitId — never sum or average it across rows.
+  The current raw numbers for one metric at the actual grain the backend function
+  counted it at. A row's grain is (metricId, reportingUnitId, disciplineId, ownerId,
+  tier): reportingUnitId is the lowest area the function could read the metric at (a
+  unit, a plant, or a facility); disciplineId/ownerId are only non-null when the
+  function could determine them per-entity at count time, since a single reporting
+  unit commonly contains more than one discipline — a row cannot claim a single
+  discipline/owner value unless the counts were actually produced at that
+  granularity. Only combinations that exist in the data get rows (not a cross
+  product). tier is null for an untiered count; see the tiering rule below for why a
+  unit/metric never has both a null-tier row and per-tier rows at the same time.
+  facilityId/divisionId are coarser than reportingUnitId and are denormalized,
+  descriptive-only fields (every reporting unit sits inside exactly one facility/
+  division, so these never need to be part of the key).
+  eligibleCount is the denominator for both ratio metrics (eligible/passing/issue) and
+  average metrics (eligibleCount/valueSum, e.g. Average Depth = sum of depth values
+  divided by eligibleCount). passingCount/issueCount/valueSum are each only populated
+  for the metric shapes they apply to.
+  No display-only fields (label, action key, direction, status) are stored here —
+  those are static per metricId and already live in the Flow app's own metric
+  catalog; repeating them per row would drift from that catalog. No valuePercent is
+  stored either: it is fully derivable from the counts above, and storing it invited
+  being read directly for a rolled-up scope where it would be wrong.
   Upserted every run: a node's externalId is deterministic from
-  (metricId, reportingUnitId, tier), so a re-run for the same metric/unit/tier
-  overwrites the previous value in place rather than accumulating history. History
-  lives separately in the immutable ContextQualityMetricSnapshot record container.
+  (metricId, reportingUnitId, disciplineId, ownerId, tier), so a re-run for the same
+  key overwrites the previous value in place rather than accumulating history.
+  History lives separately in the immutable ContextQualityMetricSnapshot record
+  container, which must be regenerated in full (every current combination) on every
+  run — not just the combinations that changed — since a snapshot run's rows are
+  summed together to build one trend point, and a partial write would understate it.
 properties:
   metricId:
     type:
@@ -45,116 +60,6 @@ properties:
     nullable: false
     autoIncrement: false
     name: Reporting unit ID
-  labelKey:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: Label key
-  direction:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: Direction
-  eligibleCount:
-    type:
-      list: false
-      type: int64
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: Eligible count
-  passingCount:
-    type:
-      list: false
-      type: int64
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: Passing count
-  issueCount:
-    type:
-      list: false
-      type: int64
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: Issue count
-  valuePercent:
-    type:
-      list: false
-      type: float64
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Value percent
-  tier:
-    type:
-      list: false
-      type: int32
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Tier
-  extended:
-    type:
-      list: false
-      type: boolean
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: Extended
-  hasDrilldown:
-    type:
-      list: false
-      type: boolean
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: Has drilldown
-  actionKey:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: Action key
-  status:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: Status
-  facilityId:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Facility ID
-  divisionId:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Division ID
   disciplineId:
     type:
       list: false
@@ -173,6 +78,64 @@ properties:
     nullable: true
     autoIncrement: false
     name: Owner ID
+  tier:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Tier
+  facilityId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Facility ID
+  divisionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Division ID
+  eligibleCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Eligible count
+  passingCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Passing count
+  issueCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Issue count
+  valueSum:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Value sum
   lastRunId:
     type:
       list: false
@@ -197,9 +160,9 @@ indexes:
       - metricId
       - facilityId
     cursorable: true
-  dimensionTier:
+  dimensionFacility:
     indexType: btree
     properties:
       - dimensionId
-      - tier
+      - facilityId
     cursorable: true

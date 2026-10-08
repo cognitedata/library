@@ -3,11 +3,10 @@ externalId: "{{ currentMetricViewExternalId }}"
 version: "{{ metricsVersion }}"
 name: Context Quality Current Metric
 description: >
-  Read surface for current raw counts at the lowest reporting level. A normal mutable
-  node view — not stream-backed — so it uses standard list/filter with cursor
-  pagination. The Flow app sums eligibleCount/passingCount across all matching rows
-  for the active scope and derives percent itself; it must not read valuePercent for
-  anything other than a single row's own reportingUnitId.
+  Read surface for current raw counts. A normal mutable node view — not stream-backed
+  — so it uses standard list/filter with cursor pagination. The Flow app computes
+  both a metric card's own percent and any rolled-up scope from eligibleCount/
+  passingCount/valueSum; this view stores no precomputed percent or display fields.
 properties:
   metricId:
     container:
@@ -15,7 +14,7 @@ properties:
       externalId: "{{ currentMetricContainerExternalId }}"
       type: container
     containerPropertyIdentifier: metricId
-    description: Which §9 metric this is
+    description: Which §9 metric this is (or custom:<ruleId> for a customer-defined rule — see README)
     name: Metric ID
   dimensionId:
     container:
@@ -33,122 +32,18 @@ properties:
     containerPropertyIdentifier: reportingUnitId
     description: >
       The lowest-grain identifier the backend read this count at (a unit, plant, or
-      facility — whatever that view supports). Part of this node's externalId, together
-      with metricId and tier. Not necessarily equal to facilityId.
+      facility — whatever that view supports). Part of this node's externalId.
     name: Reporting unit ID
-  labelKey:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: labelKey
-    description: i18n label key for the metric
-    name: Label key
-  direction:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: direction
-    description: "critical | informational"
-    name: Direction
-  eligibleCount:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: eligibleCount
-    description: Raw denominator at this reporting unit — sum across rows to roll up to a wider scope
-    name: Eligible count
-  passingCount:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: passingCount
-    description: Raw numerator at this reporting unit — sum across rows to roll up to a wider scope
-    name: Passing count
-  issueCount:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: issueCount
-    description: Raw issue count at this reporting unit — sum across rows to roll up to a wider scope
-    name: Issue count
-  valuePercent:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: valuePercent
-    description: >
-      Convenience value for this single reportingUnitId only. Never sum or average
-      across rows — recompute passingCount/eligibleCount sums for any rolled-up scope.
-    name: Value percent
-  tier:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: tier
-    description: "Null represents AggregateMetricRowDto.tier === 'all'"
-    name: Tier
-  extended:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: extended
-    description: Whether this is an extended/optional metric
-    name: Extended
-  hasDrilldown:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: hasDrilldown
-    description: Whether a ContextQualityDrilldownRow list exists for this metric
-    name: Has drilldown
-  actionKey:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: actionKey
-    description: i18n key for the suggested action
-    name: Action key
-  status:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: status
-    description: "good | weak | critical, computed for this reportingUnitId's own valuePercent"
-    name: Status
-  facilityId:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: facilityId
-    description: Denormalized hierarchy field for filtering/rollup (SliceFilters.facilityId) — not part of the row's identity
-    name: Facility ID
-  divisionId:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ currentMetricContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: divisionId
-    description: Denormalized hierarchy field for filtering/rollup (SliceFilters.divisionId) — not part of the row's identity
-    name: Division ID
   disciplineId:
     container:
       space: "{{ metricsSchemaSpace }}"
       externalId: "{{ currentMetricContainerExternalId }}"
       type: container
     containerPropertyIdentifier: disciplineId
-    description: Denormalized hierarchy field for filtering/rollup (SliceFilters.disciplineId) — not part of the row's identity
+    description: >
+      Part of this node's externalId when non-null. Null means the function could not
+      break this count out by discipline; non-null means this row covers only that
+      one discipline within reportingUnitId.
     name: Discipline ID
   ownerId:
     container:
@@ -157,10 +52,72 @@ properties:
       type: container
     containerPropertyIdentifier: ownerId
     description: >
-      Best-effort only — owner is typically derived via prefix/path mapping
-      (OwnerMappingDto), not a native property of a reporting unit. Do not treat
-      owner-scoped sums over this field as authoritative until resolved (open question).
+      Part of this node's externalId when non-null. Owner is typically derived via
+      prefix/path mapping, not a native property — only set when the function could
+      resolve it per-entity at count time.
     name: Owner ID
+  tier:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentMetricContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: tier
+    description: >
+      Part of this node's externalId. Null means this metric/unit is untiered — never
+      present alongside per-tier (1/2/3) rows for the same
+      (metricId, reportingUnitId, disciplineId, ownerId).
+    name: Tier
+  facilityId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentMetricContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: facilityId
+    description: Denormalized, descriptive only — not part of this node's identity
+    name: Facility ID
+  divisionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentMetricContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: divisionId
+    description: Denormalized, descriptive only — not part of this node's identity
+    name: Division ID
+  eligibleCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentMetricContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: eligibleCount
+    description: Denominator for ratio metrics, and the N to divide valueSum by for average metrics
+    name: Eligible count
+  passingCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentMetricContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: passingCount
+    description: Numerator, for ratio-shaped metrics only (null for average-shaped metrics)
+    name: Passing count
+  issueCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentMetricContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: issueCount
+    description: Broken-item count, where applicable
+    name: Issue count
+  valueSum:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ currentMetricContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: valueSum
+    description: >
+      Sum of the underlying values, for average-shaped metrics only (e.g. Average
+      Depth, Average Children, average annotation confidence). Average = ΣvalueSum ÷
+      ΣeligibleCount, summed across matching rows for whatever scope is selected.
+    name: Value sum
   lastRunId:
     container:
       space: "{{ metricsSchemaSpace }}"

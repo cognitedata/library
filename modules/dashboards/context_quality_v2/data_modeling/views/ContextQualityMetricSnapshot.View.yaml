@@ -3,13 +3,12 @@ externalId: "{{ snapshotViewExternalId }}"
 version: "{{ metricsVersion }}"
 name: Context Quality Metric Snapshot
 description: >
-  Read surface for historical trend points at the lowest reporting level. Bound to the
+  Read surface for historical trend points. Bound to the
   context_quality_metric_snapshots stream via streamId. The Flow app sums
-  eligibleCount/passingCount across matching reportingUnitId rows for a given
-  run/timestamp to build a trend line at a rolled-up scope — it does not read
-  valuePercent for anything wider than a single reportingUnitId. See the module README
-  for the mandatory lastUpdatedTime range on filter/aggregate calls and the "fetch
-  latest run" pattern.
+  eligibleCount/passingCount/valueSum across matching rows for a given run to build a
+  trend point at a rolled-up scope. See the module README for the mandatory
+  lastUpdatedTime range on filter/aggregate calls, the "fetch latest run" pattern, and
+  why every run must write a complete regeneration of current state here.
 streamId: "{{ snapshotStreamExternalId }}"
 properties:
   runId:
@@ -60,37 +59,13 @@ properties:
     containerPropertyIdentifier: reportingUnitId
     description: The lowest-grain identifier this snapshot was captured at — not necessarily equal to facilityId
     name: Reporting unit ID
-  tier:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ snapshotContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: tier
-    description: Filterable tier (§6); null when the snapshot isn't tier-specific
-    name: Tier
-  facilityId:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ snapshotContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: facilityId
-    description: Denormalized hierarchy field for filtering/rollup (SliceFilters.facilityId)
-    name: Facility ID
-  divisionId:
-    container:
-      space: "{{ metricsSchemaSpace }}"
-      externalId: "{{ snapshotContainerExternalId }}"
-      type: container
-    containerPropertyIdentifier: divisionId
-    description: Denormalized hierarchy field for filtering/rollup (SliceFilters.divisionId)
-    name: Division ID
   disciplineId:
     container:
       space: "{{ metricsSchemaSpace }}"
       externalId: "{{ snapshotContainerExternalId }}"
       type: container
     containerPropertyIdentifier: disciplineId
-    description: Denormalized hierarchy field for filtering/rollup (SliceFilters.disciplineId)
+    description: Non-null only when this count was produced at discipline granularity
     name: Discipline ID
   ownerId:
     container:
@@ -98,16 +73,32 @@ properties:
       externalId: "{{ snapshotContainerExternalId }}"
       type: container
     containerPropertyIdentifier: ownerId
-    description: Best-effort only — see ContextQualityCurrentMetric's ownerId note; open question
+    description: Non-null only when this count was produced at owner granularity
     name: Owner ID
-  valuePercent:
+  tier:
     container:
       space: "{{ metricsSchemaSpace }}"
       externalId: "{{ snapshotContainerExternalId }}"
       type: container
-    containerPropertyIdentifier: valuePercent
-    description: Convenience value for this single reportingUnitId only — never sum/average across rows
-    name: Value percent
+    containerPropertyIdentifier: tier
+    description: Null means untiered — never present alongside per-tier rows for the same key
+    name: Tier
+  facilityId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: facilityId
+    description: Denormalized, descriptive only
+    name: Facility ID
+  divisionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: divisionId
+    description: Denormalized, descriptive only
+    name: Division ID
   eligibleCount:
     container:
       space: "{{ metricsSchemaSpace }}"
@@ -122,7 +113,7 @@ properties:
       externalId: "{{ snapshotContainerExternalId }}"
       type: container
     containerPropertyIdentifier: passingCount
-    description: Raw numerator at this reporting unit and run — sum across rows to roll up
+    description: Raw numerator, for ratio-shaped metrics only
     name: Passing count
   issueCount:
     container:
@@ -130,8 +121,16 @@ properties:
       externalId: "{{ snapshotContainerExternalId }}"
       type: container
     containerPropertyIdentifier: issueCount
-    description: Raw issue count at this reporting unit and run — sum across rows to roll up
+    description: Raw issue count, where applicable
     name: Issue count
+  valueSum:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: "{{ snapshotContainerExternalId }}"
+      type: container
+    containerPropertyIdentifier: valueSum
+    description: Sum of underlying values, for average-shaped metrics only — average = ΣvalueSum ÷ ΣeligibleCount
+    name: Value sum
   exclusionCategory:
     container:
       space: "{{ metricsSchemaSpace }}"

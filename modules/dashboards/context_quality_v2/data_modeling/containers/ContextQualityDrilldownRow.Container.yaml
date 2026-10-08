@@ -16,6 +16,12 @@ description: >
   entity's row is overwritten in place; a fixed entity's row is deleted; size tracks the
   current backlog, never the run count. lastSeenRunId/lastSeenTimestamp record which run
   last confirmed a row, without retaining prior runs' versions of it.
+  reportingUnitId is required so an incremental run that only processed one reporting
+  unit can scope its delete pass correctly: it deletes rows where reportingUnitId
+  matches the unit(s) it just processed and lastSeenRunId is not the current run,
+  rather than risking deleting rows that belong to units it did not touch this run.
+  It also lets issueCount on the matching ContextQualityCurrentMetric row be checked
+  against the number of drill-down rows that share the same reportingUnitId/metricId.
 properties:
   metricId:
     type:
@@ -35,6 +41,15 @@ properties:
     nullable: false
     autoIncrement: false
     name: Dimension ID
+  reportingUnitId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Reporting unit ID
   tier:
     type:
       list: false
@@ -147,9 +162,15 @@ indexes:
       - metricId
       - facilityId
     cursorable: true
-  dimensionTier:
+  dimensionFacility:
     indexType: btree
     properties:
       - dimensionId
-      - tier
+      - facilityId
+    cursorable: true
+  reportingUnit:
+    indexType: btree
+    properties:
+      - reportingUnitId
+      - lastSeenRunId
     cursorable: true

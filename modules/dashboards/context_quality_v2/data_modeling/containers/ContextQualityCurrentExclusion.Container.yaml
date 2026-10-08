@@ -1,0 +1,113 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: "{{ currentExclusionContainerExternalId }}"
+usedFor: node
+name: Context Quality Current Exclusion
+description: >
+  The current count for one §6.1/§6.2 exclusion category at the lowest reporting
+  level the backend function could count it at. This is the current-state
+  counterpart to ContextQualityMetricSnapshot's exclusionCount records: the
+  Dimension page shows today's excluded buckets directly, which should not require
+  a time-ranged query into the immutable snapshot stream just to answer "what is
+  the current value." The snapshot container keeps the history of this same count
+  over time; this container keeps only the latest value.
+  Same grain rules as ContextQualityCurrentMetric: reportingUnitId is required;
+  disciplineId/ownerId are only non-null when the function could resolve them at
+  count time; facilityId/divisionId are denormalized, descriptive-only fields.
+  Upserted every run: a node's externalId is deterministic from
+  (dimensionId, exclusionCategory, reportingUnitId, disciplineId, ownerId).
+properties:
+  dimensionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Dimension ID
+  exclusionCategory:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Exclusion category
+  reportingUnitId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Reporting unit ID
+  disciplineId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Discipline ID
+  ownerId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Owner ID
+  facilityId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Facility ID
+  divisionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Division ID
+  excludedCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Excluded count
+  lastRunId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Last run ID
+  lastUpdatedAt:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Last updated at
+indexes:
+  dimensionFacility:
+    indexType: btree
+    properties:
+      - dimensionId
+      - facilityId
+    cursorable: true
