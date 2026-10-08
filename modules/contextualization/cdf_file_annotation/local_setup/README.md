@@ -23,9 +23,11 @@ python .\apply_scoped_matching.py
 ```
 
 That copies the payload into `data_modeling/` and `transformations/`, and sets
-`default.config.yaml` to the scoped views (`ScopedFile` / `Asset`,
-`primaryScopeProperty: site`, `secondaryScopeProperty: unit`). Then build and deploy
-as usual.
+`default.config.yaml` (and `config.dev.yaml` when present at the repo root) to the
+scoped views (`ScopedFile` / `Asset`, `primaryScopeProperty: site`,
+`secondaryScopeProperty: unit`), including `scopeSchemaSpace` /
+`scopeDmVersion` / `scopeDataModelExternalId` so Toolkit can resolve the payload
+templates. Then build and deploy as usual.
 
 ## Disable (restore CDM defaults)
 
