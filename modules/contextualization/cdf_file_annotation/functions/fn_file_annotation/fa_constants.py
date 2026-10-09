@@ -53,10 +53,10 @@ DIRECTION_WEIGHTS: Final[dict[str, float] | None] = {
     "up": 1.0,
     "down": 1.0,
 }
-MIN_FUZZY_SCORE: Final = 0.99
+MIN_FUZZY_SCORE: Final = 0.90
 READ_EMBEDDED_TEXT: Final = True
 REMOVE_LEADING_ZEROS: Final[bool | None] = None
-SUBSTITUTIONS: Final[dict[str, list[str]] | None] = None  # e.g. {"0": ["O", "Q"]}
+SUBSTITUTIONS: Final[dict[str, list[str]] | None] = None #  {"0": ["O", "Q"], "I": ["1", "l"]}
 
 CORE_ANNOTATION_SCHEMA_SPACE: Final = "cdf_cdm"
 CORE_ANNOTATION_EXTERNAL_ID: Final = "CogniteDiagramAnnotation"
