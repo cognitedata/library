@@ -597,6 +597,41 @@ class TestBuildOverlay:
         mods = overlay["variables"]["modules"]
         assert "cfihos_oil_and_gas_extension_search" not in mods
 
+    def test_cfihos_data_dump_modules_instance_space_derived_from_site(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        (sourcesystem_dir / "cdf_sap_data_dump").mkdir(parents=True)
+        (sourcesystem_dir / "cdf_pi_data_dump").mkdir(parents=True)
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
+        mods = overlay["variables"]["modules"]
+        assert mods["cdf_sap_data_dump"]["instance_space"] == "inst_oslo_cfihos_oil_and_gas"
+        assert mods["cdf_pi_data_dump"]["instance_space"] == "inst_oslo_cfihos_oil_and_gas"
+
+    def test_cfihos_ingestion_instance_spaces_derived_from_site(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+
+        (tmp_path / "modules" / "common" / "cdf_ingestion").mkdir(parents=True)
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
+        mods = overlay["variables"]["modules"]
+        assert mods["cdf_ingestion"]["instanceSpaces"] == ["inst_oslo_cfihos_oil_and_gas", "cdf_cdm_units"]
+
+    def test_cfihos_ingestion_instance_spaces_absent_when_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
+        mods = overlay["variables"]["modules"]
+        assert "cdf_ingestion" not in mods
+
+    def test_cfihos_data_dump_modules_absent_when_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
+        mods = overlay["variables"]["modules"]
+        assert "cdf_sap_data_dump" not in mods
+        assert "cdf_pi_data_dump" not in mods
+        assert "cdf_sharepoint_data_dump" not in mods
+
     def test_app_owner_injected_when_file_annotation_installed(self) -> None:
         from setup_project import build_overlay
 
@@ -1471,6 +1506,67 @@ class TestPatchCfihosAuthForMissingSearch:
 
 
 # ── setup_project — synthetic data removal ────────────────────────────────────
+
+
+class TestPatchDataDumpUploadManifestSpaces:
+    """upload_data/*.Manifest.yaml files are consumed directly by ``cdf data upload``
+    from the module source tree, bypassing ``cdf build`` — so {{ variable }}
+    placeholders are never substituted and the space has to be a literal value
+    the wizard keeps in sync with the site."""
+
+    def _manifest(self, tmp_path: Path, module: str, name: str, space: str) -> Path:
+        upload_dir = tmp_path / "modules" / "sourcesystem" / module / "upload_data"
+        upload_dir.mkdir(parents=True)
+        manifest = upload_dir / name
+        manifest.write_text(
+            "kind: FileContent\n"
+            "type: fileDataModelingTemplate\n"
+            "fileDirectory: ./data\n"
+            "viewId:\n"
+            "  space: dm_dom_oil_and_gas\n"
+            "  externalId: Files\n"
+            "  version: v1\n"
+            "template:\n"
+            "  instanceId:\n"
+            f"    space: {space}\n"
+            "    externalId: file_$FILENAME\n"
+            "  name: $FILENAME\n"
+            "  mimeType: application/pdf\n"
+        )
+        return manifest
+
+    def test_patches_literal_space_to_resolved_site(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_manifest_spaces
+
+        manifest = self._manifest(
+            tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_cfihos_oil_and_gas"
+        )
+        patched = patch_data_dump_upload_manifest_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        assert patched == [manifest]
+        assert "space: inst_oslo_cfihos_oil_and_gas" in manifest.read_text()
+
+    def test_noop_when_already_up_to_date(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_manifest_spaces
+
+        self._manifest(
+            tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_oslo_cfihos_oil_and_gas"
+        )
+        patched = patch_data_dump_upload_manifest_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        assert patched == []
+
+    def test_noop_for_non_cfihos_variant(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_manifest_spaces
+
+        self._manifest(tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_cfihos_oil_and_gas")
+        patched = patch_data_dump_upload_manifest_spaces("isa_manufacturing_extension", "oslo", tmp_path)
+        assert patched == []
+
+    def test_noop_when_module_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_manifest_spaces
+
+        (tmp_path / "modules" / "sourcesystem").mkdir(parents=True)
+        patched = patch_data_dump_upload_manifest_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        assert patched == []
 
 
 class TestRemoveSyntheticData:
@@ -2900,6 +2996,7 @@ class TestFinalizeWizardCicdGeneration:
             tmp_path,
             (),
             variant="cdm",
+            site="",
             pack_kind=pack_kind,
             keep_synthetic=True,
             env_dirty=False,

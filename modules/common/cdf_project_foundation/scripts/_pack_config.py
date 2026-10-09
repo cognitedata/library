@@ -152,6 +152,21 @@ def list_installed_source_system_modules(repo_root: Path | None = None) -> list[
     ]
 
 
+def list_installed_demo_source_system_modules(repo_root: Path | None = None) -> list[str]:
+    """Module directory names present under modules/sourcesystem/ for the Demo pack
+    (``*_data_dump`` modules). These share the CFIHOS domain-model's ``instance_space``
+    rather than getting a per-module space like the Foundation extractor modules.
+    """
+    sourcesystem_dir = get_sourcesystem_dir(repo_root)
+    if not sourcesystem_dir.is_dir():
+        return []
+    return [
+        module_dir
+        for module_dir in DEMO_SOURCE_SYSTEM_MODULE_DIRS
+        if (sourcesystem_dir / module_dir).is_dir()
+    ]
+
+
 def find_env_configs(repo_root: Path | None = None) -> list[Path]:
     """
     Discover config.<env>.yaml files (CDF Toolkit order):
