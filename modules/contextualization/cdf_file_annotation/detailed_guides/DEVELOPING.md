@@ -52,7 +52,7 @@ In your project's function code (e.g., inside the `services` directory), create 
 # In your project's services/my_custom_launch_service.py
 
 from .LaunchService import AbstractLaunchService, GeneralLaunchService
-from utils.DataStructures import FileProcessingBatch
+from utils.data_structures import FileProcessingBatch
 from cognite.client.data_classes.data_modeling import NodeList
 
 class HighPriorityLaunchService(GeneralLaunchService):
@@ -108,10 +108,10 @@ class HighPriorityLaunchService(GeneralLaunchService):
 ### Step 2: Use Your Custom Implementation
 
 ```python
-# In fn_file_annotation_launch/handler.py
+# In fn_file_annotation/handler.py
 
 # ... (other imports)
-from services.LaunchService import AbstractLaunchService
+from services.launch_service import AbstractLaunchService
 # 1. Import your new custom class
 from services.my_custom_launch_service import HighPriorityLaunchService
 

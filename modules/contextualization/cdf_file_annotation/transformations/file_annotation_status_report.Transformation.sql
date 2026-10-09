@@ -2,18 +2,18 @@
 -- FILE ANNOTATION STATUS REPORT
 -- =============================================================================
 -- Builds a per-file summary of diagram tag matching from the file annotation RAW
--- tables written by fn_file_annotation_finalize and fn_file_annotation_promote.
+-- tables written by the finalize and promote stages of fn_file_annotation.
 --
 -- Sources:
---   - {{ rawTableDocTag }}     Regular diagram detect → asset links
---   - {{ rawTableDocPattern }} Pattern-mode detections and promote outcomes
+--   - annotation_documents_tags     Regular diagram detect → asset links
+--   - annotation_documents_patterns Pattern-mode detections and promote outcomes
 --
 -- Match categories (aligned with the Annotation Quality dashboard):
 --   matched   : status = 'Approved' (tag linked to an asset external ID)
 --   unmatched : pattern rows with status 'Rejected' or 'Suggested' (no asset link)
 --
 -- Scope:
---   Limited to file instances in {{ fileInstanceSpace }} (startNodeSpace).
+--   Limited to file instances in {{ fileInstanceSpace }} (startNodeSpace), or every space when it is empty.
 --   Rows with a missing startNodeSpace are treated as belonging to that space.
 -- =============================================================================
 
@@ -26,8 +26,8 @@ WITH regular_asset_annotations AS (
     , cast(endNode AS STRING) AS assetExternalId
     , trim(cast(status AS STRING)) AS status
     , cast(sourceUpdatedTime AS STRING) AS sourceUpdatedTime
-  FROM `{{ rawDb }}`.`{{ rawTableDocTag }}`
-  WHERE coalesce(cast(startNodeSpace AS STRING), '{{ fileInstanceSpace }}') = '{{ fileInstanceSpace }}'
+  FROM `raw_file_annotation`.`annotation_documents_tags`
+  WHERE ('{{ fileInstanceSpace }}' = '' OR coalesce(cast(startNodeSpace AS STRING), '{{ fileInstanceSpace }}') = '{{ fileInstanceSpace }}')
     AND startNode IS NOT NULL
     AND trim(cast(startNode AS STRING)) != ''
     AND startNodeText IS NOT NULL
@@ -45,8 +45,8 @@ pattern_asset_annotations AS (
     , cast(endNode AS STRING) AS assetExternalId
     , trim(cast(status AS STRING)) AS status
     , cast(sourceUpdatedTime AS STRING) AS sourceUpdatedTime
-  FROM `{{ rawDb }}`.`{{ rawTableDocPattern }}`
-  WHERE coalesce(cast(startNodeSpace AS STRING), '{{ fileInstanceSpace }}') = '{{ fileInstanceSpace }}'
+  FROM `raw_file_annotation`.`annotation_documents_patterns`
+  WHERE ('{{ fileInstanceSpace }}' = '' OR coalesce(cast(startNodeSpace AS STRING), '{{ fileInstanceSpace }}') = '{{ fileInstanceSpace }}')
     AND startNode IS NOT NULL
     AND trim(cast(startNode AS STRING)) != ''
     AND startNodeText IS NOT NULL

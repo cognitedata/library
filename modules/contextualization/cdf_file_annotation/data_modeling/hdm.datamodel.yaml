@@ -1,6 +1,6 @@
-description: Helper Data Model
-externalId: helper_datamodel
-name: CDF helper data model
+description: Annotation state for the file annotation pipeline
+externalId: FileAnnotation_SOL
+name: File annotation SOL
 space: {{ annotationStateSchemaSpace }}
 version: {{ annotationStateVersion }}
 views:

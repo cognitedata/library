@@ -1,10 +1,10 @@
-externalId: {{ fileAnnotationStatusReportTransformationExternalId }}
+externalId: tr_file_annotation_status_report
 dataSetExternalId: {{ annotationDatasetExternalId }}
-name: File Annotation Status Report
+name: File annotation status report
 destination:
   type: raw
-  database: {{ rawDb }}
-  table: {{ rawTableAnnotationStatusReport }}
+  database: raw_file_annotation
+  table: annotation_file_status_report
 ignoreNullFields: true
 isPublic: true
 conflictMode: upsert

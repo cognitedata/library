@@ -6,42 +6,13 @@ from cognite.client.data_classes.data_modeling.ids import ViewId
 from constants import FieldNames
 
 
-@dataclass
-class KPI:
-    awaiting_processing: int = 0
-    processed_total: int = 0
-    failed_total: int = 0
-    failure_rate_total: float = 0.0
-
-
-@dataclass
-class RunRecord:
-    timestamp: object = None
-    count: int = 0
-    type: str | None = None
-
-
-@dataclass
-class AnnotationTag:
-    tag_text: str
-    resource_type: str
-    secondary_scope: str
-    status: str
-    annotation_type: str | None = None
-
 class NormalizedStatus(StrEnum):
     REGULARLY_ANNOTATED = "Regularly Annotated"
     AUTOMATICALLY_PROMOTED = "Automatically Promoted"
-    MANUALLY_PROMOTED = "Manually Promoted"
     PATTERN_FOUND = "Pattern Found"
     NO_MATCH = "No Match"
     AMBIGUOUS = "Ambiguous"
 
-class TagsStatus(StrEnum):
-    PROMOTED_AUTO = "PromotedAuto"
-    PROMOTED_MANUALLY = "PromotedManually"
-    PROMOTE_ATTEMPTED = "PromoteAttempted"
-    AMBIGUOUS_MATCH = "AmbiguousMatch"  
 
 @dataclass
 class ViewPropertyConfig:
@@ -53,20 +24,13 @@ class ViewPropertyConfig:
     def as_view_id(self) -> ViewId:
         return ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
 
-    def as_property_ref(self, property_name: str) -> list[str]:
-        return [self.schema_space, f"{self.external_id}/{self.version}", property_name]
-
-class CallerType(StrEnum):
-    PREPARE = "Prepare"
-    LAUNCH = "Launch"
-    FINALIZE = "Finalize"
-    PROMOTE = "Promote"
 
 @dataclass
 class AnnotationStatus(StrEnum):
     APPROVED = "Approved"
     SUGGESTED = "Suggested"
     REJECTED = "Rejected"
+
 
 @dataclass
 class AnnotationCoverageData:
@@ -75,31 +39,12 @@ class AnnotationCoverageData:
     potential_count: int
     total_possible: int
 
-@dataclass
-class ActualAnnotationStatus(StrEnum):
-    REGULARLY_ANNOTATED = "Regularly Annotated"
-    AUTOMATICALLY_PROMOTED = "Automatically Promoted"
-    MANUALLY_PROMOTED = "Manually Promoted"
-
-@dataclass
-class PotentialAnnotationStatus(StrEnum):
-    PATTERN_FOUND = "Pattern Found"
-    AMBIGUOUS = "Ambiguous"
-    NO_MATCH = "No Match"
-
-@dataclass
-class FunctionRunConfig:
-    caller_type: CallerType
-    function_id_field: str
-    function_call_id_field: str
-    log_title: str
-    log_snake_case: str
-
 
 @dataclass
 class AnnotationFrames:
     actual_df: pd.DataFrame
     potential_df: pd.DataFrame
+
 
 @dataclass
 class RawTablesConfig:
@@ -110,7 +55,6 @@ class RawTablesConfig:
     raw_table_pattern_cache: str
     raw_manual_patterns_catalog: str
 
-
     @classmethod
     def from_dict(cls, d: dict | None):
         if not isinstance(d, dict):
@@ -120,7 +64,7 @@ class RawTablesConfig:
                 raw_table_asset_tags=None,
                 raw_table_file_tags=None,
                 raw_table_pattern_cache=None,
-                raw_manual_patterns_catalog=None
+                raw_manual_patterns_catalog=None,
             )
         return cls(
             raw_db=d.get(FieldNames.RAW_DATABASE_CAMEL_CASE),
@@ -130,6 +74,7 @@ class RawTablesConfig:
             raw_table_pattern_cache=d.get(FieldNames.RAW_TABLE_CACHE_CAMEL_CASE),
             raw_manual_patterns_catalog=d.get(FieldNames.RAW_TABLE_MANUAL_PATTERNS_CATALOG_CAMEL_CASE),
         )
+
 
 @dataclass
 class ApplyServiceConfig:
@@ -149,7 +94,7 @@ class ApplyServiceConfig:
                 raw_table_asset_tags=None,
                 raw_table_file_tags=None,
                 raw_manual_patterns_catalog=None,
-                raw_table_pattern_cache=None
+                raw_table_pattern_cache=None,
             )
         return cls(
             raw_db=d.get(FieldNames.RAW_DATABASE_CAMEL_CASE),
@@ -159,6 +104,7 @@ class ApplyServiceConfig:
             raw_manual_patterns_catalog=d.get(FieldNames.RAW_TABLE_MANUAL_PATTERNS_CATALOG_CAMEL_CASE),
             raw_table_pattern_cache=d.get(FieldNames.RAW_TABLE_CACHE_CAMEL_CASE),
         )
+
 
 @dataclass
 class CacheServiceConfig:
@@ -178,7 +124,7 @@ class CacheServiceConfig:
                 raw_table_asset_tags=None,
                 raw_table_file_tags=None,
                 raw_manual_patterns_catalog=None,
-                raw_table_pattern_cache=None
+                raw_table_pattern_cache=None,
             )
 
         return cls(
@@ -190,8 +136,10 @@ class CacheServiceConfig:
             raw_table_pattern_cache=d.get(FieldNames.RAW_TABLE_CACHE_CAMEL_CASE),
         )
 
+
 @dataclass
 class LaunchFunctionConfig:
+    primary_scope_property: str
     secondary_scope_property: str
     asset_resource_property: str
     file_resource_property: str
@@ -200,16 +148,24 @@ class LaunchFunctionConfig:
     @classmethod
     def from_dict(cls, d: dict | None):
         if not isinstance(d, dict):
-            return cls(cache_service=CacheServiceConfig.from_dict(None))
+            return cls(
+                primary_scope_property=None,
+                secondary_scope_property=None,
+                asset_resource_property=None,
+                file_resource_property=None,
+                cache_service=CacheServiceConfig.from_dict(None),
+            )
 
         cache_service = d.get(FieldNames.CACHE_SERVICE_CAMEL_CASE)
 
         return cls(
+            primary_scope_property=d.get(FieldNames.PRIMARY_SCOPE_PROPERTY_CAMEL_CASE),
             secondary_scope_property=d.get(FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE),
             asset_resource_property=d.get(FieldNames.ASSET_RESOURCE_PROPERTY_CAMEL_CASE),
             file_resource_property=d.get(FieldNames.FILE_RESOURCE_PROPERTY_CAMEL_CASE),
             cache_service=CacheServiceConfig.from_dict(cache_service),
         )
+
 
 @dataclass
 class FinalizeFunctionConfig:
@@ -218,13 +174,12 @@ class FinalizeFunctionConfig:
     @classmethod
     def from_dict(cls, d: dict | None):
         if not isinstance(d, dict):
-            return cls(
-                apply_service=ApplyServiceConfig.from_dict(None)
-            )
+            return cls(apply_service=ApplyServiceConfig.from_dict(None))
 
         apply_service = d.get(FieldNames.APPLY_SERVICE_CAMEL_CASE)
 
         return cls(apply_service=ApplyServiceConfig.from_dict(apply_service))
+
 
 @dataclass
 class ExtractionPipelineConfig:
@@ -233,7 +188,6 @@ class ExtractionPipelineConfig:
     raw_tables: RawTablesConfig
     file_view_cfg: ViewPropertyConfig | None = None
     asset_view_cfg: ViewPropertyConfig | None = None
-    annotation_state_view_cfg: ViewPropertyConfig | None = None
 
     @classmethod
     def from_dict(cls, d: dict | None):
@@ -243,6 +197,37 @@ class ExtractionPipelineConfig:
                 finalize_function=FinalizeFunctionConfig.from_dict(None),
                 raw_tables=RawTablesConfig.from_dict(None),
             )
+
+        if "parameters" in d and "data" in d:
+            parameters = d["parameters"]
+            views = d["data"]
+            # Must match the RAW_* constants in fn_file_annotation/fa_constants.py.
+            raw_tables = {
+                "rawDb": "raw_file_annotation",
+                "rawTableDocPattern": "annotation_documents_patterns",
+                "rawTableDocTag": "annotation_documents_tags",
+                "rawTableDocDoc": "annotation_documents_docs",
+                "rawManualPatternsCatalog": "manual_patterns_catalog",
+                "rawTableCache": "annotation_entities_cache",
+                "rawTablePromoteCache": "annotation_tags_cache",
+            }
+            file_view_data = views.get("fileView", {})
+            target_view_data = views.get("targetEntitiesView", {})
+            d = {
+                "launchFunction": {
+                    "primaryScopeProperty": parameters.get("primaryScopeProperty"),
+                    "secondaryScopeProperty": parameters.get("secondaryScopeProperty"),
+                    "fileResourceProperty": file_view_data.get("resourceProperty"),
+                    "targetEntityResourceProperty": target_view_data.get("resourceProperty"),
+                    "cacheService": raw_tables,
+                },
+                "finalizeFunction": {"applyService": raw_tables},
+                "rawTables": raw_tables,
+                "dataModelViews": {
+                    "fileView": file_view_data,
+                    "targetEntityView": target_view_data,
+                },
+            }
 
         launch_function = d.get(FieldNames.LAUNCH_FUNCTION_CAMEL_CASE)
         finalize_function = d.get(FieldNames.FINALIZE_FUNCTION_CAMEL_CASE)
@@ -260,7 +245,6 @@ class ExtractionPipelineConfig:
                 instance_space=cfg_dict.get(FieldNames.INSTANCE_SPACE_CAMEL_CASE),
             )
 
-        annotation_state_view = _build_view(data_model_views.get(FieldNames.ANNOTATION_STATE_VIEW_CAMEL_CASE))
         file_view = _build_view(data_model_views.get(FieldNames.FILE_VIEW_CAMEL_CASE))
         asset_view = _build_view(data_model_views.get(FieldNames.ASSET_VIEW_CAMEL_CASE))
 
@@ -270,20 +254,27 @@ class ExtractionPipelineConfig:
             raw_tables=RawTablesConfig.from_dict(raw_tables),
             file_view_cfg=file_view,
             asset_view_cfg=asset_view,
-            annotation_state_view_cfg=annotation_state_view,
         )
 
     @property
     def file_resource_property(self) -> str | None:
-        return getattr(self.launch_function, FieldNames.FILE_RESOURCE_PROPERTY_SNAKE_CASE, None)
+        value = getattr(self.launch_function, FieldNames.FILE_RESOURCE_PROPERTY_SNAKE_CASE, None)
+        return value.strip() if isinstance(value, str) and value.strip() else None
 
     @property
     def asset_resource_property(self) -> str | None:
-        return getattr(self.launch_function, FieldNames.ASSET_RESOURCE_PROPERTY_SNAKE_CASE, None)
+        value = getattr(self.launch_function, FieldNames.ASSET_RESOURCE_PROPERTY_SNAKE_CASE, None)
+        return value.strip() if isinstance(value, str) and value.strip() else None
+
+    @property
+    def primary_scope_property(self) -> str | None:
+        value = getattr(self.launch_function, FieldNames.PRIMARY_SCOPE_PROPERTY_SNAKE_CASE, None)
+        return value.strip() if isinstance(value, str) and value.strip() else None
 
     @property
     def secondary_scope_property(self) -> str | None:
-        return getattr(self.launch_function, FieldNames.SECONDARY_SCOPE_PROPERTY_SNAKE_CASE, None)
+        value = getattr(self.launch_function, FieldNames.SECONDARY_SCOPE_PROPERTY_SNAKE_CASE, None)
+        return value.strip() if isinstance(value, str) and value.strip() else None
 
     @property
     def db_name(self) -> str | None:
@@ -303,7 +294,7 @@ class ExtractionPipelineConfig:
 
         return (
             getattr(self.raw_tables, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None)
-            or getattr(cache, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None) 
+            or getattr(cache, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None)
             or getattr(apply, FieldNames.RAW_TABLE_ASSET_TAGS_SNAKE_CASE, None)
         )
 
@@ -317,7 +308,7 @@ class ExtractionPipelineConfig:
             or getattr(cache, FieldNames.RAW_TABLE_FILE_TAGS_SNAKE_CASE, None)
             or getattr(apply, FieldNames.RAW_TABLE_FILE_TAGS_SNAKE_CASE, None)
         )
-    
+
     @property
     def raw_manual_patterns_catalog(self) -> str | None:
         cache = getattr(self.launch_function, FieldNames.CACHE_SERVICE_SNAKE_CASE, None)
@@ -328,7 +319,7 @@ class ExtractionPipelineConfig:
             or getattr(cache, FieldNames.RAW_TABLE_MANUAL_PATTERNS_CATALOG_SNAKE_CASE, None)
             or getattr(apply, FieldNames.RAW_TABLE_MANUAL_PATTERNS_CATALOG_SNAKE_CASE, None)
         )
-    
+
     @property
     def raw_table_pattern_tags(self) -> str | None:
         cache = getattr(self.launch_function, FieldNames.CACHE_SERVICE_SNAKE_CASE, None)

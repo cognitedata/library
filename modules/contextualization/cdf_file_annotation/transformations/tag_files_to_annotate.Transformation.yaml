@@ -1,13 +1,13 @@
-externalId: {{ tagFilesToAnnotateTransformationExternalId }}
+externalId: tr_tag_files_to_annotate
 dataSetExternalId: {{ annotationDatasetExternalId }}
-name: Tag Files ToAnnotate
+name: Tag files with ToAnnotate
 destination:
   type: nodes
   view:
     space: {{ fileSchemaSpace }}
     externalId: {{ fileExternalId }}
     version: {{ fileVersion }}
-  instanceSpace: {{ fileInstanceSpace }}
+# Only the selected properties are written; the space column keeps each instance in its own space.
 ignoreNullFields: true
 isPublic: true
 conflictMode: upsert

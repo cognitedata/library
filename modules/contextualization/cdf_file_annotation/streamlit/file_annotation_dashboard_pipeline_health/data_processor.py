@@ -68,7 +68,7 @@ class DataProcessor:
         if not runs:
             return pd.DataFrame()
 
-        launch_data = []
+        per_run_data = []
         finalize_runs_to_agg = []
 
         for run in runs:
@@ -84,10 +84,19 @@ class DataProcessor:
             count = parsed.get(FieldNames.TOTAL_LOWER_CASE, 0)
             caller = parsed.get(FieldNames.CALLER_LOWER_CASE)
 
-            if caller == FieldNames.LAUNCH_TITLE_CASE:
-                launch_data.append({FieldNames.TIMESTAMP_LOWER_CASE: timestamp, FieldNames.COUNT_LOWER_CASE: count, FieldNames.TYPE_LOWER_CASE: FieldNames.LAUNCH_TITLE_CASE})
-            elif caller == FieldNames.FINALIZE_TITLE_CASE:
-                finalize_runs_to_agg.append({FieldNames.TIMESTAMP_LOWER_CASE: timestamp, FieldNames.COUNT_LOWER_CASE: count})
+            # Finalize runs back to back, so its runs are summed into 10-minute groups; other stages plot per run.
+            if caller == FieldNames.FINALIZE_TITLE_CASE:
+                finalize_runs_to_agg.append(
+                    {FieldNames.TIMESTAMP_LOWER_CASE: timestamp, FieldNames.COUNT_LOWER_CASE: count}
+                )
+            elif caller:
+                per_run_data.append(
+                    {
+                        FieldNames.TIMESTAMP_LOWER_CASE: timestamp,
+                        FieldNames.COUNT_LOWER_CASE: count,
+                        FieldNames.TYPE_LOWER_CASE: caller,
+                    }
+                )
 
         aggregated_finalize_data = []
 
@@ -100,17 +109,24 @@ class DataProcessor:
                 if run[FieldNames.TIMESTAMP_LOWER_CASE] < current_group_start_time + timedelta(minutes=10):
                     current_group_count += run[FieldNames.COUNT_LOWER_CASE]
                 else:
-                    aggregated_finalize_data.append({FieldNames.TIMESTAMP_LOWER_CASE: current_group_start_time, FieldNames.COUNT_LOWER_CASE: current_group_count, FieldNames.TYPE_LOWER_CASE: FieldNames.FINALIZE_TITLE_CASE})
+                    aggregated_finalize_data.append(
+                        {
+                            FieldNames.TIMESTAMP_LOWER_CASE: current_group_start_time,
+                            FieldNames.COUNT_LOWER_CASE: current_group_count,
+                            FieldNames.TYPE_LOWER_CASE: FieldNames.FINALIZE_TITLE_CASE,
+                        }
+                    )
                     current_group_start_time = run[FieldNames.TIMESTAMP_LOWER_CASE]
                     current_group_count = run[FieldNames.COUNT_LOWER_CASE]
 
             if current_group_count > 0:
-                aggregated_finalize_data.append({FieldNames.TIMESTAMP_LOWER_CASE: current_group_start_time, FieldNames.COUNT_LOWER_CASE: current_group_count, FieldNames.TYPE_LOWER_CASE: FieldNames.FINALIZE_TITLE_CASE})
+                aggregated_finalize_data.append(
+                    {
+                        FieldNames.TIMESTAMP_LOWER_CASE: current_group_start_time,
+                        FieldNames.COUNT_LOWER_CASE: current_group_count,
+                        FieldNames.TYPE_LOWER_CASE: FieldNames.FINALIZE_TITLE_CASE,
+                    }
+                )
 
-        df_launch = pd.DataFrame(launch_data) if launch_data else pd.DataFrame()
-        df_finalize = pd.DataFrame(aggregated_finalize_data) if aggregated_finalize_data else pd.DataFrame()
-
-        if df_launch.empty and df_finalize.empty:
-            return pd.DataFrame()
-
-        return pd.concat([df_launch, df_finalize], ignore_index=True)
+        rows = per_run_data + aggregated_finalize_data
+        return pd.DataFrame(rows) if rows else pd.DataFrame()

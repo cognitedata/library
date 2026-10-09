@@ -7,6 +7,6 @@ dependencies = [
     "altair",
     "PyYAML",
     "pyodide-http==0.2.1",
-    "cognite-sdk>=7.73.4,<8",
+    "cognite-sdk>=7.94.0,<8",
     "python-dotenv>=1.0.0",
 ]

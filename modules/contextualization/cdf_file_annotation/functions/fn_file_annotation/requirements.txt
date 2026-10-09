@@ -1,0 +1,5 @@
+cognite-sdk==7.94.0
+cryptography==50.0.0
+pydantic==2.12.4
+PyYAML==6.0.3
+mixpanel==4.10.0

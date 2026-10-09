@@ -1,4 +1,4 @@
-name: gp_file_annotation # Can expand the auth group to be applied for specific workflows and schema spaces... as a template this will do.
+name: producer_pp_file_annotation_{{ environment }}
 sourceId: {{ groupSourceId }}
 metadata:
   origin: cdf-project-templates
@@ -33,7 +33,7 @@ capabilities:
       scope:
         tableScope:
           dbsToTables:
-            {{ rawDb }}: []
+            raw_file_annotation: []
   - dataModelInstancesAcl:
       actions:
         - READ
@@ -44,17 +44,17 @@ capabilities:
   - dataModelsAcl:
       actions:
         - READ
-        - WRITE
       scope:
         all: {}
-  # - annotationsAcl:
-  #     actions:
-  #       - READ
-  #       - WRITE
-  #       - SUGGEST
-  #       - REVIEW
-  #     scope:
-  #       all: {}
+  # Launch caches the match entities in a JSON file in the annotation data set
+  - filesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - {{ annotationDatasetExternalId }}
   - entitymatchingAcl:
       actions:
         - READ
@@ -92,9 +92,13 @@ capabilities:
           datasetScope:
             ids:
               - {{ annotationDatasetExternalId }}
-# Bug in /context/diagram/detect/ endpoint that requires this
-  # - assetsAcl:
-  #     actions:
-  #       - READ
-  #     scope:
-  #       all: {}
+  # The workflow runs its transformation tasks with this group's credentials
+  - transformationsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - {{ annotationDatasetExternalId }}
+# If diagram detect fails with 403 on some projects, add assetsAcl READ (scope all).

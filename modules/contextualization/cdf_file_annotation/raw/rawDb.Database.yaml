@@ -1,1 +1,1 @@
-dbName: {{ rawDb }}
+dbName: raw_file_annotation
