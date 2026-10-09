@@ -42,6 +42,7 @@ from _pack_config import (
     get_pack_root,
     get_sourcesystem_dir,
     list_installed_contextualization_modules,
+    list_installed_demo_source_system_modules,
     list_installed_source_system_modules,
     load_yaml,
 )
@@ -521,6 +522,18 @@ def build_overlay(
                 "instance_space": _cfihos_instance_space(site),
                 "environment": env,
             }
+
+        # Demo pack's *_data_dump modules share the same CFIHOS instance space —
+        # keep each one's instance_space in sync with the site, same as the
+        # datamodel modules above.
+        for module in list_installed_demo_source_system_modules(repo_root):
+            modules_vars[module] = {"instance_space": _cfihos_instance_space(site)}
+
+        # cdf_ingestion's consumer group reads from the CFIHOS instance space plus
+        # the fixed base-CDM units space — keep the CFIHOS entry in sync with the
+        # site, same as every other instance_space derived from it above.
+        if (get_pack_root(repo_root) / "modules" / "common" / "cdf_ingestion").is_dir():
+            modules_vars["cdf_ingestion"] = {"instanceSpaces": [instance_space, "cdf_cdm_units"]}
     elif variant == "isa_manufacturing_extension":
         # ISA's instance_space is site-derived the same way (falls back to the
         # domain-only default when no site has been entered yet).
@@ -809,6 +822,33 @@ def restore_cdm_space_file(variant: str, repo_root: Path | None = None) -> Path 
     space_file.write_text(_CDM_INSTANCE_SPACE_CONTENT)
     _ok(f"Created CDM instance space file: {_CDM_INSTANCE_SPACE_REL_PATH}")
     return space_file
+
+
+def patch_data_dump_upload_manifest_spaces(variant: str, site: str, repo_root: Path | None = None) -> list[Path]:
+    """Patch the literal instance space in CFIHOS data-dump ``upload_data`` manifests.
+
+    ``upload_data/*.Manifest.yaml`` files are consumed directly from the module
+    source tree by ``cdf data upload`` — they are never passed through ``cdf build``,
+    so Toolkit ``{{ variable }}`` substitution never applies to them. The space has
+    to be a literal value, kept in sync with ``instance_space`` by this wizard
+    instead (see ``_cfihos_instance_space``).
+    """
+    if variant != "cfihos_oil_and_gas_extension":
+        return []
+    instance_space = _cfihos_instance_space(site)
+    sourcesystem_dir = get_sourcesystem_dir(repo_root)
+    patched: list[Path] = []
+    for module in list_installed_demo_source_system_modules(repo_root):
+        upload_dir = sourcesystem_dir / module / "upload_data"
+        if not upload_dir.is_dir():
+            continue
+        for manifest in sorted(upload_dir.glob("*.Manifest.yaml")):
+            lines = manifest.read_text().splitlines(keepends=True)
+            _, changed = _yaml_set_value(lines, "template.instanceId.space", instance_space)
+            if changed:
+                manifest.write_text("".join(lines))
+                patched.append(manifest)
+    return patched
 
 
 # ── Staging → test migration ──────────────────────────────────────────────────
@@ -1706,6 +1746,7 @@ def _finalize_wizard(
     selected_envs: tuple[str, ...],
     *,
     variant: str,
+    site: str,
     pack_kind: Literal["foundation", "demo"],
     keep_synthetic: bool,
     env_dirty: bool,
@@ -1739,6 +1780,8 @@ def _finalize_wizard(
         if synthetic_removed:
             _ok(f"Removed {synthetic_removed} synthetic data file(s) from upload_data/ directories.")
 
+    patched_manifests = patch_data_dump_upload_manifest_spaces(variant, site, repo_root)
+
     cicd_files = _run_cicd_wizard(pack_root) if pack_kind == "foundation" else []
 
     _section("Done")
@@ -1753,6 +1796,8 @@ def _finalize_wizard(
         _ok(".env updated with group source IDs.")
     if synthetic_removed:
         _ok(f"{synthetic_removed} synthetic data file(s) removed.")
+    if patched_manifests:
+        _ok(f"{len(patched_manifests)} upload_data manifest(s) patched with the current instance space.")
     if diagram_annotation_removed:
         _ok(
             f"{len(diagram_annotation_removed)} redundant diagram-annotation file(s) "
@@ -1845,6 +1890,7 @@ def _run_wizard(
         pack_root,
         selected_envs,
         variant=variant,
+        site=site,
         pack_kind=pack_kind,
         keep_synthetic=keep_synthetic,
         env_dirty=env_dirty,
