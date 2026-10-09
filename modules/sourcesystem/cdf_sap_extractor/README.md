@@ -59,11 +59,9 @@ pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
 
 The producer group follows the least-privilege scoping in the GVD data onboarding SOP:
 `extractionConfigs:READ`, `extractionRuns:WRITE`, and `extractionPipelines:READ` on the
-pipeline's data set, with no `extractionPipelines:WRITE`. There is no `sessions:CREATE`
-either: the extractor authenticates with its own client credentials, and
-[sessions](https://docs.cognite.com/api-reference/concepts/20230101/sessions) are only
-needed by background workloads such as transformations, functions, and workflows. The
-extractor only stages data in RAW, so the group has no data-model instance access.
+pipeline's data set, with no `extractionPipelines:WRITE`. It also has `projects:LIST`
+(all) and `groups:LIST` (current user), the minimum capabilities for any CDF application.
+The extractor only stages data in RAW, so the group has no data-model instance access.
 
 ## Configuration
 
