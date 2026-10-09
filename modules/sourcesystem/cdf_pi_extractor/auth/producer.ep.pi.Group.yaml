@@ -1,6 +1,14 @@
 name: producer_{{location}}_ep_pi_{{sourceSystem}}_{{environment}}
 sourceId: {{extractor_group_source_id}}
 capabilities:
+  - projectsAcl:
+      actions: [LIST]
+      scope:
+        all: {}
+  - groupsAcl:
+      actions: [LIST]
+      scope:
+        currentuserscope: {}
   - datasetsAcl:
       actions: [READ]
       scope:
