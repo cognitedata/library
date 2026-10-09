@@ -14,7 +14,7 @@ QUERY_PAGE_SIZE: Final = 1000
 PROMOTE_CANDIDATE_LIMIT: Final = 500
 PROMOTE_RAW_FETCH_WORKERS: Final = 8  # RAW has no multi-key retrieve; rows of a batch are read in parallel
 FUNCTION_TIME_BUDGET_MINUTES: Final = 7
-DEBUG_RESPONSE_PREVIEW_CHARS: Final = 2000  # DEBUG logs show at most this much of a detect job response
+DEBUG_RESPONSE_PREVIEW_CHARS: Final = 20000  # DEBUG logs show at most this much of a detect job response
 # The SDK already retried these; a stage waits and tries once more on the next loop iteration.
 TRANSIENT_HTTP_CODES: Final = frozenset({408, 429, 500, 502, 503, 504})
 LOCAL_RATE_LIMIT_SLEEP_SECONDS: Final = 900
