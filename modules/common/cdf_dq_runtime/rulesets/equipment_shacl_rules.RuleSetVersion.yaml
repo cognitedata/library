@@ -1,0 +1,198 @@
+ruleSetExternalId: equipment_shacl_rules
+version: "1.0.0"
+rules:
+  - |
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+    @prefix dqs: <http://purl.org/cognite/dqs#> .
+    @prefix sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgEquipment/> .
+    @prefix sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/> .
+    @prefix cdm_eqtype: <http://purl.org/cognite/cdf_cdm/CogniteEquipmentType/> .
+    @prefix cdm_assettype: <http://purl.org/cognite/cdf_cdm/CogniteAssetType/> .
+    @prefix dq: <http://example.org/dataquality/> .
+
+    # ==============================================================================
+    # Shape for CogniteEquipmentType (referenced by Equipment.equipmentType)
+    # This triggers auto-loading of EquipmentType instances
+    # ==============================================================================
+    sp:EquipmentTypeShape
+        a sh:NodeShape ;
+        sh:targetClass cdm_eqtype:CogniteEquipmentType ;
+        sh:name "Equipment Type Shape" ;
+        sh:description "Shape for CogniteEquipmentType instances." ;
+        sh:severity sh:Info .
+
+    # ==============================================================================
+    # Shape for CogniteAssetType (referenced by Asset.type)
+    # This triggers auto-loading of AssetType instances
+    # ==============================================================================
+    sp:AssetTypeShape
+        a sh:NodeShape ;
+        sh:targetClass cdm_assettype:CogniteAssetType ;
+        sh:name "Asset Type Shape" ;
+        sh:description "Shape for CogniteAssetType instances." ;
+        sh:severity sh:Info .
+
+    # ==============================================================================
+    # Shape for YourOrgAsset (referenced by YourOrgEquipment)
+    # This triggers auto-loading of Asset AND its related AssetType
+    # ==============================================================================
+    sp:AssetShape
+        a sh:NodeShape ;
+        sh:targetClass sp_asset:YourOrgAsset ;
+        sh:name "Asset Shape" ;
+        sh:description "Validates properties of YourOrgAsset instances referenced by Equipment." ;
+        sh:severity sh:Info ;
+
+        # Relation to AssetType (triggers auto-loading of AssetType)
+        sh:property [
+            sh:path sp_asset:type ;
+            sh:node sp:AssetTypeShape ;  # <-- This triggers auto-loading of AssetType!
+            sh:message "Asset type must conform to AssetTypeShape" ;
+        ] .
+
+    # ==============================================================================
+    # Main Shape for YourOrgEquipment
+    # ==============================================================================
+    sp:EquipmentShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgEquipment ;
+        sh:name "Equipment Validation" ;
+        sh:description "Validates YourOrgEquipment instances and their relations." ;
+        sh:severity sh:Violation ;
+
+        # Relation to Asset (triggers auto-loading of Asset)
+        sh:property [
+            sh:path sp:asset ;
+            dq:dimension "Conformity" ;
+            sh:node sp:AssetShape ;  # <-- This triggers auto-loading of Asset!
+            sh:message "Related asset must conform to AssetShape" ;
+        ] ;
+
+        # Relation to EquipmentType (triggers auto-loading of EquipmentType)
+        sh:property [
+            sh:path sp:equipmentType ;
+            sh:node sp:EquipmentTypeShape ;  # <-- This triggers auto-loading of EquipmentType!
+            sh:message "Equipment type must conform to EquipmentTypeShape" ;
+        ] .
+
+    # ==============================================================================
+    # Uniqueness Rule: Equipment name must be unique
+    # ==============================================================================
+    sp:EquipmentNameUniqueness
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgEquipment ;
+        sh:name "Equipment Name Uniqueness Validation" ;
+        sh:description "Ensures equipment names are unique across the target class." ;
+        sh:severity sh:Violation ;
+        dqs:uniquenessConstraint [
+            dqs:property "name" ;
+        ] .
+
+    # ==============================================================================
+    # Equipment-Asset Type Compatibility Validation
+    # ==============================================================================
+    # Logic (based on data model):
+    # 1. Start at an Equipment instance ($this)
+    # 2. Find its equipmentType -> CogniteEquipmentType -> equipmentClass (e.g., "PUMP")
+    # 3. Find the related Asset ($this -> asset -> YourOrgAsset)
+    # 4. Find that Asset's type -> CogniteAssetType -> code (e.g., "PUMP")
+    # 5. Fail if they do not match
+    #
+    # Auto-loading chain:
+    #   Equipment -> asset -> YourOrgAsset -> type -> CogniteAssetType
+    #   Equipment -> equipmentType -> CogniteEquipmentType
+    # ==============================================================================
+    sp:EquipmentAssetTypeCompatibilityShape
+        a sh:NodeShape ;
+        sh:targetClass sp:YourOrgEquipment ;
+        sh:name "Equipment-Asset Type Compatibility" ;
+        sh:description "Validates that Equipment type matches its related Asset type." ;
+        sh:severity sh:Violation ;
+        dq:dimension "Consistency" ;
+
+        # =============================================================================
+        # Rule: EquipmentType.equipmentClass must match AssetType.code
+        # =============================================================================
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Equipment class '{?equipmentClass}' does not match Asset type code '{?assetTypeCode}'" ;
+            sh:severity sh:Violation ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgEquipment/>
+                PREFIX sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/>
+                PREFIX cdm_eqtype: <http://purl.org/cognite/cdf_cdm/CogniteEquipmentType/>
+                PREFIX cdm_assettype: <http://purl.org/cognite/cdf_cdm/CogniteAssetType/>
+
+                SELECT $this ?equipmentClass ?assetTypeCode
+                WHERE {
+                    # Equipment -> equipmentType -> equipmentClass
+                    $this sp:equipmentType ?equipmentType .
+                    ?equipmentType cdm_eqtype:equipmentClass ?equipmentClass .
+
+                    # Equipment -> asset -> type -> code
+                    $this sp:asset ?asset .
+                    ?asset sp_asset:type ?assetType .
+                    ?assetType cdm_assettype:code ?assetTypeCode .
+
+                    # Fail if they don't match
+                    FILTER(?equipmentClass != ?assetTypeCode)
+                }
+            """ ;
+        ] ;
+
+        # =============================================================================
+        # Warning: Equipment has equipmentType but Asset has no type
+        # =============================================================================
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Equipment has type '{?equipmentTypeCode}' but related Asset has no type" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgEquipment/>
+                PREFIX sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/>
+                PREFIX cdm_eqtype: <http://purl.org/cognite/cdf_cdm/CogniteEquipmentType/>
+
+                SELECT $this ?equipmentTypeCode
+                WHERE {
+                    # Equipment has equipmentType with code
+                    $this sp:equipmentType ?equipmentType .
+                    ?equipmentType cdm_eqtype:code ?equipmentTypeCode .
+
+                    # Equipment has an asset
+                    $this sp:asset ?asset .
+
+                    # But asset has no type relation
+                    FILTER NOT EXISTS { ?asset sp_asset:type ?assetType }
+                }
+            """ ;
+        ] ;
+
+        # =============================================================================
+        # Warning: Asset has type but Equipment has no equipmentType
+        # =============================================================================
+        sh:sparql [
+            a sh:SPARQLConstraint ;
+            sh:message "Related Asset has type '{?assetTypeCode}' but Equipment has no equipmentType" ;
+            sh:severity sh:Warning ;
+            sh:select """
+                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgEquipment/>
+                PREFIX sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/>
+                PREFIX cdm_assettype: <http://purl.org/cognite/cdf_cdm/CogniteAssetType/>
+
+                SELECT $this ?assetTypeCode
+                WHERE {
+                    # Equipment has an asset
+                    $this sp:asset ?asset .
+
+                    # Asset has type with code
+                    ?asset sp_asset:type ?assetType .
+                    ?assetType cdm_assettype:code ?assetTypeCode .
+
+                    # But equipment has no equipmentType
+                    FILTER NOT EXISTS { $this sp:equipmentType ?equipmentType }
+                }
+            """ ;
+        ] .

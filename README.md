@@ -12,12 +12,13 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 
 | Folder | Purpose |
 |--------|---------|
-| [`common/`](modules/common/) | Shared CDF platform modules (`cdf_common`, `cdf_ingestion`, `cdf_search`) |
+| [`common/`](modules/common/) | Shared CDF platform modules (`cdf_common`, `cdf_dq_runtime`, `cdf_ingestion`, `cdf_search`) |
 | [`contextualization/`](modules/contextualization/) | File annotation, entity matching, P&ID, connection SQL |
 | [`datamodels/`](modules/datamodels/) | Industry and extension data models (`rmdm`, ISA, CFIHOS, …) |
 | [`solutions/`](modules/solutions/) | Product verticals (`cdm_maintain`, `cdf_infield`, `cdf_ai_extractor`) |
 | [`sourcesystem/`](modules/sourcesystem/) | Source connectors (PI, SAP, SharePoint, OID sync) |
 | [`dashboards/`](modules/dashboards/) | Streamlit dashboards and reporting |
+| [`common/cdf_dq_runtime/`](modules/common/cdf_dq_runtime/) | SHACL data-quality validation (`cdf_dq_runtime`) |
 | [`atlas_ai/`](modules/atlas_ai/) | Atlas AI agents |
 | [`tools/`](modules/tools/) | Qualitizer, performance notebooks |
 | [`custom/`](modules/custom/) | Empty module template |
