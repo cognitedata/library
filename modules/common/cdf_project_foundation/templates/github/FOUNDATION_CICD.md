@@ -94,4 +94,16 @@ python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
 
 ## Toolkit version
 
-Workflows install `cognite-toolkit=={{TOOLKIT_VERSION}}`. Keep in sync with `[modules].version` in `cdf.toml`.
+Jobs that run `cdf` use the official `cognite/toolkit:{{TOOLKIT_VERSION}}` container image, so they need
+no Python setup or Toolkit `pip install`. Keep the tag in sync with `[modules].version` in `cdf.toml`
+and re-run the generator when you upgrade.
+
+The image has no `git` and ships Python 3.12. So:
+
+- The PR lint job stays on the plain runner, where it also runs the config-sync check
+  (`setup_project.py --check`) on Python 3.13. The check needs no credentials.
+- The deploy workflows run that same check in a separate runner job (`verify-config`, or
+  `verify-release` for production) before the deploy job starts.
+- The production workflow also checks the release tag and that it is reachable from `main` in
+  `verify-release`. That job holds no environment or secrets, and the deploy job checks out the
+  exact commit it verified.

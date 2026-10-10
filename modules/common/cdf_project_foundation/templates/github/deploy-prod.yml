@@ -13,21 +13,13 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Deploy to {{PROD_PROJECT}}
+  # Runs on the plain runner (the Toolkit image has no git and ships Python 3.12) and holds no
+  # environment or secrets.
+  verify-release:
+    name: Verify release
     runs-on: ubuntu-latest
-    environment: prod-toolkit-credentials
-    env:
-      CDF_CLUSTER: ${{ vars.CDF_CLUSTER }}
-      CDF_PROJECT: ${{ vars.CDF_PROJECT }}
-      LOGIN_FLOW: ${{ vars.LOGIN_FLOW }}
-      PROVIDER: ${{ vars.PROVIDER || 'entra_id' }}
-      IDP_TENANT_ID: ${{ vars.IDP_TENANT_ID }}
-      IDP_CLIENT_ID: ${{ vars.IDP_CLIENT_ID }}
-      ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}
-      CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}
-      PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}
-      IDP_CLIENT_SECRET: ${{ secrets.IDP_CLIENT_SECRET }}
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
     steps:
       - name: Enforce release tag pattern
         run: |
@@ -50,18 +42,45 @@ jobs:
             exit 1
           fi
 
-      - name: Remove local .env
-        run: rm -f .env
-
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.13"
 
-      - name: Install Cognite Toolkit
-        run: pip install "cognite-toolkit=={{TOOLKIT_VERSION}}"
+      - name: Install pyyaml
+        run: pip install pyyaml
 
       - name: Verify project config is in sync
         run: {{SETUP_PROJECT_CHECK_CMD}}
+
+      - name: Record release commit
+        id: release
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy to {{PROD_PROJECT}}
+    needs: verify-release
+    runs-on: ubuntu-latest
+    environment: prod-toolkit-credentials
+    container:
+      image: cognite/toolkit:{{TOOLKIT_VERSION}}
+    env:
+      CDF_CLUSTER: ${{ vars.CDF_CLUSTER }}
+      CDF_PROJECT: ${{ vars.CDF_PROJECT }}
+      LOGIN_FLOW: ${{ vars.LOGIN_FLOW }}
+      PROVIDER: ${{ vars.PROVIDER || 'entra_id' }}
+      IDP_TENANT_ID: ${{ vars.IDP_TENANT_ID }}
+      IDP_CLIENT_ID: ${{ vars.IDP_CLIENT_ID }}
+      ADMIN_SOURCE_ID: ${{ vars.ADMIN_SOURCE_ID }}
+      CONSUMER_SOURCE_ID: ${{ vars.CONSUMER_SOURCE_ID }}
+      PRODUCER_SOURCE_ID: ${{ vars.PRODUCER_SOURCE_ID }}
+      IDP_CLIENT_SECRET: ${{ secrets.IDP_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.verify-release.outputs.sha }}
+
+      - name: Remove local .env
+        run: rm -f .env
 
       - name: cdf build
         run: cdf build {{PROD_BUILD_ARGS}}

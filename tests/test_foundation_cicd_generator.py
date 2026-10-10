@@ -176,6 +176,31 @@ environment:
     assert "Cognite IdP" in cicd_docs
 
 
+def _run_text(job: dict[str, object]) -> str:
+    steps = job["steps"]
+    assert isinstance(steps, list)
+    return "\n".join(str(step.get("run", "")) for step in steps)
+
+
+def _uses_setup_python(job: dict[str, object]) -> bool:
+    steps = job["steps"]
+    assert isinstance(steps, list)
+    return any("actions/setup-python@" in str(step.get("uses", "")) for step in steps)
+
+
+def _assert_runner_check_job(job: dict[str, object]) -> None:
+    """The job runs setup_project.py --check on a plain runner with Python 3.13 and no credentials."""
+    assert "container" not in job
+    assert "environment" not in job
+    assert "env" not in job
+    steps = job["steps"]
+    assert isinstance(steps, list)
+    python = next(step for step in steps if "actions/setup-python@" in str(step.get("uses", "")))
+    assert python["with"]["python-version"] == "3.13"
+    assert "setup_project.py --check" in _run_text(job)
+    assert "pip install pyyaml" in _run_text(job)
+
+
 def _parse_github_workflow(text: str) -> dict[str, object]:
     """Quote ${{ }} expressions so PyYAML can load GitHub workflow YAML."""
     quoted = re.sub(r"\$\{\{.*?\}\}", lambda m: json.dumps(m.group(0)), text)
@@ -230,6 +255,81 @@ def test_github_cdf_jobs_pass_provider_so_cogidp_can_authenticate(tmp_path: Path
 
     docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
     assert "| Cognite IdP (CogIdP) | `cdf`" in docs
+
+
+def test_github_toolkit_jobs_run_in_the_toolkit_container(tmp_path: Path) -> None:
+    """Jobs that run cdf use the pinned cognite/toolkit image instead of pip install.
+
+    The image has no git, so the prod release checks live in their own runner job
+    that carries no environment and no secrets, and the deploy job checks out the
+    commit that job verified. The image ships Python 3.12, so the config-sync check
+    (setup_project.py --check, which needs no credentials) runs in a runner job on 3.13.
+    """
+    _scaffold_project_with_envs(tmp_path, ("dev", "test", "prod"))
+    subprocess.run([sys.executable, str(GENERATE_ACTIONS), "--force"], check=True, cwd=tmp_path)
+
+    workflows_dir = tmp_path / ".github" / "workflows"
+    image = "cognite/toolkit:0.8.0"
+    for name in ("deploy-dev.yml", "deploy-test.yml", "deploy-prod.yml", "dry-run.yml"):
+        text = (workflows_dir / name).read_text(encoding="utf-8")
+        assert 'pip install "cognite-toolkit' not in text, name
+        assert "Install Cognite Toolkit" not in text, name
+
+    for name in ("deploy-dev.yml", "deploy-test.yml"):
+        jobs = _parse_github_workflow((workflows_dir / name).read_text(encoding="utf-8"))["jobs"]
+        assert isinstance(jobs, dict)
+        deploy = jobs["deploy"]
+        assert deploy["container"] == {"image": image}
+        assert deploy["needs"] == "verify-config"
+        _assert_runner_check_job(jobs["verify-config"])
+        assert not _uses_setup_python(deploy)
+        assert "setup_project.py" not in _run_text(deploy)
+
+    dry_run = _parse_github_workflow((workflows_dir / "dry-run.yml").read_text(encoding="utf-8"))
+    dry_run_jobs = dry_run["jobs"]
+    assert isinstance(dry_run_jobs, dict)
+    assert dry_run_jobs["cdf-build"]["container"] == {"image": image}
+    assert "setup_project.py" not in _run_text(dry_run_jobs["cdf-build"])
+    # The lint job still runs on the runner (it needs git ls-files and the lint tools)
+    # and also runs the config-sync check, on Python 3.13.
+    assert "container" not in dry_run_jobs["lint"]
+    _assert_runner_check_job(dry_run_jobs["lint"])
+
+    prod = _parse_github_workflow((workflows_dir / "deploy-prod.yml").read_text(encoding="utf-8"))
+    prod_jobs = prod["jobs"]
+    assert isinstance(prod_jobs, dict)
+    verify = prod_jobs["verify-release"]
+    assert "container" not in verify
+    assert "environment" not in verify
+    assert "env" not in verify
+    verify_text = json.dumps(verify)
+    assert "Release tag must match vX.Y.Z" in verify_text
+    assert "git merge-base --is-ancestor HEAD origin/main" in verify_text
+    assert "secrets." not in verify_text
+    _assert_runner_check_job(verify)
+
+    deploy_prod = prod_jobs["deploy"]
+    assert deploy_prod["needs"] == "verify-release"
+    assert deploy_prod["container"] == {"image": image}
+    assert deploy_prod["environment"] == "prod-toolkit-credentials"
+    checkout = deploy_prod["steps"][0]
+    assert checkout["with"]["ref"] == "${{ needs.verify-release.outputs.sha }}"
+    assert "git " not in _run_text(deploy_prod)
+    assert "setup_project.py" not in _run_text(deploy_prod)
+    assert not _uses_setup_python(deploy_prod)
+
+    docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "cognite/toolkit:0.8.0" in docs
+    assert "Workflows install `cognite-toolkit" not in docs
+
+
+def test_github_toolkit_container_tag_follows_cdf_toml_version(tmp_path: Path) -> None:
+    _scaffold_project_with_envs(tmp_path, ("dev",))
+    (tmp_path / "cdf.toml").write_text('[modules]\nversion = "0.7.220"\n', encoding="utf-8")
+    subprocess.run([sys.executable, str(GENERATE_ACTIONS), "--force"], check=True, cwd=tmp_path)
+
+    deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(encoding="utf-8")
+    assert "image: cognite/toolkit:0.7.220" in deploy_dev
 
 
 def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:
