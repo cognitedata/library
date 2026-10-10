@@ -1,9 +1,12 @@
 """Tests for Foundation Deployment Pack CI/CD generator (cdf_project_foundation)."""
 
+import io
 import json
 import re
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -13,6 +16,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 MODULE_ROOT = REPO_ROOT / "modules" / "common" / "cdf_project_foundation"
 GENERATE_ACTIONS = MODULE_ROOT / "scripts" / "generate_actions.py"
 TEMPLATES = MODULE_ROOT / "templates" / "github"
+FAKE_DIGEST = "sha256:" + "0" * 64
+
+
+@pytest.fixture(autouse=True)
+def _offline_toolkit_image_digest(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep generator runs off the network; subprocesses inherit this environment."""
+    monkeypatch.setenv("TOOLKIT_IMAGE_DIGEST", FAKE_DIGEST)
 
 
 def test_generator_scripts_exist() -> None:
@@ -176,6 +186,12 @@ environment:
     assert "Cognite IdP" in cicd_docs
 
 
+def _run_text(job: dict[str, object]) -> str:
+    steps = job["steps"]
+    assert isinstance(steps, list)
+    return "\n".join(str(step.get("run", "")) for step in steps)
+
+
 def _parse_github_workflow(text: str) -> dict[str, object]:
     """Quote ${{ }} expressions so PyYAML can load GitHub workflow YAML."""
     quoted = re.sub(r"\$\{\{.*?\}\}", lambda m: json.dumps(m.group(0)), text)
@@ -230,6 +246,108 @@ def test_github_cdf_jobs_pass_provider_so_cogidp_can_authenticate(tmp_path: Path
 
     docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
     assert "| Cognite IdP (CogIdP) | `cdf`" in docs
+
+
+def test_github_toolkit_jobs_run_in_the_toolkit_container(tmp_path: Path) -> None:
+    """Jobs that run cdf use the digest-pinned cognite/toolkit image instead of pip install.
+
+    The image has no git, so the prod release checks run in a runner job that carries no
+    environment and no secrets, and the deploy job checks out the commit the release points to.
+    """
+    _scaffold_project_with_envs(tmp_path, ("dev", "test", "prod"))
+    subprocess.run([sys.executable, str(GENERATE_ACTIONS), "--force"], check=True, cwd=tmp_path)
+
+    workflows_dir = tmp_path / ".github" / "workflows"
+    image = f"cognite/toolkit:0.8.0@{FAKE_DIGEST}"
+    workflows: dict[str, dict[str, dict[str, object]]] = {}
+    for name in ("deploy-dev.yml", "deploy-test.yml", "deploy-prod.yml", "dry-run.yml"):
+        text = (workflows_dir / name).read_text(encoding="utf-8")
+        assert 'pip install "cognite-toolkit' not in text, name
+        jobs = _parse_github_workflow(text)["jobs"]
+        assert isinstance(jobs, dict)
+        workflows[name] = jobs
+
+    for name in ("deploy-dev.yml", "deploy-test.yml", "deploy-prod.yml"):
+        deploy = workflows[name]["deploy"]
+        assert deploy["container"] == {"image": image}, name
+        run_text = _run_text(deploy)
+        assert "git " not in run_text, name
+        assert run_text.index("setup_project.py --check") < run_text.index("cdf build"), name
+    assert list(workflows["deploy-dev.yml"]) == ["deploy"]
+
+    assert workflows["dry-run.yml"]["cdf-build"]["container"] == {"image": image}
+    # The lint job needs git ls-files and the lint tools, so it stays on the runner.
+    assert "container" not in workflows["dry-run.yml"]["lint"]
+
+    verify = workflows["deploy-prod.yml"]["verify-release"]
+    assert "environment" not in verify
+    verify_text = json.dumps(verify)
+    assert "secrets." not in verify_text
+    assert "actions/checkout" not in verify_text
+    assert "Release tag must match vX.Y.Z" in verify_text
+    assert "compare/$GITHUB_SHA...main" in verify_text
+
+    deploy_prod = workflows["deploy-prod.yml"]["deploy"]
+    assert deploy_prod["needs"] == "verify-release"
+    assert deploy_prod["environment"] == "prod-toolkit-credentials"
+    steps = deploy_prod["steps"]
+    assert isinstance(steps, list)
+    assert steps[0]["with"]["ref"] == "${{ github.sha }}"
+
+    docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    assert "cognite/toolkit:0.8.0" in docs
+    assert "Workflows install `cognite-toolkit" not in docs
+
+
+def test_github_toolkit_container_tag_follows_cdf_toml_version(tmp_path: Path) -> None:
+    _scaffold_project_with_envs(tmp_path, ("dev",))
+    (tmp_path / "cdf.toml").write_text('[modules]\nversion = "0.7.220"\n', encoding="utf-8")
+    subprocess.run([sys.executable, str(GENERATE_ACTIONS), "--force"], check=True, cwd=tmp_path)
+
+    deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(encoding="utf-8")
+    assert f"image: cognite/toolkit:0.7.220@{FAKE_DIGEST}" in deploy_dev
+
+
+class _FakeResponse(io.BytesIO):
+    def __init__(self, body: bytes = b"", headers: dict[str, str] | None = None) -> None:
+        super().__init__(body)
+        self.headers = headers or {}
+
+
+def test_resolve_image_digest_reads_the_multi_arch_index_digest(monkeypatch: pytest.MonkeyPatch) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    requests: list[urllib.request.Request] = []
+
+    def fake_urlopen(request: urllib.request.Request, timeout: float) -> _FakeResponse:
+        if request.full_url.startswith("https://auth.docker.io/"):
+            assert "scope=repository:cognite/toolkit:pull" in request.full_url
+            return _FakeResponse(b'{"token": "t"}')
+        requests.append(request)
+        return _FakeResponse(headers={"Docker-Content-Digest": FAKE_DIGEST})
+
+    monkeypatch.setattr(generate_actions.urllib.request, "urlopen", fake_urlopen)
+
+    assert generate_actions.resolve_image_digest("cognite/toolkit", "0.8.0") == FAKE_DIGEST
+    (manifest,) = requests
+    assert manifest.full_url == "https://registry-1.docker.io/v2/cognite/toolkit/manifests/0.8.0"
+    assert manifest.get_method() == "HEAD"
+    assert "application/vnd.oci.image.index.v1+json" in str(manifest.get_header("Accept"))
+
+
+def test_toolkit_image_fails_when_digest_cannot_be_resolved(monkeypatch: pytest.MonkeyPatch) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    def unreachable(repo: str, tag: str) -> str:
+        raise urllib.error.URLError("offline")
+
+    monkeypatch.delenv("TOOLKIT_IMAGE_DIGEST")
+    monkeypatch.setattr(generate_actions, "resolve_image_digest", unreachable)
+
+    with pytest.raises(SystemExit):
+        generate_actions.toolkit_image("0.8.0")
 
 
 def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:
