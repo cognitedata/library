@@ -320,9 +320,9 @@ def test_resolve_image_digest_reads_the_multi_arch_index_digest(monkeypatch: pyt
 
     requests: list[urllib.request.Request] = []
 
-    def fake_urlopen(request: str | urllib.request.Request, timeout: float) -> _FakeResponse:
-        if isinstance(request, str):
-            assert "scope=repository:cognite/toolkit:pull" in request
+    def fake_urlopen(request: urllib.request.Request, timeout: float) -> _FakeResponse:
+        if request.full_url.startswith("https://auth.docker.io/"):
+            assert "scope=repository:cognite/toolkit:pull" in request.full_url
             return _FakeResponse(b'{"token": "t"}')
         requests.append(request)
         return _FakeResponse(headers={"Docker-Content-Digest": FAKE_DIGEST})

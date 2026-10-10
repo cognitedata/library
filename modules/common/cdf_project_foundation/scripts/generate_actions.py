@@ -195,8 +195,10 @@ def resolve_image_digest(repo: str, tag: str) -> str | None:
 
     A manifest HEAD request does not count against Docker Hub pull limits.
     """
-    token_url = f"https://auth.docker.io/token?service=registry.docker.io&scope=repository:{repo}:pull"
-    with urllib.request.urlopen(token_url, timeout=30) as response:  # noqa: S310 - fixed https URL
+    token_request = urllib.request.Request(
+        f"https://auth.docker.io/token?service=registry.docker.io&scope=repository:{repo}:pull"
+    )
+    with urllib.request.urlopen(token_request, timeout=30) as response:  # noqa: S310 - fixed https URL
         token = json.load(response)["token"]
     request = urllib.request.Request(
         f"https://registry-1.docker.io/v2/{repo}/manifests/{tag}",
