@@ -1,9 +1,12 @@
 """Tests for Foundation Deployment Pack CI/CD generator (cdf_project_foundation)."""
 
+import io
 import json
 import re
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -13,6 +16,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 MODULE_ROOT = REPO_ROOT / "modules" / "common" / "cdf_project_foundation"
 GENERATE_ACTIONS = MODULE_ROOT / "scripts" / "generate_actions.py"
 TEMPLATES = MODULE_ROOT / "templates" / "github"
+FAKE_DIGEST = "sha256:" + "0" * 64
+
+
+@pytest.fixture(autouse=True)
+def _offline_toolkit_image_digest(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep generator runs off the network; subprocesses inherit this environment."""
+    monkeypatch.setenv("TOOLKIT_IMAGE_DIGEST", FAKE_DIGEST)
 
 
 def test_generator_scripts_exist() -> None:
@@ -239,7 +249,7 @@ def test_github_cdf_jobs_pass_provider_so_cogidp_can_authenticate(tmp_path: Path
 
 
 def test_github_toolkit_jobs_run_in_the_toolkit_container(tmp_path: Path) -> None:
-    """Jobs that run cdf use the pinned cognite/toolkit image instead of pip install.
+    """Jobs that run cdf use the digest-pinned cognite/toolkit image instead of pip install.
 
     The image has no git, so the prod release checks run in a runner job that carries no
     environment and no secrets, and the deploy job checks out the commit the release points to.
@@ -248,7 +258,7 @@ def test_github_toolkit_jobs_run_in_the_toolkit_container(tmp_path: Path) -> Non
     subprocess.run([sys.executable, str(GENERATE_ACTIONS), "--force"], check=True, cwd=tmp_path)
 
     workflows_dir = tmp_path / ".github" / "workflows"
-    image = "cognite/toolkit:0.8.0"
+    image = f"cognite/toolkit:0.8.0@{FAKE_DIGEST}"
     workflows: dict[str, dict[str, dict[str, object]]] = {}
     for name in ("deploy-dev.yml", "deploy-test.yml", "deploy-prod.yml", "dry-run.yml"):
         text = (workflows_dir / name).read_text(encoding="utf-8")
@@ -295,7 +305,49 @@ def test_github_toolkit_container_tag_follows_cdf_toml_version(tmp_path: Path) -
     subprocess.run([sys.executable, str(GENERATE_ACTIONS), "--force"], check=True, cwd=tmp_path)
 
     deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(encoding="utf-8")
-    assert "image: cognite/toolkit:0.7.220" in deploy_dev
+    assert f"image: cognite/toolkit:0.7.220@{FAKE_DIGEST}" in deploy_dev
+
+
+class _FakeResponse(io.BytesIO):
+    def __init__(self, body: bytes = b"", headers: dict[str, str] | None = None) -> None:
+        super().__init__(body)
+        self.headers = headers or {}
+
+
+def test_resolve_image_digest_reads_the_multi_arch_index_digest(monkeypatch: pytest.MonkeyPatch) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    requests: list[urllib.request.Request] = []
+
+    def fake_urlopen(request: str | urllib.request.Request, timeout: float) -> _FakeResponse:
+        if isinstance(request, str):
+            assert "scope=repository:cognite/toolkit:pull" in request
+            return _FakeResponse(b'{"token": "t"}')
+        requests.append(request)
+        return _FakeResponse(headers={"Docker-Content-Digest": FAKE_DIGEST})
+
+    monkeypatch.setattr(generate_actions.urllib.request, "urlopen", fake_urlopen)
+
+    assert generate_actions.resolve_image_digest("cognite/toolkit", "0.8.0") == FAKE_DIGEST
+    (manifest,) = requests
+    assert manifest.full_url == "https://registry-1.docker.io/v2/cognite/toolkit/manifests/0.8.0"
+    assert manifest.get_method() == "HEAD"
+    assert "application/vnd.oci.image.index.v1+json" in str(manifest.get_header("Accept"))
+
+
+def test_toolkit_image_fails_when_digest_cannot_be_resolved(monkeypatch: pytest.MonkeyPatch) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    def unreachable(repo: str, tag: str) -> str:
+        raise urllib.error.URLError("offline")
+
+    monkeypatch.delenv("TOOLKIT_IMAGE_DIGEST")
+    monkeypatch.setattr(generate_actions, "resolve_image_digest", unreachable)
+
+    with pytest.raises(SystemExit):
+        generate_actions.toolkit_image("0.8.0")
 
 
 def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:

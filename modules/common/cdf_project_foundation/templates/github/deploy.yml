@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: {{ENV}}-toolkit-credentials
     container:
-      image: cognite/toolkit:{{TOOLKIT_VERSION}}
+      image: {{TOOLKIT_IMAGE}}
     env:
       CDF_CLUSTER: ${{ vars.CDF_CLUSTER }}
       CDF_PROJECT: ${{ vars.CDF_PROJECT }}

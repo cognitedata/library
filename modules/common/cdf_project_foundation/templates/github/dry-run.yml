@@ -112,7 +112,7 @@ jobs:
       (github.base_ref == 'dev' || needs.source-branch-guard.result == 'success')
     runs-on: ubuntu-latest
     container:
-      image: cognite/toolkit:{{TOOLKIT_VERSION}}
+      image: {{TOOLKIT_IMAGE}}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 

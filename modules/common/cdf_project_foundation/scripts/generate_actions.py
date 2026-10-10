@@ -22,8 +22,12 @@ Run from the Toolkit project root after `cdf modules add -d dp:foundation`:
 
 
 import argparse
+import json
+import os
 import re
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +44,8 @@ ENVIRONMENTS = ("dev", "test", "prod")
 DEPLOY_BRANCHES = {"dev": "dev", "test": "main"}
 ENV_LABELS = {"dev": "Dev", "test": "Test"}
 CONFIG_FLAG_MIN_VERSION = (0, 8, 0)
+TOOLKIT_IMAGE_REPO = "cognite/toolkit"
+DIGEST_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 
 # Module domains vendored in by the deployment packs. modules/custom/ is deliberately
 # absent — that is where team-authored modules live, and their code must stay linted.
@@ -182,6 +188,48 @@ def setup_project_check_cmd(repo_root: Path, org_dir: str | None) -> str:
     modules_root = resolve_modules_root(repo_root, org_dir)
     script_path = modules_root / "common" / "cdf_project_foundation" / "scripts" / "setup_project.py"
     return f"python {script_path.relative_to(repo_root).as_posix()} --check"
+
+
+def resolve_image_digest(repo: str, tag: str) -> str | None:
+    """Digest of the multi-arch image index for ``repo:tag`` on Docker Hub.
+
+    A manifest HEAD request does not count against Docker Hub pull limits.
+    """
+    token_url = f"https://auth.docker.io/token?service=registry.docker.io&scope=repository:{repo}:pull"
+    with urllib.request.urlopen(token_url, timeout=30) as response:  # noqa: S310 - fixed https URL
+        token = json.load(response)["token"]
+    request = urllib.request.Request(
+        f"https://registry-1.docker.io/v2/{repo}/manifests/{tag}",
+        method="HEAD",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed https URL
+        return response.headers.get("Docker-Content-Digest")
+
+
+def toolkit_image(toolkit_version: str) -> str:
+    """Toolkit image pinned to its digest, so a re-pushed tag cannot change what CI runs.
+
+    ``TOOLKIT_IMAGE_DIGEST`` skips the registry lookup, for generating without network access.
+    """
+    digest = os.environ.get("TOOLKIT_IMAGE_DIGEST")
+    if not digest:
+        try:
+            digest = resolve_image_digest(TOOLKIT_IMAGE_REPO, toolkit_version)
+        except (OSError, KeyError, ValueError) as exc:
+            print(
+                f"Could not resolve the digest of {TOOLKIT_IMAGE_REPO}:{toolkit_version}: {exc}\n"
+                "Check that the tag exists, or set TOOLKIT_IMAGE_DIGEST=sha256:<digest> to generate offline.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    if not digest or not DIGEST_PATTERN.fullmatch(digest):
+        print(f"Invalid digest for {TOOLKIT_IMAGE_REPO}:{toolkit_version}: {digest!r}", file=sys.stderr)
+        sys.exit(1)
+    return f"{TOOLKIT_IMAGE_REPO}:{toolkit_version}@{digest}"
 
 
 def build_args(toolkit_version: str, org_dir: str | None, env: str) -> str:
@@ -976,6 +1024,7 @@ def main() -> None:
 
     if args.provider == "github":
         base_values["TRUST_BOUNDARY_NOTE"] = github_trust_boundary_note(projects)
+        base_values["TOOLKIT_IMAGE"] = toolkit_image(str(toolkit_version))
         base_values["DRY_RUN_BUILD_SCRIPT"] = indent(
             github_dry_run_build_script(str(toolkit_version), org_dir, projects), 10
         )

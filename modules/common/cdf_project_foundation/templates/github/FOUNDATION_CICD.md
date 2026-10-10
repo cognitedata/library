@@ -95,8 +95,13 @@ python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
 ## Toolkit version
 
 Jobs that run `cdf` use the official `cognite/toolkit:{{TOOLKIT_VERSION}}` container image, so they need
-no Python setup or Toolkit `pip install`. Keep the tag in sync with `[modules].version` in `cdf.toml`
-and re-run the generator when you upgrade.
+no Python setup or Toolkit `pip install`. The generator pins the image to its digest
+(`{{TOOLKIT_IMAGE}}`), the same way actions are pinned to commit SHAs, so a re-pushed tag cannot
+change what runs with your credentials. The tag follows `[modules].version` in `cdf.toml`; re-run the
+generator when you upgrade to pick up the new tag and digest.
+
+The generator looks the digest up on Docker Hub. Without network access, set
+`TOOLKIT_IMAGE_DIGEST=sha256:<digest>` for that version before running it.
 
 The image has no `git`, so the PR lint job stays on the plain runner. The production workflow
 checks the release tag, and that it is reachable from `main`, in a `verify-release` job that uses the
