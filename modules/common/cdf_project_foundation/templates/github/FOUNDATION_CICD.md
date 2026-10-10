@@ -4,6 +4,35 @@ Generated from committed Toolkit environment configs.
 
 This follows the Cognite Documentation on [Setting up CI/CD pipelines](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/cicd/index).
 
+## Before you start
+
+Generating the workflows needs no special access; configuring the repository needs admin:
+
+| Step | Where | Access you need |
+|------|-------|-----------------|
+| 1. Generate the workflows (`generate_actions.py`) | Your machine | None. It only writes files locally. |
+| 2. Commit and push `.github/workflows/` | Git | Write access to the repository, and a token with the `workflow` scope |
+| 3. Create environments, variables, and the secret | **Settings → Environments** | Repository admin |
+| 4. Protect the branches | **Settings → Branches** | Repository admin |
+
+- **Step 2 fails with "refusing to allow an OAuth App to create or update workflow"?** That is a
+  token scope problem, not missing admin rights. Run `gh auth refresh -s workflow` (or add the
+  `workflow` scope to your personal access token) and push again.
+- **No Settings tab, or "You don't have access to repository options"?** You are not a repository
+  admin. Push the workflows (steps 1–2), then send this file to a repository admin or your
+  organization's GitHub administrators and ask them to do steps 3–4. Deploys fail until step 3 is
+  done.
+
+### Already set up?
+
+If `.github/workflows/` already contains the `Toolkit Deploy …` and `Toolkit PR Validate` workflows
+and the `*-toolkit-credentials` environments exist, CI/CD is already set up. You don't need to
+repeat steps 1–4: open pull requests following the branching model below, and the workflows
+validate and deploy them.
+
+Re-run the generator only when you add or remove a `config.<env>.yaml`, or upgrade the Toolkit
+version (see [Regenerate workflows](#regenerate-workflows)).
+
 ## Branching model
 
 | Git branch / event | CDF project | Trigger |
@@ -88,9 +117,19 @@ from packs skips this step.
 
 ## Regenerate workflows
 
+Regenerate when you add or remove a `config.<env>.yaml` or upgrade the Toolkit version:
+
 ```bash
 python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
 ```
+
+`--force` overwrites the generated workflows, including any edits you made to them. Without it,
+the generator asks before overwriting each file. Review `git diff .github/workflows` before you
+commit. Workflows you added yourself (other file names) are not touched.
+
+Regenerating only changes files. It does not need admin, and existing environments and branch
+protection keep working as long as the job names (`cdf build`, `Source branch guardrail`) stay the
+same.
 
 ## Toolkit version
 

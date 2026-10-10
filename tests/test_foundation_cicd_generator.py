@@ -152,6 +152,10 @@ environment:
     assert provider_env in deploy_prod
 
     cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    # Readers must learn which steps need repository admin before they hit a permission error.
+    assert cicd_docs.index("## Before you start") < cicd_docs.index("## Branch protection")
+    assert "gh auth refresh -s workflow" in cicd_docs
+    assert "### Already set up?" in cicd_docs
     assert "`acme-dev`" in cicd_docs
     assert "`acme-test`" in cicd_docs
     assert "`acme-prod`" in cicd_docs
