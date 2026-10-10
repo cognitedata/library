@@ -223,6 +223,12 @@ python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
 python modules/common/cdf_project_foundation/scripts/generate_actions.py --force --provider ado
 ```
 
+> **Access:** generating and pushing the workflows needs only write access (and, on GitHub, a token
+> with the `workflow` scope). Creating environments, secrets, and branch protection needs
+> **repository admin**. If your repository already has the `Toolkit Deploy …` workflows, CI/CD is
+> already set up — skip this step. The generated `docs/FOUNDATION_CICD.md` starts with a
+> *Before you start* table showing which steps need which access.
+
 The script reads `org-dir` and toolkit version from `cdf.toml` automatically. It uses `environment.project` from each `config.<env>.yaml` as the CDF project name and validates that `environment.name` matches the expected environment.
 
 **GitHub (default):** writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-prod.yml`, and `deploy-test.yml` when `config.test.yaml` exists) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets). Configure `ADMIN_SOURCE_ID`, `CONSUMER_SOURCE_ID`, and `PRODUCER_SOURCE_ID` as GitHub Environment variables alongside the CDF auth variables. PR validation never loads `IDP_CLIENT_SECRET` — it only runs `cdf build`, because `pull_request` compiles the workflow YAML from the PR's own merge ref.
