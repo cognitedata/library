@@ -1,5 +1,6 @@
 """Tests for the Foundation setup wizard's message catalogue (_i18n, _messages_ja)."""
 
+import re
 import sys
 from pathlib import Path
 
@@ -55,3 +56,13 @@ class TestT:
     def test_unknown_key_falls_back_to_english_in_japanese_locale(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(_i18n, "_locale", "ja")
         assert _i18n.t("Some string not in any catalogue") == "Some string not in any catalogue"
+
+
+def _placeholders(text: str) -> list[str]:
+    return sorted(re.findall(r"\{[^{}]*\}", text))
+
+
+class TestPlaceholderParity:
+    @pytest.mark.parametrize("key", list(MESSAGES_JA))
+    def test_english_and_japanese_use_identical_placeholders(self, key: str) -> None:
+        assert _placeholders(key) == _placeholders(MESSAGES_JA[key])
