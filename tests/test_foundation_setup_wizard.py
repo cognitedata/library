@@ -616,6 +616,22 @@ class TestBuildOverlay:
         mods = overlay["variables"]["modules"]
         assert mods["cdf_ingestion"]["instanceSpaces"] == ["inst_oslo_cfihos_oil_and_gas", "cdf_cdm_units"]
 
+    def test_cfihos_ingestion_instance_spaces_keeps_user_entries(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+
+        (tmp_path / "modules" / "common" / "cdf_ingestion").mkdir(parents=True)
+        overlay = build_overlay(
+            "cfihos_oil_and_gas_extension",
+            "dev",
+            "oslo",
+            [],
+            repo_root=tmp_path,
+            previous_site="bergen",
+            ingestion_instance_spaces=["inst_bergen_cfihos_oil_and_gas", "cdf_cdm_units", "my_extra_space"],
+        )
+        spaces = overlay["variables"]["modules"]["cdf_ingestion"]["instanceSpaces"]
+        assert spaces == ["inst_oslo_cfihos_oil_and_gas", "cdf_cdm_units", "my_extra_space"]
+
     def test_cfihos_ingestion_instance_spaces_absent_when_not_installed(self, tmp_path: Path) -> None:
         from setup_project import build_overlay
 
@@ -1508,7 +1524,7 @@ class TestPatchCfihosAuthForMissingSearch:
 # ── setup_project — synthetic data removal ────────────────────────────────────
 
 
-class TestPatchDataDumpUploadManifestSpaces:
+class TestPatchDataDumpUploadDataSpaces:
     """upload_data/*.Manifest.yaml files are consumed directly by ``cdf data upload``
     from the module source tree, bypassing ``cdf build`` — so {{ variable }}
     placeholders are never substituted and the space has to be a literal value
@@ -1536,36 +1552,70 @@ class TestPatchDataDumpUploadManifestSpaces:
         return manifest
 
     def test_patches_literal_space_to_resolved_site(self, tmp_path: Path) -> None:
-        from setup_project import patch_data_dump_upload_manifest_spaces
+        from setup_project import patch_data_dump_upload_data_spaces
 
         manifest = self._manifest(
             tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_cfihos_oil_and_gas"
         )
-        patched = patch_data_dump_upload_manifest_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        patched = patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
         assert patched == [manifest]
         assert "space: inst_oslo_cfihos_oil_and_gas" in manifest.read_text()
 
+    def test_warns_when_filecontent_manifest_space_not_found(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        upload_dir = tmp_path / "modules" / "sourcesystem" / "cdf_sharepoint_data_dump" / "upload_data"
+        upload_dir.mkdir(parents=True)
+        (upload_dir / "a.Manifest.yaml").write_text("kind: FileContent\ntemplate:\n  instanceId: {space: x}\n")
+        (upload_dir / "b.Manifest.yaml").write_text("kind: RawRows\ntable:\n  dbName: db\n")
+        patched = patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        out = capsys.readouterr().out
+        assert patched == []
+        assert "a.Manifest.yaml" in out
+        assert "b.Manifest.yaml" not in out
+
+    def test_patches_space_columns_of_raw_csv_but_not_external_id(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        upload_dir = tmp_path / "modules" / "sourcesystem" / "cdf_sharepoint_data_dump" / "upload_data"
+        upload_dir.mkdir(parents=True)
+        csv_path = upload_dir / "diagram_annotation.RawRows.csv"
+        csv_path.write_text(
+            "space,externalId,startNodeSpace,endNodeSpace,other\n"
+            "inst_cfihos_oil_and_gas,inst_cfihos_oil_and_gas:f:t,inst_cfihos_oil_and_gas,inst_bergen_cfihos_oil_and_gas,"
+            "inst_cfihos_oil_and_gas\n"
+        )
+        patched = patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        assert patched == [csv_path]
+        assert csv_path.read_text() == (
+            "space,externalId,startNodeSpace,endNodeSpace,other\n"
+            "inst_oslo_cfihos_oil_and_gas,inst_cfihos_oil_and_gas:f:t,inst_oslo_cfihos_oil_and_gas,"
+            "inst_oslo_cfihos_oil_and_gas,inst_cfihos_oil_and_gas\n"
+        )
+
     def test_noop_when_already_up_to_date(self, tmp_path: Path) -> None:
-        from setup_project import patch_data_dump_upload_manifest_spaces
+        from setup_project import patch_data_dump_upload_data_spaces
 
         self._manifest(
             tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_oslo_cfihos_oil_and_gas"
         )
-        patched = patch_data_dump_upload_manifest_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        patched = patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
         assert patched == []
 
     def test_noop_for_non_cfihos_variant(self, tmp_path: Path) -> None:
-        from setup_project import patch_data_dump_upload_manifest_spaces
+        from setup_project import patch_data_dump_upload_data_spaces
 
         self._manifest(tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_cfihos_oil_and_gas")
-        patched = patch_data_dump_upload_manifest_spaces("isa_manufacturing_extension", "oslo", tmp_path)
+        patched = patch_data_dump_upload_data_spaces("isa_manufacturing_extension", "oslo", tmp_path)
         assert patched == []
 
     def test_noop_when_module_not_installed(self, tmp_path: Path) -> None:
-        from setup_project import patch_data_dump_upload_manifest_spaces
+        from setup_project import patch_data_dump_upload_data_spaces
 
         (tmp_path / "modules" / "sourcesystem").mkdir(parents=True)
-        patched = patch_data_dump_upload_manifest_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        patched = patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
         assert patched == []
 
 

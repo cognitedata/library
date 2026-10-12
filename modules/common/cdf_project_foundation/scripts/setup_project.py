@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+import csv
 import os
 import re
 import shutil
@@ -283,6 +284,20 @@ def _isa_instance_space(site: str) -> str:
     return f"inst_{site}_isa_manufacturing" if site else "inst_isa_manufacturing"
 
 
+def _merge_ingestion_instance_spaces(existing: list[str], instance_space: str, previous_site: str) -> list[str]:
+    """Replace the stale CFIHOS entry with ``instance_space``; keep every other entry.
+
+    ``cdf_cdm_units`` is added when missing. The stale entries are the previous
+    site's space and the no-site default.
+    """
+    stale = {_cfihos_instance_space(previous_site), _cfihos_instance_space("")}
+    merged = [instance_space]
+    for space in [*existing, "cdf_cdm_units"]:
+        if space not in stale and space not in merged:
+            merged.append(space)
+    return merged
+
+
 def resolve_contextualization_variables(
     variant: str,
     instance_space: str,
@@ -451,6 +466,7 @@ def build_overlay(
     extractor_group_source_ids: dict[str, str] | None = None,
     repo_root: Path | None = None,
     previous_site: str = "",
+    ingestion_instance_spaces: list[str] | None = None,
 ) -> dict:
     """Full ``variables.modules`` overlay dict to merge into a config file.
 
@@ -532,10 +548,14 @@ def build_overlay(
             modules_vars[module] = {"instance_space": _cfihos_instance_space(site)}
 
         # cdf_ingestion's consumer group reads from the CFIHOS instance space plus
-        # the fixed base-CDM units space — keep the CFIHOS entry in sync with the
-        # site, same as every other instance_space derived from it above.
+        # the base-CDM units space — only the CFIHOS entry is replaced; entries the
+        # user added are kept.
         if (get_pack_root(repo_root) / "modules" / "common" / "cdf_ingestion").is_dir():
-            modules_vars["cdf_ingestion"] = {"instanceSpaces": [instance_space, "cdf_cdm_units"]}
+            modules_vars["cdf_ingestion"] = {
+                "instanceSpaces": _merge_ingestion_instance_spaces(
+                    ingestion_instance_spaces or [], instance_space, previous_site
+                )
+            }
     elif variant == "isa_manufacturing_extension":
         # ISA's instance_space is site-derived the same way (falls back to the
         # domain-only default when no site has been entered yet).
@@ -841,14 +861,47 @@ def restore_cdm_space_file(variant: str, repo_root: Path | None = None) -> Path 
     return space_file
 
 
-def patch_data_dump_upload_manifest_spaces(variant: str, site: str, repo_root: Path | None = None) -> list[Path]:
-    """Patch the literal instance space in CFIHOS data-dump ``upload_data`` manifests.
+_CFIHOS_SPACE_RE = re.compile(r"inst_(?:.+_)?cfihos_oil_and_gas")
+_RAW_CSV_SPACE_COLUMNS: tuple[str, ...] = ("space", "startNodeSpace", "endNodeSpace")
 
-    ``upload_data/*.Manifest.yaml`` files are consumed directly from the module
-    source tree by ``cdf data upload`` — they are never passed through ``cdf build``,
-    so Toolkit ``{{ variable }}`` substitution never applies to them. The space has
-    to be a literal value, kept in sync with ``instance_space`` by this wizard
-    instead (see ``_cfihos_instance_space``).
+
+def _patch_raw_csv_spaces(csv_path: Path, instance_space: str) -> bool:
+    """Rewrite CFIHOS instance-space values in the space columns of a RAW CSV.
+
+    Only ``_RAW_CSV_SPACE_COLUMNS`` are touched — ``externalId`` values embed the
+    space too, but are identifiers and are left as they are.
+    """
+    with csv_path.open(newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames or []
+        columns = [c for c in _RAW_CSV_SPACE_COLUMNS if c in fieldnames]
+        if not columns:
+            return False
+        rows = list(reader)
+    changed = False
+    for row in rows:
+        for column in columns:
+            if _CFIHOS_SPACE_RE.fullmatch(row[column]) and row[column] != instance_space:
+                row[column] = instance_space
+                changed = True
+    if changed:
+        with csv_path.open("w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(rows)
+    return changed
+
+
+def patch_data_dump_upload_data_spaces(variant: str, site: str, repo_root: Path | None = None) -> list[Path]:
+    """Patch the literal CFIHOS instance space in CFIHOS data-dump ``upload_data`` files.
+
+    ``upload_data/`` files are consumed directly from the module source tree by
+    ``cdf data upload`` — they are never passed through ``cdf build``, so Toolkit
+    ``{{ variable }}`` substitution never applies to them. The space has to be a
+    literal value, kept in sync with ``instance_space`` by this wizard instead (see
+    ``_cfihos_instance_space``). Patches ``template.instanceId.space`` in
+    ``FileContent`` manifests and the space columns of RAW CSVs; a ``FileContent``
+    manifest whose space cannot be located is reported with a warning.
     """
     if variant != "cfihos_oil_and_gas_extension":
         return []
@@ -861,10 +914,21 @@ def patch_data_dump_upload_manifest_spaces(variant: str, site: str, repo_root: P
             continue
         for manifest in sorted(upload_dir.glob("*.Manifest.yaml")):
             lines = manifest.read_text().splitlines(keepends=True)
-            _, changed = _yaml_set_value(lines, "template.instanceId.space", instance_space)
-            if changed:
+            if not any(line.strip() == "kind: FileContent" for line in lines):
+                continue
+            old, changed = _yaml_set_value(lines, "template.instanceId.space", instance_space)
+            if old is None:
+                _warn(
+                    t("Could not locate template.instanceId.space in {module}/upload_data/{name}").format(
+                        module=module, name=manifest.name
+                    )
+                )
+            elif changed:
                 manifest.write_text("".join(lines))
                 patched.append(manifest)
+        for csv_path in sorted(upload_dir.glob("*.RawRows.csv")):
+            if _patch_raw_csv_spaces(csv_path, instance_space):
+                patched.append(csv_path)
     return patched
 
 
@@ -1174,6 +1238,7 @@ def _read_existing_values(
         "app_owner": "",
         "integration_owners": {},
         "data_owners": {},
+        "ingestion_instance_spaces": [],
         "cfihos_admin_user": "",
         "cfihos_integration_owner_name": "",
         "cfihos_integration_owner_email": "",
@@ -1214,6 +1279,9 @@ def _read_existing_values(
             ingestion_dataset = ingestion_vars.get("dataset", "ingestion")
             if ingestion_dataset and isinstance(ingestion_dataset, str) and ingestion_dataset not in ss_datasets:
                 ss_datasets.append(ingestion_dataset)
+            ingestion_spaces = ingestion_vars.get("instanceSpaces")
+            if isinstance(ingestion_spaces, list):
+                existing["ingestion_instance_spaces"] = [sp for sp in ingestion_spaces if isinstance(sp, str)]
         # Persona-group scope lives on cdf_project_foundation.dataset. Extractor
         # ids are recomputed from the installed modules; anything else on this
         # list (a data set the user added, or one folded in by an earlier run)
@@ -1768,6 +1836,7 @@ def _write_wizard_configs(
             },
             repo_root=repo_root,
             previous_site=existing["site"],
+            ingestion_instance_spaces=existing["ingestion_instance_spaces"],
         )
         if write_config(path, env, project_names[env], overlay):
             changed_count += 1
@@ -1833,7 +1902,7 @@ def _finalize_wizard(
         if synthetic_removed:
             _ok(t("Removed {n} synthetic data file(s) from upload_data/ directories.").format(n=synthetic_removed))
 
-    patched_manifests = patch_data_dump_upload_manifest_spaces(variant, site, repo_root)
+    patched_manifests = patch_data_dump_upload_data_spaces(variant, site, repo_root)
 
     cicd_files = _run_cicd_wizard(pack_root) if pack_kind == "foundation" else []
 
@@ -1851,9 +1920,10 @@ def _finalize_wizard(
         _ok(t("{n} synthetic data file(s) removed.").format(n=synthetic_removed))
     if patched_manifests:
         _ok(
-            t("{n} upload_data manifest(s) patched with the current instance space.").format(
-                n=len(patched_manifests)
-            )
+            t(
+                "{n} upload_data file(s) patched with the current instance space "
+                "(edited in place — re-run the wizard after updating a module)."
+            ).format(n=len(patched_manifests))
         )
     if diagram_annotation_removed:
         _ok(

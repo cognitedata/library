@@ -47,9 +47,9 @@ SOURCE_SYSTEM_MODULE_DIRS: tuple[str, ...] = (
 )
 
 # Demo-pack (dp:quickstart) counterparts of SOURCE_SYSTEM_MODULE_DIRS — synthetic
-# data-dump modules instead of real extractors. Used only to detect which pack a
-# project is set up for (see detect_pack_kind); not consulted by the variant/auth
-# helpers above.
+# data-dump modules instead of real extractors. Used to detect which pack a project
+# is set up for (see detect_pack_kind) and to find the modules whose CFIHOS instance
+# space the wizard keeps in sync (see list_installed_demo_source_system_modules).
 DEMO_SOURCE_SYSTEM_MODULE_DIRS: tuple[str, ...] = (
     "cdf_pi_data_dump",
     "cdf_sap_data_dump",
