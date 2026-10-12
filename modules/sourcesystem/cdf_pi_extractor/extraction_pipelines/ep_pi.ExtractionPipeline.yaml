@@ -1,5 +1,5 @@
-externalId: "ep_{{location}}_pi"
-name: "ep:{{location}}:pi"
+externalId: "ep_timeseries_{{location}}_{{sourceSystem}}"
+name: "PI time series extraction for site {{location}}"
 dataSetExternalId: "{{dataset}}"
 description: "PI .NET Extractor pipeline for site {{location}} — writes PI tags and values directly to the Core Data Model `ExtractorTimeSeries` view in {{instanceSpace}} (no RAW staging)"
 source: PI
@@ -8,7 +8,7 @@ contacts:
   - name: {{integration_owner_name}}
     email: {{integration_owner_email}}
     role: Owner
-    sendNotification: true
+    sendNotification: {{integration_owner_send_notification}}
   - name: Cognite Support
     email: support@cognite.com
     role: Operational Owner
@@ -16,15 +16,15 @@ contacts:
   - name: {{data_owner_name}}
     email: {{data_owner_email}}
     role: Data Owner
-    sendNotification: true
+    sendNotification: {{data_owner_send_notification}}
 notificationConfig:
   # PI extractor streams continuously; alert if not seen for >2 hours
   allowedNotSeenRangeInMinutes: 120
 createdBy: cognite-toolkit
-# The sample config.yaml below uses $${VAR} (not ${VAR}): Toolkit substitutes ${VAR} from
-# .env anywhere in this file, so a single $ would leak real secret values into the
-# deployed pipeline's documentation. $${VAR} renders as literal ${VAR}, which is what the
-# extractor host should read from its own environment.
+# CDF_PROJECT and CDF_URL in the sample below use $${VAR} so the deployed docs keep an
+# environment-variable reference. IDP tenant, client id, and client secret use <VAR>
+# placeholders: Toolkit expands a doubled $ for those names the same way as a single $,
+# which would store the real secret in this pipeline's documentation.
 documentation: |
   ## PI extraction pipeline
 
@@ -72,13 +72,13 @@ documentation: |
        project: $${CDF_PROJECT}
        host: $${CDF_URL}
        idp-authentication:
-         tenant: $${IDP_TENANT_ID}
-         client-id: $${IDP_CLIENT_ID}
-         secret: $${IDP_CLIENT_SECRET}
+         tenant: <IDP_TENANT_ID>
+         client-id: <IDP_CLIENT_ID>
+         secret: <IDP_CLIENT_SECRET>
          scopes:
            - $${CDF_URL}/.default
        extraction-pipeline:
-         external-id: ep_{{location}}_pi
+         external-id: ep_timeseries_{{location}}_{{sourceSystem}}
      ```
 
   ### References

@@ -1,4 +1,3 @@
-# Single trigger for the complete file annotation workflow
 - externalId: {{ workflowExternalId }}_trigger
   triggerRule:
     triggerType: schedule

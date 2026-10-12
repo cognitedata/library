@@ -1,2 +1,2 @@
-dbName: "db_{{location}}_sap"
+dbName: "raw_asset_{{location}}_{{sourceSystem}}"
 tableName: workpackage

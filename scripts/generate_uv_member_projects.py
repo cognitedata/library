@@ -6,7 +6,6 @@ Run from the repository root after editing PACKAGE_SPECS:
     python scripts/export_deploy_requirements.py
 """
 
-
 import json
 from pathlib import Path
 
@@ -14,7 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # Local dev / uv lock dependencies (may include broader ranges than deploy).
 FILE_ANNOTATION_RUNTIME = [
-    "cognite-sdk>=7.76.0,<8",
+    # Floor matches the deploy pin, so tests never run on a newer SDK than CDF installs.
+    "cognite-sdk>=7.94.0,<8",
     "msal==1.37.0",
     "pydantic>=2.12.4,<3.0.0",
     "PyJWT>=2.13.0,<3.0",
@@ -29,34 +29,21 @@ FILE_ANNOTATION_STREAMLIT_RUNTIME = [
     "altair",
     "PyYAML",
     "pyodide-http==0.2.1",
-    "cognite-sdk>=7.73.4,<8",
+    "cognite-sdk>=7.94.0,<8",
     "python-dotenv>=1.0.0",
 ]
 
 # CDF deploy: direct packages installed on top of the Functions runtime.
+# cryptography is not imported directly. 50.0.0 is the first release that closes
+# the Bleichenbacher oracle in the PKCS#7 decrypt helpers (44.0.0-49.x).
+# python-dotenv stays in the local runtime list; the Functions runtime does not need it.
 FILE_ANNOTATION_DEPLOY = [
-    "annotated-types==0.7.0",
-    "certifi==2025.4.26",
-    "cffi>=1.17.1",
-    "charset-normalizer==3.4.2",
-    "cognite-sdk==7.76.0",
+    # 7.94.0 or later: the entity read uses NodeResultSetExpression(sync_mode=...).
+    "cognite-sdk==7.94.0",
     "cryptography==50.0.0",
-    "idna==3.15",
-    "msal==1.37.0",
-    "oauthlib==3.2.2",
-    "packaging==25.0",
-    "protobuf>=6.33.5",
-    "pycparser==2.22",
-    "pydantic>=2.12.4,<3.0.0",
-    "PyJWT==2.13.0",
-    "python-dotenv==1.2.2",
-    "PyYAML==6.0.2",
-    "requests==2.33.0",
-    "requests-oauthlib==1.3.1",
-    "typing-inspection==0.4.2",
-    "typing_extensions==4.16.0",
-    "urllib3==2.7.0",
-    "mixpanel>=4.10.0",
+    "pydantic==2.12.4",
+    "PyYAML==6.0.3",
+    "mixpanel==4.10.0",
 ]
 
 FILE_ANNOTATION_STREAMLIT_DEPLOY = [
@@ -64,7 +51,7 @@ FILE_ANNOTATION_STREAMLIT_DEPLOY = [
     "altair",
     "PyYaml",
     "pyodide-http==0.2.1",
-    "cognite-sdk==7.73.4",
+    "cognite-sdk==7.94.0",
     "python-dotenv>=1.0.0",
 ]
 
@@ -91,69 +78,45 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "name": "fn-dm-context-aliases-update",
         "requires_python": ">=3.11,<3.14",
         "dependencies": [
-            "cognite-extractor-utils>=7",
             "cognite-sdk>=7,<8",
-            "pyyaml>=6.0.1",
-            "tenacity>=8.0.0",
-            "psutil>=5.9.0",
-            "mixpanel>=4.10.0",
+            "pydantic>=2,<3",
+            "pyyaml>=6.0.1,<7",
+            "tenacity>=8.0.0,<10",
+            "mixpanel>=4.10.0,<6",
         ],
         "deploy_dependencies": [
-            "cognite-extractor-utils>=7",
             "cognite-sdk == 7.*",
-            "pyyaml >= 6.0.1",
-            "tenacity >= 8.0.0",
-            "psutil >= 5.9.0",
-            "mixpanel>=4.10.0",
+            "pydantic >= 2, < 3",
+            "pyyaml >= 6.0.1, < 7",
+            "tenacity >= 8.0.0, < 10",
+            "mixpanel >= 4.10.0, < 6",
         ],
     },
     {
-        "path": "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_timeseries_entity_matching",
-        "name": "fn-dm-context-timeseries-entity-matching",
-        "requires_python": ">=3.11,<3.14",
+        "path": "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching",
+        "name": "fn-dm-context-entity-matching",
+        "requires_python": ">=3.13,<3.14",
         "dependencies": [
-            "cognite-extractor-utils>=7",
+            "cognite-extractor-utils>=7,<8",
             "cognite-sdk>=7,<8",
-            "pyyaml>=6.0.1",
-            "tenacity>=8.0.0",
-            "psutil>=5.9.0",
-            "mixpanel>=4.10.0",
+            "pydantic>=2,<3",
+            "pyyaml>=6.0.1,<7",
+            "tenacity>=8.0.0,<10",
+            "mixpanel>=4.10.0,<6",
         ],
         "deploy_dependencies": [
-            "cognite-extractor-utils>=7",
+            "cognite-extractor-utils >= 7, < 8",
             "cognite-sdk == 7.*",
-            "pyyaml >= 6.0.1",
-            "tenacity >= 8.0.0",
-            "psutil >= 5.9.0",
-            "mixpanel>=4.10.0",
+            "pydantic >= 2, < 3",
+            "pyyaml >= 6.0.1, < 7",
+            "tenacity >= 8.0.0, < 10",
+            "mixpanel >= 4.10.0, < 6",
         ],
         "dev_dependencies": ["pytest>=7.0.0"],
-        "pytest": True,
     },
     {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_finalize",
-        "name": "fn-file-annotation-finalize",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": FILE_ANNOTATION_RUNTIME,
-        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
-    },
-    {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_launch",
-        "name": "fn-file-annotation-launch",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": FILE_ANNOTATION_RUNTIME,
-        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
-    },
-    {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_prepare",
-        "name": "fn-file-annotation-prepare",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": FILE_ANNOTATION_RUNTIME,
-        "deploy_dependencies": FILE_ANNOTATION_DEPLOY,
-    },
-    {
-        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_promote",
-        "name": "fn-file-annotation-promote",
+        "path": "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation",
+        "name": "fn-file-annotation",
         "requires_python": ">=3.11,<3.14",
         "dependencies": FILE_ANNOTATION_RUNTIME,
         "deploy_dependencies": FILE_ANNOTATION_DEPLOY,

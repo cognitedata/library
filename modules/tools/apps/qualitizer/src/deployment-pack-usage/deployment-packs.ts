@@ -43,7 +43,7 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     description: `Entity matching functions (modules/contextualization/cdf_entity_matching). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
     signals: {
       functionExternalIds: [
-        "fn_dm_context_timeseries_entity_matching",
+        "fn_dm_context_entity_matching",
         "fn_dm_context_aliases_update",
       ],
     },
@@ -67,8 +67,8 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
       ],
       dataModels: [
         {
-          space: "sp_hdm",
-          externalId: "helper_datamodel",
+          space: "dm_sol_file_annotation",
+          externalId: "FileAnnotation_SOL",
           version: "v1.0.0",
         },
       ],

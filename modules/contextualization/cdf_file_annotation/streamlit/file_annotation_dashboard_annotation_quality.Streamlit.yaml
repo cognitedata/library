@@ -1,5 +1,5 @@
 externalId: file_annotation_dashboard_annotation_quality
-name: File Annotation Dashboard - Annotation Quality
+name: File annotation quality
 creator: {{ ApplicationOwner }}
 description: Dashboard to inspect the quality of annotations in the File Annotation Pipeline
 published: true

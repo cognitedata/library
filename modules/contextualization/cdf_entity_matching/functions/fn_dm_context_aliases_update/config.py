@@ -12,9 +12,15 @@ from pydantic.alias_generators import to_camel
 from constants import DEFAULT_ALIAS_PATTERN  # isort: skip
 
 
+class FunctionInput(BaseModel):
+    """Validated function input; the handler checks it before any CDF call."""
+
+    extraction_pipeline_ext_id: str = Field(alias="ExtractionPipelineExtId", min_length=1)
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(alias="logLevel", default="INFO")
+
+
 # Configuration classes
 class Parameters(BaseModel, alias_generator=to_camel):
-    debug: bool
     run_all: bool
     raw_db: str
     raw_table_state: str
@@ -31,7 +37,7 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     version: str
     # Configured as "aliasPattern", one regular expression or a list of them, normalised
     # to a list here. Each pattern finds the tag inside a name; the alias it yields is
-    # that pattern's capture groups joined by "_", so the groups decide the alias rather
+    # that pattern's capture groups joined by "-", so the groups decide the alias rather
     # than the whole match.
     alias_patterns: list[str] = Field(
         alias="aliasPattern",
@@ -63,7 +69,7 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
             if not compiled.groups:
                 raise ValueError(
                     f"aliasPattern {pattern!r} must have at least one capture group - "
-                    "the alias is the groups joined by '_'"
+                    "the alias is the groups joined by '-'"
                 )
         return value
 
@@ -87,6 +93,38 @@ class ConfigData(BaseModel, alias_generator=to_camel):
 class Config(BaseModel, alias_generator=to_camel):
     parameters: Parameters
     data: ConfigData
+
+
+def _format_view_block(label: str, view: ViewPropertyConfig | None) -> list[str]:
+    if view is None:
+        return [f"    {label}: (not configured — skipped)"]
+    pattern_display = view.alias_patterns if len(view.alias_patterns) > 1 else view.alias_patterns[0]
+    return [
+        f"    {label}:",
+        f"      view: {view.external_id} ({view.schema_space}/{view.version})",
+        f"      instanceSpace: {view.instance_spaces}",
+        f"      aliasPattern: {pattern_display}",
+        f"      aliasSelection: {view.alias_selection}",
+    ]
+
+
+def format_config_for_log(config: Config) -> str:
+    """Return a multi-line summary of the loaded extraction pipeline configuration."""
+    params = config.parameters
+    lines = [
+        "Loaded extraction pipeline configuration:",
+        "  parameters:",
+        f"    runAll: {params.run_all}",
+        f"    updateAll: {params.update_all}",
+        f"    removeOldAliases: {params.remove_old_aliases}",
+        f"    rawDb: {params.raw_db}",
+        f"    rawTableState: {params.raw_table_state}",
+        "  data.job:",
+    ]
+    lines.extend(_format_view_block("timeseriesView", config.data.job.timeseries_view))
+    lines.extend(_format_view_block("assetView", config.data.job.asset_view))
+    lines.extend(_format_view_block("fileView", config.data.job.file_view))
+    return "\n".join(lines)
 
 
 def load_config_parameters(client: CogniteClient, function_data: dict[str, Any]) -> Config:

@@ -1,21 +1,21 @@
-externalId: "ep_{{location}}_sap"
-name: "ep:{{location}}:sap"
+externalId: "ep_asset_{{location}}_{{sourceSystem}}"
+name: "SAP maintenance extraction for site {{location}}"
 dataSetExternalId: "{{dataset}}"
 description: "SAP OData Extractor pipeline for site {{location}} — single pipeline with multiple entity queries writing to RAW"
 rawTables:
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "functional_location"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "equipment"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "workorder"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "workpackage"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "worktask"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "workitem"
-  - dbName: "db_{{location}}_sap"
+  - dbName: "raw_asset_{{location}}_{{sourceSystem}}"
     tableName: "state_store"
 source: SAP_ODATA
 schedule: On trigger
@@ -23,7 +23,7 @@ contacts:
   - name: {{integration_owner_name}}
     email: {{integration_owner_email}}
     role: Owner
-    sendNotification: true
+    sendNotification: {{integration_owner_send_notification}}
   - name: Cognite Support
     email: support@cognite.com
     role: Operational Owner
@@ -31,15 +31,15 @@ contacts:
   - name: {{data_owner_name}}
     email: {{data_owner_email}}
     role: Data Owner
-    sendNotification: true
+    sendNotification: {{data_owner_send_notification}}
 notificationConfig:
   # Longest endpoint cadence is weekly (Funcloc/Equipment masters) — 8 days + buffer
   allowedNotSeenRangeInMinutes: 12960
 createdBy: cognite-toolkit
-# The sample config.yaml below uses $${VAR} (not ${VAR}): Toolkit substitutes ${VAR} from
-# .env anywhere in this file, so a single $ would leak real secret values into the
-# deployed pipeline's documentation. $${VAR} renders as literal ${VAR}, which is what the
-# extractor host should read from its own environment.
+# CDF_PROJECT and CDF_URL in the sample below use $${VAR} so the deployed docs keep an
+# environment-variable reference. IDP tenant, client id, and client secret use <VAR>
+# placeholders: Toolkit expands a doubled $ for those names the same way as a single $,
+# which would store the real secret in this pipeline's documentation.
 documentation: |
   ## SAP OData extraction pipeline
 
@@ -49,7 +49,7 @@ documentation: |
   fetched by the SAP OData Extractor using its `pipeline-id`. A single pipeline
   covers all entity types: functional locations, equipment, work orders, work
   packages, work tasks, and notifications — each landing in its own RAW table in
-  `db_{{location}}_sap`.
+  `raw_asset_{{location}}_{{sourceSystem}}`.
 
   RAW data is then mapped to data-model instances in `{{instanceSpace}}` by six
   transformations (one per entity type) targeting the ISA Manufacturing Extension
@@ -91,13 +91,13 @@ documentation: |
        project: $${CDF_PROJECT}
        host: $${CDF_URL}
        idp-authentication:
-         tenant: $${IDP_TENANT_ID}
-         client-id: $${IDP_CLIENT_ID}
-         secret: $${IDP_CLIENT_SECRET}
+         tenant: <IDP_TENANT_ID>
+         client-id: <IDP_CLIENT_ID>
+         secret: <IDP_CLIENT_SECRET>
          scopes:
            - $${CDF_URL}/.default
        extraction-pipeline:
-         external-id: ep_{{location}}_sap
+         external-id: ep_asset_{{location}}_{{sourceSystem}}
      ```
 
   ### RAW tables written by this pipeline
