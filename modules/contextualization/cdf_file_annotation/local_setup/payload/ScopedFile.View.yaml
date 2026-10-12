@@ -1,0 +1,34 @@
+space: "{{ scopeSchemaSpace }}"
+externalId: ScopedFile
+name: Scoped file
+description: >
+  CogniteFile extended with test-only site and unit properties for scoped file annotation.
+  The filter keeps every CogniteFile instance visible before scope values are written.
+implements:
+  - space: cdf_cdm
+    externalId: CogniteFile
+    version: v1
+    type: view
+version: "{{ scopeDmVersion }}"
+filter:
+  hasData:
+    - type: container
+      space: cdf_cdm
+      externalId: CogniteFile
+properties:
+  site:
+    name: Site
+    description: Primary matching scope (site or facility). Example value - VAL from VAL_23-PID-001.pdf.
+    container:
+      space: "{{ scopeSchemaSpace }}"
+      externalId: FileScope
+      type: container
+    containerPropertyIdentifier: site
+  unit:
+    name: Unit
+    description: Secondary matching scope within the site. Example value - 23 from VAL_23-PID-001.pdf.
+    container:
+      space: "{{ scopeSchemaSpace }}"
+      externalId: FileScope
+      type: container
+    containerPropertyIdentifier: unit

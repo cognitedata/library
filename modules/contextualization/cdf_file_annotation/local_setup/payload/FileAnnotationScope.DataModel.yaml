@@ -1,0 +1,16 @@
+space: "{{ scopeSchemaSpace }}"
+externalId: "{{ scopeDataModelExternalId }}"
+name: File annotation scope SOL
+description: >
+  Test-only solution data model that extends CogniteAsset and CogniteFile with site and
+  unit properties so scoped file annotation can be exercised in the CDF UI.
+version: "{{ scopeDmVersion }}"
+views:
+  - space: "{{ scopeSchemaSpace }}"
+    externalId: Asset
+    version: "{{ scopeDmVersion }}"
+    type: view
+  - space: "{{ scopeSchemaSpace }}"
+    externalId: ScopedFile
+    version: "{{ scopeDmVersion }}"
+    type: view

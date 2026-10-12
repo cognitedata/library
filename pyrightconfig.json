@@ -16,8 +16,13 @@
   "reportPossiblyUnboundVariable": "none",
   "reportIndexIssue": "none",
   "reportInvalidTypeForm": "none",
+  "executionEnvironments": [
+    { "root": "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_annotation_quality" },
+    { "root": "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_pipeline_health" },
+    { "root": "." }
+  ],
   "ignore": [
-    "modules/**/streamlit/**",
+    "modules/dashboards/context_quality/streamlit/**",
     "modules/tools/notebooks/**",
     "modules/datamodels/**"
   ]

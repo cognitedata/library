@@ -34,8 +34,8 @@ class DataUpdater:
         rows = []
 
         for pattern_scope, patterns in upsert_payload.items():
-            rows.append(Row(key=pattern_scope, columns={ "patterns": patterns }))
+            rows.append(Row(key=pattern_scope, columns={"patterns": patterns}))
 
-        client.raw.rows.insert(db_name=db_name, table_name=table_name, row=rows, ensure_parent=True)
+        client.raw.rows.insert(db_name=db_name, table_name=table_name, row=rows, ensure_parent=False)
 
         return len(rows)
