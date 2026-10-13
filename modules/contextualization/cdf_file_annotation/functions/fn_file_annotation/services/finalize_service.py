@@ -32,6 +32,21 @@ def _poll_completed(job: tuple[int, str] | None, poll: DiagramDetectJobPoll | No
     return job is None or (poll is not None and poll.status == JobPollStatus.COMPLETED)
 
 
+def _detect_item_error_messages(
+    regular_item: dict[str, object] | None,
+    pattern_item: dict[str, object] | None,
+) -> tuple[str | None, str | None]:
+    """Per-file errorMessage from a Completed detect job (e.g. timeout/OOM). Job status stays Completed."""
+
+    def _message(item: dict[str, object] | None) -> str | None:
+        if item is None:
+            return None
+        error = item.get("errorMessage")
+        return str(error) if error else None
+
+    return _message(regular_item), _message(pattern_item)
+
+
 def claimed_jobs_message(regular_job_id: int | None, pattern_job_id: int | None, claimed_files: int) -> str:
     """Summary of the jobs just claimed. Job tokens are not included."""
     return f"Retrieved regular job {regular_job_id}, pattern job {pattern_job_id} and claimed {claimed_files} files"
@@ -293,6 +308,43 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 count_failed += 1
                 continue
 
+            regular_error, pattern_error = _detect_item_error_messages(
+                results.get("regular"),
+                results.get("pattern"),
+            )
+            if regular_error or pattern_error:
+                self.logger.info(
+                    f"Detect item failed for file {file_id} "
+                    f"(regular={regular_error!r}, pattern={pattern_error!r}). "
+                    "Skipping apply so existing annotations are kept."
+                )
+                if next_attempt >= self.max_retries:
+                    file_node_applies.append(self._finish_file_tag(file_node, TAG_ANNOTATION_FAILED))
+                    annotation_state_node_applies.append(
+                        self._process_annotation_state(
+                            annotation_state_node,
+                            AnnotationStatus.FAILED,
+                            next_attempt,
+                            annotation_message=regular_error,
+                            pattern_mode_message=pattern_error,
+                            clear_job_ids=True,
+                        )
+                    )
+                    count_failed += 1
+                else:
+                    annotation_state_node_applies.append(
+                        self._process_annotation_state(
+                            annotation_state_node,
+                            AnnotationStatus.RETRY,
+                            next_attempt,
+                            annotation_message=regular_error,
+                            pattern_mode_message=pattern_error,
+                            clear_job_ids=True,
+                        )
+                    )
+                    count_retry += 1
+                continue
+
             try:
                 self.logger.info(f"Processing file {file_id}:")
                 annotation_msg, pattern_msg = self.apply_service.process_and_apply_annotations_for_file(
@@ -393,6 +445,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         page_count: int | None = None,
         annotation_message: str | None = None,
         pattern_mode_message: str | None = None,
+        clear_job_ids: bool = False,
     ) -> NodeApply:
         """
         Creates a NodeApply to update an annotation state instance with processing results.
@@ -409,6 +462,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             page_count: Total number of pages in the file.
             annotation_message: Message describing regular annotation results.
             pattern_mode_message: Message describing pattern mode results.
+            clear_job_ids: When True, clears detect job IDs so Launch can start a new job.
 
         Returns:
             NodeApply object ready to be applied to update the annotation state.
@@ -430,7 +484,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             - If an error occurs, the annotated_page_count and page_count won't be passed
                 - Don't want to touch the pageCount and annotatedPageCount properties in this scenario
         """
-        update_properties = {
+        update_properties: dict[str, object] = {
             "annotationStatus": status,
             **annotation_clock(),
             "annotationMessage": annotation_message,
@@ -442,6 +496,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
         if annotated_page_count and page_count:
             update_properties["annotatedPageCount"] = annotated_page_count
             update_properties["pageCount"] = page_count
+        if clear_job_ids:
+            update_properties["diagramDetectJobId"] = None
+            update_properties["patternModeJobId"] = None
 
         node_apply = NodeApply(
             space=node.space,
