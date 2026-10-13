@@ -47,9 +47,9 @@ SOURCE_SYSTEM_MODULE_DIRS: tuple[str, ...] = (
 )
 
 # Demo-pack (dp:quickstart) counterparts of SOURCE_SYSTEM_MODULE_DIRS — synthetic
-# data-dump modules instead of real extractors. Used only to detect which pack a
-# project is set up for (see detect_pack_kind); not consulted by the variant/auth
-# helpers above.
+# data-dump modules instead of real extractors. Used to detect which pack a project
+# is set up for (see detect_pack_kind) and to find the modules whose CFIHOS instance
+# space the wizard keeps in sync (see list_installed_demo_source_system_modules).
 DEMO_SOURCE_SYSTEM_MODULE_DIRS: tuple[str, ...] = (
     "cdf_pi_data_dump",
     "cdf_sap_data_dump",
@@ -149,6 +149,21 @@ def list_installed_source_system_modules(repo_root: Path | None = None) -> list[
     return [
         module_dir
         for module_dir in SOURCE_SYSTEM_MODULE_DIRS
+        if (sourcesystem_dir / module_dir).is_dir()
+    ]
+
+
+def list_installed_demo_source_system_modules(repo_root: Path | None = None) -> list[str]:
+    """Module directory names present under modules/sourcesystem/ for the Demo pack
+    (``*_data_dump`` modules). These share the CFIHOS domain-model's ``instance_space``
+    rather than getting a per-module space like the Foundation extractor modules.
+    """
+    sourcesystem_dir = get_sourcesystem_dir(repo_root)
+    if not sourcesystem_dir.is_dir():
+        return []
+    return [
+        module_dir
+        for module_dir in DEMO_SOURCE_SYSTEM_MODULE_DIRS
         if (sourcesystem_dir / module_dir).is_dir()
     ]
 
