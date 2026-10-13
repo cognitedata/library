@@ -4,7 +4,7 @@
 Same modes as ``data-quality-validation-deploy`` pipeline helpers::
 
     python scripts/deploy_pipeline.py --historic-mode enqueue
-    python scripts/deploy_pipeline.py --view-external-id YourOrgAsset --historic-mode orchestrator
+    python scripts/deploy_pipeline.py --view-external-id CogniteAsset --historic-mode orchestrator
 """
 
 from __future__ import annotations

@@ -1,16 +1,16 @@
 ruleSetExternalId: maintenance_order_rule_logic_test_shacl_rules
-version: "1.0.0"
+version: "{{ ruleSetVersion }}"
 rules:
   - |
     @prefix sh: <http://www.w3.org/ns/shacl#> .
     @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
     @prefix dqs: <http://purl.org/cognite/dqs#> .
-    @prefix sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/> .
+    @prefix sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/> .
 
     # ============================================================================
-    # Rule Logic Test Pack for YourOrgMaintenanceOrder
+    # Rule Logic Test Pack for the maintenance order view
     # ============================================================================
-    # This file intentionally exercises three behaviors against live cog-ai data:
+    # This file intentionally exercises three behaviors against live data:
     # 1) Uniqueness: duplicate maintenance-order names
     # 2) Conditional logic: status-driven check
     # 3) Chained conditional logic: ordered SHACL-AF rules with dqs:dependsOn
@@ -18,7 +18,7 @@ rules:
 
     sp:MaintenanceOrderNameUniquenessTest
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "Maintenance Order Name Uniqueness Test" ;
         sh:description "Ensures maintenance order names are unique across the target class." ;
         sh:severity sh:Violation ;
@@ -30,7 +30,7 @@ rules:
     # If status is 900 (completed code in this dataset), endTime must exist.
     sp:CompletedStatusMustHaveEndTime
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "Completed Status Requires End Time" ;
         sh:description "Rows with status=900 must have endTime." ;
         sh:severity sh:Violation ;
@@ -39,7 +39,7 @@ rules:
             sh:message "Status 900 requires endTime, but endTime is missing." ;
             sh:severity sh:Violation ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
                 SELECT $this
                 WHERE {
                     $this sp:status ?status .
@@ -54,13 +54,13 @@ rules:
     # inference for completed rows missing endTime.
     sp:MaintenanceOrderRuleChain
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:rule [
             a sh:SPARQLRule ;
             sh:order 1 ;
             dqs:ruleId "MO_Completed_Status_Tag" ;
             sh:construct """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
                 PREFIX dqs: <http://purl.org/cognite/dqs#>
                 CONSTRUCT {
                     ?result a dqs:RuleEngineResult ;
@@ -84,7 +84,7 @@ rules:
             dqs:ruleId "MO_Completed_Missing_EndTime" ;
             dqs:dependsOn "MO_Completed_Status_Tag" ;
             sh:construct """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
                 PREFIX dqs: <http://purl.org/cognite/dqs#>
                 CONSTRUCT {
                     ?result a dqs:RuleEngineResult ;

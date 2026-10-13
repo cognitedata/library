@@ -1,9 +1,9 @@
 view:
-  space: sp_enterprise_process_industry
-  external_id: YourOrgOperation
-  version: v1
+  space: {{ secondarySchemaSpace }}
+  external_id: {{ viewMaintenanceOrderExternalId }}
+  version: {{ viewVersion }}
 instance_spaces:
-  - test_data_pumps
+  - {{ instanceSpace }}
 validation:
   auto_load_depth: 2
   verbose: true
@@ -12,3 +12,4 @@ partition_field: lastUpdatedTime
 sync_batch_size: 1000
 use_sync_cursor_mode: true
 max_concurrent_executions: 1
+uniqueness_cron: "2 * * * *"

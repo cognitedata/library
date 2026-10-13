@@ -1,5 +1,5 @@
 ruleSetExternalId: equipment_shacl_rules
-version: "1.0.0"
+version: "{{ ruleSetVersion }}"
 rules:
   - |
     @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -7,8 +7,8 @@ rules:
     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
     @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
     @prefix dqs: <http://purl.org/cognite/dqs#> .
-    @prefix sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgEquipment/> .
-    @prefix sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/> .
+    @prefix sp: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewEquipmentExternalId }}/> .
+    @prefix sp_asset: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewAssetExternalId }}/> .
     @prefix cdm_eqtype: <http://purl.org/cognite/cdf_cdm/CogniteEquipmentType/> .
     @prefix cdm_assettype: <http://purl.org/cognite/cdf_cdm/CogniteAssetType/> .
     @prefix dq: <http://example.org/dataquality/> .
@@ -36,14 +36,14 @@ rules:
         sh:severity sh:Info .
 
     # ==============================================================================
-    # Shape for YourOrgAsset (referenced by YourOrgEquipment)
+    # Shape for the asset view (referenced by equipment.asset)
     # This triggers auto-loading of Asset AND its related AssetType
     # ==============================================================================
     sp:AssetShape
         a sh:NodeShape ;
-        sh:targetClass sp_asset:YourOrgAsset ;
+        sh:targetClass sp_asset:{{ viewAssetExternalId }} ;
         sh:name "Asset Shape" ;
-        sh:description "Validates properties of YourOrgAsset instances referenced by Equipment." ;
+        sh:description "Validates properties of {{ viewAssetExternalId }} instances referenced by Equipment." ;
         sh:severity sh:Info ;
 
         # Relation to AssetType (triggers auto-loading of AssetType)
@@ -54,13 +54,13 @@ rules:
         ] .
 
     # ==============================================================================
-    # Main Shape for YourOrgEquipment
+    # Main Shape for the equipment view
     # ==============================================================================
     sp:EquipmentShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgEquipment ;
+        sh:targetClass sp:{{ viewEquipmentExternalId }} ;
         sh:name "Equipment Validation" ;
-        sh:description "Validates YourOrgEquipment instances and their relations." ;
+        sh:description "Validates {{ viewEquipmentExternalId }} instances and their relations." ;
         sh:severity sh:Violation ;
 
         # Relation to Asset (triggers auto-loading of Asset)
@@ -83,7 +83,7 @@ rules:
     # ==============================================================================
     sp:EquipmentNameUniqueness
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgEquipment ;
+        sh:targetClass sp:{{ viewEquipmentExternalId }} ;
         sh:name "Equipment Name Uniqueness Validation" ;
         sh:description "Ensures equipment names are unique across the target class." ;
         sh:severity sh:Violation ;
@@ -97,17 +97,17 @@ rules:
     # Logic (based on data model):
     # 1. Start at an Equipment instance ($this)
     # 2. Find its equipmentType -> CogniteEquipmentType -> equipmentClass (e.g., "PUMP")
-    # 3. Find the related Asset ($this -> asset -> YourOrgAsset)
+    # 3. Find the related Asset ($this -> asset)
     # 4. Find that Asset's type -> CogniteAssetType -> code (e.g., "PUMP")
     # 5. Fail if they do not match
     #
     # Auto-loading chain:
-    #   Equipment -> asset -> YourOrgAsset -> type -> CogniteAssetType
+    #   Equipment -> asset -> type -> CogniteAssetType
     #   Equipment -> equipmentType -> CogniteEquipmentType
     # ==============================================================================
     sp:EquipmentAssetTypeCompatibilityShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgEquipment ;
+        sh:targetClass sp:{{ viewEquipmentExternalId }} ;
         sh:name "Equipment-Asset Type Compatibility" ;
         sh:description "Validates that Equipment type matches its related Asset type." ;
         sh:severity sh:Violation ;
@@ -121,8 +121,8 @@ rules:
             sh:message "Equipment class '{?equipmentClass}' does not match Asset type code '{?assetTypeCode}'" ;
             sh:severity sh:Violation ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgEquipment/>
-                PREFIX sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/>
+                PREFIX sp: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewEquipmentExternalId }}/>
+                PREFIX sp_asset: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewAssetExternalId }}/>
                 PREFIX cdm_eqtype: <http://purl.org/cognite/cdf_cdm/CogniteEquipmentType/>
                 PREFIX cdm_assettype: <http://purl.org/cognite/cdf_cdm/CogniteAssetType/>
 
@@ -151,8 +151,8 @@ rules:
             sh:message "Equipment has type '{?equipmentTypeCode}' but related Asset has no type" ;
             sh:severity sh:Warning ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgEquipment/>
-                PREFIX sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/>
+                PREFIX sp: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewEquipmentExternalId }}/>
+                PREFIX sp_asset: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewAssetExternalId }}/>
                 PREFIX cdm_eqtype: <http://purl.org/cognite/cdf_cdm/CogniteEquipmentType/>
 
                 SELECT $this ?equipmentTypeCode
@@ -178,8 +178,8 @@ rules:
             sh:message "Related Asset has type '{?assetTypeCode}' but Equipment has no equipmentType" ;
             sh:severity sh:Warning ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgEquipment/>
-                PREFIX sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/>
+                PREFIX sp: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewEquipmentExternalId }}/>
+                PREFIX sp_asset: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewAssetExternalId }}/>
                 PREFIX cdm_assettype: <http://purl.org/cognite/cdf_cdm/CogniteAssetType/>
 
                 SELECT $this ?assetTypeCode

@@ -1,5 +1,5 @@
 ruleSetExternalId: operation_shacl_rules
-version: "1.0.0"
+version: "{{ ruleSetVersion }}"
 rules:
   - |
     @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -8,12 +8,13 @@ rules:
     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
     @prefix dqs: <http://purl.org/cognite/dqs#> .
 
-    # Namespace for the data model
-    @prefix sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/> .
+    # Namespaces for the operation and equipment views
+    @prefix sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewOperationExternalId }}/> .
+    @prefix sp_eq: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewEquipmentExternalId }}/> .
     @prefix dq: <http://example.org/dataquality/> .
 
     # =============================================================================
-    # SHACL Rules for YourOrgOperation
+    # SHACL Rules for the operation view
     # =============================================================================
     # This rule set validates Operations and includes cross-reference validation
     # to check that Operation tags match the tags of related Equipment.
@@ -24,13 +25,13 @@ rules:
     # =============================================================================
     sp:EquipmentShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgEquipment ;
+        sh:targetClass sp_eq:{{ viewEquipmentExternalId }} ;
         sh:name "Equipment Shape" ;
         sh:description "Shape for validating Equipment instances referenced by Operations" ;
 
         # Equipment should have a name
         sh:property [
-            sh:path sp:name ;
+            sh:path sp_eq:name ;
             dq:dimension "Completeness" ;
             sh:minCount 1 ;
             sh:datatype xsd:string ;
@@ -40,7 +41,7 @@ rules:
 
         # Equipment tags (for cross-reference validation)
         sh:property [
-            sh:path sp:tags ;
+            sh:path sp_eq:tags ;
             sh:datatype xsd:string ;
             sh:message "Equipment tags must be strings" ;
             sh:severity sh:Warning ;
@@ -52,9 +53,9 @@ rules:
     # =============================================================================
     sp:OperationShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgOperation ;
+        sh:targetClass sp:{{ viewOperationExternalId }} ;
         sh:name "Operation Validation" ;
-        sh:description "Validates YourOrgOperation instances including relationship constraints" ;
+        sh:description "Validates {{ viewOperationExternalId }} instances including relationship constraints" ;
 
         # ===========================================================================
         # REQUIRED FIELDS
@@ -172,7 +173,8 @@ rules:
             sh:message "Operation tag '{?operationTag}' is not found on any related equipment" ;
             sh:severity sh:Warning ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewOperationExternalId }}/>
+                PREFIX sp_eq: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewEquipmentExternalId }}/>
 
                 SELECT $this ?operationTag
                 WHERE {
@@ -185,7 +187,7 @@ rules:
                     # Check if ANY equipment has this tag
                     # VIOLATION: No equipment has the operation's tag
                     FILTER NOT EXISTS {
-                        ?equipment sp:tags ?equipmentTag .
+                        ?equipment sp_eq:tags ?equipmentTag .
                         FILTER(?operationTag = ?equipmentTag)
                     }
                 }
@@ -204,13 +206,14 @@ rules:
             sh:message "Equipment tag '{?equipmentTag}' from equipment '{?equipmentId}' is not on the operation" ;
             sh:severity sh:Info ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewOperationExternalId }}/>
+                PREFIX sp_eq: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewEquipmentExternalId }}/>
 
                 SELECT $this ?equipmentTag ?equipmentId
                 WHERE {
                     # Get related equipment and its tags
                     $this sp:equipment ?equipment .
-                    ?equipment sp:tags ?equipmentTag .
+                    ?equipment sp_eq:tags ?equipmentTag .
 
                     # Get equipment ID for the message
                     BIND(STR(?equipment) AS ?equipmentId)
@@ -235,7 +238,7 @@ rules:
 
     sp:OperationWithEquipmentTagMatchingShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgOperation ;
+        sh:targetClass sp:{{ viewOperationExternalId }} ;
         sh:name "Operation-Equipment Tag Matching (Strict)" ;
         sh:description "Strict validation that operation tags match equipment tags exactly" ;
 
@@ -255,7 +258,8 @@ rules:
             sh:message "STRICT: Operation tag '{?tag}' not found on any related equipment. Tags must match!" ;
             sh:severity sh:Violation ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewOperationExternalId }}/>
+                PREFIX sp_eq: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewEquipmentExternalId }}/>
 
                 SELECT $this ?tag
                 WHERE {
@@ -267,7 +271,7 @@ rules:
 
                     # But no equipment has this tag
                     FILTER NOT EXISTS {
-                        ?equipment sp:tags ?tag .
+                        ?equipment sp_eq:tags ?tag .
                     }
                 }
             """ ;
@@ -280,7 +284,7 @@ rules:
 
     sp:OperationTimeValidationShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgOperation ;
+        sh:targetClass sp:{{ viewOperationExternalId }} ;
         sh:name "Operation Time Validation" ;
         sh:description "Validates time constraints for operations" ;
 
@@ -290,7 +294,7 @@ rules:
             sh:message "Operation end time must be after start time" ;
             sh:severity sh:Violation ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewOperationExternalId }}/>
                 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
                 SELECT $this ?startTime ?endTime
@@ -309,7 +313,7 @@ rules:
             sh:message "Scheduled end time must be after scheduled start time" ;
             sh:severity sh:Violation ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgOperation/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewOperationExternalId }}/>
                 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
                 SELECT $this ?schedStart ?schedEnd
@@ -328,7 +332,7 @@ rules:
     # =============================================================================
     sp:OperationNameUniqueness
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgOperation ;
+        sh:targetClass sp:{{ viewOperationExternalId }} ;
         sh:name "Operation Name Uniqueness Validation" ;
         sh:description "Ensures operation names are unique across the target class." ;
         sh:severity sh:Violation ;

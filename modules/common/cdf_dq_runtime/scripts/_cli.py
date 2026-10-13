@@ -97,38 +97,27 @@ def _stringify_leaves(mapping: dict[str, object]) -> dict[str, str]:
     return {str(key): "" if value is None else str(value) for key, value in mapping.items()}
 
 
-def flatten_toolkit_variables(config: dict[str, object]) -> dict[str, str]:
-    """Flatten Toolkit config.<env>.yaml variables to {{ key }} names."""
-    variables = config.get("variables")
-    if not isinstance(variables, dict):
-        return {}
+MODULE_CONFIG_PATH = ("modules", "common", "cdf_dq_runtime")
 
-    flattened: dict[str, str] = {}
 
-    def walk(node: object) -> None:
+def module_toolkit_variables(
+    config: dict[str, object], module_path: tuple[str, ...] = MODULE_CONFIG_PATH
+) -> dict[str, str]:
+    """Resolve Toolkit config.<env>.yaml variables for this module, like ``cdf build`` does.
+
+    Leaf values on each level of ``variables`` along *module_path* are inherited, and deeper
+    levels win. Variables of sibling modules are ignored, so generic names such as
+    ``schemaSpace`` set for other modules do not leak into this one.
+    """
+    node = config.get("variables")
+    resolved: dict[str, str] = {}
+    for key in (None, *module_path):
+        if key is not None:
+            node = node.get(key) if isinstance(node, dict) else None
         if not isinstance(node, dict):
-            return
-        leaf_values = {key: value for key, value in node.items() if not isinstance(value, dict)}
-        nested = {key: value for key, value in node.items() if isinstance(value, dict)}
-        if leaf_values and not nested:
-            flattened.update(_stringify_leaves(leaf_values))
-            return
-        if nested:
-            for child in nested.values():
-                walk(child)
-        if leaf_values:
-            flattened.update(_stringify_leaves(leaf_values))
-
-    top_level = {key: value for key, value in variables.items() if key != "modules"}
-    walk(top_level)
-
-    modules = variables.get("modules")
-    if isinstance(modules, dict):
-        walk(modules)
-    elif modules is not None:
-        flattened["modules"] = str(modules)
-
-    return flattened
+            break
+        resolved.update(_stringify_leaves({k: v for k, v in node.items() if not isinstance(v, dict)}))
+    return resolved
 
 
 def load_default_pack_variables(module_dir: Path) -> dict[str, str]:
@@ -201,7 +190,7 @@ def load_variables(toolkit_config: Path | None) -> dict[str, str]:
     loaded = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     if not isinstance(loaded, dict):
         raise ValueError(f"Expected a mapping in {config_path}")
-    variables.update(flatten_toolkit_variables(loaded))
+    variables.update(module_toolkit_variables(loaded))
     return variables
 
 

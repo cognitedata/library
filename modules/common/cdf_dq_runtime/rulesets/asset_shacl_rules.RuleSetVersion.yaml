@@ -1,5 +1,5 @@
 ruleSetExternalId: asset_shacl_rules
-version: "1.0.0"
+version: "{{ ruleSetVersion }}"
 rules:
   - |
     @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -7,16 +7,16 @@ rules:
     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
     @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
     @prefix dqs: <http://purl.org/cognite/dqs#> .
-    @prefix sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/> .
+    @prefix sp_asset: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewAssetExternalId }}/> .
 
     # ==============================================================================
-    # YourOrgAsset — base shape
+    # Asset — base shape
     # ==============================================================================
     sp_asset:AssetShape
         a sh:NodeShape ;
-        sh:targetClass sp_asset:YourOrgAsset ;
+        sh:targetClass sp_asset:{{ viewAssetExternalId }} ;
         sh:name "Asset Validation" ;
-        sh:description "Validates YourOrgAsset instances." ;
+        sh:description "Validates {{ viewAssetExternalId }} instances." ;
         sh:severity sh:Info .
 
     # ==============================================================================
@@ -30,7 +30,7 @@ rules:
     # ==============================================================================
     sp_asset:AssetParentEdgeExistenceShape
         a sh:NodeShape ;
-        sh:targetClass sp_asset:YourOrgAsset ;
+        sh:targetClass sp_asset:{{ viewAssetExternalId }} ;
         sh:name "Asset Parent Edge Existence" ;
         sh:description "Validates hierarchy parent edges (cdf_cdm/has-parent) on assets." ;
         sh:severity sh:Violation ;

@@ -1,5 +1,5 @@
 ruleSetExternalId: maintenance_order_shacl_rules
-version: "1.0.0"
+version: "{{ ruleSetVersion }}"
 rules:
   - |
     @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -7,28 +7,28 @@ rules:
     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
     @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
     @prefix dqs: <http://purl.org/cognite/dqs#> .
-    @prefix sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/> .
-    @prefix sp_asset: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgAsset/> .
+    @prefix sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/> .
+    @prefix sp_asset: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewAssetExternalId }}/> .
 
     # ==============================================================================
-    # Shape for YourOrgAsset (referenced by MaintenanceOrder.mainAsset)
+    # Shape for the asset view (referenced by MaintenanceOrder.mainAsset)
     # This triggers auto-loading of Asset instances
     # ==============================================================================
     sp:AssetShape
         a sh:NodeShape ;
-        sh:targetClass sp_asset:YourOrgAsset ;
+        sh:targetClass sp_asset:{{ viewAssetExternalId }} ;
         sh:name "Asset Shape" ;
-        sh:description "Shape for YourOrgAsset instances referenced by MaintenanceOrder." ;
+        sh:description "Shape for {{ viewAssetExternalId }} instances referenced by MaintenanceOrder." ;
         sh:severity sh:Info .
 
     # ==============================================================================
-    # Main Shape for YourOrgMaintenanceOrder
+    # Main Shape for the maintenance order view
     # ==============================================================================
     sp:MaintenanceOrderShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "Maintenance Order Validation" ;
-        sh:description "Validates YourOrgMaintenanceOrder instances." ;
+        sh:description "Validates {{ viewMaintenanceOrderExternalId }} instances." ;
         sh:severity sh:Violation ;
 
         # Relation to mainAsset (triggers auto-loading of Asset)
@@ -43,17 +43,17 @@ rules:
     # ==============================================================================
     sp:MaintenanceOrderPriorityShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "Priority Validation" ;
-        sh:description "Validates priority is within acceptable range (1-5)." ;
+        sh:description "Validates priority is within acceptable range (0-5)." ;
         sh:severity sh:Violation ;
 
         sh:property [
             sh:path sp:priority ;
-            sh:minInclusive 1 ;
+            sh:minInclusive 0 ;
             sh:maxInclusive 5 ;
             sh:datatype xsd:integer ;
-            sh:message "Priority must be between 1 (highest) and 5 (lowest)" ;
+            sh:message "Priority must be between 0 (highest) and 5 (lowest)" ;
         ] .
 
     # ==============================================================================
@@ -61,7 +61,7 @@ rules:
     # ==============================================================================
     sp:MaintenanceOrderStatusShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "Status Validation" ;
         sh:description "Validates status is one of the allowed values." ;
         sh:severity sh:Violation ;
@@ -72,7 +72,7 @@ rules:
             sh:message "Invalid status '{?status}'. Must be one of: CREATED, IN_PROGRESS, COMPLETED, CANCELLED, ON_HOLD" ;
             sh:severity sh:Violation ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
 
                 SELECT $this ?status
                 WHERE {
@@ -87,7 +87,7 @@ rules:
     # ==============================================================================
     sp:MaintenanceOrderTypeShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "Order Type Validation" ;
         sh:description "Validates order type follows expected patterns." ;
         sh:severity sh:Warning ;
@@ -98,7 +98,7 @@ rules:
             sh:message "Order type '{?orderType}' does not follow expected pattern (e.g., CM01, PM01, EM01)" ;
             sh:severity sh:Warning ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
 
                 SELECT $this ?orderType
                 WHERE {
@@ -113,7 +113,7 @@ rules:
     # ==============================================================================
     sp:MaintenanceOrderScheduleShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "Schedule Validation" ;
         sh:description "Validates scheduling constraints." ;
         sh:severity sh:Violation ;
@@ -124,7 +124,7 @@ rules:
             sh:message "Scheduled end time '{?endTime}' is before or equal to start time '{?startTime}'" ;
             sh:severity sh:Violation ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
                 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
                 SELECT $this ?startTime ?endTime
@@ -141,7 +141,7 @@ rules:
     # ==============================================================================
     sp:MaintenanceOrderDurationShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "Duration Validation" ;
         sh:description "Warns if scheduled duration exceeds 24 hours." ;
         sh:severity sh:Warning ;
@@ -151,7 +151,7 @@ rules:
             sh:message "Scheduled duration exceeds 24 hours (start: {?startTime}, end: {?endTime})" ;
             sh:severity sh:Warning ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
                 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
                 SELECT $this ?startTime ?endTime
@@ -170,9 +170,9 @@ rules:
     # ==============================================================================
     sp:HighPriorityMainAssetShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "High Priority Asset Validation" ;
-        sh:description "High priority orders (1-2) should have a main asset assigned." ;
+        sh:description "High priority orders (0-2) should have a main asset assigned." ;
         sh:severity sh:Warning ;
 
         sh:sparql [
@@ -180,7 +180,7 @@ rules:
             sh:message "High priority order (priority={?priority}) has no main asset assigned" ;
             sh:severity sh:Warning ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
 
                 SELECT $this ?priority
                 WHERE {
@@ -196,7 +196,7 @@ rules:
     # ==============================================================================
     sp:CompletedOrderAssetsShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "Completed Order Assets Validation" ;
         sh:description "Completed orders should have related assets or equipment recorded." ;
         sh:severity sh:Info ;
@@ -206,7 +206,7 @@ rules:
             sh:message "Completed order has no assets or equipment recorded (status={?status})" ;
             sh:severity sh:Info ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
 
                 SELECT $this ?status
                 WHERE {
@@ -223,7 +223,7 @@ rules:
     # ==============================================================================
     sp:MaintenanceOrderNameShape
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "Name Quality Validation" ;
         sh:description "Validates name quality." ;
         sh:severity sh:Warning ;
@@ -234,7 +234,7 @@ rules:
             sh:message "Order name '{?name}' is too short (less than 10 characters)" ;
             sh:severity sh:Warning ;
             sh:select """
-                PREFIX sp: <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp: <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
 
                 SELECT $this ?name
                 WHERE {
@@ -249,7 +249,7 @@ rules:
     # ==============================================================================
     sp:MaintenanceOrderNameUniqueness
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
         sh:name "Name Uniqueness Validation" ;
         sh:description "Ensures maintenance order names are unique across the target class." ;
         sh:severity sh:Violation ;
@@ -271,14 +271,14 @@ rules:
     # ==============================================================================
     sp:MaintenanceOrderInferenceRules
         a sh:NodeShape ;
-        sh:targetClass sp:YourOrgMaintenanceOrder ;
+        sh:targetClass sp:{{ viewMaintenanceOrderExternalId }} ;
 
         sh:rule [
             a sh:SPARQLRule ;
             sh:order 1 ;
             dqs:ruleId "MO_Criticality" ;
             sh:construct """
-                PREFIX sp:  <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp:  <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
                 PREFIX dqs: <http://purl.org/cognite/dqs#>
                 CONSTRUCT {
                     ?result a dqs:RuleEngineResult ;
@@ -306,7 +306,7 @@ rules:
             dqs:ruleId    "MO_Overdue" ;
             dqs:dependsOn "MO_Criticality" ;
             sh:construct """
-                PREFIX sp:  <http://purl.org/cognite/sp_enterprise_process_industry/YourOrgMaintenanceOrder/>
+                PREFIX sp:  <http://purl.org/cognite/{{ secondarySchemaSpace }}/{{ viewMaintenanceOrderExternalId }}/>
                 PREFIX dqs: <http://purl.org/cognite/dqs#>
                 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
                 CONSTRUCT {

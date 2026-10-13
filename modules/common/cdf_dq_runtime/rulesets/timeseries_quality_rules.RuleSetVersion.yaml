@@ -1,16 +1,16 @@
 ruleSetExternalId: timeseries_quality_rules
-version: "1.0.0"
+version: "{{ ruleSetVersion }}"
 rules:
   - |
     @prefix sh: <http://www.w3.org/ns/shacl#> .
     @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
     @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-    @prefix cdm_ts: <http://purl.org/cognite/cdf_cdm/CogniteTimeSeries/> .
+    @prefix sp_ts: <http://purl.org/cognite/{{ schemaSpace }}/{{ viewTimeSeriesExternalId }}/> .
     @prefix cdf_sdk: <https://cognite.com/cdf/sdk/> .
     @prefix cdf_indsl: <https://cognite.com/cdf/indsl/> .
 
-    # Cog-ai Time Series Quality SHACL rules
+    # Time Series Quality SHACL rules
     # - Ensures recent data and minimum datapoint count (>=50 over 60m)
     # - Flags gaps using 5x normal interval (for 1-min data: gaps >5 min)
     # - Outlier detection via INDSL extreme_outliers
@@ -45,9 +45,9 @@ rules:
     # Shape: Time Series Must Have Recent Data
     # Checks that time series has at least some data in the time window
     # ==============================================================================
-    cdm_ts:HasRecentDataShape
+    sp_ts:HasRecentDataShape
         a sh:NodeShape ;
-        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:targetClass sp_ts:{{ viewTimeSeriesExternalId }} ;
         sh:name "Time Series Has Recent Data" ;
         sh:description "Validates that time series has data in the last 90 minutes." ;
         sh:severity sh:Violation ;
@@ -77,9 +77,9 @@ rules:
     # Shape: Time Series Must Have Minimum Data Points
     # For 60-min window with 1-min data, expect ~60 points, allow 50 as minimum
     # ==============================================================================
-    cdm_ts:MinimumDataPointsShape
+    sp_ts:MinimumDataPointsShape
         a sh:NodeShape ;
-        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:targetClass sp_ts:{{ viewTimeSeriesExternalId }} ;
         sh:name "Minimum Data Points Check" ;
         sh:description "Validates that time series has sufficient data points." ;
         sh:severity sh:Warning ;
@@ -104,9 +104,9 @@ rules:
     # Uses INDSL extreme_outliers to find anomalous values
     # Returns count of outliers (0 = no outliers)
     # ==============================================================================
-    cdm_ts:NoExtremeOutliersShape
+    sp_ts:NoExtremeOutliersShape
         a sh:NodeShape ;
-        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:targetClass sp_ts:{{ viewTimeSeriesExternalId }} ;
         sh:name "No Extreme Outliers" ;
         sh:description "Validates that time series has no extreme outlier values." ;
         sh:severity sh:Warning ;
@@ -132,9 +132,9 @@ rules:
     # cutoff_multiple=5.0 means gaps > 5x the median interval are flagged
     # For 1-min data, this would flag gaps > 5 minutes
     # ==============================================================================
-    cdm_ts:NoGapsShape
+    sp_ts:NoGapsShape
         a sh:NodeShape ;
-        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:targetClass sp_ts:{{ viewTimeSeriesExternalId }} ;
         sh:name "No Data Gaps" ;
         sh:description "Validates that time series has no significant gaps." ;
         sh:severity sh:Warning ;
@@ -160,9 +160,9 @@ rules:
     # NOTE: Disabled by default - only enable for cumulative counter time series
     #       Regular time series naturally fluctuate up and down
     # ==============================================================================
-    # cdm_ts:NoUnexpectedDecreasesShape
+    # sp_ts:NoUnexpectedDecreasesShape
     #     a sh:NodeShape ;
-    #     sh:targetClass cdm_ts:CogniteTimeSeries ;
+    #     sh:targetClass sp_ts:{{ viewTimeSeriesExternalId }} ;
     #     sh:name "No Unexpected Decreases" ;
     #     sh:description "Validates that cumulative time series values don't decrease." ;
     #     sh:severity sh:Violation ;
@@ -186,9 +186,9 @@ rules:
     # Shape: Value Range Check (using SDK aggregations)
     # Checks that values are within expected min/max bounds
     # ==============================================================================
-    cdm_ts:ValueRangeCheckShape
+    sp_ts:ValueRangeCheckShape
         a sh:NodeShape ;
-        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:targetClass sp_ts:{{ viewTimeSeriesExternalId }} ;
         sh:name "Value Range Check" ;
         sh:description "Validates that time series min/max values are within bounds." ;
         sh:severity sh:Warning ;
@@ -229,9 +229,9 @@ rules:
     # Shape: Time Series Exists
     # Basic check that the time series actually exists in CDF
     # ==============================================================================
-    cdm_ts:TimeSeriesExistsShape
+    sp_ts:TimeSeriesExistsShape
         a sh:NodeShape ;
-        sh:targetClass cdm_ts:CogniteTimeSeries ;
+        sh:targetClass sp_ts:{{ viewTimeSeriesExternalId }} ;
         sh:name "Time Series Exists" ;
         sh:description "Validates that the time series exists in CDF." ;
         sh:severity sh:Violation ;
@@ -252,7 +252,8 @@ rules:
         ] .
 
     # ==============================================================================
-    # Additional YourOrgTimeSeries datapoint examples (cog-ai)
+    # Additional datapoint examples for two concrete series (pi:160554, pi:160245)
+    # in the configured instance space. Replace the target nodes for your project.
     # - stale latest datapoint
     # - value range bounds
     # - flatline detection
@@ -261,10 +262,10 @@ rules:
     # schedule/window as the other rules in this file.
     # ==============================================================================
 
-    cdm_ts:YourOrgStaleLatestDatapointShape
+    sp_ts:SampleStaleLatestDatapointShape
         a sh:NodeShape ;
-        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160554> ;
-        sh:name "YourOrg Stale Latest Datapoint" ;
+        sh:targetNode <http://purl.org/cognite/{{ instanceSpace }}/pi:160554> ;
+        sh:name "Sample Stale Latest Datapoint" ;
         sh:description "Flags stale series with no datapoints in the active window." ;
         sh:severity sh:Violation ;
         sh:sparql [
@@ -282,10 +283,10 @@ rules:
             """ ;
         ] .
 
-    cdm_ts:YourOrgValueRangeBoundsShape
+    sp_ts:SampleValueRangeBoundsShape
         a sh:NodeShape ;
-        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160245> ;
-        sh:name "YourOrg Value Range Bounds" ;
+        sh:targetNode <http://purl.org/cognite/{{ instanceSpace }}/pi:160245> ;
+        sh:name "Sample Value Range Bounds" ;
         sh:description "Example min/max bounds checks for a concrete time series." ;
         sh:severity sh:Warning ;
         sh:sparql [
@@ -317,10 +318,10 @@ rules:
             """ ;
         ] .
 
-    cdm_ts:YourOrgFlatlineDetectionShape
+    sp_ts:SampleFlatlineDetectionShape
         a sh:NodeShape ;
-        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160554> ;
-        sh:name "YourOrg Flatline Detection" ;
+        sh:targetNode <http://purl.org/cognite/{{ instanceSpace }}/pi:160554> ;
+        sh:name "Sample Flatline Detection" ;
         sh:description "Flags near-flat signal behavior in the active window." ;
         sh:severity sh:Warning ;
         sh:sparql [
@@ -341,10 +342,10 @@ rules:
             """ ;
         ] .
 
-    cdm_ts:YourOrgCrossSignalConsistencyShape
+    sp_ts:SampleCrossSignalConsistencyShape
         a sh:NodeShape ;
-        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160245> ;
-        sh:name "YourOrg Cross-Signal Consistency" ;
+        sh:targetNode <http://purl.org/cognite/{{ instanceSpace }}/pi:160245> ;
+        sh:name "Sample Cross-Signal Consistency" ;
         sh:description "Compares one signal's average to a reference signal in the same window." ;
         sh:severity sh:Warning ;
         sh:sparql [
@@ -358,7 +359,7 @@ rules:
                 WHERE {
                     BIND(cdf_sdk:datapoints_average($this, "60m-ago", "now") AS ?avgA)
                     BIND(cdf_sdk:datapoints_average(
-                        <http://purl.org/cognite/springfield_instances/pi:160554>, "60m-ago", "now"
+                        <http://purl.org/cognite/{{ instanceSpace }}/pi:160554>, "60m-ago", "now"
                     ) AS ?avgB)
                     BIND(ABS(?avgA - ?avgB) AS ?delta)
                     FILTER(?delta > 1.0)
@@ -369,10 +370,10 @@ rules:
     # Canary checks for deployment validation:
     # - strict cross-signal mismatch threshold
     # - strict datapoint count threshold for stale target
-    cdm_ts:YourOrgCanaryCrossSignalStrictShape
+    sp_ts:SampleCanaryCrossSignalStrictShape
         a sh:NodeShape ;
-        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160245> ;
-        sh:name "YourOrg Canary Cross-Signal Strict" ;
+        sh:targetNode <http://purl.org/cognite/{{ instanceSpace }}/pi:160245> ;
+        sh:name "Sample Canary Cross-Signal Strict" ;
         sh:description "Canary rule to force detectable cross-signal mismatch failures." ;
         sh:severity sh:Violation ;
         sh:sparql [
@@ -386,7 +387,7 @@ rules:
                 WHERE {
                     BIND(cdf_sdk:datapoints_average($this, "60m-ago", "now") AS ?avgA)
                     BIND(cdf_sdk:datapoints_average(
-                        <http://purl.org/cognite/springfield_instances/pi:160554>, "60m-ago", "now"
+                        <http://purl.org/cognite/{{ instanceSpace }}/pi:160554>, "60m-ago", "now"
                     ) AS ?avgB)
                     BIND(ABS(?avgA - ?avgB) AS ?delta)
                     FILTER(?delta > 0.01)
@@ -394,10 +395,10 @@ rules:
             """ ;
         ] .
 
-    cdm_ts:YourOrgCanaryMinimumCountShape
+    sp_ts:SampleCanaryMinimumCountShape
         a sh:NodeShape ;
-        sh:targetNode <http://purl.org/cognite/springfield_instances/pi:160554> ;
-        sh:name "YourOrg Canary Minimum Count" ;
+        sh:targetNode <http://purl.org/cognite/{{ instanceSpace }}/pi:160554> ;
+        sh:name "Sample Canary Minimum Count" ;
         sh:description "Canary rule to force datapoint count failures for the stale example series." ;
         sh:severity sh:Violation ;
         sh:sparql [

@@ -1,9 +1,9 @@
 view:
-  space: sp_enterprise_process_industry
-  external_id: YourOrgAsset
-  version: v1
+  space: {{ schemaSpace }}
+  external_id: {{ viewAssetExternalId }}
+  version: {{ viewVersion }}
 instance_spaces:
-  - springfield_instances
+  - {{ instanceSpace }}
 validation:
   auto_load_depth: 2
   verbose: true

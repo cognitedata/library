@@ -1,5 +1,59 @@
-# Pin for deploy_infrastructure.py and the CDF Function (PyPI cognite-data-quality).
-# All other values in this module match the cog-ai YourOrg sample in
-# https://github.com/cognitedata/data-quality-validation-deploy (views/asset.yaml).
+# Customer / project identifiers for the Data Quality Validation module.
+#
+# Override these in config.<env>.yaml under variables.modules.common.cdf_dq_runtime.
+# Toolkit (`cdf build`) substitutes them into rulesets/, data_products/ and data_modeling/;
+# scripts/deploy_infrastructure.py substitutes the same values into settings.yaml, views/
+# and timeseries/ before deploying workflows. Defaults target the Cognite Core (cdf_cdm) and
+# Cognite Process Industries (cdf_idm) views with instances in inst_location.
+#
+# Trailing "# was: ..." comments show the value used by the original cog-ai YourOrg sample
+# (data-quality-validation-deploy). Keys without such a comment are unchanged.
 
+# PyPI version of cognite-data-quality installed for deploy_infrastructure.py and the CDF Function.
 dq_pypi_version: "0.4.9"
+
+# --- Validated views -------------------------------------------------------------------
+# Schema space of the asset, equipment and time series views (Cognite Core: cdf_cdm).
+schemaSpace: cdf_cdm  # was: sp_enterprise_process_industry
+# Schema space of the maintenance order, operation and notification views
+# (Cognite Process Industries: cdf_idm). Set to the same value as schemaSpace when all
+# views live in one enterprise schema space.
+secondarySchemaSpace: cdf_idm  # was: sp_enterprise_process_industry
+# Version of every validated view.
+viewVersion: v1
+# External IDs of the validated views. Views in schemaSpace:
+viewAssetExternalId: CogniteAsset  # was: YourOrgAsset
+viewEquipmentExternalId: CogniteEquipment  # was: YourOrgEquipment
+viewTimeSeriesExternalId: CogniteTimeSeries  # was: YourOrgTimeSeries
+# Views in secondarySchemaSpace:
+viewMaintenanceOrderExternalId: CogniteMaintenanceOrder  # was: YourOrgMaintenanceOrder
+viewOperationExternalId: CogniteOperation  # was: YourOrgOperation
+viewNotificationExternalId: CogniteNotification  # was: YourOrgNotification
+# Instance space holding the nodes to validate (all views). Must already exist; this module
+# does not create or own it.
+# was: springfield_instances (asset, equipment, time series) and test_data_pumps
+# (maintenance order, operation, notification); both spaces were created by this module.
+instanceSpace: inst_location
+# External ID prefix used to select time series for datapoint validation (timeseries/).
+timeSeriesExternalIdPrefix: "pi:"
+
+# --- Data product and rule sets --------------------------------------------------------
+# Schema space owned exclusively by the data product (created by this module). Must not be
+# a cdf_* system space or a space owned by another data product. The data product's views
+# must live in this space or in a cdf_* system space.
+dataProductSchemaSpace: sp_dq_data_product  # was: sp_enterprise_process_industry
+# Data product that binds the views, instance spaces and rule sets together.
+dataProductExternalId: cognite-core-data-quality  # was: enterprise-process-industry
+# Version of the data product. Bump when views, instance spaces or rule set versions change
+# (view references and quality rules are immutable on an existing version).
+dataProductVersion: "1.0.0"  # was: "1.1.10"
+# Version of every RuleSetVersion in rulesets/. Bump when you edit rule content.
+ruleSetVersion: "1.0.0"  # was: "1.0.0" (rules targeted the YourOrg views)
+
+# --- Runtime -----------------------------------------------------------------------------
+# Space for data quality state (settings, cursors, historic queue) and record containers.
+dataQualitySpace: dataQuality
+# Records stream receiving validation results. Create the stream in CDF before deploying.
+recordsStreamId: test_stream_1
+# Data set for the CDF Function code file.
+functionCodeDatasetExternalId: dq_shacl_rules

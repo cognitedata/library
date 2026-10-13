@@ -1,0 +1,30 @@
+# Time series datapoint validation config for deploy_infrastructure.py (not a Toolkit resource).
+# SHACL is published by Toolkit (timeseries_quality_rules RuleSet).
+
+name: timeseries_quality
+description: "Time series datapoint quality rules (hourly)"
+
+schedule:
+  cron: "2 * * * *"
+
+# Time series nodes to validate: instance space plus external ID prefix.
+filter:
+  space: {{ instanceSpace }}
+  external_id_prefix: "{{ timeSeriesExternalIdPrefix }}"
+
+datamodel:
+  space: {{ schemaSpace }}
+  external_id: {{ viewTimeSeriesExternalId }}
+  version: {{ viewVersion }}
+
+shacl_rules:
+  ruleset_references:
+    - externalId: timeseries_quality_rules
+      version: "{{ ruleSetVersion }}"
+
+validation:
+  verbose: true
+
+records:
+  rule_set_id: timeseries_quality_rules
+  rule_set_version: "{{ ruleSetVersion }}"

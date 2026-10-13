@@ -2,12 +2,14 @@
 
 import importlib.util
 import os
+import re
 import sys
 import types
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
 _SCRIPTS = (
     Path(__file__).resolve().parents[1] / "modules" / "common" / "cdf_dq_runtime" / "scripts"
@@ -44,51 +46,131 @@ def cli():
     return _load_cli()
 
 
-def test_flatten_keeps_global_and_module_variables(cli) -> None:
+_CORE_VIEWS = {
+    ("cdf_cdm", "CogniteAsset"),
+    ("cdf_cdm", "CogniteEquipment"),
+    ("cdf_cdm", "CogniteTimeSeries"),
+    ("cdf_idm", "CogniteMaintenanceOrder"),
+    ("cdf_idm", "CogniteOperation"),
+    ("cdf_idm", "CogniteNotification"),
+}
+_VIEW_NAMESPACE = re.compile(r"http://purl\.org/cognite/([A-Za-z0-9_]+)/([A-Za-z0-9_]+)/")
+
+
+def _materialize(cli, tmp_path: Path, overrides: dict[str, str] | None = None) -> Path:
+    variables = cli.load_default_pack_variables(_MODULE)
+    variables.update(overrides or {})
+    return cli.materialize_pack_yaml(_MODULE, tmp_path / "out", variables)
+
+
+def _load_yaml(path: Path) -> dict:
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert isinstance(data, dict)
+    return data
+
+
+def _data_product_version(dest: Path) -> dict:
+    (path,) = (dest / "data_products").glob("*.DataProductVersion.yaml")
+    return _load_yaml(path)
+
+
+def _view_namespaces(dest: Path) -> set[tuple[str, str]]:
+    namespaces: set[tuple[str, str]] = set()
+    for path in (dest / "rulesets").glob("*.RuleSetVersion.yaml"):
+        for rule in _load_yaml(path)["rules"]:
+            namespaces.update(_VIEW_NAMESPACE.findall(rule))
+    return namespaces
+
+
+def test_module_variables_scope_to_dq_runtime(cli) -> None:
     config = {
         "variables": {
             "global_var": "global_val",
             "modules": {
-                "data_quality": {
-                    "cdf_dq_runtime": {
-                        "dq_pypi_version": "0.4.9",
-                    }
-                }
+                "contextualization": {"cdf_entity_matching": {"schemaSpace": "sp_entity_matching_scope"}},
+                "common": {
+                    "shared_var": "shared",
+                    "cdf_dq_runtime": {"schemaSpace": "cdf_cdm", "instanceSpace": "inst_location"},
+                },
+                "sourcesystem": {"cdf_pi_extractor": {"instanceSpace": "sp_test_pi"}},
             },
         }
     }
-    flat = cli.flatten_toolkit_variables(config)
-    assert flat["global_var"] == "global_val"
-    assert flat["dq_pypi_version"] == "0.4.9"
+    resolved = cli.module_toolkit_variables(config)
+    assert resolved == {
+        "global_var": "global_val",
+        "shared_var": "shared",
+        "schemaSpace": "cdf_cdm",
+        "instanceSpace": "inst_location",
+    }
 
 
-def test_materialize_cog_ai_yourorg_sample(cli, tmp_path: Path) -> None:
+def test_materialize_defaults_target_cognite_core_views(cli, tmp_path: Path) -> None:
+    dest = _materialize(cli, tmp_path)
+
+    for path in dest.rglob("*.y*ml"):
+        assert "{{" not in path.read_text(encoding="utf-8"), path
+
     variables = cli.load_default_pack_variables(_MODULE)
-    assert variables == {"dq_pypi_version": "0.4.9"}
-    dest = cli.materialize_pack_yaml(_MODULE, tmp_path / "out", variables)
-    settings = (dest / "settings.yaml").read_text(encoding="utf-8")
-    assert "enterprise-process-industry" in settings
-    assert "timeseries:" in settings
-    assert "data_product_sync_cron" in settings
-    assert "dq-ts-shacl" in settings
-    assert "{{" not in settings
-    version_yaml = (
-        dest / "data_products" / "enterprise_process_industry.DataProductVersion.yaml"
-    ).read_text(encoding="utf-8")
-    for view in (
-        "YourOrgAsset",
-        "YourOrgEquipment",
-        "YourOrgMaintenanceOrder",
-        "YourOrgNotification",
-        "YourOrgOperation",
-        "YourOrgTimeSeries",
-    ):
-        assert view in version_yaml
-    assert len(list((dest / "views").glob("yourorg_*.yaml"))) == 6
-    assert (dest / "timeseries" / "yourorg_timeseries_quality.yaml").is_file()
-    assert not (dest / "timeseries" / "demo_timeseries_quality.yaml").exists()
-    ts_yaml = (dest / "timeseries" / "yourorg_timeseries_quality.yaml").read_text(encoding="utf-8")
-    assert "ruleset_references" in ts_yaml
+    version = _data_product_version(dest)
+    assert {(view["space"], view["externalId"]) for view in version["views"]} == _CORE_VIEWS
+    assert {space for view in version["views"] for space in view["instanceSpaces"]["read"]} == {"inst_location"}
+    assert {rule["version"] for rule in version["quality"]["rules"]} == {variables["ruleSetVersion"]}
+
+    (product_path,) = (dest / "data_products").glob("*.DataProduct.yaml")
+    product = _load_yaml(product_path)
+    assert product["schemaSpace"] == variables["dataProductSchemaSpace"]
+    assert not product["schemaSpace"].startswith("cdf_")
+
+    settings = _load_yaml(dest / "settings.yaml")
+    assert settings["external_dataproducts"] == [
+        {"external_id": version["dataProductExternalId"], "version": version["version"]}
+    ]
+    assert settings["config_space"] == settings["records"]["space"] == "dataQuality"
+
+    for path in (dest / "views").glob("*.yaml"):
+        override = _load_yaml(path)
+        assert (override["view"]["space"], override["view"]["external_id"]) in _CORE_VIEWS
+        assert override["instance_spaces"] == ["inst_location"]
+
+    (ts_path,) = (dest / "timeseries").glob("*.yaml")
+    ts_config = _load_yaml(ts_path)
+    assert (ts_config["datamodel"]["space"], ts_config["datamodel"]["external_id"]) == ("cdf_cdm", "CogniteTimeSeries")
+    assert ts_config["filter"]["space"] == "inst_location"
+
+
+def test_sample_shacl_rules_target_configured_views(cli, tmp_path: Path) -> None:
+    dest = _materialize(cli, tmp_path)
+    helper_types = {("cdf_cdm", "CogniteAssetType"), ("cdf_cdm", "CogniteEquipmentType")}
+    assert _view_namespaces(dest) <= _CORE_VIEWS | helper_types
+    for path in (dest / "rulesets").glob("*.yaml"):
+        text = path.read_text(encoding="utf-8")
+        for legacy in ("YourOrg", "sp_enterprise_process_industry", "springfield_instances", "test_data_pumps"):
+            assert legacy not in text, f"{path.name} still references {legacy}"
+
+
+def test_customer_overrides_flow_into_rules_and_views(cli, tmp_path: Path) -> None:
+    dest = _materialize(
+        cli,
+        tmp_path,
+        {
+            "schemaSpace": "sp_acme",
+            "secondarySchemaSpace": "sp_acme",
+            "viewAssetExternalId": "AcmeAsset",
+            "instanceSpace": "inst_acme",
+        },
+    )
+    namespaces = _view_namespaces(dest)
+    assert ("sp_acme", "AcmeAsset") in namespaces
+    assert ("sp_acme", "CogniteMaintenanceOrder") in namespaces
+    assert not any(view == "CogniteAsset" for _, view in namespaces)
+
+    version = _data_product_version(dest)
+    assert {view["space"] for view in version["views"]} == {"sp_acme"}
+    assert {space for view in version["views"] for space in view["instanceSpaces"]["read"]} == {"inst_acme"}
+
+    ts_rules = _load_yaml(dest / "rulesets" / "timeseries_quality_rules.RuleSetVersion.yaml")["rules"][0]
+    assert "http://purl.org/cognite/inst_acme/pi:160554" in ts_rules
 
 
 def test_data_quality_space_from_settings(cli, tmp_path: Path) -> None:

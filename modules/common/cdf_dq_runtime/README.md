@@ -4,7 +4,7 @@
 
 Publishes SHACL **RuleSets** and **DataProducts** with Cognite Toolkit (`cdf deploy`), then runs the same Python deploy path as [data-quality-validation-deploy](https://github.com/cognitedata/data-quality-validation-deploy) (`scripts/deploy_infrastructure.py`).
 
-Bundled sample: cog-ai **YourOrg** (`config/environments/cog-ai`).
+By default the module validates the **Cognite Core** (`cdf_cdm`) and **Cognite Process Industries** (`cdf_idm`) views — asset, equipment, time series, maintenance order, operation and notification — with instances in `inst_location`. All customer-specific identifiers (spaces, views, data product, rule set versions) are variables in `default.config.yaml`; see [Configuration](#configuration).
 
 | Layer | Toolkit (`cdf deploy`) | Module script (`deploy_infrastructure.py`) |
 | --- | --- | --- |
@@ -13,8 +13,6 @@ Bundled sample: cog-ai **YourOrg** (`config/environments/cog-ai`).
 | Instance workflows | — | Yes (external DataProduct + `views/` overrides) |
 | Time-series workflows | — | Yes (`timeseries/` configs) |
 | `data_product_sync` + historic queue | — | Yes (`data_product_sync_cron`) |
-
-Only `dq_pypi_version` is in `default.config.yaml`.
 
 ## Process and data flow
 
@@ -144,7 +142,7 @@ Validation outputs are **Records** (not DMS instances). This module does **not**
 | Validation results | Container `DataQualityValidationRecord` (`usedFor: record`) in `records.space` |
 | SHACL-AF / rule-engine inferences | Container `RuleEngineResult` (`usedFor: record`) in the same space |
 | Record views | Same external IDs, version `v1`, bound to `records.stream_id` |
-| Stream + space target | This module’s `settings.yaml` → `records.space` / `records.stream_id` (sample: `dataQuality` / `test_stream_1`) |
+| Stream + space target | This module’s `settings.yaml` → `records.space` / `records.stream_id` (variables `dataQualitySpace` / `recordsStreamId`, defaults `dataQuality` / `test_stream_1`) |
 
 Field reference: [Records output](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/records_output.html). Create the stream in CDF before or alongside deploy; the package ensures the containers and views, not the stream itself.
 
@@ -159,9 +157,11 @@ RuleSets and DataProducts require the Toolkit [`data-products` alpha flag](https
 data-products = true
 ```
 
-The `[alpha_flags]` header must be uncommented. If only `data-products = true` is set (for example under `[plugins]`), Toolkit ignores it: `cdf build` emits only the space under `data_modeling/` and skips `rulesets/` / `data_products/`. Then `deploy_infrastructure.py` fails with `Data product version 'enterprise-process-industry:1.1.10' not found` (404).
+The `[alpha_flags]` header must be uncommented. If only `data-products = true` is set (for example under `[plugins]`), Toolkit ignores it: `cdf build` emits only the spaces under `data_modeling/` and skips `rulesets/` / `data_products/`. Then `deploy_infrastructure.py` fails with `Data product version 'cognite-core-data-quality:1.0.0' not found` (404).
 
-After enabling the flag, run `cdf build && cdf deploy` so version `1.1.10` exists in CDF before the Python script.
+After enabling the flag, run `cdf build && cdf deploy` so the data product version exists in CDF before the Python script.
+
+The instance space (`instanceSpace`, default `inst_location`) must already exist and contain the nodes to validate; this module does not create it. The records stream (`recordsStreamId`) must also exist.
 
 ### Access control
 
@@ -170,7 +170,7 @@ The identity used by `cdf deploy` and `deploy_infrastructure.py` (Toolkit `.env`
 | Capability | Needed for |
 | --- | --- |
 | `dataProductsAcl:CREATE` / `UPDATE` / `DELETE` | Create/update/delete DataProducts via `cdf deploy` |
-| `dataProductsAcl:READ` | `deploy_infrastructure.py` loading external DataProducts (for example `enterprise-process-industry`) when deploying workflows |
+| `dataProductsAcl:READ` | `deploy_infrastructure.py` loading external DataProducts (for example `cognite-core-data-quality`) when deploying workflows |
 | `ruleSetsAcl:CREATE` / `READ` / `UPDATE` / `DELETE` | Create/update/delete RuleSets and RuleSetVersions via `cdf deploy` |
 
 Grant these (typically all actions, scope `all`) in Fusion → Access management on the group linked to that identity — for Toolkit this is often `cognite_toolkit_service_principal`.
@@ -180,12 +180,78 @@ Common errors:
 ```text
 CogniteAPIError: Missing capability DataProducts:READ | code: 403
 CogniteAPIError: Missing capability RuleSets:CREATE | code: 403
-Data product version 'enterprise-process-industry:1.1.10' not found | code: 404
+Data product version 'cognite-core-data-quality:1.0.0' not found | code: 404
 ```
 
 The 404 means Toolkit has not deployed that DataProduct version yet (alpha flag off, or `cdf deploy` not run / failed).
 
-Spaces used by the sample are defined under `data_modeling/` and created by `cdf deploy`: `sp_enterprise_process_industry` (schema), `springfield_instances` and `test_data_pumps` (instances), and `dataQuality` (runtime / `settings.yaml` `config_space`). Change the DataProductVersion YAML if your project uses different instance spaces.
+`cdf deploy` creates two spaces from `data_modeling/`: `dataProductSchemaSpace` (owned by the data product) and `dataQualitySpace` (runtime state and records).
+
+## Configuration
+
+Customer-specific identifiers live in [`default.config.yaml`](default.config.yaml). Override them in your Toolkit `config.<env>.yaml`:
+
+```yaml
+variables:
+  modules:
+    common:
+      cdf_dq_runtime:
+        schemaSpace: cdf_cdm
+        secondarySchemaSpace: cdf_idm
+        instanceSpace: inst_location
+        # ... any other key from default.config.yaml
+```
+
+`cdf build` substitutes them into `rulesets/`, `data_products/` and `data_modeling/`. `deploy_infrastructure.py --toolkit-config config.<env>.yaml` substitutes the same values into `settings.yaml`, `views/` and `timeseries/`, using only `variables.modules.common.cdf_dq_runtime` (plus values on its parent levels), so variables with the same name in other modules do not leak in.
+
+| Variable | Default | Used in | Meaning |
+| --- | --- | --- | --- |
+| `schemaSpace` | `cdf_cdm` | rulesets, data product, views, timeseries | Schema space of the asset, equipment and time series views |
+| `secondarySchemaSpace` | `cdf_idm` | rulesets, data product, views | Schema space of the maintenance order, operation and notification views. Set equal to `schemaSpace` when all views live in one enterprise space |
+| `viewVersion` | `v1` | data product, views, timeseries | Version of every validated view |
+| `viewAssetExternalId` | `CogniteAsset` | rulesets, data product, views | Asset view (in `schemaSpace`) |
+| `viewEquipmentExternalId` | `CogniteEquipment` | rulesets, data product, views | Equipment view (in `schemaSpace`) |
+| `viewTimeSeriesExternalId` | `CogniteTimeSeries` | rulesets, data product, timeseries | Time series view (in `schemaSpace`) |
+| `viewMaintenanceOrderExternalId` | `CogniteMaintenanceOrder` | rulesets, data product, views | Maintenance order view (in `secondarySchemaSpace`) |
+| `viewOperationExternalId` | `CogniteOperation` | rulesets, data product, views | Operation view (in `secondarySchemaSpace`) |
+| `viewNotificationExternalId` | `CogniteNotification` | rulesets, data product, views | Notification view (in `secondarySchemaSpace`) |
+| `instanceSpace` | `inst_location` | rulesets, data product, views, timeseries | Instance space with the nodes to validate (all views). Must already exist |
+| `timeSeriesExternalIdPrefix` | `pi:` | timeseries | External ID prefix selecting time series for datapoint validation |
+| `dataProductSchemaSpace` | `sp_dq_data_product` | data product, data_modeling | Schema space owned exclusively by the data product. Must not be a `cdf_*` space or owned by another data product |
+| `dataProductExternalId` | `cognite-core-data-quality` | data product, settings | Data product binding views, instance spaces and rule sets |
+| `dataProductVersion` | `1.0.0` | data product, settings | Data product version. Bump when views, instance spaces or rule set versions change (they are immutable on an existing version) |
+| `ruleSetVersion` | `2.0.0` | rulesets, data product, timeseries | Version of every RuleSetVersion. Bump when you edit rule content |
+| `dataQualitySpace` | `dataQuality` | settings, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
+| `recordsStreamId` | `test_stream_1` | settings | Records stream for validation results. Must exist before deploy |
+| `functionCodeDatasetExternalId` | `dq_shacl_rules` | settings | Data set for the CDF Function code file |
+| `dq_pypi_version` | `0.4.9` | install instructions | `cognite-data-quality` version for the deploy script and Function |
+
+A data product version may only reference views in its own schema space or in a `cdf_*` system space. To validate your own enterprise views, set `dataProductSchemaSpace`, `schemaSpace` and `secondarySchemaSpace` to the enterprise schema space (when no other data product owns it).
+
+### Runtime settings (`settings.yaml`)
+
+[`settings.yaml`](settings.yaml) holds the runtime behaviour of the data quality service. Every key is documented inline:
+
+| Key | Meaning |
+| --- | --- |
+| `workflow.external_id_prefix` / `version` | Prefix and version of instance validation workflows (`<prefix>-<data product>[-uniqueness\|-edge-existence]`) |
+| `workflow.task.retries` / `timeout` / `on_failure` | Retries, timeout (seconds) and failure policy (`abortWorkflow` or `skipTask`) of the validation function task |
+| `timeseries_workflow.*` | Same settings for time series workflows; longer default timeout (1800 s) for datapoint checks |
+| `trigger.external_id_prefix` | Prefix of DMS data-change triggers |
+| `trigger.batch_size` / `batch_timeout` | Changed instances per run, and seconds to wait for a full batch |
+| `records.space` / `records.stream_id` | Target space and stream for validation records |
+| `config_space` | Space for `DataQualitySettings`, cursors, orchestration state and `HistoricJobQueue` |
+| `function_code_dataset_external_id` | Data set for the Function code file |
+| `config_source` | `dataproduct`: read views, instance spaces and rules from the data products in `external_dataproducts` |
+| `data_product_sync_cron` | Cron (UTC) for `data_product_sync`, which redeploys workflows and enqueues historic revalidation on version changes |
+| `timeseries.config_dir` | Folder with time series validation configs |
+| `external_dataproducts` | Data products published by Toolkit; wired without republishing |
+
+Per-view tuning (partitioning, batch sizes, `uniqueness_cron`) is in `views/*.yaml`; time series schedule and filter in `timeseries/timeseries_quality.yaml`.
+
+### SHACL rules and view IRIs
+
+The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space>/<view>/` (class `<namespace><view>`, properties `<namespace><property>`) and instances as `http://purl.org/cognite/<instanceSpace>/<externalId>`. These IRIs are built from the variables above, so the rules follow your configured views. Shape logic (allowed status values, order type patterns, value bounds, the two concrete `pi:` series in the time series examples) is sample content: review it against your data. The defaults are verified against Cognite Core and Process Industries view definitions; priority ranges start at `0` because Cognite uses `0` for the highest priority.
 
 ## Operator flow
 
@@ -202,7 +268,7 @@ python modules/common/cdf_dq_runtime/scripts/deploy_infrastructure.py \
 
 ### Build notes
 
-**`IgnoredFileWarning` for `timeseries/yourorg_timeseries_quality.yaml`**
+**`IgnoredFileWarning` for `timeseries/timeseries_quality.yaml`**
 
 Toolkit treats `timeseries/` as a CDF TimeSeries resource directory, so it warns that this file has no kind suffix (for example `.TimeSeries.yaml`) and ignores it. That is expected: the YAML is config for `deploy_infrastructure.py`, not a Toolkit TimeSeries resource. The warning is harmless; build and deploy can continue.
 
@@ -222,22 +288,54 @@ Per-view historic pipeline:
 
 ```bash
 python modules/common/cdf_dq_runtime/scripts/deploy_pipeline.py \
-  --view-external-id YourOrgAsset --historic-mode enqueue --toolkit-config config.dev.yaml
+  --view-external-id CogniteAsset --historic-mode enqueue --toolkit-config config.dev.yaml
 ```
+
+### Managing rule sets
+
+Rule sets cannot be updated in place, and CDF refuses to delete a rule set that still has versions. If you change a `*.RuleSet.yaml` (for example its `name`) after it was deployed, `cdf deploy` fails with:
+
+```text
+ResourceDeleteError: Failed to delete rule sets due to API error: Request failed with status code 400:
+Rule set 'asset_shacl_rules' can not be deleted, because it contains versions
+```
+
+`cdf clean` does not fix this when CDF holds older versions than `rulesets/` defines (for example `1.0.0` in CDF, `2.0.0` locally), because it deletes only the versions in the build.
+
+Use [`scripts/manage_rulesets.ipynb`](scripts/manage_rulesets.ipynb) instead. It uses the same `.env` credentials as `deploy_infrastructure.py` and provides:
+
+| Function | What it does |
+| --- | --- |
+| `list_rulesets()` | Prints every rule set in the project with its name and versions |
+| `list_ruleset_versions(external_id)` | Returns the versions of one rule set |
+| `list_data_products()` | Prints every data product with its versions and the rule set versions each one references |
+| `delete_rulesets(external_ids, dry_run=True)` | Deletes the data product versions that reference the rule sets, then all versions of each rule set, then the rule set |
+| `delete_data_products(external_ids, dry_run=True)` | Deletes all versions of each data product, then the data product (for example an old data product left empty) |
+
+CDF refuses to delete a rule set version that a data product version still references (`Version '1.0.0' of rule set '...' can not be deleted, because it is referenced by 1 data product version(s)`), which is why `delete_rulesets` removes those data product versions first. All delete functions only print what they would delete unless `dry_run=False`.
+
+The last cell lists the rule sets and data products in CDF as selection lists (requires `ipywidgets`: `pip install ipywidgets`). Select what to delete, click **Delete selected** with **Dry run** checked to review, uncheck **Dry run** and click again; the lists then refresh from CDF. Afterwards run `cdf deploy` to recreate the rule sets and this module's data product version. If `deploy_infrastructure.py` had deployed workflows for a deleted data product, rerun it afterwards so the workflows match the data products that still exist.
 
 ### CI/CD
 
 Run `deploy_infrastructure.py` in the same GitHub Actions job as `cdf deploy`, reusing the Toolkit environment block (`IDP_*`, `CDF_*`). Do not generate a credentials file. See [Toolkit pack CI/CD](https://github.com/cognitedata/data-quality-validation/blob/main/docs/usage/toolkit_pack.md#cicd).
 
-## Contents (cog-ai sample)
+## Module Structure
 
-**Views:** `YourOrgAsset`, `YourOrgEquipment`, `YourOrgMaintenanceOrder`, `YourOrgNotification`, `YourOrgOperation`, `YourOrgTimeSeries`
+```text
+cdf_dq_runtime/
+├── default.config.yaml        # Customer identifiers (variables), see Configuration
+├── settings.yaml              # Runtime settings (deploy script only, not Toolkit)
+├── module.toml
+├── data_modeling/             # Toolkit: data product schema space + runtime space
+├── data_products/             # Toolkit: DataProduct + DataProductVersion (views, instance spaces, rules)
+├── rulesets/                  # Toolkit: RuleSet + RuleSetVersion (SHACL) per view
+├── views/                     # Deploy script: per-view workflow overrides
+├── timeseries/                # Deploy script: time series validation config
+└── scripts/                   # deploy_infrastructure.py, deploy_pipeline.py, _cli.py, manage_rulesets.ipynb
+```
 
-**Time-series config:** `yourorg_timeseries_quality` only (no demo data generator / `demo_timeseries_quality`).
-
-**RuleSets:** matching `*_shacl_rules` / `timeseries_quality_rules` from deploy repo (inline in `rulesets/`)
-
-**Settings:** `settings.yaml` mirrors cog-ai workflow prefixes, records stream, `data_product_sync_cron`, and `timeseries.config_dir`.
+**RuleSets:** `asset_shacl_rules`, `equipment_shacl_rules`, `maintenance_order_shacl_rules`, `maintenance_order_rule_logic_test_shacl_rules`, `notification_shacl_rules`, `operation_shacl_rules`, `timeseries_quality_rules` (adapted from the cog-ai sample in data-quality-validation-deploy).
 
 ## Support
 

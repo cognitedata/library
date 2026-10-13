@@ -1,9 +1,9 @@
 view:
-  space: sp_enterprise_process_industry
-  external_id: YourOrgNotification
-  version: v1
+  space: {{ secondarySchemaSpace }}
+  external_id: {{ viewOperationExternalId }}
+  version: {{ viewVersion }}
 instance_spaces:
-  - test_data_pumps
+  - {{ instanceSpace }}
 validation:
   auto_load_depth: 2
   verbose: true
