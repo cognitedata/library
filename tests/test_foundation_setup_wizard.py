@@ -1576,6 +1576,44 @@ class TestPatchDataDumpUploadDataSpaces:
         assert "a.Manifest.yaml" in out
         assert "b.Manifest.yaml" not in out
 
+    def test_warns_in_japanese_when_filecontent_manifest_space_not_found(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import _i18n
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        monkeypatch.setattr(_i18n, "_locale", "ja")
+        upload_dir = tmp_path / "modules" / "sourcesystem" / "cdf_sharepoint_data_dump" / "upload_data"
+        upload_dir.mkdir(parents=True)
+        (upload_dir / "a.Manifest.yaml").write_text("kind: FileContent\ntemplate:\n  instanceId: {space: x}\n")
+        patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        assert "a.Manifest.yaml に template.instanceId.space が見つかりません" in capsys.readouterr().out
+
+    def test_done_summary_in_japanese_when_upload_data_patched(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import _i18n
+        import setup_project
+
+        monkeypatch.setattr(_i18n, "_locale", "ja")
+        self._manifest(
+            tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_cfihos_oil_and_gas"
+        )
+        setup_project._finalize_wizard(
+            tmp_path,
+            (),
+            variant="cfihos_oil_and_gas_extension",
+            site="oslo",
+            pack_kind="demo",
+            keep_synthetic=True,
+            env_dirty=False,
+            changed_count=0,
+            repo_root=tmp_path,
+        )
+        out = capsys.readouterr().out
+        assert "1 件の upload_data ファイルを現在のインスタンス space で修正しました" in out
+        assert "モジュール更新後はウィザードを再実行してください" in out
+
     def test_patches_space_columns_of_raw_csv_but_not_external_id(self, tmp_path: Path) -> None:
         from setup_project import patch_data_dump_upload_data_spaces
 
