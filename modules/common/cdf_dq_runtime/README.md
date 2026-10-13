@@ -311,10 +311,16 @@ Use [`scripts/manage_rulesets.ipynb`](scripts/manage_rulesets.ipynb) instead. It
 | `list_data_products()` | Prints every data product with its versions and the rule set versions each one references |
 | `delete_rulesets(external_ids, dry_run=True)` | Deletes the data product versions that reference the rule sets, then all versions of each rule set, then the rule set |
 | `delete_data_products(external_ids, dry_run=True)` | Deletes all versions of each data product, then the data product (for example an old data product left empty) |
+| `list_monitor_schedules()` | Prints function schedules whose name starts with `Monitor ` (historic orchestration monitors) |
+| `delete_monitor_schedules(schedule_ids, dry_run=True)` | Deletes selected monitor schedules by id (for example a stuck `Monitor YourOrgAsset validation` schedule after switching views) |
+| `list_historic_queue_jobs()` | Prints `HistoricJobQueue` nodes in `dataQualitySpace` (status, view, data product, orchestration id) |
+| `delete_historic_queue_jobs(external_ids, dry_run=True)` | Deletes selected queue jobs and linked `OrchestrationState` / matching Monitor schedules (use for stuck `hq_YourOrg*` jobs left after a view switch) |
+| `list_dq_workflows()` | Prints instance/time-series DQ workflows (`dq-shacl-*`, `dq-ts-shacl-*`) and their triggers |
+| `delete_dq_workflows(external_ids, dry_run=True)` | Deletes selected workflows after removing every trigger that targets them (use for stale `YourOrg*` / previous data-product workflows left after a view switch) |
 
 CDF refuses to delete a rule set version that a data product version still references (`Version '1.0.0' of rule set '...' can not be deleted, because it is referenced by 1 data product version(s)`), which is why `delete_rulesets` removes those data product versions first. All delete functions only print what they would delete unless `dry_run=False`.
 
-The last cell lists the rule sets and data products in CDF as selection lists (requires `ipywidgets`: `pip install ipywidgets`). Select what to delete, click **Delete selected** with **Dry run** checked to review, uncheck **Dry run** and click again; the lists then refresh from CDF. Afterwards run `cdf deploy` to recreate the rule sets and this module's data product version. If `deploy_infrastructure.py` had deployed workflows for a deleted data product, rerun it afterwards so the workflows match the data products that still exist.
+The notebook lists rule sets, data products, stuck `Monitor …` function schedules, historic queue jobs, and DQ validation workflows as selection lists (requires `ipywidgets`: `pip install ipywidgets`). Select what to delete, click **Delete selected** with **Dry run** checked to review, uncheck **Dry run** and click again; the lists then refresh from CDF. Afterwards run `cdf deploy` to recreate the rule sets and this module's data product version. If `deploy_infrastructure.py` had deployed workflows for a deleted data product, or monitor schedules / old workflows still point at previous views, rerun it afterwards (`--force-workflows`) so the workflows match the data products that still exist. Do not delete `dq-data-product-sync` or `dq-historic-queue-manager` unless you intend to tear down the runtime.
 
 ### CI/CD
 
