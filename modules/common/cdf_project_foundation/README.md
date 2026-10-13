@@ -302,10 +302,13 @@ The wizard's interactive prompts and messages are available in English (default)
 Japanese. The active locale is resolved once, at startup, in this order:
 
 1. The `CDF_LOCALE` environment variable (`en` or `ja`) — an explicit override for
-   when terminal detection gets it wrong.
-2. On Unix, the terminal's own locale: `LC_ALL` → `LC_MESSAGES` → `LANG` (first one
-   set wins).
-3. On Windows, `locale.getlocale()`.
+   when OS detection gets it wrong.
+2. On macOS, the System Settings UI language (`defaults read -g AppleLocale`) — this
+   reflects the actual UI language regardless of the shell's own locale env vars,
+   which commonly stay `en_US.UTF-8` even when macOS itself is set to Japanese.
+3. On Windows, the Windows UI language (`GetUserDefaultUILanguage`).
+4. On other Unix (Linux, CI, containers) — or if OS detection above didn't resolve —
+   the terminal's own locale: `LC_ALL` → `LC_MESSAGES` → `LANG` (first one set wins).
 
 An unsupported or unparseable locale (e.g. `fr_FR.UTF-8`, `C`, `POSIX`) falls back to
 English silently — no error, no first-run language prompt. Example:
