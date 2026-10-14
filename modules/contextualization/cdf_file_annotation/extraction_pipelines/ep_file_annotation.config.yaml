@@ -29,6 +29,9 @@ config:
     targetEntitiesTags: {{ targetEntitiesTags }}
     patternPromote:
       patternMode: {{ patternMode }}
+      # When true, Promote will automatically create structural patterns for the file. This can potentially cause false positives / noise.
+      # So should be combined with textNormalization to avoid false positives. 
+      # Just note that it can affect the match % scores as noise is included in the calculations.
       structuralAutoPatterns: {{ structuralAutoPatterns }}
       # When true, and primaryScopeProperty and/or secondaryScopeProperty are set,
       # Promote filters entity search by those property values on the annotated file.
