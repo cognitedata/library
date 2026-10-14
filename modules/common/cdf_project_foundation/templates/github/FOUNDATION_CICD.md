@@ -41,16 +41,6 @@ version (see [Regenerate workflows](#regenerate-workflows)).
 
 If a pre-production environment is present, PRs to `main` must come from `dev` or `hotfix/*` only.
 
-## Branch protection
-
-Protect the branches used above under **Settings → Branches**. This is required, not optional:
-
-| Branch | Required reviewers | Required status checks |
-|--------|---------------------|--------------------------|
-{{BRANCH_PROTECTION_ROWS}}
-
-{{BRANCH_PROTECTION_NOTE}}
-
 ## GitHub Environments
 
 Create the generated environments under **Settings → Environments**. Deploy workflows
@@ -91,6 +81,16 @@ deploy workflows default it to `entra_id`, so Entra ID projects can leave the va
 
 The generated workflows do not pass `IDP_TOKEN_URL` or `IDP_AUDIENCE`, so the third row
 needs a change to the workflow templates.
+
+## Branch protection
+
+Protect the branches from the [branching model](#branching-model) under **Settings → Branches**. This is required, not optional:
+
+| Branch | Required reviewers | Required status checks |
+|--------|---------------------|--------------------------|
+{{BRANCH_PROTECTION_ROWS}}
+
+{{BRANCH_PROTECTION_NOTE}}
 
 ## Toolkit configs
 
