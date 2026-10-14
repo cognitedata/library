@@ -40,7 +40,7 @@ scopeDataModelExternalId: FileAnnotationScope_SOL
 # used in /extraction_pipelines
 extractionPipelineExternalId: ep_ctx_file_annotation
 patternMode: true
-structuralAutoPatterns: true
+structuralAutoPatterns: false
 # When true, Promote matches a pattern tag only against entities that share the
 # annotated file's primaryScopeProperty / secondaryScopeProperty values.
 # Ignored when both scope properties are empty. Default false keeps the previous
