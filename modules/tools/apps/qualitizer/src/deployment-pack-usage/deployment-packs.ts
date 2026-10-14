@@ -67,8 +67,8 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
       ],
       dataModels: [
         {
-          space: "sp_hdm",
-          externalId: "helper_datamodel",
+          space: "dm_sol_file_annotation",
+          externalId: "FileAnnotation_SOL",
           version: "v1.0.0",
         },
       ],

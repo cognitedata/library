@@ -286,7 +286,7 @@ The wizard stores group source IDs in `.env` as `CONSUMER_SOURCE_ID`, `PRODUCER_
 
 ## Project Setup Wizard — Reference
 
-The wizard (`scripts/setup_project.py`) is split across four helper modules:
+The wizard (`scripts/setup_project.py`) is split across several helper modules:
 
 | Module | Responsibility |
 |--------|---------------|
@@ -294,6 +294,32 @@ The wizard (`scripts/setup_project.py`) is split across four helper modules:
 | `_prompts.py` | `prompt`, `prompt_yes_no`, `prompt_choice`, `prompt_env_var` |
 | `_env_io.py` | `.env` file parse and upsert helpers |
 | `_yaml_patch.py` | Line-preserving YAML scalar patcher (preserves comments and blank lines) |
+| `_i18n.py` / `_messages_ja.py` | English-keyed message catalogue (`t()`) and locale resolution — see [Language](#language) |
+
+### Language
+
+The wizard's interactive prompts and messages are available in English (default) and
+Japanese. The active locale is resolved once, at startup, in this order:
+
+1. The `CDF_LOCALE` environment variable (`en` or `ja`) — an explicit override for
+   when OS detection gets it wrong.
+2. On macOS, the System Settings UI language (`defaults read -g AppleLocale`) — this
+   reflects the actual UI language regardless of the shell's own locale env vars,
+   which commonly stay `en_US.UTF-8` even when macOS itself is set to Japanese.
+3. On Windows, the Windows UI language (`GetUserDefaultUILanguage`).
+4. On other Unix (Linux, CI, containers) — or if OS detection above didn't resolve —
+   the terminal's own locale: `LC_ALL` → `LC_MESSAGES` → `LANG` (first one set wins).
+
+An unsupported or unparseable locale (e.g. `fr_FR.UTF-8`, `C`, `POSIX`) falls back to
+English silently — no error, no first-run language prompt. Example:
+
+```bash
+CDF_LOCALE=ja python scripts/setup_project.py
+```
+
+`setup_project.py --check` (used in CI) always prints in English and exits with the
+same codes regardless of locale, since its output is consumed by tooling, not read
+interactively.
 
 ### Wizard flow
 

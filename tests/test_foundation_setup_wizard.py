@@ -597,6 +597,57 @@ class TestBuildOverlay:
         mods = overlay["variables"]["modules"]
         assert "cfihos_oil_and_gas_extension_search" not in mods
 
+    def test_cfihos_data_dump_modules_instance_space_derived_from_site(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+
+        sourcesystem_dir = tmp_path / "modules" / "sourcesystem"
+        (sourcesystem_dir / "cdf_sap_data_dump").mkdir(parents=True)
+        (sourcesystem_dir / "cdf_pi_data_dump").mkdir(parents=True)
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
+        mods = overlay["variables"]["modules"]
+        assert mods["cdf_sap_data_dump"]["instance_space"] == "inst_oslo_cfihos_oil_and_gas"
+        assert mods["cdf_pi_data_dump"]["instance_space"] == "inst_oslo_cfihos_oil_and_gas"
+
+    def test_cfihos_ingestion_instance_spaces_derived_from_site(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+
+        (tmp_path / "modules" / "common" / "cdf_ingestion").mkdir(parents=True)
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
+        mods = overlay["variables"]["modules"]
+        assert mods["cdf_ingestion"]["instanceSpaces"] == ["inst_oslo_cfihos_oil_and_gas", "cdf_cdm_units"]
+
+    def test_cfihos_ingestion_instance_spaces_keeps_user_entries(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+
+        (tmp_path / "modules" / "common" / "cdf_ingestion").mkdir(parents=True)
+        overlay = build_overlay(
+            "cfihos_oil_and_gas_extension",
+            "dev",
+            "oslo",
+            [],
+            repo_root=tmp_path,
+            previous_site="bergen",
+            ingestion_instance_spaces=["inst_bergen_cfihos_oil_and_gas", "cdf_cdm_units", "my_extra_space"],
+        )
+        spaces = overlay["variables"]["modules"]["cdf_ingestion"]["instanceSpaces"]
+        assert spaces == ["inst_oslo_cfihos_oil_and_gas", "cdf_cdm_units", "my_extra_space"]
+
+    def test_cfihos_ingestion_instance_spaces_absent_when_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
+        mods = overlay["variables"]["modules"]
+        assert "cdf_ingestion" not in mods
+
+    def test_cfihos_data_dump_modules_absent_when_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import build_overlay
+
+        overlay = build_overlay("cfihos_oil_and_gas_extension", "dev", "oslo", [], repo_root=tmp_path)
+        mods = overlay["variables"]["modules"]
+        assert "cdf_sap_data_dump" not in mods
+        assert "cdf_pi_data_dump" not in mods
+        assert "cdf_sharepoint_data_dump" not in mods
+
     def test_app_owner_injected_when_file_annotation_installed(self) -> None:
         from setup_project import build_overlay
 
@@ -1471,6 +1522,139 @@ class TestPatchCfihosAuthForMissingSearch:
 
 
 # ── setup_project — synthetic data removal ────────────────────────────────────
+
+
+class TestPatchDataDumpUploadDataSpaces:
+    """upload_data/*.Manifest.yaml files are consumed directly by ``cdf data upload``
+    from the module source tree, bypassing ``cdf build`` — so {{ variable }}
+    placeholders are never substituted and the space has to be a literal value
+    the wizard keeps in sync with the site."""
+
+    def _manifest(self, tmp_path: Path, module: str, name: str, space: str) -> Path:
+        upload_dir = tmp_path / "modules" / "sourcesystem" / module / "upload_data"
+        upload_dir.mkdir(parents=True)
+        manifest = upload_dir / name
+        manifest.write_text(
+            "kind: FileContent\n"
+            "type: fileDataModelingTemplate\n"
+            "fileDirectory: ./data\n"
+            "viewId:\n"
+            "  space: dm_dom_oil_and_gas\n"
+            "  externalId: Files\n"
+            "  version: v1\n"
+            "template:\n"
+            "  instanceId:\n"
+            f"    space: {space}\n"
+            "    externalId: file_$FILENAME\n"
+            "  name: $FILENAME\n"
+            "  mimeType: application/pdf\n"
+        )
+        return manifest
+
+    def test_patches_literal_space_to_resolved_site(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        manifest = self._manifest(
+            tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_cfihos_oil_and_gas"
+        )
+        patched = patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        assert patched == [manifest]
+        assert "space: inst_oslo_cfihos_oil_and_gas" in manifest.read_text()
+
+    def test_warns_when_filecontent_manifest_space_not_found(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        upload_dir = tmp_path / "modules" / "sourcesystem" / "cdf_sharepoint_data_dump" / "upload_data"
+        upload_dir.mkdir(parents=True)
+        (upload_dir / "a.Manifest.yaml").write_text("kind: FileContent\ntemplate:\n  instanceId: {space: x}\n")
+        (upload_dir / "b.Manifest.yaml").write_text("kind: RawRows\ntable:\n  dbName: db\n")
+        patched = patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        out = capsys.readouterr().out
+        assert patched == []
+        assert "a.Manifest.yaml" in out
+        assert "b.Manifest.yaml" not in out
+
+    def test_warns_in_japanese_when_filecontent_manifest_space_not_found(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import _i18n
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        monkeypatch.setattr(_i18n, "_locale", "ja")
+        upload_dir = tmp_path / "modules" / "sourcesystem" / "cdf_sharepoint_data_dump" / "upload_data"
+        upload_dir.mkdir(parents=True)
+        (upload_dir / "a.Manifest.yaml").write_text("kind: FileContent\ntemplate:\n  instanceId: {space: x}\n")
+        patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        assert "a.Manifest.yaml に template.instanceId.space が見つかりません" in capsys.readouterr().out
+
+    def test_done_summary_in_japanese_when_upload_data_patched(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import _i18n
+        import setup_project
+
+        monkeypatch.setattr(_i18n, "_locale", "ja")
+        self._manifest(
+            tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_cfihos_oil_and_gas"
+        )
+        setup_project._finalize_wizard(
+            tmp_path,
+            (),
+            variant="cfihos_oil_and_gas_extension",
+            site="oslo",
+            pack_kind="demo",
+            keep_synthetic=True,
+            env_dirty=False,
+            changed_count=0,
+            repo_root=tmp_path,
+        )
+        out = capsys.readouterr().out
+        assert "1 件の upload_data ファイルを現在のインスタンス space で修正しました" in out
+        assert "モジュール更新後はウィザードを再実行してください" in out
+
+    def test_patches_space_columns_of_raw_csv_but_not_external_id(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        upload_dir = tmp_path / "modules" / "sourcesystem" / "cdf_sharepoint_data_dump" / "upload_data"
+        upload_dir.mkdir(parents=True)
+        csv_path = upload_dir / "diagram_annotation.RawRows.csv"
+        csv_path.write_text(
+            "space,externalId,startNodeSpace,endNodeSpace,other\n"
+            "inst_cfihos_oil_and_gas,inst_cfihos_oil_and_gas:f:t,inst_cfihos_oil_and_gas,inst_bergen_cfihos_oil_and_gas,"
+            "inst_cfihos_oil_and_gas\n"
+        )
+        patched = patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        assert patched == [csv_path]
+        assert csv_path.read_text() == (
+            "space,externalId,startNodeSpace,endNodeSpace,other\n"
+            "inst_oslo_cfihos_oil_and_gas,inst_cfihos_oil_and_gas:f:t,inst_oslo_cfihos_oil_and_gas,"
+            "inst_oslo_cfihos_oil_and_gas,inst_cfihos_oil_and_gas\n"
+        )
+
+    def test_noop_when_already_up_to_date(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        self._manifest(
+            tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_oslo_cfihos_oil_and_gas"
+        )
+        patched = patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        assert patched == []
+
+    def test_noop_for_non_cfihos_variant(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        self._manifest(tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_cfihos_oil_and_gas")
+        patched = patch_data_dump_upload_data_spaces("isa_manufacturing_extension", "oslo", tmp_path)
+        assert patched == []
+
+    def test_noop_when_module_not_installed(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        (tmp_path / "modules" / "sourcesystem").mkdir(parents=True)
+        patched = patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        assert patched == []
 
 
 class TestRemoveSyntheticData:
@@ -2369,6 +2553,24 @@ class TestGetOrgDirName:
         (tmp_path / "cdf.toml").write_text('default_organization_dir = "wrong"\n')
         assert get_org_dir_name(tmp_path) is None
 
+    def test_malformed_toml_warns_and_returns_none(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from _pack_config import get_org_dir_name
+        (tmp_path / "cdf.toml").write_text("[cdf\nbroken =\n")
+        assert get_org_dir_name(tmp_path) is None
+        assert "WARNING: Failed to parse TOML file" in capsys.readouterr().out
+
+    def test_malformed_toml_warning_in_japanese_locale(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import _i18n
+        from _pack_config import get_org_dir_name
+        monkeypatch.setattr(_i18n, "_locale", "ja")
+        (tmp_path / "cdf.toml").write_text("[cdf\nbroken =\n")
+        get_org_dir_name(tmp_path)
+        assert "警告: TOML ファイル" in capsys.readouterr().out
+
 
 class TestDetectDataModelVariant:
     def test_missing_directory_falls_back_to_cdm(self, tmp_path: Path) -> None:
@@ -2900,6 +3102,7 @@ class TestFinalizeWizardCicdGeneration:
             tmp_path,
             (),
             variant="cdm",
+            site="",
             pack_kind=pack_kind,
             keep_synthetic=True,
             env_dirty=False,

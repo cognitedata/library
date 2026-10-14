@@ -5,11 +5,14 @@ requires-python = ">=3.13"
 
 [dependency-groups]
 dev = [
+    "altair>=5",
     "cognite-sdk>=7,<8",
+    "pandas>=2",
     "pydantic>=2.12.4,<3.0.0",
     "pytest>=7",
     "python-dotenv>=1",
     "pyyaml>=6",
+    "streamlit>=1.40",
     "tenacity>=8",
 ]
 
@@ -20,11 +23,8 @@ package = false
 members = [
     "modules/common/cdf_common/functions/contextualization_connection_writer",
     "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_aliases_update",
+    "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation",
     "modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching",
-    "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_finalize",
-    "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_launch",
-    "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_prepare",
-    "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation_promote",
     "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_annotation_quality",
     "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_pipeline_health",
     "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation",
@@ -64,6 +64,11 @@ ignore = [
 "**/test_*.py" = ["S101", "B017", "S105", "S603"]
 "**/run_tests.py" = ["S603"]
 "modules/common/cdf_project_foundation/scripts/setup_project.py" = ["S603"]
+"modules/common/cdf_project_foundation/scripts/_messages_ja.py" = ["RUF001"]
+"tests/test_foundation_prompts.py" = ["RUF001"]
+"tests/test_foundation_generate_actions_i18n.py" = ["RUF001"]
+"tests/test_foundation_wizard_i18n.py" = ["RUF001"]
+"tests/test_foundation_style_i18n.py" = ["RUF001"]
 "scripts/**" = ["S603"]
 
 [tool.pytest.ini_options]

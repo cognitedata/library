@@ -38,6 +38,8 @@ try:
 except ImportError:
     import tomli as tomllib  # type: ignore[no-redef]
 
+from _i18n import t
+
 MODULE_DIR = Path(__file__).resolve().parents[1]
 TEMPLATES_ROOT = MODULE_DIR / "templates"
 ENVIRONMENTS = ("dev", "test", "prod")
@@ -83,7 +85,7 @@ def templates_dir(provider: str) -> Path:
 def workflows_output_dir(provider: str, repo_root: Path) -> Path:
     """Where generated CI/CD files are written for this provider."""
     if provider not in PROVIDER_WORKFLOWS_DIR:
-        raise ValueError(f"Unsupported provider: {provider}")
+        raise ValueError(t("Unsupported provider: {provider}").format(provider=provider))
     return repo_root / PROVIDER_WORKFLOWS_DIR[provider]
 
 
@@ -96,7 +98,7 @@ def resolve_modules_root(repo_root: Path, org_dir: str | None) -> Path:
         if candidate.is_dir():
             return candidate
     searched = ", ".join(str(c) for c in candidates)
-    raise FileNotFoundError(f"No modules directory found under: {searched}")
+    raise FileNotFoundError(t("No modules directory found under: {searched}").format(searched=searched))
 
 
 def find_repo_root(start: Path) -> Path:
@@ -104,7 +106,7 @@ def find_repo_root(start: Path) -> Path:
     for candidate in [current, *current.parents]:
         if (candidate / "cdf.toml").is_file():
             return candidate
-    raise FileNotFoundError("cdf.toml not found — run from a Cognite Toolkit project root")
+    raise FileNotFoundError(t("cdf.toml not found — run from a Cognite Toolkit project root"))
 
 
 def load_cdf_toml(repo_root: Path) -> dict[str, Any]:
@@ -117,28 +119,29 @@ def render_template(path: Path, values: dict[str, str]) -> str:
         text = text.replace(f"{{{{{key}}}}}", value)
     remaining = re.findall(r"\{\{[A-Z0-9_]+\}\}", text)
     if remaining:
-        raise ValueError(f"Unfilled placeholders in {path.name}: {remaining}")
+        raise ValueError(t("Unfilled placeholders in {path.name}: {remaining}").format(path=path, remaining=remaining))
     return text
 
 
 def write_file(path: Path, content: str, force: bool) -> None:
     if path.exists() and not force:
         try:
-            answer = input(f"{path} already exists. Overwrite? [y/N] ").strip().lower()
+            prompt = t("{path} already exists. Overwrite? [y/N]").format(path=path)
+            answer = input(f"{prompt} ").strip().lower()
         except EOFError:
             answer = "n"
         if answer not in ("y", "yes"):
-            print(f"Skipped {path}")
+            print(t("Skipped {path}").format(path=path))
             return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-    print(f"Wrote {path}")
+    print(t("Wrote {path}").format(path=path))
 
 
 def remove_file(path: Path) -> None:
     if path.exists():
         path.unlink()
-        print(f"Removed {path}")
+        print(t("Removed {path}").format(path=path))
 
 
 def build_lint_paths(org_dir: str | None, provider: str) -> str:
@@ -266,14 +269,16 @@ def load_environment_projects(repo_root: Path, org_dir: str | None) -> dict[str,
         project = environment.get("project")
         if name != env:
             raise ValueError(
-                f"{path.relative_to(repo_root)} has environment.name={name!r}; expected {env!r}."
+                t("{path} has environment.name={name!r}; expected {env!r}.").format(
+                    path=path.relative_to(repo_root), name=name, env=env
+                )
             )
         if not project:
-            raise ValueError(f"{path.relative_to(repo_root)} is missing environment.project.")
+            raise ValueError(t("{path} is missing environment.project.").format(path=path.relative_to(repo_root)))
         projects[env] = str(project)
     if not projects:
         raise FileNotFoundError(
-            "No config.<env>.yaml files found. Run setup_project.py before generating workflows."
+            t("No config.<env>.yaml files found. Run setup_project.py before generating workflows.")
         )
     return projects
 
@@ -288,7 +293,9 @@ def branch_envs(projects: dict[str, str]) -> dict[str, str]:
         branch = DEPLOY_BRANCHES[env]
         if branch in envs_by_branch:
             raise ValueError(
-                f"Both {envs_by_branch[branch]!r} and {env!r} map to branch {branch!r}."
+                t("Both {first!r} and {second!r} map to branch {branch!r}.").format(
+                    first=envs_by_branch[branch], second=env, branch=branch
+                )
             )
         envs_by_branch[branch] = env
     return envs_by_branch
@@ -313,7 +320,7 @@ def github_dry_run_build_script(toolkit_version: str, org_dir: str | None, proje
         env = next(iter(branches.values()))
         return f"cdf build {build_args(toolkit_version, org_dir, env)}"
     if len(branches) > 2:
-        raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
+        raise ValueError(t("Unsupported number of deployable branches: {n}").format(n=len(branches)))
     cases: list[str] = ['case "$GITHUB_BASE_REF" in']
     for branch, env in branches.items():
         cases.extend(
@@ -424,7 +431,7 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
     if not branches:
         return ""
     if len(branches) > 2:
-        raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
+        raise ValueError(t("Unsupported number of deployable branches: {n}").format(n=len(branches)))
 
     jobs: list[str] = []
     if "main" in branches:
@@ -1041,7 +1048,7 @@ def main() -> None:
         if deployable_envs(projects):
             template = templates / "dry-run.yml"
             if not template.is_file():
-                print(f"Missing template: {template}", file=sys.stderr)
+                print(t("Missing template: {template}").format(template=template), file=sys.stderr)
                 sys.exit(1)
             write_file(
                 workflows_dir / "dry-run.yml",
@@ -1054,7 +1061,7 @@ def main() -> None:
         if "prod" in projects:
             deploy_prod_template = templates / "deploy-prod.yml"
             if not deploy_prod_template.is_file():
-                print(f"Missing template: {deploy_prod_template}", file=sys.stderr)
+                print(t("Missing template: {template}").format(template=deploy_prod_template), file=sys.stderr)
                 sys.exit(1)
             prod_values = {
                 **base_values,
@@ -1071,7 +1078,7 @@ def main() -> None:
 
         deploy_template = templates / "deploy.yml"
         if not deploy_template.is_file():
-            print(f"Missing template: {deploy_template}", file=sys.stderr)
+            print(t("Missing template: {template}").format(template=deploy_template), file=sys.stderr)
             sys.exit(1)
         for env in ("dev", "test"):
             if env not in projects:
@@ -1104,7 +1111,7 @@ def main() -> None:
         if deployable_envs(projects):
             dry_run_template = templates / "dry-run-pipeline.yml"
             if not dry_run_template.is_file():
-                print(f"Missing template: {dry_run_template}", file=sys.stderr)
+                print(t("Missing template: {template}").format(template=dry_run_template), file=sys.stderr)
                 sys.exit(1)
             write_file(
                 workflows_dir / "dry-run-pipeline.yml",
@@ -1116,7 +1123,7 @@ def main() -> None:
 
         deploy_pipeline_template = templates / "deploy-pipeline.yml"
         if not deploy_pipeline_template.is_file():
-            print(f"Missing template: {deploy_pipeline_template}", file=sys.stderr)
+            print(t("Missing template: {template}").format(template=deploy_pipeline_template), file=sys.stderr)
             sys.exit(1)
         for env in ENVIRONMENTS:
             out = workflows_dir / ADO_DEPLOY_PIPELINE_FILES[env]
@@ -1132,7 +1139,7 @@ def main() -> None:
 
     readme_template = templates / "FOUNDATION_CICD.md"
     if not readme_template.is_file():
-        print(f"Missing template: {readme_template}", file=sys.stderr)
+        print(t("Missing template: {template}").format(template=readme_template), file=sys.stderr)
         sys.exit(1)
     cicd_readme = repo_root / "docs" / "FOUNDATION_CICD.md"
     write_file(
@@ -1142,15 +1149,15 @@ def main() -> None:
     )
 
     print()
-    print("Next steps:")
+    print(t("Next steps:"))
     if args.provider == "github":
         environments = [f"{env}-toolkit-credentials" for env in ENVIRONMENTS if env in projects]
-        print(f"  1. Create GitHub Environments: {', '.join(environments)}")
-        print("     (see docs/FOUNDATION_CICD.md)")
-        print("  2. Create and protect the branches used by the generated workflows")
+        print(t("  1. Create GitHub Environments: {environments}").format(environments=", ".join(environments)))
+        print(t("     (see docs/FOUNDATION_CICD.md)"))
+        print(t("  2. Create and protect the branches used by the generated workflows"))
         if deployable_envs(projects):
             branches = ", ".join(branch_envs(projects))
-            print(f"  3. Open a PR to {branches} to validate dry-run.yml")
+            print(t("  3. Open a PR to {branches} to validate dry-run.yml").format(branches=branches))
     else:
         ado_groups: list[str] = []
         for env in ENVIRONMENTS:
@@ -1163,12 +1170,18 @@ def main() -> None:
             for env in ENVIRONMENTS
             if env in projects
         ]
-        print(f"  1. Create Azure DevOps variable groups: {', '.join(ado_groups)}")
-        print("     (see docs/FOUNDATION_CICD.md)")
-        print(f"  2. Register each deploy pipeline: {', '.join(pipeline_registrations)}")
+        print(t("  1. Create Azure DevOps variable groups: {ado_groups}").format(ado_groups=", ".join(ado_groups)))
+        print(t("     (see docs/FOUNDATION_CICD.md)"))
+        print(
+            t("  2. Register each deploy pipeline: {pipeline_registrations}").format(
+                pipeline_registrations=", ".join(pipeline_registrations)
+            )
+        )
         if deployable_envs(projects):
             branches = ", ".join(branch_envs(projects))
-            print(f"  3. Add dry-run-pipeline.yml as a Build Validation policy on {branches}")
+            print(
+                t("  3. Add dry-run-pipeline.yml as a Build Validation policy on {branches}").format(branches=branches)
+            )
 
 
 if __name__ == "__main__":
