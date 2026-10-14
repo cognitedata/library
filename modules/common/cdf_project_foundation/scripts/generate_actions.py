@@ -46,6 +46,13 @@ ENV_LABELS = {"dev": "Dev", "test": "Test"}
 CONFIG_FLAG_MIN_VERSION = (0, 8, 0)
 TOOLKIT_IMAGE_REPO = "cognite/toolkit"
 DIGEST_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
+# The registry answers with the type the tag is stored as: an index for multi-arch, a manifest for single-platform.
+MANIFEST_MEDIA_TYPES = (
+    "application/vnd.oci.image.index.v1+json",
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+    "application/vnd.oci.image.manifest.v1+json",
+    "application/vnd.docker.distribution.manifest.v2+json",
+)
 
 # Module domains vendored in by the deployment packs. modules/custom/ is deliberately
 # absent — that is where team-authored modules live, and their code must stay linted.
@@ -191,7 +198,7 @@ def setup_project_check_cmd(repo_root: Path, org_dir: str | None) -> str:
 
 
 def resolve_image_digest(repo: str, tag: str) -> str | None:
-    """Digest of the multi-arch image index for ``repo:tag`` on Docker Hub.
+    """Digest of ``repo:tag`` on Docker Hub: the multi-arch index, or the manifest of a single-platform tag.
 
     A manifest HEAD request does not count against Docker Hub pull limits.
     """
@@ -205,7 +212,7 @@ def resolve_image_digest(repo: str, tag: str) -> str | None:
         method="HEAD",
         headers={
             "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json",
+            "Accept": ", ".join(MANIFEST_MEDIA_TYPES),
         },
     )
     with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed https URL

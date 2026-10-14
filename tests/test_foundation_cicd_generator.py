@@ -314,7 +314,7 @@ class _FakeResponse(io.BytesIO):
         self.headers = headers or {}
 
 
-def test_resolve_image_digest_reads_the_multi_arch_index_digest(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_image_digest_accepts_multi_arch_and_single_platform_images(monkeypatch: pytest.MonkeyPatch) -> None:
     sys.path.insert(0, str(MODULE_ROOT / "scripts"))
     import generate_actions  # pyright: ignore[reportMissingImports]
 
@@ -333,7 +333,11 @@ def test_resolve_image_digest_reads_the_multi_arch_index_digest(monkeypatch: pyt
     (manifest,) = requests
     assert manifest.full_url == "https://registry-1.docker.io/v2/cognite/toolkit/manifests/0.8.0"
     assert manifest.get_method() == "HEAD"
-    assert "application/vnd.oci.image.index.v1+json" in str(manifest.get_header("Accept"))
+    accept = str(manifest.get_header("Accept"))
+    assert "application/vnd.oci.image.index.v1+json" in accept
+    assert "application/vnd.docker.distribution.manifest.list.v2+json" in accept
+    assert "application/vnd.oci.image.manifest.v1+json" in accept
+    assert "application/vnd.docker.distribution.manifest.v2+json" in accept
 
 
 def test_toolkit_image_fails_when_digest_cannot_be_resolved(monkeypatch: pytest.MonkeyPatch) -> None:
