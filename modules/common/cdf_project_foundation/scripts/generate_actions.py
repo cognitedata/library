@@ -200,7 +200,7 @@ def setup_project_check_cmd(repo_root: Path, org_dir: str | None) -> str:
     return f"python {script_path.relative_to(repo_root).as_posix()} --check"
 
 
-def resolve_image_digest(repo: str, tag: str) -> str | None:
+def resolve_image_digest(repo: str, tag: str) -> str:
     """Digest of ``repo:tag`` on Docker Hub: the multi-arch index, or the manifest of a single-platform tag.
 
     A manifest HEAD request does not count against Docker Hub pull limits.
@@ -219,7 +219,10 @@ def resolve_image_digest(repo: str, tag: str) -> str | None:
         },
     )
     with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed https URL
-        return response.headers.get("Docker-Content-Digest")
+        digest = response.headers.get("Docker-Content-Digest")
+    if not digest:
+        raise ValueError("registry response has no Docker-Content-Digest header")
+    return digest
 
 
 def toolkit_image(toolkit_version: str) -> str:
@@ -238,7 +241,7 @@ def toolkit_image(toolkit_version: str) -> str:
                 file=sys.stderr,
             )
             sys.exit(1)
-    if not digest or not DIGEST_PATTERN.fullmatch(digest):
+    if not DIGEST_PATTERN.fullmatch(digest):
         print(f"Invalid digest for {TOOLKIT_IMAGE_REPO}:{toolkit_version}: {digest!r}", file=sys.stderr)
         sys.exit(1)
     return f"{TOOLKIT_IMAGE_REPO}:{toolkit_version}@{digest}"

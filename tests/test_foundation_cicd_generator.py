@@ -340,6 +340,21 @@ def test_resolve_image_digest_accepts_multi_arch_and_single_platform_images(monk
     assert "application/vnd.docker.distribution.manifest.v2+json" in accept
 
 
+def test_resolve_image_digest_raises_when_registry_returns_no_digest(monkeypatch: pytest.MonkeyPatch) -> None:
+    sys.path.insert(0, str(MODULE_ROOT / "scripts"))
+    import generate_actions  # pyright: ignore[reportMissingImports]
+
+    def fake_urlopen(request: urllib.request.Request, timeout: float) -> _FakeResponse:
+        if request.full_url.startswith("https://auth.docker.io/"):
+            return _FakeResponse(b'{"token": "t"}')
+        return _FakeResponse()
+
+    monkeypatch.setattr(generate_actions.urllib.request, "urlopen", fake_urlopen)
+
+    with pytest.raises(ValueError, match="Docker-Content-Digest"):
+        generate_actions.resolve_image_digest("cognite/toolkit", "0.8.0")
+
+
 def test_toolkit_image_fails_when_digest_cannot_be_resolved(monkeypatch: pytest.MonkeyPatch) -> None:
     sys.path.insert(0, str(MODULE_ROOT / "scripts"))
     import generate_actions  # pyright: ignore[reportMissingImports]
