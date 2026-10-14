@@ -70,7 +70,11 @@ def test_detect_item_error_marks_failed_after_max_retries() -> None:
     for call in apply_service.update_instances.call_args_list:
         applies.extend(call.kwargs["list_node_apply"])
     state_apply = next(apply for apply in applies if apply.external_id == "state-1")
-    assert state_apply.sources[0].properties["annotationStatus"] == "Failed"
+    properties = state_apply.sources[0].properties
+    assert properties["annotationStatus"] == "Failed"
+    # Keep detect job ids on terminal Failed so the Cognite AI job remains auditable.
+    assert "diagramDetectJobId" not in properties
+    assert "patternModeJobId" not in properties
     file_apply = next(apply for apply in applies if apply.external_id == "doc-1")
     assert "AnnotationFailed" in file_apply.sources[0].properties["tags"]
 

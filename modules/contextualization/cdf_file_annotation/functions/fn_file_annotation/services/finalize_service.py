@@ -327,7 +327,6 @@ class GeneralFinalizeService(AbstractFinalizeService):
                             next_attempt,
                             annotation_message=regular_error,
                             pattern_mode_message=pattern_error,
-                            clear_job_ids=True,
                         )
                     )
                     count_failed += 1
