@@ -1,28 +1,9 @@
 space: "{{ metricsSchemaSpace }}"
-externalId: "{{ snapshotContainerExternalId }}"
+externalId: ContextQualityFileAnnotation
 usedFor: record
-name: Context Quality Metric Snapshot
+name: Context Quality File Annotation
 description: >
-  One immutable historical trend point per run, at the same grain as
-  ContextQualityCurrentMetric: (metricId, reportingUnitId, disciplineId, ownerId,
-  tier) for an aggregate record, or (dimensionId, exclusionCategory, reportingUnitId,
-  disciplineId, ownerId) for an exclusionCount record — see that container's
-  description for why disciplineId/ownerId are only non-null when the count was
-  actually produced at that granularity, and why tier is never mixed (null vs. 1/2/3)
-  for the same key.
-  Every field here is required to be non-null where the equivalent field is required
-  on ContextQualityCurrentMetric (reportingUnitId in particular — a snapshot without
-  a reporting unit cannot be summed correctly).
-  The Flow app sums eligibleCount/passingCount/valueSum across matching rows for a
-  given run to build a trend point at any rolled-up scope. This only produces a
-  correct trend if every run writes a COMPLETE regeneration of every current
-  combination, not just the ones that changed since the last run — a partial write
-  would understate that run's sum and the trend line would show a drop that didn't
-  happen. The backend function may read incrementally, but every run must still
-  regenerate the full current-state snapshot from ContextQualityCurrentMetric before
-  appending it here. See the module README for the sizing implications of this at
-  different run frequencies.
-  Record containers do not support indexes or constraints.
+  Immutable log rows for file annotation summaries and annotation buckets (rowKind).
 properties:
   runId:
     type:
@@ -32,7 +13,7 @@ properties:
     immutable: false
     nullable: false
     autoIncrement: false
-    name: Run ID
+    name: runId
   runTimestamp:
     type:
       list: false
@@ -40,8 +21,8 @@ properties:
     immutable: false
     nullable: false
     autoIncrement: false
-    name: Run timestamp
-  dimensionId:
+    name: runTimestamp
+  rowKind:
     type:
       list: false
       collation: ucs_basic
@@ -49,60 +30,16 @@ properties:
     immutable: false
     nullable: false
     autoIncrement: false
-    name: Dimension ID
-  recordKind:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: Record kind
-  metricId:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Metric ID
+    name: rowKind
   reportingUnitId:
     type:
       list: false
       collation: ucs_basic
       type: text
     immutable: false
-    nullable: false
-    autoIncrement: false
-    name: Reporting unit ID
-  disciplineId:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
     nullable: true
     autoIncrement: false
-    name: Discipline ID
-  ownerId:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Owner ID
-  tier:
-    type:
-      list: false
-      type: int32
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Tier
+    name: reportingUnitId
   facilityId:
     type:
       list: false
@@ -111,7 +48,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: Facility ID
+    name: facilityId
   divisionId:
     type:
       list: false
@@ -120,40 +57,8 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: Division ID
-  eligibleCount:
-    type:
-      list: false
-      type: int64
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Eligible count
-  passingCount:
-    type:
-      list: false
-      type: int64
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Passing count
-  issueCount:
-    type:
-      list: false
-      type: int64
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Issue count
-  valueSum:
-    type:
-      list: false
-      type: float64
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: Value sum
-  exclusionCategory:
+    name: divisionId
+  disciplineId:
     type:
       list: false
       collation: ucs_basic
@@ -161,12 +66,115 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: Exclusion category
-  excludedCount:
+    name: disciplineId
+  ownerId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: ownerId
+  tier:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: tier
+  fileExternalId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: fileExternalId
+  fileSourceId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: fileSourceId
+  matchedCount:
     type:
       list: false
       type: int64
     immutable: false
     nullable: true
     autoIncrement: false
-    name: Excluded count
+    name: matchedCount
+  unmatchedCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unmatchedCount
+  detectedTagCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: detectedTagCount
+  unmatchedTagsJson:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unmatchedTagsJson
+  annotationType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: annotationType
+  status:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: status
+  confidenceBucket:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: confidenceBucket
+  count:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: count
+  confidenceSum:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: confidenceSum

@@ -1,0 +1,127 @@
+space: sp_cq_demo_metrics
+externalId: ContextQualityFileAnnotation
+version: v1
+name: Context Quality File Annotation
+streamId:
+  - cq_demo_metrics
+properties:
+  runId:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: runId
+  runTimestamp:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: runTimestamp
+  rowKind:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: rowKind
+  reportingUnitId:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: reportingUnitId
+  facilityId:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: facilityId
+  divisionId:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: divisionId
+  disciplineId:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: disciplineId
+  ownerId:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: ownerId
+  tier:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: tier
+  fileExternalId:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: fileExternalId
+  fileSourceId:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: fileSourceId
+  matchedCount:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: matchedCount
+  unmatchedCount:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: unmatchedCount
+  detectedTagCount:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: detectedTagCount
+  unmatchedTagsJson:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: unmatchedTagsJson
+  annotationType:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: annotationType
+  status:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: status
+  confidenceBucket:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: confidenceBucket
+  count:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: count
+  confidenceSum:
+    container:
+      space: sp_cq_demo_metrics
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: confidenceSum

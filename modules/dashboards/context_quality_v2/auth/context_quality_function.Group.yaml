@@ -1,0 +1,62 @@
+name: "{{ metricsFunctionGroupName }}"
+sourceId: "{{ metricsFunctionGroupSourceId }}"
+metadata:
+  origin: cognite-toolkit
+# The identity the metrics workflow runs as. Read the project, write records to the metrics stream, nothing else.
+capabilities:
+  # runtime basics, as in the library's other workflow groups
+  - projectsAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        all: {}
+  - groupsAcl:
+      actions:
+        - LIST
+      scope:
+        all: {}
+  - sessionsAcl:
+      actions:
+        - CREATE
+      scope:
+        all: {}
+  # call the function from the workflow
+  - functionsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
+  # read the views, and the container the records conform to
+  - dataModelsAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
+            - cdf_idm
+            - "{{ metricsSchemaSpace }}"
+  # read the entities. The function discovers the facility spaces among the spaces it can read.
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            {{ metricsSourceSpaces }}
+  # read the latest datapoint of each time series (freshness). Not yet validated against a deployment: see the README.
+  - timeSeriesAcl:
+      actions:
+        - READ
+      scope:
+        all: {}
+  # append records to the stream. The scope is the space the records are written to.
+  - streamRecordsAcl:
+      actions:
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - "{{ metricsInstanceSpace }}"

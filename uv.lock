@@ -12,6 +12,7 @@ members = [
     "file-annotation-dashboard-annotation-quality",
     "file-annotation-dashboard-pipeline-health",
     "fn-ai-property-extractor",
+    "fn-context-quality-metrics",
     "fn-dm-context-aliases-update",
     "fn-dm-context-files-annotation",
     "fn-dm-context-timeseries-entity-matching",
@@ -633,6 +634,25 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
 ]
+
+[[package]]
+name = "fn-context-quality-metrics"
+version = "0.0.0"
+source = { virtual = "modules/dashboards/context_quality_v2/functions/fn_context_quality_metrics" }
+dependencies = [
+    { name = "cognite-sdk" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cognite-sdk", specifier = ">=7.89.0,<8" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=7.0.0" }]
 
 [[package]]
 name = "fn-dm-context-aliases-update"

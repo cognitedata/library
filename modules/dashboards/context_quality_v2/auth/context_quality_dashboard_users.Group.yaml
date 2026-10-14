@@ -1,0 +1,40 @@
+name: "{{ metricsDashboardGroupName }}"
+sourceId: "{{ metricsDashboardGroupSourceId }}"
+metadata:
+  origin: cognite-toolkit
+# Read-only access for the people who open the dashboard. No write, no deployment, no access to the entities.
+capabilities:
+  - projectsAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        all: {}
+  - groupsAcl:
+      actions:
+        - LIST
+      scope:
+        all: {}
+  # read the run log
+  - streamRecordsAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - "{{ metricsInstanceSpace }}"
+  # the record containers' definitions (the filter names them as its source)
+  - dataModelsAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - "{{ metricsSchemaSpace }}"
+  # the dashboard reads the stream's settings once to learn how far back a query may reach; it works without
+  # (it then uses its configured window), so this is a convenience rather than a requirement
+  - streamsAcl:
+      actions:
+        - READ
+      scope:
+        all: {}

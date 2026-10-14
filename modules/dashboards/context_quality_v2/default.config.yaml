@@ -1,26 +1,61 @@
 creator_email: name@company.com
 
-# used in /data_modeling and /streams (Records & Streams metrics backend, §7/§8 of the PRD)
+# Used in /data_modeling and /streams. The Context Quality metrics backend writes an immutable run log
+# (see contract/CONTRACT.md). Container and view external ids are part of that contract and are not variables.
 metricsSchemaSpace: sp_context_quality_metrics
 metricsInstanceSpace: sp_dat_context_quality_metrics
 metricsVersion: v1
 
-# Historical trend points only — raw counts at the lowest reporting level, never a precomputed
-# scope-combination value (immutable, Records & Streams):
-snapshotStreamExternalId: context_quality_metric_snapshots
-snapshotContainerExternalId: ContextQualityMetricSnapshot
-snapshotViewExternalId: ContextQualityMetricSnapshot
+# The Records stream that holds the run log. A stream's template cannot be changed after the stream is created,
+# so when you deploy into a project that already has this stream, set the same template it was created with.
+# BasicArchive keeps records without an expiry and allows filter windows of up to 365 days.
+metricsStreamExternalId: context_quality_metrics
+metricsStreamTemplate: BasicArchive
 
-# Live current value at the lowest reporting level — raw counts, app aggregates up
-# (mutable node container, upserted every run — no history kept):
-currentMetricContainerExternalId: ContextQualityCurrentMetric
-currentMetricViewExternalId: ContextQualityCurrentMetric
+# The metrics function and the data set that holds its code. The function's folder under functions/ is named after
+# its external id, so rename the folder together with the variable.
+metricsFunctionExternalId: fn_context_quality_metrics
+metricsDatasetExternalId: ds_context_quality
 
-# Live current exclusion counts — same idea as currentMetric, for §6.1/§6.2 exclusion
-# buckets (mutable node container, upserted every run — no history kept):
-currentExclusionContainerExternalId: ContextQualityCurrentExclusion
-currentExclusionViewExternalId: ContextQualityCurrentExclusion
+# ---------------------------------------------------------------------------------------------------------------------
+# The production workflow. It runs the metrics function and nothing else (no seed or demo task).
+metricsWorkflowExternalId: wf_context_quality_metrics
+metricsWorkflowVersion: v1
+metricsTriggerExternalId: wf_context_quality_metrics_schedule
+# When the trigger starts a run (UNIX cron, evaluated in the time zone below). Deploying the module creates the trigger,
+# so the first scheduled run follows the deployment.
+metricsWorkflowSchedule: "0 4 * * *"
+metricsWorkflowScheduleTimezone: UTC
 
-# Current drill-down backlog (mutable node container, upserted every run — no history kept):
-drilldownRowContainerExternalId: ContextQualityDrilldownRow
-drilldownRowViewExternalId: ContextQualityDrilldownRow
+# What the function is given in its task `config`. The resource names above are passed as stream, schemaSpace and
+# instanceSpace. Everything below is project-specific and empty by default; an empty one means the rule is not applied.
+# Toolkit reads a variable whose value is a mapping as a nested namespace, so the mappings are written as JSON text.
+metricsFacilityNames: '{}'                  # {"instance space": "display id"}
+metricsTierByTypeCode: '{}'                 # {"asset type code": 1, 2 or 3}
+metricsDisciplineByTypeCode: '{}'           # {"asset type code": "discipline id"}
+metricsAssetTypeByEquipmentTypeCode: '{}'   # {"equipment type code": "asset type code"}
+metricsDivisionTagPrefix: ""                # a tag with this prefix names an asset's division; empty derives none
+metricsRetiredTag: ""                       # assets with this tag are retired; empty switches the check off
+metricsDefaultOwners: '{}'                  # {"dimension id": "owner id"}
+metricsOwnerPrefixRules: '[]'               # [{"prefix": "...", "ownerId": "..."}]
+# Replaces the function's whole exclusion setting. decommissionedTags lists the tags that mark equipment decommissioned.
+metricsExclusions: '{"syntheticTsPrefixes": [], "locationCentricFileCategories": [], "excludedFileExtensions": [], "decommissionedTags": []}'
+metricsFreshnessDays: 30
+metricsMaxDepth: 8
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Access. REQUIRED before deployment: the identity-provider values below come from your environment (.env) and are
+# deliberately not defaulted to anything. Nothing secret is stored in this repository.
+metricsFunctionGroupName: gp_context_quality_function
+metricsDashboardGroupName: gp_context_quality_dashboard_users
+# The identity provider's id of the group whose members get each Toolkit group's capabilities.
+metricsFunctionGroupSourceId: ${CQ_FUNCTION_GROUP_SOURCE_ID}
+metricsDashboardGroupSourceId: ${CQ_DASHBOARD_GROUP_SOURCE_ID}
+# The client credentials the scheduled run executes as. The client must be a member of the function group.
+metricsFunctionClientId: ${CQ_FUNCTION_CLIENT_ID}
+metricsFunctionClientSecret: ${CQ_FUNCTION_CLIENT_SECRET}
+# The instance spaces that hold the entities to measure (the function group may read exactly these, plus the system
+# spaces). The default only lets the function read the system spaces, so a new deployment must add its own.
+metricsSourceSpaces:
+  - cdf_cdm
+  - cdf_idm

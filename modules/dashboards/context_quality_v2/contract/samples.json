@@ -1,0 +1,530 @@
+{
+  "contractVersion": 1,
+  "note": "Golden samples for the Context Quality metrics contract (CONTRACT.md). Each `properties` object is one stored record. `parsed` is what a consumer's parser must return from it. This is the canonical copy; a consumer keeps a versioned snapshot for its own parser tests. Change a sample only together with the contract.",
+  "kinds": {
+    "run": {
+      "container": "ContextQualityRelationship",
+      "appRequired": [
+        "runId",
+        "runTimestamp"
+      ],
+      "examples": [
+        {
+          "name": "golden",
+          "properties": {
+            "rowKind": "run",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "status": "complete",
+            "scope": "all",
+            "warnings": "file annotation not run",
+            "rowsWritten": 4079
+          },
+          "parsed": {
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z"
+          }
+        },
+        {
+          "name": "minimal",
+          "properties": {
+            "rowKind": "run",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "status": "complete"
+          },
+          "parsed": {
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z"
+          }
+        }
+      ],
+      "invalid": [
+        {
+          "reason": "runId has the wrong type",
+          "properties": {
+            "rowKind": "run",
+            "runId": 7,
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "status": "complete"
+          }
+        },
+        {
+          "reason": "runTimestamp has the wrong type",
+          "properties": {
+            "rowKind": "run",
+            "runId": "run-1",
+            "runTimestamp": 1760333665000,
+            "status": "complete"
+          }
+        }
+      ]
+    },
+    "aggregate": {
+      "container": "ContextQualityRelationship",
+      "appRequired": [
+        "runId",
+        "runTimestamp",
+        "metricId",
+        "dimensionId",
+        "reportingUnitId"
+      ],
+      "examples": [
+        {
+          "name": "golden",
+          "properties": {
+            "rowKind": "aggregate",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "approvalMix",
+            "dimensionId": "file-annotation",
+            "reportingUnitId": "unit-north",
+            "facilityId": "north",
+            "divisionId": "prod-a",
+            "disciplineId": "instrumentation",
+            "ownerId": "pid-review-lead",
+            "tier": 1,
+            "ruleSetVersion": "v1",
+            "eligibleCount": 120,
+            "passingCount": 96,
+            "issueCount": 24,
+            "valueSum": 0,
+            "notApplicable": false,
+            "matchType": "rule-based",
+            "subKey": "Approved"
+          },
+          "parsed": {
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "approvalMix",
+            "dimensionId": "file-annotation",
+            "reportingUnitId": "unit-north",
+            "facilityId": "north",
+            "divisionId": "prod-a",
+            "disciplineId": "instrumentation",
+            "ownerId": "pid-review-lead",
+            "tier": 1,
+            "subKey": "Approved",
+            "eligibleCount": 120,
+            "passingCount": 96,
+            "issueCount": 24,
+            "valueSum": 0
+          }
+        },
+        {
+          "name": "minimal",
+          "properties": {
+            "rowKind": "aggregate",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "orphanRate",
+            "dimensionId": "asset-hierarchy",
+            "reportingUnitId": "unit-north"
+          },
+          "parsed": {
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "orphanRate",
+            "dimensionId": "asset-hierarchy",
+            "reportingUnitId": "unit-north",
+            "facilityId": null,
+            "divisionId": null,
+            "disciplineId": null,
+            "ownerId": null,
+            "tier": null,
+            "subKey": null,
+            "eligibleCount": 0,
+            "passingCount": 0,
+            "issueCount": 0,
+            "valueSum": 0
+          }
+        },
+        {
+          "name": "average metric keeps its sum in valueSum",
+          "properties": {
+            "rowKind": "aggregate",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "confidenceAverage",
+            "dimensionId": "file-annotation",
+            "reportingUnitId": "unit-north",
+            "eligibleCount": 40,
+            "valueSum": 31.2
+          },
+          "parsed": {
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "confidenceAverage",
+            "dimensionId": "file-annotation",
+            "reportingUnitId": "unit-north",
+            "facilityId": null,
+            "divisionId": null,
+            "disciplineId": null,
+            "ownerId": null,
+            "tier": null,
+            "subKey": null,
+            "eligibleCount": 40,
+            "passingCount": 0,
+            "issueCount": 0,
+            "valueSum": 31.2
+          }
+        },
+        {
+          "name": "tier outside 1-3 is stored but read as untiered",
+          "properties": {
+            "rowKind": "aggregate",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "orphanRate",
+            "dimensionId": "asset-hierarchy",
+            "reportingUnitId": "unit-north",
+            "tier": 9,
+            "eligibleCount": 5,
+            "passingCount": 5
+          },
+          "parsed": {
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "orphanRate",
+            "dimensionId": "asset-hierarchy",
+            "reportingUnitId": "unit-north",
+            "facilityId": null,
+            "divisionId": null,
+            "disciplineId": null,
+            "ownerId": null,
+            "tier": null,
+            "subKey": null,
+            "eligibleCount": 5,
+            "passingCount": 5,
+            "issueCount": 0,
+            "valueSum": 0
+          }
+        }
+      ],
+      "invalid": [
+        {
+          "reason": "metricId has the wrong type",
+          "properties": {
+            "rowKind": "aggregate",
+            "runId": "r",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": 42,
+            "dimensionId": "asset-hierarchy",
+            "reportingUnitId": "unit-north"
+          }
+        },
+        {
+          "reason": "reportingUnitId is null",
+          "properties": {
+            "rowKind": "aggregate",
+            "runId": "r",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "orphanRate",
+            "dimensionId": "asset-hierarchy",
+            "reportingUnitId": null
+          }
+        }
+      ]
+    },
+    "exclusion": {
+      "container": "ContextQualityRelationship",
+      "appRequired": [
+        "dimensionId",
+        "exclusionCategory"
+      ],
+      "examples": [
+        {
+          "name": "golden",
+          "properties": {
+            "rowKind": "exclusion",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "dimensionId": "time-series",
+            "exclusionCategory": "synthetic-timeseries",
+            "reportingUnitId": "unit-north",
+            "facilityId": "north",
+            "divisionId": "prod-a",
+            "disciplineId": "instrumentation",
+            "excludedCount": 14
+          },
+          "parsed": {
+            "dimensionId": "time-series",
+            "exclusionCategory": "synthetic-timeseries",
+            "facilityId": "north",
+            "divisionId": "prod-a",
+            "disciplineId": "instrumentation",
+            "excludedCount": 14
+          }
+        },
+        {
+          "name": "minimal",
+          "properties": {
+            "rowKind": "exclusion",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "dimensionId": "files",
+            "exclusionCategory": "user:file-extension"
+          },
+          "parsed": {
+            "dimensionId": "files",
+            "exclusionCategory": "user:file-extension",
+            "facilityId": null,
+            "divisionId": null,
+            "disciplineId": null,
+            "excludedCount": 0
+          }
+        }
+      ],
+      "invalid": [
+        {
+          "reason": "exclusionCategory has the wrong type",
+          "properties": {
+            "rowKind": "exclusion",
+            "runId": "r",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "dimensionId": "files",
+            "exclusionCategory": 3
+          }
+        }
+      ]
+    },
+    "drilldown": {
+      "container": "ContextQualityRelationship",
+      "appRequired": [
+        "metricId",
+        "dimensionId",
+        "entityId"
+      ],
+      "examples": [
+        {
+          "name": "golden",
+          "properties": {
+            "rowKind": "drilldown",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "unmatchedWithCandidates",
+            "dimensionId": "equipment-asset",
+            "reportingUnitId": "unit-north",
+            "facilityId": "north",
+            "divisionId": "prod-a",
+            "disciplineId": "mechanical",
+            "ownerId": "sap-steward",
+            "tier": 1,
+            "entityId": "cq-eq-north-0012",
+            "entityLabel": "P-1012 Feed pump",
+            "entityRef": "sp_cq_demo_north_data:cq-eq-north-0012",
+            "detail": "no asset link; 2 candidate assets",
+            "cellsJson": "{\"equipmentType\":\"Centrifugal Pump\",\"assetClass\":\"Rotating equipment\",\"ignored\":7}",
+            "matched": false
+          },
+          "parsed": {
+            "metricId": "unmatchedWithCandidates",
+            "dimensionId": "equipment-asset",
+            "entityId": "cq-eq-north-0012",
+            "entityLabel": "P-1012 Feed pump",
+            "detail": "no asset link; 2 candidate assets",
+            "facilityId": "north",
+            "divisionId": "prod-a",
+            "disciplineId": "mechanical",
+            "ownerId": "sap-steward",
+            "tier": 1,
+            "classes": {
+              "equipmentType": "Centrifugal Pump",
+              "assetClass": "Rotating equipment"
+            }
+          }
+        },
+        {
+          "name": "minimal",
+          "properties": {
+            "rowKind": "drilldown",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "orphansByTier",
+            "dimensionId": "asset-hierarchy",
+            "entityId": "a-1"
+          },
+          "parsed": {
+            "metricId": "orphansByTier",
+            "dimensionId": "asset-hierarchy",
+            "entityId": "a-1",
+            "entityLabel": "a-1",
+            "detail": "",
+            "facilityId": null,
+            "divisionId": null,
+            "disciplineId": null,
+            "ownerId": null,
+            "tier": 3,
+            "classes": {}
+          }
+        },
+        {
+          "name": "unreadable cellsJson gives no classes",
+          "properties": {
+            "rowKind": "drilldown",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "orphansByTier",
+            "dimensionId": "asset-hierarchy",
+            "entityId": "a-2",
+            "cellsJson": "not json"
+          },
+          "parsed": {
+            "metricId": "orphansByTier",
+            "dimensionId": "asset-hierarchy",
+            "entityId": "a-2",
+            "entityLabel": "a-2",
+            "detail": "",
+            "facilityId": null,
+            "divisionId": null,
+            "disciplineId": null,
+            "ownerId": null,
+            "tier": 3,
+            "classes": {}
+          }
+        }
+      ],
+      "invalid": [
+        {
+          "reason": "entityId has the wrong type",
+          "properties": {
+            "rowKind": "drilldown",
+            "runId": "r",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "orphansByTier",
+            "dimensionId": "asset-hierarchy",
+            "entityId": 12
+          }
+        },
+        {
+          "reason": "dimensionId is null",
+          "properties": {
+            "rowKind": "drilldown",
+            "runId": "r",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "orphansByTier",
+            "dimensionId": null,
+            "entityId": "a-1"
+          }
+        }
+      ]
+    },
+    "classification": {
+      "container": "ContextQualityRelationship",
+      "appRequired": [
+        "classificationKind",
+        "classificationId"
+      ],
+      "examples": [
+        {
+          "name": "golden",
+          "properties": {
+            "rowKind": "classification",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "classificationKind": "assetType",
+            "classificationId": "pump",
+            "classificationName": "Pump",
+            "dimensionId": "asset-hierarchy",
+            "reportingUnitId": "unit-north",
+            "facilityId": "north",
+            "divisionId": "prod-a",
+            "disciplineId": "mechanical",
+            "ownerId": "sap-steward",
+            "tier": 1,
+            "eligibleCount": 86,
+            "passingCount": 81,
+            "issueCount": 5
+          },
+          "parsed": {
+            "kind": "assetType",
+            "classificationId": "pump",
+            "classificationName": "Pump",
+            "facilityId": "north",
+            "divisionId": "prod-a",
+            "disciplineId": "mechanical",
+            "ownerId": "sap-steward",
+            "eligibleCount": 86,
+            "passingCount": 81
+          }
+        },
+        {
+          "name": "minimal falls back to the id for the name",
+          "properties": {
+            "rowKind": "classification",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "classificationKind": "fileCategory",
+            "classificationId": "__none__"
+          },
+          "parsed": {
+            "kind": "fileCategory",
+            "classificationId": "__none__",
+            "classificationName": "__none__",
+            "facilityId": null,
+            "divisionId": null,
+            "disciplineId": null,
+            "ownerId": null,
+            "eligibleCount": 0,
+            "passingCount": 0
+          }
+        }
+      ],
+      "invalid": [
+        {
+          "reason": "classificationKind has the wrong type",
+          "properties": {
+            "rowKind": "classification",
+            "runId": "r",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "classificationKind": 1,
+            "classificationId": "pump"
+          }
+        },
+        {
+          "reason": "classificationId is null",
+          "properties": {
+            "rowKind": "classification",
+            "runId": "r",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "classificationKind": "assetType",
+            "classificationId": null
+          }
+        }
+      ]
+    },
+    "annotationBucket": {
+      "container": "ContextQualityFileAnnotation",
+      "appRequired": [],
+      "dashboardParser": null,
+      "examples": [
+        {
+          "name": "golden",
+          "properties": {
+            "rowKind": "annotationBucket",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "reportingUnitId": "unit-north",
+            "facilityId": "north",
+            "divisionId": "prod-a",
+            "tier": 1,
+            "annotationType": "asset-tag",
+            "status": "Approved",
+            "confidenceBucket": "high",
+            "count": 48,
+            "confidenceSum": 45.6
+          }
+        },
+        {
+          "name": "minimal",
+          "properties": {
+            "rowKind": "annotationBucket",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z"
+          }
+        }
+      ],
+      "invalid": []
+    }
+  }
+}

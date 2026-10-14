@@ -1,0 +1,12 @@
+externalId: "{{ metricsTriggerExternalId }}"
+triggerRule:
+  triggerType: schedule
+  cronExpression: "{{ metricsWorkflowSchedule }}"
+  timezone: "{{ metricsWorkflowScheduleTimezone }}"
+workflowExternalId: "{{ metricsWorkflowExternalId }}"
+workflowVersion: "{{ metricsWorkflowVersion }}"
+# The identity the scheduled run executes as. It must be a member of the function group (auth/), whose source id is
+# metricsFunctionGroupSourceId. These come from the environment; nothing is stored in this repository.
+authentication:
+  clientId: "{{ metricsFunctionClientId }}"
+  clientSecret: "{{ metricsFunctionClientSecret }}"

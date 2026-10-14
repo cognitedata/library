@@ -1,0 +1,37 @@
+workflowExternalId: "{{ metricsWorkflowExternalId }}"
+version: "{{ metricsWorkflowVersion }}"
+workflowDefinition:
+  # kept short: the workflows API rejected a 211-character description at deploy time, although it documents 500
+  description: Computes the Context Quality metrics. Runs no seed or demo task.
+  tasks:
+    - externalId: compute_metrics
+      type: function
+      name: Compute Context Quality metrics
+      description: Appends one run to the metrics stream. A failed run leaves no complete marker, so it is never shown.
+      parameters:
+        function:
+          externalId: "{{ metricsFunctionExternalId }}"
+          data:
+            action: compute_metrics
+            dry_run: false
+            # The function has no default for these three: the deployment names them (module variables).
+            # Everything below is project-specific and empty by default; nothing here is demo configuration.
+            config:
+              stream: "{{ metricsStreamExternalId }}"
+              schemaSpace: "{{ metricsSchemaSpace }}"
+              instanceSpace: "{{ metricsInstanceSpace }}"
+              facilityNames: {{ metricsFacilityNames }}
+              tierByTypeCode: {{ metricsTierByTypeCode }}
+              disciplineByTypeCode: {{ metricsDisciplineByTypeCode }}
+              assetTypeByEquipmentTypeCode: {{ metricsAssetTypeByEquipmentTypeCode }}
+              divisionTagPrefix: "{{ metricsDivisionTagPrefix }}"
+              retiredTag: "{{ metricsRetiredTag }}"
+              defaultOwners: {{ metricsDefaultOwners }}
+              ownerPrefixRules: {{ metricsOwnerPrefixRules }}
+              exclusions: {{ metricsExclusions }}
+              freshnessDays: {{ metricsFreshnessDays }}
+              maxDepth: {{ metricsMaxDepth }}
+      retries: 1
+      timeout: 600
+      # a failed computation fails the task and with it the workflow execution; nothing hides it
+      onFailure: abortWorkflow

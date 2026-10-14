@@ -225,6 +225,19 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         ],
     },
     {
+        "path": "modules/dashboards/context_quality_v2/functions/fn_context_quality_metrics",
+        "name": "fn-context-quality-metrics",
+        "requires_python": ">=3.11,<3.14",
+        "dependencies": [
+            "cognite-sdk>=7.89.0,<8",
+        ],
+        "deploy_dependencies": [
+            "cognite-sdk>=7.89.0,<8",
+        ],
+        "dev_dependencies": ["pytest>=7.0.0"],
+        "pytest": True,
+    },
+    {
         "path": "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor",
         "name": "fn-ai-property-extractor",
         "requires_python": ">=3.11,<3.14",

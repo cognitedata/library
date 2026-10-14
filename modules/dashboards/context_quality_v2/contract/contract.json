@@ -1,0 +1,789 @@
+{
+  "contractVersion": "1",
+  "description": "Context Quality metrics run log. Canonical machine-readable contract; see CONTRACT.md for the rules. Baseline: the run log deployed in the legacy deployment.",
+  "containers": {
+    "relationship": "ContextQualityRelationship",
+    "fileAnnotation": "ContextQualityFileAnnotation"
+  },
+  "viewVersionVariable": "metricsVersion",
+  "rowKinds": {
+    "run": {
+      "container": "relationship",
+      "required": [
+        "rowKind",
+        "runId",
+        "runTimestamp",
+        "status"
+      ],
+      "optional": [
+        "scope",
+        "warnings",
+        "rowsWritten",
+        "ruleSetVersion"
+      ]
+    },
+    "aggregate": {
+      "container": "relationship",
+      "required": [
+        "rowKind",
+        "runId",
+        "runTimestamp",
+        "metricId",
+        "dimensionId",
+        "reportingUnitId"
+      ],
+      "optional": [
+        "facilityId",
+        "divisionId",
+        "disciplineId",
+        "ownerId",
+        "tier",
+        "subKey",
+        "eligibleCount",
+        "passingCount",
+        "issueCount",
+        "valueSum",
+        "notApplicable",
+        "matchType",
+        "ruleSetVersion"
+      ]
+    },
+    "exclusion": {
+      "container": "relationship",
+      "required": [
+        "rowKind",
+        "runId",
+        "runTimestamp",
+        "dimensionId",
+        "exclusionCategory"
+      ],
+      "optional": [
+        "reportingUnitId",
+        "facilityId",
+        "divisionId",
+        "disciplineId",
+        "excludedCount"
+      ]
+    },
+    "drilldown": {
+      "container": "relationship",
+      "required": [
+        "rowKind",
+        "runId",
+        "runTimestamp",
+        "metricId",
+        "dimensionId",
+        "entityId"
+      ],
+      "optional": [
+        "reportingUnitId",
+        "facilityId",
+        "divisionId",
+        "disciplineId",
+        "ownerId",
+        "tier",
+        "entityLabel",
+        "entityRef",
+        "detail",
+        "cellsJson",
+        "matched"
+      ]
+    },
+    "classification": {
+      "container": "relationship",
+      "required": [
+        "rowKind",
+        "runId",
+        "runTimestamp",
+        "classificationKind",
+        "classificationId"
+      ],
+      "optional": [
+        "classificationName",
+        "dimensionId",
+        "reportingUnitId",
+        "facilityId",
+        "divisionId",
+        "disciplineId",
+        "ownerId",
+        "tier",
+        "eligibleCount",
+        "passingCount",
+        "issueCount"
+      ]
+    },
+    "annotationBucket": {
+      "container": "fileAnnotation",
+      "required": [
+        "rowKind",
+        "runId",
+        "runTimestamp"
+      ],
+      "optional": [
+        "reportingUnitId",
+        "facilityId",
+        "divisionId",
+        "disciplineId",
+        "ownerId",
+        "tier",
+        "annotationType",
+        "status",
+        "confidenceBucket",
+        "count",
+        "confidenceSum",
+        "fileExternalId",
+        "fileSourceId",
+        "matchedCount",
+        "unmatchedCount",
+        "detectedTagCount",
+        "unmatchedTagsJson"
+      ]
+    }
+  },
+  "runStatuses": {
+    "started": "written first",
+    "complete": "written last; the only status that makes a run readable",
+    "failed": "reserved, not written today"
+  },
+  "recordKeyPrefixes": [
+    "run:started",
+    "run:complete",
+    "agg:",
+    "excl:",
+    "drill:",
+    "cls:",
+    "anno:"
+  ],
+  "tiers": [
+    {
+      "value": 1,
+      "meaning": "Major equipment"
+    },
+    {
+      "value": 2,
+      "meaning": "Instrumentation"
+    },
+    {
+      "value": 3,
+      "meaning": "A tier a project explicitly maps asset types to; never assigned by default"
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "asset-hierarchy",
+      "optional": false,
+      "headlineMetric": "hierarchyCompletionRate",
+      "headlineSubKey": null
+    },
+    {
+      "id": "equipment-asset",
+      "optional": false,
+      "headlineMetric": "associationRate",
+      "headlineSubKey": null
+    },
+    {
+      "id": "time-series",
+      "optional": false,
+      "headlineMetric": "tsToAssetRate",
+      "headlineSubKey": null
+    },
+    {
+      "id": "files",
+      "optional": false,
+      "headlineMetric": "fileToAssetRate",
+      "headlineSubKey": null
+    },
+    {
+      "id": "maintenance",
+      "optional": true,
+      "headlineMetric": "woToAssetRate",
+      "headlineSubKey": null
+    },
+    {
+      "id": "file-annotation",
+      "optional": true,
+      "headlineMetric": "approvalMix",
+      "headlineSubKey": "Approved"
+    },
+    {
+      "id": "model-3d",
+      "optional": true,
+      "headlineMetric": "threeDToAssetRate",
+      "headlineSubKey": null
+    }
+  ],
+  "metrics": [
+    {
+      "id": "hierarchyCompletionRate",
+      "dimension": "asset-hierarchy",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "orphanRate",
+      "dimension": "asset-hierarchy",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "orphansByTier",
+      "dimension": "asset-hierarchy",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "orphan-asset",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "depthOutliers",
+      "dimension": "asset-hierarchy",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "depth-outlier",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "typeCoverageGaps",
+      "dimension": "asset-hierarchy",
+      "kind": "drilldown",
+      "direction": "critical",
+      "issueKind": "type-gap",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "associationRate",
+      "dimension": "equipment-asset",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "assetEquipmentCoverage",
+      "dimension": "equipment-asset",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "serialMfrCompleteness",
+      "dimension": "equipment-asset",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "unmatchedWithCandidates",
+      "dimension": "equipment-asset",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "unmatched-equipment",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "completenessByManufacturer",
+      "dimension": "equipment-asset",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "typeInconsistencies",
+      "dimension": "equipment-asset",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "type-inconsistency",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "tsToAssetRate",
+      "dimension": "time-series",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "monitoringCoverage",
+      "dimension": "time-series",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "freshness",
+      "dimension": "time-series",
+      "kind": "aggregate",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "orphansByPrefix",
+      "dimension": "time-series",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "orphan-timeseries",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "staleTimeSeries",
+      "dimension": "time-series",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "stale-timeseries",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "tier1CoverageGaps",
+      "dimension": "time-series",
+      "kind": "drilldown",
+      "direction": "critical",
+      "issueKind": "tier1-ts-gap",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "inferredTagsWithoutMatch",
+      "dimension": "time-series",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "woToAssetRate",
+      "dimension": "maintenance",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "woToNotificationRate",
+      "dimension": "maintenance",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "notificationToAssetRate",
+      "dimension": "maintenance",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "woCompletionRate",
+      "dimension": "maintenance",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "notificationToWoRate",
+      "dimension": "maintenance",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "assetMaintenanceCoverage",
+      "dimension": "maintenance",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "notificationToEquipmentRate",
+      "dimension": "maintenance",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "woToEquipmentRate",
+      "dimension": "maintenance",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "failureDocumentationRate",
+      "dimension": "maintenance",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "equipmentMaintenanceCoverage",
+      "dimension": "maintenance",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "woWithoutNotification",
+      "dimension": "maintenance",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "wo-without-notification",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "unlinkedMaintenance",
+      "dimension": "maintenance",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "unlinked-maintenance",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "tier1MaintenanceGaps",
+      "dimension": "maintenance",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "annotationCount",
+      "dimension": "file-annotation",
+      "kind": "aggregate",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "confidenceAverage",
+      "dimension": "file-annotation",
+      "kind": "aggregate",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "approvalMix",
+      "dimension": "file-annotation",
+      "kind": "aggregate",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "lowConfidenceQueue",
+      "dimension": "file-annotation",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "low-confidence-annotation",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "unprocessedBacklog",
+      "dimension": "file-annotation",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "rejectionByType",
+      "dimension": "file-annotation",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "pendingReview",
+      "dimension": "file-annotation",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "pending-review",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "patternVsAnnotation",
+      "dimension": "file-annotation",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "threeDToAssetRate",
+      "dimension": "model-3d",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "asset3dCoverage",
+      "dimension": "model-3d",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "bboxCompleteness",
+      "dimension": "model-3d",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "unlinkedTier1",
+      "dimension": "model-3d",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "unlinked-3d",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "bboxGaps",
+      "dimension": "model-3d",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "bbox-gap",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "modelTypeCoverageByTier",
+      "dimension": "model-3d",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "fileToAssetRate",
+      "dimension": "files",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "metadataCompleteness",
+      "dimension": "files",
+      "kind": "aggregate",
+      "direction": "critical",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "unlinkedByCategory",
+      "dimension": "files",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "unlinked-file",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "missingMetadata",
+      "dimension": "files",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "uploadStatusGaps",
+      "dimension": "files",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": false
+    },
+    {
+      "id": "staleAnnotationLinkages",
+      "dimension": "file-annotation",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": true,
+      "emitted": false
+    },
+    {
+      "id": "uncontextualizedRevisions",
+      "dimension": "files",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": true,
+      "emitted": false
+    },
+    {
+      "id": "activeChildrenUnderRetiredParents",
+      "dimension": "asset-hierarchy",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "active-child-retired-parent",
+      "lifecycle": true,
+      "emitted": true
+    },
+    {
+      "id": "brokenCrossViewLinks",
+      "dimension": "equipment-asset",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": true,
+      "emitted": false
+    }
+  ],
+  "exclusionCategories": [
+    {
+      "id": "missing-upstream-target",
+      "source": "system",
+      "emitted": false
+    },
+    {
+      "id": "invalid-ocr",
+      "source": "system",
+      "emitted": false
+    },
+    {
+      "id": "synthetic-timeseries",
+      "source": "system",
+      "emitted": true
+    },
+    {
+      "id": "historical-retired",
+      "source": "system",
+      "emitted": false
+    },
+    {
+      "id": "location-centric-files",
+      "source": "system",
+      "emitted": true
+    },
+    {
+      "id": "user:file-extension",
+      "source": "user",
+      "emitted": true
+    },
+    {
+      "id": "user:tag-pattern",
+      "source": "user",
+      "emitted": false
+    },
+    {
+      "id": "user:decommissioned",
+      "source": "user",
+      "emitted": true
+    }
+  ],
+  "classificationKinds": [
+    "assetType",
+    "assetClass",
+    "equipmentType",
+    "fileCategory"
+  ],
+  "warningCodes": [
+    {
+      "id": "mapping-empty",
+      "subject": "the empty mapping key"
+    },
+    {
+      "id": "unmapped-asset-types",
+      "subject": null
+    },
+    {
+      "id": "parents-not-loaded",
+      "subject": null
+    },
+    {
+      "id": "unmapped-equipment-types",
+      "subject": null
+    },
+    {
+      "id": "optional-source-unavailable",
+      "subject": "the missing view, as space.view"
+    },
+    {
+      "id": "no-source-entities",
+      "subject": "the population with no entities"
+    },
+    {
+      "id": "metric-not-applicable",
+      "subject": "the metric, with /subKey where it has one"
+    },
+    {
+      "id": "drilldown-truncated",
+      "subject": "the metric"
+    },
+    {
+      "id": "warnings-truncated",
+      "subject": null
+    }
+  ]
+}

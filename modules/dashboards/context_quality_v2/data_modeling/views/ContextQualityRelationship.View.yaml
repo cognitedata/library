@@ -1,0 +1,211 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: ContextQualityRelationship
+version: "{{ metricsVersion }}"
+name: Context Quality Relationship
+streamId:
+  - "{{ metricsStreamExternalId }}"
+properties:
+  runId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: runId
+  runTimestamp:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: runTimestamp
+  rowKind:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: rowKind
+  metricId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: metricId
+  dimensionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: dimensionId
+  reportingUnitId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: reportingUnitId
+  facilityId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: facilityId
+  divisionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: divisionId
+  disciplineId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: disciplineId
+  ownerId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: ownerId
+  tier:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: tier
+  ruleSetVersion:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: ruleSetVersion
+  eligibleCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: eligibleCount
+  passingCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: passingCount
+  issueCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: issueCount
+  valueSum:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: valueSum
+  notApplicable:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: notApplicable
+  matchType:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: matchType
+  subKey:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: subKey
+  exclusionCategory:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: exclusionCategory
+  excludedCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: excludedCount
+  entityId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: entityId
+  entityLabel:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: entityLabel
+  entityRef:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: entityRef
+  detail:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: detail
+  cellsJson:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: cellsJson
+  matched:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: matched
+  status:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: status
+  scope:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: scope
+  warnings:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: warnings
+  rowsWritten:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: rowsWritten
+  classificationKind:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: classificationKind
+  classificationId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: classificationId
+  classificationName:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: classificationName

@@ -1,0 +1,10 @@
+- name: Context Quality Metrics
+  externalId: "{{ metricsFunctionExternalId }}"
+  owner: Anonymous
+  description: >
+    Reads the project's contextualization (assets, equipment, time series, files, 3D, maintenance, annotations),
+    counts it at the lowest reporting level and appends the result to the Context Quality metrics stream as one
+    run, with a complete marker written last. Actions: compute_metrics and validate.
+  dataSetExternalId: "{{ metricsDatasetExternalId }}"
+  runtime: py312
+  functionPath: handler.py

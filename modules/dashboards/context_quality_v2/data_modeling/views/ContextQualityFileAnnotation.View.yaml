@@ -1,0 +1,127 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: ContextQualityFileAnnotation
+version: "{{ metricsVersion }}"
+name: Context Quality File Annotation
+streamId:
+  - "{{ metricsStreamExternalId }}"
+properties:
+  runId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: runId
+  runTimestamp:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: runTimestamp
+  rowKind:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: rowKind
+  reportingUnitId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: reportingUnitId
+  facilityId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: facilityId
+  divisionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: divisionId
+  disciplineId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: disciplineId
+  ownerId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: ownerId
+  tier:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: tier
+  fileExternalId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: fileExternalId
+  fileSourceId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: fileSourceId
+  matchedCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: matchedCount
+  unmatchedCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: unmatchedCount
+  detectedTagCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: detectedTagCount
+  unmatchedTagsJson:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: unmatchedTagsJson
+  annotationType:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: annotationType
+  status:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: status
+  confidenceBucket:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: confidenceBucket
+  count:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: count
+  confidenceSum:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityFileAnnotation
+      type: container
+    containerPropertyIdentifier: confidenceSum
