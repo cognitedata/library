@@ -1469,7 +1469,7 @@ def _run_cicd_wizard(pack_root: Path) -> list[Path]:
     if result.returncode == 0:
         _ok(t("CI/CD workflows generated.  See docs/FOUNDATION_CICD.md for next steps."))
     else:
-        _warn(t("CI/CD generation completed with warnings — review the output above."))
+        _warn(t("CI/CD generation failed — fix the issue below, then re-run: {cmd}").format(cmd=" ".join(cmd)))
         for line in result.stderr.splitlines():
             _hint(f"  {line}")
 

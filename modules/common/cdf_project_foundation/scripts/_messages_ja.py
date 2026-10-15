@@ -65,7 +65,7 @@ MESSAGES_JA: dict[str, str] = {
     "Demo project with synthetic data (recreated transformations and workflows)": "サンプルデータ付きデモプロジェクト（変換とワークフローを再作成）",
     "Invalid email. Use format: name@domain.com": "メールアドレスが無効です。形式: name@domain.com",
     "Could not find generate_actions.py at {generate_script} — skipping.": "{generate_script} に generate_actions.py が見つかりません — スキップします。",
-    "CI/CD generation completed with warnings — review the output above.": "CI/CD の生成は警告付きで完了しました — 上記の出力を確認してください。",
+    "CI/CD generation failed — fix the issue below, then re-run: {cmd}": "CI/CD の生成に失敗しました — 以下の問題を修正してから再実行してください: {cmd}",
     "Project name cannot be empty.": "プロジェクト名を空にすることはできません。",
     "Use only lowercase letters, digits, and hyphens (e.g. acme-dev).": "小文字の英字、数字、ハイフンのみを使用してください（例: acme-dev）。",
     "Site / location name is required and cannot be empty.": "サイト／ロケーション名は必須で、空にすることはできません。",
