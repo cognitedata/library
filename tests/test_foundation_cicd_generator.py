@@ -162,6 +162,12 @@ environment:
     assert provider_env in deploy_prod
 
     cicd_docs = (tmp_path / "docs" / "FOUNDATION_CICD.md").read_text(encoding="utf-8")
+    # Readers must learn which steps need repository admin before they hit a permission error.
+    assert cicd_docs.index("## Before you start") < cicd_docs.index("## GitHub Environments")
+    # Sections follow the "Before you start" steps: environments (step 3), then branch protection (step 4).
+    assert cicd_docs.index("## GitHub Environments") < cicd_docs.index("## Branch protection")
+    assert "gh auth refresh -s workflow" in cicd_docs
+    assert "### Already set up?" in cicd_docs
     assert "`acme-dev`" in cicd_docs
     assert "`acme-test`" in cicd_docs
     assert "`acme-prod`" in cicd_docs
@@ -172,10 +178,10 @@ environment:
     assert "ruff check` and `pyright`" in cicd_docs
     assert "| PR → `dev` | `acme-dev` | Validate (`cdf build`) |" in cicd_docs
     assert "| PR → `main` | `acme-test` | Validate (`cdf build`) |" in cicd_docs
-    assert "cdf deploy --dry-run" not in cicd_docs.split("## Branch protection")[0]
+    assert "cdf deploy --dry-run" not in cicd_docs.split("## GitHub Environments")[0]
     assert "| `dev-toolkit-credentials` | Push `dev` |" in cicd_docs
     assert "| `test-toolkit-credentials` | Push `main` |" in cicd_docs
-    assert "PR →" not in cicd_docs.split("## GitHub Environments")[1].split("## Toolkit configs")[0]
+    assert "PR →" not in cicd_docs.split("## GitHub Environments")[1].split("## Branch protection")[0]
     assert "never loads `IDP_CLIENT_SECRET`" in cicd_docs
     assert "repository or organization secret" in cicd_docs
     assert "refs/pull/*/merge" in cicd_docs
