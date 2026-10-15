@@ -213,6 +213,86 @@ def data_quality_space(settings_raw: dict[str, object]) -> str:
     raise ValueError("settings.yaml must set config_space or records.space for historic enqueue")
 
 
+def records_stream_id(settings_raw: dict[str, object]) -> str:
+    """Resolve the records stream external ID from settings.yaml."""
+    records = settings_raw.get("records") or {}
+    if isinstance(records, dict) and records.get("stream_id"):
+        return str(records["stream_id"])
+    raise ValueError("settings.yaml must set records.stream_id")
+
+
+def _streams_capability_error(stream_id: str, action: str, exc: Exception) -> PermissionError:
+    return PermissionError(
+        f"Cannot {action} records stream '{stream_id}': deploy identity lacks Streams capabilities. "
+        f"Grant streamsAcl:READ and streamsAcl:CREATE (scope all) on the group for the "
+        f"credentials in .env / IDP_* used by deploy_infrastructure.py. Original error: {exc}"
+    )
+
+
+def ensure_records_stream(
+    client: CogniteClient,
+    stream_id: str,
+    *,
+    dry_run: bool = False,
+    template: str = "BasicArchive",
+) -> str:
+    """Ensure the records stream exists; create an immutable archive stream if missing.
+
+    Uses the Streams REST API (``GET/POST /streams``) so it works with cognite-sdk
+    versions that do not yet expose ``client.data_modeling.streams``.
+
+    Args:
+        client: Authenticated Cognite client.
+        stream_id: Records stream external ID (``records.stream_id`` / ``recordsStreamId``).
+        dry_run: When True, do not create; return ``would_create`` if missing.
+        template: Stream creation template. ``BasicArchive`` is immutable (append-only).
+
+    Returns:
+        ``exists``, ``created``, or ``would_create``.
+
+    Raises:
+        PermissionError: Deploy identity is missing ``streamsAcl:READ`` / ``CREATE``.
+    """
+    from cognite.client.exceptions import CogniteAPIError
+
+    if not stream_id.strip():
+        raise ValueError("records stream_id must be a non-empty string")
+
+    project = client.config.project
+    stream_path = f"/api/v1/projects/{project}/streams/{stream_id}"
+    try:
+        client.get(stream_path)
+        return "exists"
+    except CogniteAPIError as exc:
+        if exc.code == 403:
+            raise _streams_capability_error(stream_id, "read", exc) from exc
+        if exc.code != 404:
+            raise
+
+    if dry_run:
+        return "would_create"
+
+    try:
+        client.post(
+            f"/api/v1/projects/{project}/streams",
+            json={
+                "items": [
+                    {
+                        "externalId": stream_id,
+                        "settings": {"template": {"name": template}},
+                    }
+                ]
+            },
+        )
+    except CogniteAPIError as exc:
+        if exc.code == 409:
+            return "exists"
+        if exc.code == 403:
+            raise _streams_capability_error(stream_id, "create", exc) from exc
+        raise
+    return "created"
+
+
 def function_secrets_from_toml(toml_path: Path, section: str = "cognite") -> dict[str, str] | None:
     """Build function secret dict from a Toolkit config.toml credentials file."""
     if not toml_path.is_file():

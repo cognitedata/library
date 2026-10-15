@@ -43,7 +43,7 @@ trigger:
 records:
   # Space of the record containers and views (created by the deploy script).
   space: {{ dataQualitySpace }}
-  # Records stream ID. The stream must exist in CDF before deploying.
+  # Records stream ID. Created by deploy_infrastructure.py if missing (BasicArchive).
   stream_id: {{ recordsStreamId }}
 
 # Space for DataQualitySettings, sync cursors, orchestration state and HistoricJobQueue.

@@ -53,7 +53,8 @@ ruleSetVersion: "1.0.0"  # was: "1.0.0" (rules targeted the YourOrg views)
 # --- Runtime -----------------------------------------------------------------------------
 # Space for data quality state (settings, cursors, historic queue) and record containers.
 dataQualitySpace: dataQuality
-# Records stream receiving validation results. Create the stream in CDF before deploying.
+# Records stream receiving validation results. deploy_infrastructure.py creates it if missing
+# (immutable BasicArchive template).
 recordsStreamId: test_stream_1
 # Data set for the CDF Function code file.
 functionCodeDatasetExternalId: dq_shacl_rules

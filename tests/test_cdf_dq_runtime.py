@@ -179,6 +179,85 @@ def test_data_quality_space_from_settings(cli, tmp_path: Path) -> None:
     assert cli.data_quality_space(cli.load_settings_raw(settings)) == "dataQuality"
 
 
+def test_records_stream_id_from_settings(cli, tmp_path: Path) -> None:
+    settings = tmp_path / "settings.yaml"
+    settings.write_text(
+        "records:\n  space: dataQuality\n  stream_id: test_stream_1\n",
+        encoding="utf-8",
+    )
+    assert cli.records_stream_id(cli.load_settings_raw(settings)) == "test_stream_1"
+
+
+def test_ensure_records_stream_skips_when_exists(cli) -> None:
+    class _Client:
+        config = SimpleNamespace(project="demo")
+
+        def get(self, url: str):
+            assert url.endswith("/streams/test_stream_1")
+            return SimpleNamespace(status_code=200)
+
+        def post(self, *_args, **_kwargs):
+            raise AssertionError("must not create when stream exists")
+
+    assert cli.ensure_records_stream(_Client(), "test_stream_1") == "exists"
+
+
+def test_ensure_records_stream_creates_when_missing(cli) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+
+    posted: dict[str, object] = {}
+
+    class _Client:
+        config = SimpleNamespace(project="demo")
+
+        def get(self, url: str):
+            raise CogniteAPIError("Stream not found", code=404)
+
+        def post(self, url: str, json: dict[str, object]):
+            posted["url"] = url
+            posted["json"] = json
+            return SimpleNamespace(status_code=200)
+
+    assert cli.ensure_records_stream(_Client(), "test_stream_1") == "created"
+    assert posted["url"] == "/api/v1/projects/demo/streams"
+    assert posted["json"] == {
+        "items": [
+            {
+                "externalId": "test_stream_1",
+                "settings": {"template": {"name": "BasicArchive"}},
+            }
+        ]
+    }
+
+
+def test_ensure_records_stream_dry_run_does_not_create(cli) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+
+    class _Client:
+        config = SimpleNamespace(project="demo")
+
+        def get(self, _url: str):
+            raise CogniteAPIError("Stream not found", code=404)
+
+        def post(self, *_args, **_kwargs):
+            raise AssertionError("must not create during dry-run")
+
+    assert cli.ensure_records_stream(_Client(), "test_stream_1", dry_run=True) == "would_create"
+
+
+def test_ensure_records_stream_forbidden_raises_permission_error(cli) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+
+    class _Client:
+        config = SimpleNamespace(project="demo")
+
+        def get(self, _url: str):
+            raise CogniteAPIError("The user does not have the required Streams capabilities.", code=403)
+
+    with pytest.raises(PermissionError, match="streamsAcl:READ"):
+        cli.ensure_records_stream(_Client(), "test_stream_1")
+
+
 def test_load_project_env_uses_cdf_toml_root(cli, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     project = tmp_path / "toolkit-project"
     project.mkdir()

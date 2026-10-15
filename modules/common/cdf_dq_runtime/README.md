@@ -144,7 +144,7 @@ Validation outputs are **Records** (not DMS instances). This module does **not**
 | Record views | Same external IDs, version `v1`, bound to `records.stream_id` |
 | Stream + space target | This module’s `settings.yaml` → `records.space` / `records.stream_id` (variables `dataQualitySpace` / `recordsStreamId`, defaults `dataQuality` / `test_stream_1`) |
 
-Field reference: [Records output](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/records_output.html). Create the stream in CDF before or alongside deploy; the package ensures the containers and views, not the stream itself.
+Field reference: [Records output](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/records_output.html). `deploy_infrastructure.py` creates the stream if it does not exist (`BasicArchive`); the package ensures the containers and views.
 
 See also: [Deploy infrastructure](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/deploy.html), [Lifecycle and CI/CD](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/lifecycle.html).
 
@@ -161,21 +161,37 @@ The `[alpha_flags]` header must be uncommented. If only `data-products = true` i
 
 After enabling the flag, run `cdf build && cdf deploy` so the data product version exists in CDF before the Python script.
 
-The instance space (`instanceSpace`, default `inst_location`) must already exist and contain the nodes to validate; this module does not create it. The records stream (`recordsStreamId`) must also exist.
+The instance space (`instanceSpace`, default `inst_location`) must already exist and contain the nodes to validate; this module does not create it. The records stream (`recordsStreamId`, default `test_stream_1`) is created by `deploy_infrastructure.py` if missing (immutable `BasicArchive` template).
 
 ### Access control
 
-The identity used by `cdf deploy` and `deploy_infrastructure.py` (Toolkit `.env` / `IDP_*` service principal or user) needs these capabilities on the CDF project. Actions are `CREATE`, `READ`, `UPDATE`, and `DELETE` (there is no `WRITE`):
+The identity used by `cdf deploy` and `deploy_infrastructure.py` (Toolkit `.env` / `IDP_*` service principal or user) needs these capabilities on the CDF project. For DataProducts and RuleSets, actions are `CREATE`, `READ`, `UPDATE`, and `DELETE` (there is no `WRITE`):
 
 | Capability | Needed for |
 | --- | --- |
 | `dataProductsAcl:CREATE` / `UPDATE` / `DELETE` | Create/update/delete DataProducts via `cdf deploy` |
 | `dataProductsAcl:READ` | `deploy_infrastructure.py` loading external DataProducts (for example `cognite-core-data-quality`) when deploying workflows |
 | `ruleSetsAcl:CREATE` / `READ` / `UPDATE` / `DELETE` | Create/update/delete RuleSets and RuleSetVersions via `cdf deploy` |
+| `streamsAcl:READ` / `CREATE` / `DELETE` | Installation: `deploy_infrastructure.py` ensuring `recordsStreamId` exists (creates with `BasicArchive` if missing); delete when cleaning up |
 
 Grant these (typically all actions, scope `all`) in Fusion → Access management on the group linked to that identity — for Toolkit this is often `cognite_toolkit_service_principal`.
 
-Common errors:
+The identity used **at runtime** by the CDF Function (the service principal whose `client-id` / `client-secret` were registered via `deploy_infrastructure.py`) must also have Streams access and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `test_stream_1`). Without these, validation fails when posting results:
+
+| Capability | Needed for |
+| --- | --- |
+| `streamsAcl:READ` | Resolve stream type for `recordsStreamId` |
+| `streamRecordsAcl:READ` / `WRITE` | Read/write validation result records (scope `all`, or at least `dataQualitySpace`) |
+
+```text
+WARNING: could not resolve stream type for 'test_stream_1'; defaulting to immutable (ingest):
+The user does not have the required Streams capabilities. | code: 403
+ERROR posting record for …: The user does not have stream records read or write capability. | code: 403
+```
+
+Grant Streams access and stream records **READ** / **WRITE** (scope `all`, or at least the records stream and `dataQualitySpace`) on the group linked to that function identity.
+
+Common deploy-time errors:
 
 ```text
 CogniteAPIError: Missing capability DataProducts:READ | code: 403
@@ -222,7 +238,7 @@ variables:
 | `dataProductVersion` | `1.0.0` | data product, settings | Data product version. Bump when views, instance spaces or rule set versions change (they are immutable on an existing version) |
 | `ruleSetVersion` | `2.0.0` | rulesets, data product, timeseries | Version of every RuleSetVersion. Bump when you edit rule content |
 | `dataQualitySpace` | `dataQuality` | settings, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
-| `recordsStreamId` | `test_stream_1` | settings | Records stream for validation results. Must exist before deploy |
+| `recordsStreamId` | `test_stream_1` | settings | Records stream for validation results. Created by `deploy_infrastructure.py` if missing |
 | `functionCodeDatasetExternalId` | `dq_shacl_rules` | settings | Data set for the CDF Function code file |
 | `dq_pypi_version` | `0.4.9` | install instructions | `cognite-data-quality` version for the deploy script and Function |
 

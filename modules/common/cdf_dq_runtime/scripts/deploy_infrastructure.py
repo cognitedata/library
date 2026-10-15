@@ -27,11 +27,13 @@ from _cli import (
     add_common_args,
     configure_deploy_cli,
     data_quality_space,
+    ensure_records_stream,
     load_project_env,
     load_settings_raw,
     print_deploy_context,
     print_infrastructure_summary,
     print_verbose_results,
+    records_stream_id,
     resolve_cognite_client,
     resolve_function_secrets,
     resolve_materialized_pack,
@@ -114,6 +116,17 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"views_dir={pack.views_dir}")
             if pack.timeseries_dir is not None:
                 print(f"timeseries_dir={pack.timeseries_dir}")
+
+        stream_id = records_stream_id(settings_raw)
+        if client is not None:
+            try:
+                stream_status = ensure_records_stream(client, stream_id, dry_run=args.dry_run)
+            except PermissionError as exc:
+                print(f"Error: {exc}", file=sys.stderr)
+                return 1
+            print(f"  Records stream: {stream_id} ({stream_status})")
+        elif args.dry_run:
+            print(f"  Records stream: {stream_id} (ensured on live deploy)")
 
         deploy_kwargs: dict[str, object] = {
             "client": client,
