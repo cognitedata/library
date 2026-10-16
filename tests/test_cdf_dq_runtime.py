@@ -11,13 +11,11 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-_SCRIPTS = (
-    Path(__file__).resolve().parents[1] / "modules" / "common" / "cdf_dq_runtime" / "scripts"
-)
+_SCRIPTS = Path(__file__).resolve().parents[1] / "modules" / "common" / "cdf_dq_runtime" / "scripts"
 _MODULE = _SCRIPTS.parent
 
 
-def _load_cli():
+def _load_cli() -> types.ModuleType:
     spec = importlib.util.spec_from_file_location("cdf_dq_runtime_cli", _SCRIPTS / "_cli.py")
     assert spec is not None
     assert spec.loader is not None
@@ -28,7 +26,7 @@ def _load_cli():
     return module
 
 
-def _load_pipeline(cli_module):
+def _load_pipeline(cli_module: types.ModuleType) -> types.ModuleType:
     sys.modules["_cli"] = cli_module
     name = "cdf_dq_runtime_deploy_pipeline"
     sys.modules.pop(name, None)
@@ -42,7 +40,7 @@ def _load_pipeline(cli_module):
 
 
 @pytest.fixture
-def cli():
+def cli() -> types.ModuleType:
     return _load_cli()
 
 
@@ -57,7 +55,7 @@ _CORE_VIEWS = {
 _VIEW_NAMESPACE = re.compile(r"http://purl\.org/cognite/([A-Za-z0-9_]+)/([A-Za-z0-9_]+)/")
 
 
-def _materialize(cli, tmp_path: Path, overrides: dict[str, str] | None = None) -> Path:
+def _materialize(cli: types.ModuleType, tmp_path: Path, overrides: dict[str, str] | None = None) -> Path:
     variables = cli.load_default_pack_variables(_MODULE)
     variables.update(overrides or {})
     return cli.materialize_pack_yaml(_MODULE, tmp_path / "out", variables)
@@ -310,9 +308,18 @@ def test_verify_dq_access_reports_missing_for_install_and_runtime(cli) -> None:
             return SimpleNamespace(
                 capabilities=SimpleNamespace(
                     dump=lambda: [
-                        {"dataProductsAcl": {"actions": sorted(install_caps["dataProductsAcl"])}, "projectScope": {"all": {}}},
-                        {"ruleSetsAcl": {"actions": sorted(install_caps["ruleSetsAcl"])}, "projectScope": {"all": {}}},
-                        {"streamsAcl": {"actions": sorted(install_caps["streamsAcl"])}, "projectScope": {"all": {}}},
+                        {
+                            "dataProductsAcl": {"actions": sorted(install_caps["dataProductsAcl"])},
+                            "projectScope": {"all": {}},
+                        },
+                        {
+                            "ruleSetsAcl": {"actions": sorted(install_caps["ruleSetsAcl"])},
+                            "projectScope": {"all": {}},
+                        },
+                        {
+                            "streamsAcl": {"actions": sorted(install_caps["streamsAcl"])},
+                            "projectScope": {"all": {}},
+                        },
                     ]
                 )
             )
@@ -470,7 +477,10 @@ def _install_fake_data_quality(monkeypatch: pytest.MonkeyPatch, *, pipeline_impl
 
 
 def test_deploy_pipeline_dry_run_does_not_call_pipeline(
-    cli, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
+    cli: types.ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     pipeline = _load_pipeline(cli)
     settings_path = tmp_path / "settings.yaml"

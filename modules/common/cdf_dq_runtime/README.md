@@ -352,7 +352,7 @@ Use [`scripts/inspect_dq_content.ipynb`](scripts/inspect_dq_content.ipynb) for a
 | `list_rulesets()` / `list_data_products()` | Catalog resources published by Toolkit |
 | `list_dq_function()` / `list_dq_workflows()` / `list_monitor_schedules()` | Runtime function, workflows/triggers, and Monitor schedules |
 | `list_recent_function_calls()` | Recent `data-quality-validation` calls with mode (`validation_type`) and posted-record counts from logs |
-| `inspect_function_modes()` | Groups recent function logs by mode; reports execution problems (with Fusion call-log links), or `mode <name> running without error` |
+| `inspect_function_modes()` | Groups recent function logs by mode; reports execution problems, or `mode <name> running without error`. Set `DUMP_FULL_LOGS = True` (or call `dump_function_call_log(call_id=…)`) to print full problem logs |
 | `list_module_spaces()` / `list_data_quality_schema()` / `list_historic_queue_jobs()` | Spaces, containers/views in `dataQualitySpace`, and historic queue nodes |
 
 Immutable streams require a `lastUpdatedTime` window on every filter/aggregate call; the notebook defaults to 7 days.

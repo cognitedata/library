@@ -17,6 +17,7 @@ import yaml
 
 if TYPE_CHECKING:
     from cognite.client import CogniteClient
+    from cognite.client.exceptions import CogniteAPIError
 
 _PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
 
@@ -222,7 +223,7 @@ def records_stream_id(settings_raw: dict[str, object]) -> str:
     raise ValueError("settings.yaml must set records.stream_id")
 
 
-def _streams_capability_error(stream_id: str, action: str, exc: Exception) -> PermissionError:
+def _streams_capability_error(stream_id: str, action: str, exc: CogniteAPIError) -> PermissionError:
     return PermissionError(
         f"Cannot {action} records stream '{stream_id}': deploy identity lacks Streams capabilities. "
         f"Grant streamsAcl:READ and streamsAcl:CREATE (scope all) on the group for the "
@@ -307,11 +308,7 @@ def create_client_from_credentials(client_id: str, client_secret: str) -> Cognit
 
     cluster = os.environ.get("CDF_CLUSTER") or os.environ.get("COGNITE_CLUSTER", "api")
     project = os.environ.get("CDF_PROJECT") or os.environ.get("COGNITE_PROJECT")
-    base_url = (
-        os.environ.get("CDF_URL")
-        or os.environ.get("COGNITE_BASE_URL")
-        or f"https://{cluster}.cognitedata.com"
-    )
+    base_url = os.environ.get("CDF_URL") or os.environ.get("COGNITE_BASE_URL") or f"https://{cluster}.cognitedata.com"
     token_url = os.environ.get("IDP_TOKEN_URL") or os.environ.get("COGNITE_TOKEN_URL")
     tenant_id = os.environ.get("IDP_TENANT_ID") or os.environ.get("AZURE_TENANT_ID")
 
@@ -388,9 +385,7 @@ def verify_dq_access(
     elif runtime_client is not None:
         runtime_granted = inspect_granted_actions(runtime_client)
     else:
-        runtime_granted = inspect_granted_actions(
-            create_client_from_credentials(runtime_id, runtime_secret)
-        )
+        runtime_granted = inspect_granted_actions(create_client_from_credentials(runtime_id, runtime_secret))
 
     runtime_missing = missing_capabilities(runtime_granted, RUNTIME_CAPABILITIES)
     return AccessCheckReport(
@@ -495,8 +490,11 @@ def function_secrets_from_toml(toml_path: Path, section: str = "cognite") -> dic
     """Build function secret dict from a Toolkit config.toml credentials file."""
     if not toml_path.is_file():
         return None
-    with toml_path.open("rb") as handle:
-        data = tomllib.load(handle)
+    try:
+        with toml_path.open("rb") as handle:
+            data = tomllib.load(handle)
+    except tomllib.TOMLDecodeError:
+        return None
     cog = data.get(section, data) if section else data
     if not isinstance(cog, dict):
         return None
@@ -532,11 +530,7 @@ def create_client_from_env() -> CogniteClient:
     project = os.environ.get("CDF_PROJECT") or os.environ.get("COGNITE_PROJECT")
     client_id = os.environ.get("IDP_CLIENT_ID") or os.environ.get("COGNITE_CLIENT_ID")
     client_secret = os.environ.get("IDP_CLIENT_SECRET") or os.environ.get("COGNITE_CLIENT_SECRET")
-    base_url = (
-        os.environ.get("CDF_URL")
-        or os.environ.get("COGNITE_BASE_URL")
-        or f"https://{cluster}.cognitedata.com"
-    )
+    base_url = os.environ.get("CDF_URL") or os.environ.get("COGNITE_BASE_URL") or f"https://{cluster}.cognitedata.com"
 
     token_url = os.environ.get("IDP_TOKEN_URL") or os.environ.get("COGNITE_TOKEN_URL")
     tenant_id = os.environ.get("IDP_TENANT_ID") or os.environ.get("AZURE_TENANT_ID")
@@ -812,9 +806,7 @@ def resolve_materialized_pack(args: argparse.Namespace, dest_dir: Path) -> Mater
     )
 
 
-def resolve_settings_and_views(
-    args: argparse.Namespace, dest_dir: Path
-) -> tuple[Path, Path | None, dict[str, str]]:
+def resolve_settings_and_views(args: argparse.Namespace, dest_dir: Path) -> tuple[Path, Path | None, dict[str, str]]:
     """Backward-compatible wrapper around :func:`resolve_materialized_pack`."""
     pack = resolve_materialized_pack(args, dest_dir)
     return pack.settings_path, pack.views_dir, pack.variables
