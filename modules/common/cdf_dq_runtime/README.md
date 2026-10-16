@@ -340,6 +340,23 @@ CDF refuses to delete a rule set version that a data product version still refer
 
 The notebook lists rule sets, data products, stuck `Monitor …` function schedules, historic queue jobs, and DQ validation workflows as selection lists (requires `ipywidgets`: `pip install ipywidgets`). Select what to delete, click **Delete selected** with **Dry run** checked to review, uncheck **Dry run** and click again; the lists then refresh from CDF. Afterwards run `cdf deploy` to recreate the rule sets and this module's data product version. If `deploy_infrastructure.py` had deployed workflows for a deleted data product, or monitor schedules / old workflows still point at previous views, rerun it afterwards (`--force-workflows`) so the workflows match the data products that still exist. Do not delete `dq-data-product-sync` or `dq-historic-queue-manager` unless you intend to tear down the runtime.
 
+### Inspecting validation content
+
+Use [`scripts/inspect_dq_content.ipynb`](scripts/inspect_dq_content.ipynb) for a read-only inventory of module content in CDF (same `.env` credentials):
+
+| Function | What it does |
+| --- | --- |
+| `get_stream()` / `aggregate_records()` | Stream metadata and counts for `recordsStreamId` (default last 7 days) |
+| `list_validation_records(...)` | Lists top 20 `DataQualityValidationRecord` rows by default (optional `passed_validation` / `rule_set_id` filters; raise `max_records` or use `None` for the full window) |
+| `list_rule_engine_results(...)` | Lists `RuleEngineResult` inference rows from the same stream |
+| `list_rulesets()` / `list_data_products()` | Catalog resources published by Toolkit |
+| `list_dq_function()` / `list_dq_workflows()` / `list_monitor_schedules()` | Runtime function, workflows/triggers, and Monitor schedules |
+| `list_recent_function_calls()` | Recent `data-quality-validation` calls with mode (`validation_type`) and posted-record counts from logs |
+| `inspect_function_modes()` | Groups recent function logs by mode; reports execution problems (with Fusion call-log links), or `mode <name> running without error` |
+| `list_module_spaces()` / `list_data_quality_schema()` / `list_historic_queue_jobs()` | Spaces, containers/views in `dataQualitySpace`, and historic queue nodes |
+
+Immutable streams require a `lastUpdatedTime` window on every filter/aggregate call; the notebook defaults to 7 days.
+
 ### CI/CD
 
 Run `deploy_infrastructure.py` in the same GitHub Actions job as `cdf deploy`, reusing the Toolkit environment block (`IDP_*`, `CDF_*`). Do not generate a credentials file. See [Toolkit pack CI/CD](https://github.com/cognitedata/data-quality-validation/blob/main/docs/usage/toolkit_pack.md#cicd).
@@ -356,7 +373,7 @@ cdf_dq_runtime/
 ├── rulesets/                  # Toolkit: RuleSet + RuleSetVersion (SHACL) per view
 ├── views/                     # Deploy script: per-view workflow overrides
 ├── timeseries/                # Deploy script: time series validation config
-└── scripts/                   # deploy_infrastructure.py, deploy_pipeline.py, _cli.py, manage_rulesets.ipynb
+└── scripts/                   # deploy_infrastructure.py, deploy_pipeline.py, _cli.py, manage_rulesets.ipynb, inspect_dq_content.ipynb
 ```
 
 **RuleSets:** `asset_shacl_rules`, `equipment_shacl_rules`, `maintenance_order_shacl_rules`, `maintenance_order_rule_logic_test_shacl_rules`, `notification_shacl_rules`, `operation_shacl_rules`, `timeseries_quality_rules` (adapted from the cog-ai sample in data-quality-validation-deploy).

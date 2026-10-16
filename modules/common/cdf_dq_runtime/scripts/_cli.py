@@ -256,9 +256,7 @@ class AccessCheckReport:
     def ok(self) -> bool:
         if self.install_missing:
             return False
-        if self.runtime_checked and self.runtime_missing:
-            return False
-        return True
+        return not (self.runtime_checked and self.runtime_missing)
 
 
 def collect_granted_actions(capabilities_dump: list[dict[str, object]]) -> dict[str, set[str]]:
