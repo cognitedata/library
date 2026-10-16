@@ -200,6 +200,25 @@ def test_ensure_records_stream_skips_when_exists(cli) -> None:
     assert cli.ensure_records_stream(_Client(), "test_stream_1") == "exists"
 
 
+def test_ensure_records_stream_url_encodes_stream_id(cli) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+
+    seen: dict[str, str] = {}
+
+    class _Client:
+        config = SimpleNamespace(project="demo")
+
+        def get(self, url: str):
+            seen["url"] = url
+            raise CogniteAPIError("Stream not found", code=404)
+
+        def post(self, *_args, **_kwargs):
+            raise AssertionError("dry-run must not create")
+
+    assert cli.ensure_records_stream(_Client(), "stream with/slash", dry_run=True) == "would_create"
+    assert seen["url"] == "/api/v1/projects/demo/streams/stream%20with%2Fslash"
+
+
 def test_ensure_records_stream_creates_when_missing(cli) -> None:
     from cognite.client.exceptions import CogniteAPIError
 
@@ -413,6 +432,24 @@ def test_load_project_env_honors_explicit_path(cli, tmp_path: Path, monkeypatch:
     assert os.environ["COGNITE_PROJECT"] == "custom-project"
 
 
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ("KEY=value # comment", ("KEY", "value")),
+        ('KEY="quoted value" # comment', ("KEY", "quoted value")),
+        ("KEY='quoted value' # comment", ("KEY", "quoted value")),
+        ("export KEY=value # comment", ("KEY", "value")),
+        ('KEY="hash#inside"', ("KEY", "hash#inside")),
+        ("# full line comment", None),
+        ("NOEQUALS", None),
+    ],
+)
+def test_parse_env_line_handles_inline_comments(
+    cli, line: str, expected: tuple[str, str] | None
+) -> None:
+    assert cli._parse_env_line(line) == expected
+
+
 def test_print_infrastructure_summary_formats_external_dataproducts(cli, capsys) -> None:
     results = {
         "functions": {"function": {"function": "data-quality-validation", "status": "deployed"}},
@@ -538,3 +575,33 @@ def test_deploy_pipeline_live_calls_package(cli, tmp_path: Path, monkeypatch: py
     assert captured["historic_mode"] == "enqueue"
     assert captured["data_product_external_id"] == "dp-1"
     assert "dry_run" not in captured
+
+
+def test_deploy_pipeline_requires_data_product_external_id(
+    cli: types.ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    pipeline = _load_pipeline(cli)
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text("config_space: dataQuality\n", encoding="utf-8")
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("deploy_validation_pipeline must not run without data product")
+
+    _install_fake_data_quality(
+        monkeypatch,
+        pipeline_impl=fail_if_called,
+        settings=SimpleNamespace(external_dataproducts=[], effective_config_space="dataQuality"),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "resolve_cognite_client",
+        lambda _path: (_ for _ in ()).throw(AssertionError("client must not be created")),
+    )
+
+    assert pipeline.main(["--settings-path", str(settings_path)]) == 1
+    err = capsys.readouterr().err
+    assert "data_product_external_id is missing" in err
+    assert "--data-product-external-id" in err

@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import tomllib
+import urllib.parse
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -68,8 +69,13 @@ def _parse_env_line(line: str) -> tuple[str, str] | None:
     if not key:
         return None
     value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
-        value = value[1:-1]
+    if value.startswith(('"', "'")):
+        quote = value[0]
+        end_quote_idx = value.find(quote, 1)
+        if end_quote_idx != -1:
+            value = value[1:end_quote_idx]
+    else:
+        value = value.split("#", 1)[0].strip()
     return key, value
 
 
@@ -452,7 +458,8 @@ def ensure_records_stream(
         raise ValueError("records stream_id must be a non-empty string")
 
     project = client.config.project
-    stream_path = f"/api/v1/projects/{project}/streams/{stream_id}"
+    encoded_stream_id = urllib.parse.quote(stream_id, safe="")
+    stream_path = f"/api/v1/projects/{project}/streams/{encoded_stream_id}"
     try:
         client.get(stream_path)
         return "exists"

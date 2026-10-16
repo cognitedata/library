@@ -93,6 +93,13 @@ def main(argv: list[str] | None = None) -> int:
         data_product_external_id = args.data_product_external_id
         if not data_product_external_id and settings.external_dataproducts:
             data_product_external_id = settings.external_dataproducts[0].external_id
+        if not data_product_external_id:
+            print(
+                "Error: data_product_external_id is missing. Provide it via --data-product-external-id "
+                "or configure external_dataproducts in settings.yaml.",
+                file=sys.stderr,
+            )
+            return 1
 
         if args.dry_run:
             result = {
