@@ -124,15 +124,13 @@ def main(argv: list[str] | None = None) -> int:
         print_access_check_report(access_report)
         if not access_report.ok:
             print(
-                "Error: grant the missing capabilities listed above "
-                "(see README Access control), then re-run.",
+                "Error: grant the missing capabilities listed above (see README Access control), then re-run.",
                 file=sys.stderr,
             )
             return 1
         if not access_report.runtime_checked:
             print(
-                "Warning: function runtime access was not verified "
-                "(set function secrets client-id/client-secret).",
+                "Warning: function runtime access was not verified (set function secrets client-id/client-secret).",
                 file=sys.stderr,
             )
 

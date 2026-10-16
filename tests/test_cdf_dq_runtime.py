@@ -147,6 +147,20 @@ def test_sample_shacl_rules_target_configured_views(cli: types.ModuleType, tmp_p
             assert legacy not in text, f"{path.name} still references {legacy}"
 
 
+def test_materialize_skips_files_under_dest_inside_source(cli: types.ModuleType, tmp_path: Path) -> None:
+    source = tmp_path / "pack"
+    source.mkdir()
+    (source / "settings.yaml").write_text("space: {{schemaSpace}}\n", encoding="utf-8")
+    dest = source / "build"
+    stale = dest / "settings.yaml"
+    stale.parent.mkdir()
+    stale.write_text("space: STALE\n", encoding="utf-8")
+
+    cli.materialize_pack_yaml(source, dest, {"schemaSpace": "cdf_cdm"})
+
+    assert dest.joinpath("settings.yaml").read_text(encoding="utf-8") == "space: cdf_cdm\n"
+
+
 def test_customer_overrides_flow_into_rules_and_views(cli: types.ModuleType, tmp_path: Path) -> None:
     dest = _materialize(
         cli,
@@ -307,7 +321,7 @@ def test_missing_capabilities_lists_absent_actions(cli: types.ModuleType) -> Non
 
 
 def test_create_client_from_credentials_prefers_explicit_project_and_base_url(
-    cli, monkeypatch: pytest.MonkeyPatch
+    cli: types.ModuleType, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     captured: dict[str, object] = {}
 
@@ -353,7 +367,7 @@ def test_create_client_from_credentials_prefers_explicit_project_and_base_url(
 
 
 def test_verify_dq_access_passes_install_client_config_to_runtime_client(
-    cli, monkeypatch: pytest.MonkeyPatch
+    cli: types.ModuleType, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     captured: dict[str, object] = {}
 
@@ -433,7 +447,7 @@ def test_verify_dq_access_passes_install_client_config_to_runtime_client(
     assert report.runtime_checked is True
 
 
-def test_verify_dq_access_reports_missing_for_install_and_runtime(cli) -> None:
+def test_verify_dq_access_reports_missing_for_install_and_runtime(cli: types.ModuleType) -> None:
     install_caps = {
         "dataProductsAcl": {"CREATE", "READ", "UPDATE", "DELETE"},
         "ruleSetsAcl": {"CREATE", "READ", "UPDATE", "DELETE"},
@@ -497,7 +511,7 @@ def test_verify_dq_access_reports_missing_for_install_and_runtime(cli) -> None:
     assert report.same_identity is False
 
 
-def test_verify_dq_access_same_identity_checks_both_requirement_sets(cli) -> None:
+def test_verify_dq_access_same_identity_checks_both_requirement_sets(cli: types.ModuleType) -> None:
     caps = {
         "dataProductsAcl": {"CREATE", "READ", "UPDATE", "DELETE"},
         "ruleSetsAcl": {"CREATE", "READ", "UPDATE", "DELETE"},
@@ -531,7 +545,9 @@ def test_verify_dq_access_same_identity_checks_both_requirement_sets(cli) -> Non
     assert report.runtime_checked is True
 
 
-def test_load_project_env_uses_cdf_toml_root(cli, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_project_env_uses_cdf_toml_root(
+    cli: types.ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     project = tmp_path / "toolkit-project"
     project.mkdir()
     (project / "cdf.toml").write_text("[cdf]\n", encoding="utf-8")
@@ -549,7 +565,9 @@ def test_load_project_env_uses_cdf_toml_root(cli, tmp_path: Path, monkeypatch: p
     assert os.environ["IDP_CLIENT_ID"] == "already-set"
 
 
-def test_load_project_env_honors_explicit_path(cli, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_project_env_honors_explicit_path(
+    cli: types.ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     env_file = tmp_path / "custom.env"
     env_file.write_text("COGNITE_PROJECT=custom-project\n", encoding="utf-8")
     monkeypatch.delenv("COGNITE_PROJECT", raising=False)
@@ -572,12 +590,14 @@ def test_load_project_env_honors_explicit_path(cli, tmp_path: Path, monkeypatch:
     ],
 )
 def test_parse_env_line_handles_inline_comments(
-    cli, line: str, expected: tuple[str, str] | None
+    cli: types.ModuleType, line: str, expected: tuple[str, str] | None
 ) -> None:
     assert cli._parse_env_line(line) == expected
 
 
-def test_print_infrastructure_summary_formats_external_dataproducts(cli, capsys) -> None:
+def test_print_infrastructure_summary_formats_external_dataproducts(
+    cli: types.ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
     results = {
         "functions": {"function": {"function": "data-quality-validation", "status": "deployed"}},
         "external_dataproduct_workflows": [
@@ -618,7 +638,7 @@ def test_print_infrastructure_summary_formats_external_dataproducts(cli, capsys)
     assert "dq-historic-queue-manager (deployed)" in output
 
 
-def test_function_secrets_from_toml(cli, tmp_path: Path) -> None:
+def test_function_secrets_from_toml(cli: types.ModuleType, tmp_path: Path) -> None:
     toml_path = tmp_path / "config.toml"
     toml_path.write_text(
         '[cognite]\nclient_id = "abc"\nclient_secret = "s3cret"\n',
@@ -674,7 +694,9 @@ def test_deploy_pipeline_dry_run_does_not_call_pipeline(
     assert "data_product_external_id: dp-1" in output
 
 
-def test_deploy_pipeline_live_calls_package(cli, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_deploy_pipeline_live_calls_package(
+    cli: types.ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     pipeline = _load_pipeline(cli)
     settings_path = tmp_path / "settings.yaml"
     settings_path.write_text("config_space: dataQuality\n", encoding="utf-8")
