@@ -138,6 +138,24 @@
         "detectedTagCount",
         "unmatchedTagsJson"
       ]
+    },
+    "extraLink": {
+      "container": "relationship",
+      "required": [
+        "rowKind",
+        "runId",
+        "runTimestamp",
+        "metricId",
+        "dimensionId",
+        "reportingUnitId"
+      ],
+      "optional": [
+        "facilityId",
+        "eligibleCount",
+        "passingCount",
+        "issueCount",
+        "notApplicable"
+      ]
     }
   },
   "runStatuses": {
@@ -152,7 +170,8 @@
     "excl:",
     "drill:",
     "cls:",
-    "anno:"
+    "anno:",
+    "xlink:"
   ],
   "tiers": [
     {
@@ -475,6 +494,15 @@
       "emitted": true
     },
     {
+      "id": "notificationsWithoutWorkOrder",
+      "dimension": "maintenance",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
       "id": "unlinkedMaintenance",
       "dimension": "maintenance",
       "kind": "drilldown",
@@ -637,6 +665,24 @@
       "emitted": true
     },
     {
+      "id": "unlinked3dObjects",
+      "dimension": "model-3d",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "assetsWithoutEquipment",
+      "dimension": "equipment-asset",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
       "id": "unlinkedByCategory",
       "dimension": "files",
       "kind": "drilldown",
@@ -752,6 +798,10 @@
     {
       "id": "mapping-empty",
       "subject": "the empty mapping key"
+    },
+    {
+      "id": "tiering-off",
+      "subject": "tierByTypeCode"
     },
     {
       "id": "unmapped-asset-types",

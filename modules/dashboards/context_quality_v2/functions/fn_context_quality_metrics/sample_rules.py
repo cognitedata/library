@@ -15,6 +15,7 @@ SAMPLE_RESOURCES: dict[str, str] = {
 
 SAMPLE_RULES: dict[str, Any] = {
     "divisionTagPrefix": "division:",
+    "tieringEnabled": True,
     # tier from the CogniteAssetType code: 1 = major equipment, 2 = instrumentation
     "tierByTypeCode": {
         "pump": 1,

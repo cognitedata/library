@@ -52,7 +52,13 @@ def write_a_run(
         data, latest, now = build_dataset()
         return data, compute(data, cfg, latest, now=now)
 
+    def load_extra_links(_client: Any, _links: Any) -> dict[tuple[str, str], list[Any]]:
+        return {
+            ("cdf_cdm:CogniteCore:v1", "CogniteAsset"): [(space, {}) for space in build_dataset()[0]["facility_spaces"]]
+        }
+
     monkeypatch.setattr(runner, "compute_run", compute_run)
+    monkeypatch.setattr(runner, "load_extra_links", load_extra_links)
     client = RecordingClient()
     cfg = build_config(
         {
@@ -62,7 +68,11 @@ def write_a_run(
             **(overrides or {}),
         }
     )
-    runner.compute_metrics(client, cfg, {})  # type: ignore[arg-type]
+    runner.compute_metrics(
+        client,  # type: ignore[arg-type]
+        cfg,
+        {"extraLinks": [{"model": "cdf_cdm:CogniteCore:v1", "links": ["CogniteAsset.type"]}]},
+    )
     return [item for _, body in client.calls for item in body["items"]], {"urls": {url for url, _ in client.calls}}
 
 
@@ -138,6 +148,8 @@ def test_the_function_only_writes_metrics_dimensions_and_categories_of_the_contr
 
     for item in items:
         properties = item["sources"][0]["properties"]
+        if properties["rowKind"] == "extraLink":  # named by the user's config file, not by the contract
+            continue
         assert properties.get("metricId", next(iter(metrics))) in metrics
         assert properties.get("dimensionId", next(iter(dimensions))) in dimensions
         assert properties.get("exclusionCategory", next(iter(categories))) in categories

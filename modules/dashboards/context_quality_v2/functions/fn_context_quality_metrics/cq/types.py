@@ -149,6 +149,7 @@ class RunConfig(TypedDict):
     facilityNames: dict[str, str]
     excludeSpaces: list[str]
     minFacilityEntities: int
+    tieringEnabled: bool
     tierByTypeCode: dict[str, int]
     disciplineByTypeCode: dict[str, str]
     assetTypeByEquipmentTypeCode: dict[str, str]

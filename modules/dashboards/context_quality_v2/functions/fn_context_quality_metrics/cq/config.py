@@ -23,8 +23,12 @@ DEFAULT_CONFIG: RunConfig = {
     # (this keeps a shared root or reference space from showing up as a facility).
     "excludeSpaces": ["cdf_cdm", "cdf_idm", "cdf_cdm_units", "cdf_extraction_extensions", "cdf_apps_shared"],
     "minFacilityEntities": 10,
-    # asset tier from the CogniteAssetType code ({code: 1, 2 or 3}). Empty by default: tiers are project-specific, an
-    # asset whose type is not listed has no tier, and without a mapping the tier coverage metrics are not measured.
+    # Tiering is off by default: no asset gets a tier and the coverage metrics measure every asset. A project turns it on
+    # and gives tierByTypeCode.
+    "tieringEnabled": False,
+    # asset tier from the CogniteAssetType code ({code: 1, 2 or 3}), used only while tieringEnabled. Empty by default:
+    # tiers are project-specific, an asset whose type is not listed has no tier, and with tiering on but no mapping the
+    # tier coverage metrics are not measured.
     "tierByTypeCode": {},
     # The mappings below are project-specific and empty by default; an empty one means the rule is not applied.
     # discipline from the CogniteAssetType code ({code: discipline id}); without it no asset has a discipline
@@ -112,6 +116,9 @@ def build_config(overrides: dict[str, Any] | None) -> RunConfig:
             "The setting decommissionedTag was replaced by exclusions.decommissionedTags (a list of tags)."
         )
     _check_tiers((overrides or {}).get("tierByTypeCode", {}))
+    switch = (overrides or {}).get("tieringEnabled", False)
+    if not isinstance(switch, bool):
+        raise ValueError(f"tieringEnabled must be true or false, not {switch!r}")
     prefix = (overrides or {}).get("divisionTagPrefix", "")
     if not isinstance(prefix, str):
         raise ValueError(f"divisionTagPrefix must be text, not {prefix!r}")

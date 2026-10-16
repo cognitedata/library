@@ -72,6 +72,7 @@ The two container external ids are part of the contract and are **not** variable
 | `metricsSourceSpaces` | `cdf_cdm`, `cdf_idm` | the facility instance spaces, added to those two |
 | `metricsFunctionGroupSourceId`, `metricsDashboardGroupSourceId`, `metricsFunctionClientId`, `metricsFunctionClientSecret` | `${CQ_FUNCTION_GROUP_SOURCE_ID}`, `${CQ_DASHBOARD_GROUP_SOURCE_ID}`, `${CQ_FUNCTION_CLIENT_ID}`, `${CQ_FUNCTION_CLIENT_SECRET}` | environment values; **required**, see "Deployment inputs" |
 | `metricsFacilityNames`, `metricsTierByTypeCode`, `metricsDisciplineByTypeCode`, `metricsAssetTypeByEquipmentTypeCode`, `metricsDefaultOwners`, `metricsOwnerPrefixRules`, `metricsExclusions` | empty | the project's rules, as JSON text (Toolkit reads a mapping-valued variable as a namespace, so a mapping or list is written as a string such as `'{"pump": 1}'`) |
+| `metricsTieringEnabled` | `false` | tiering is off by default; set `true` together with `metricsTierByTypeCode` to turn it on |
 | `metricsDivisionTagPrefix`, `metricsRetiredTag`, `metricsFreshnessDays`, `metricsMaxDepth` | `""`, `""`, `30`, `8` | the project's settings |
 
 The legacy at-dev names are supplied by a deployment-specific `config.<env>.yaml` that sets `metricsSchemaSpace`,
@@ -86,6 +87,12 @@ annotations), counts it at the lowest reporting level and appends one run to the
 |---|---|
 | `compute_metrics` | Computes and writes a run: a `started` marker, the rows, then the `complete` marker last. With `"dry_run": true` it computes and returns counts, and writes nothing; add `"return_rows": true` to get the aggregate, exclusion and classification rows back |
 | `validate` | Computes and returns totals per metric. Never writes |
+
+`compute_metrics` also takes `extraLinks` in the payload: a list of `{"model": "space:externalId:version", "links":
+["View.property", ...]}`. Each link must be a direct relation of a view in that model. The run counts, per facility, the
+instances of the view that have it set and writes them as `extraLink` rows (contract section 2.8), next to the built-in
+metrics, which do not change. The spaces of the models named in the file are added to the Core facilities, so a model whose instances
+live in spaces with no Core entity is still counted (contract section 2.8). A name the model does not have fails the run before anything is written.
 
 Anything under the payload's `config` overrides `cq/config.py`'s `DEFAULT_CONFIG`. An override replaces the default it
 names, whatever its type, and is never merged into it: `"tierByTypeCode": {}` clears the tier rules, and a mapping
@@ -136,7 +143,8 @@ or that finds no facility space, writes nothing at all, so the previous run stay
 demo-only `seed_datapoints` and `seed_history` actions are not part of it. Its output was checked against the baseline
 implementation's, row for row, except for the changes below, before that comparison was retired.
 
-- **Tiers.** An asset's tier comes only from its own type code in `tierByTypeCode`, which is empty by default. An entity
+- **Tiers.** Tiering is off by default (`tieringEnabled`): no asset has a tier and the coverage metrics measure every
+  asset. When it is on, an asset's tier comes only from its own type code in `tierByTypeCode`, which is empty by default. An entity
   that is not an asset inherits the tier of the asset it links to. Everything else has no tier; nothing is tier 3 unless
   a project maps a type to 3 (contract section 6.1).
 - **Roots.** A root is a parentless asset that has children; a standalone asset is an orphan; an asset whose parent was
@@ -243,6 +251,21 @@ cdf run workflow -x wf_context_quality_metrics -n v1 --env <env>
 
 The operator needs `workflowOrchestrationAcl` on the module's data set; this module grants it to nobody. To check the
 function's configuration without writing, start the function directly with `{"action": "validate"}`.
+
+### Running with a config file
+
+A person can start the workflow from the dashboard's Configuration page with an uploaded config file (a list of
+`space:externalId:version` models, each with `View.property` links). The dashboard passes the links as the execution
+input, `{"extraLinks": [...]}`, and the workflow hands them to the function (see "The metrics function"). The schedule
+passes `{"extraLinks": []}`, so it never measures extra links.
+
+The run executes as the person who started it (the dashboard opens a session from their own token), so that person
+needs, in addition to the read-only dashboard group: `workflowOrchestrationAcl` WRITE, `sessionsAcl` CREATE, and what
+the function group (`auth/context_quality_function`) holds, because the run does what that group does. This module does
+not create such a group: grant the capabilities to the people who may run it.
+
+**Not yet verified against a deployed project:** that a `${workflow.input.extraLinks}` reference in the function task's
+`data` resolves, and that the scheduled trigger's `input` supplies it. Check both on a scratch workflow before deploying.
 
 ### Access
 

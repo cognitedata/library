@@ -31,7 +31,7 @@ A consumer that needs the contract for its own tests carries a **versioned snaps
 
 The stream, spaces and view version are deployment choices, set through the module's variables. The two container and view external ids are part of the contract and are **not** variables: consumers rely on them. Both containers are `usedFor: record`. Each view has the same external id as its container and lists the stream in `streamId`.
 
-**Record identity.** A record's `externalId` is `{runId}:{rowKey}` in the instance space, where the row key starts with one of the prefixes listed in `contract.json` (`run:started`, `run:complete`, `agg:`, `excl:`, `drill:`, `cls:`, `anno:`). Consumers never read the key. Only the properties matter to them. `drilldown` and `classification` keys are `drill:{metricId}:{digest}` and `cls:{classificationKind}:{digest}`, where the digest is the first 32 hex characters of the SHA-256 of the compact JSON of the record's complete logical key (for a drilldown record: row kind, metric, dimension, instance space and entity id; for a classification record: the full grain including the classification label). Entities with the same id in different spaces therefore never share a record id, and rewriting the same run keeps the same ids. The other kinds keep their readable keys. Runs written before this scheme used readable `drill:{metricId}|{entityId}` and `cls:` keys; consumers never read keys, so both are valid.
+**Record identity.** A record's `externalId` is `{runId}:{rowKey}` in the instance space, where the row key starts with one of the prefixes listed in `contract.json` (`run:started`, `run:complete`, `agg:`, `excl:`, `drill:`, `cls:`, `anno:`, `xlink:`). Consumers never read the key. Only the properties matter to them. `drilldown` and `classification` keys are `drill:{metricId}:{digest}` and `cls:{classificationKind}:{digest}`, where the digest is the first 32 hex characters of the SHA-256 of the compact JSON of the record's complete logical key (for a drilldown record: row kind, metric, dimension, instance space and entity id; for a classification record: the full grain including the classification label). Entities with the same id in different spaces therefore never share a record id, and rewriting the same run keeps the same ids. The other kinds keep their readable keys. Runs written before this scheme used readable `drill:{metricId}|{entityId}` and `cls:` keys; consumers never read keys, so both are valid.
 
 **Counts, not percentages.** The backend writes raw counts. Consumers sum the rows for the scope the user picked and divide.
 
@@ -47,6 +47,7 @@ The stream, spaces and view version are deployment choices, set through the modu
 | `drilldown` | `ContextQualityRelationship` | yes, capped per metric and unit | yes, `parseDrilldownRow` |
 | `classification` | `ContextQualityRelationship` | yes | yes, `parseClassificationRow` |
 | `annotationBucket` | `ContextQualityFileAnnotation` | yes | **no**, there is no reader yet |
+| `extraLink` | `ContextQualityRelationship` | only when the run was given extra links | yes, `parseExtraLinkRow`, shown as the Overview's "Configured metrics" |
 
 A parser returns `null` for a record that lacks a required field or has it with the wrong type. The dashboard then skips that record silently.
 
@@ -142,6 +143,24 @@ Summaries of file annotations by status and confidence. The container also allow
 | `count` | int64 | Annotations in the bucket |
 | `confidenceSum` | float64 | Sum of confidence values in the bucket |
 
+### 2.8 `extraLink`
+
+Written only when the run is started with `extraLinks` in its payload: a list of `{model: "space:externalId:version", links: ["View.property", ...]}`. Each link is a direct relation of a view in that model. The function checks every name against the model before it reads any instance, and a wrong name fails the run with nothing written. These rows are additive: a run without extra links writes none, and the built-in metrics are unchanged.
+
+One row per model, view, property and instance space. The number is how many instances of the view have the property set (a list property counts when it holds at least one reference). This says a link is set, not that it points to the right thing.
+
+**Facilities.** The extra links are counted in the Core facilities and in any other space that holds at least `minFacilityEntities` instances of the views the links name. Such a space is excluded by the same rules as in facility discovery (`excludeSpaces`, the metrics spaces) and is named by `facilityNames`, or by its own id. An explicit `facilitySpaces` list is the whole set. A link has a row for each facility that holds instances of its view. A link whose view has no instance in any facility has a `notApplicable` row for every facility, so that it still shows up.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `metricId` | text | The property name, for example `type`. It is not a metric id of section 5.2 |
+| `dimensionId` | text | The model and the view, `space:externalId:version/ViewExternalId`. It is not a dimension id of section 5.1 |
+| `reportingUnitId`, `facilityId` | text | The instance space, and its facility id |
+| `eligibleCount`, `passingCount`, `issueCount` | int64 | Instances of the view, how many have the link set, and the rest |
+| `notApplicable` | boolean | `true` when no facility holds an instance of the view |
+
+Record key: `xlink:{digest}`, where the digest is of the model, view, property and instance space.
+
 ## 3. The run-complete marker
 
 1. The backend writes `run:started` (`status: started`).
@@ -170,6 +189,7 @@ The `complete` marker's `warnings` property is `null` when there is nothing to w
 | Code | Subject | Meaning | Other fields |
 |---|---|---|---|
 | `mapping-empty` | the mapping key (`tierByTypeCode`, `disciplineByTypeCode`, `assetTypeByEquipmentTypeCode`) | A required mapping is empty although the entities it applies to exist | |
+| `tiering-off` | `tierByTypeCode` | `tierByTypeCode` is set but `tieringEnabled` is false, so the mapping is ignored and no asset has a tier | |
 | `unmapped-asset-types` | | Assets that are not roots and have no type code, or one `tierByTypeCode` does not map (they have no tier) | `untyped`, `unmapped`, `codes` (up to 10, sorted) |
 | `parents-not-loaded` | | Assets whose parent is not among the loaded assets. They count as having a parent and their depth is a lower bound (section 6.6) | `assets` |
 | `unmapped-equipment-types` | | Equipment whose type `assetTypeByEquipmentTypeCode` does not map | `unmapped`, `codes` (up to 10, sorted) |
@@ -240,6 +260,7 @@ Every metric the reference dashboard knows. "Kind" says how the dashboard reads 
 | `failureDocumentationRate` | maintenance | aggregate | critical | – | – | – |
 | `equipmentMaintenanceCoverage` | maintenance | aggregate | critical | – | – | – |
 | `woWithoutNotification` | maintenance | drilldown | informational | wo-without-notification | – | yes |
+| `notificationsWithoutWorkOrder` | maintenance | drilldown | informational | – | – | yes |
 | `unlinkedMaintenance` | maintenance | drilldown | informational | unlinked-maintenance | – | yes |
 | `tier1MaintenanceGaps` | maintenance | drilldown | informational | – | – | – |
 | `annotationCount` | file-annotation | aggregate | informational | – | – | yes |
@@ -258,6 +279,8 @@ Every metric the reference dashboard knows. "Kind" says how the dashboard reads 
 | `modelTypeCoverageByTier` | model-3d | aggregate | critical | – | – | – |
 | `fileToAssetRate` | files | aggregate | critical | – | – | yes |
 | `metadataCompleteness` | files | aggregate | critical | – | – | yes |
+| `unlinked3dObjects` | model-3d | drilldown | informational | – | – | yes |
+| `assetsWithoutEquipment` | equipment-asset | drilldown | informational | – | – | yes |
 | `unlinkedByCategory` | files | drilldown | informational | unlinked-file | – | yes |
 | `missingMetadata` | files | drilldown | informational | – | – | – |
 | `uploadStatusGaps` | files | drilldown | informational | – | – | – |
@@ -296,7 +319,8 @@ Every metric the reference dashboard knows. "Kind" says how the dashboard reads 
 
 The function assigns tiers like this, and never invents one:
 
-1. An asset gets the tier its own type code has in `tierByTypeCode` (`{type code: 1, 2 or 3}`). The mapping is empty by default, because tiers are project-specific. An asset with no type, or a type the mapping does not list, has **no tier**; that is not tier 3.
+0. **Tiering is off by default** (`tieringEnabled`, false). While it is off no asset has a tier, `tierByTypeCode` is ignored (with a `tiering-off` warning if it is set), and the three coverage metrics (`assetEquipmentCoverage`, `monitoringCoverage`, `asset3dCoverage`) and the drill-downs `tier1CoverageGaps`, `unlinkedTier1` and `woWithoutNotification` cover every asset, not only tier 1 and 2, with a detail that does not name a tier. With tiering on and no mapping, those metrics are not applicable (`mapping-empty:tierByTypeCode`).
+1. An asset gets the tier its own type code has in `tierByTypeCode` (`{type code: 1, 2 or 3}`), when tiering is on. The mapping is empty by default, because tiers are project-specific. An asset with no type, or a type the mapping does not list, has **no tier**; that is not tier 3.
 2. An entity that is not an asset (equipment, time series, file, work order, notification, 3D object, file annotation) takes the tier of the asset it links to, if that asset was loaded and has one.
 3. An entity with no linked asset, or whose asset has no tier or was not loaded, has no tier. No other rule applies.
 
@@ -321,6 +345,26 @@ Percent = `passingCount / eligibleCount`, summed over the rows in scope. For `co
 ### 6.4 Issue kinds
 
 Drilldown metrics map to Issues page categories in `ISSUE_KIND_BY_METRIC`, see the table in 5.2. A drilldown metric with no issue kind is available in the dimension drilldown but never appears on the Issues page.
+
+**Listing the unlinked items.** An aggregate metric counts how many entities are linked; the matching `drilldown` metric lists the ones that are not. The reference dashboard opens these when a link metric's card is clicked:
+
+| Aggregate metric | Lists its failing entities as |
+|---|---|
+| `orphanRate` | `orphansByTier` |
+| `associationRate` | `unmatchedWithCandidates` |
+| `assetEquipmentCoverage` | `assetsWithoutEquipment` |
+| `tsToAssetRate` | `orphansByPrefix` |
+| `freshness` | `staleTimeSeries` |
+| `monitoringCoverage` | `tier1CoverageGaps` |
+| `woToAssetRate`, `notificationToAssetRate` | `unlinkedMaintenance` |
+| `woToNotificationRate` | `woWithoutNotification` |
+| `notificationToWoRate` | `notificationsWithoutWorkOrder` |
+| `fileToAssetRate` | `unlinkedByCategory` |
+| `threeDToAssetRate` | `unlinked3dObjects` |
+| `asset3dCoverage` | `unlinkedTier1` |
+| `bboxCompleteness` | `bboxGaps` |
+
+Each drill-down is capped at `drilldownCap` rows per metric and reporting unit (section 2.5), so a list can be shorter than the aggregate's issue count.
 
 ### 6.5 Metric direction
 

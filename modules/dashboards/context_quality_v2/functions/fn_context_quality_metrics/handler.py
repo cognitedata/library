@@ -6,6 +6,9 @@ One function, two actions. The payload decides what runs:
     {"action": "validate"}
 
 Any key in payload["config"] overrides the matching key in cq.config.DEFAULT_CONFIG.
+
+compute_metrics also takes payload["extraLinks"], a list of {"model": "space:externalId:version", "links":
+["View.property", ...]}. Each link is measured per facility next to the built-in metrics (cq.extra_links).
 """
 
 from collections.abc import Callable

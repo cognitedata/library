@@ -31,7 +31,8 @@ metricsWorkflowScheduleTimezone: UTC
 # instanceSpace. Everything below is project-specific and empty by default; an empty one means the rule is not applied.
 # Toolkit reads a variable whose value is a mapping as a nested namespace, so the mappings are written as JSON text.
 metricsFacilityNames: '{}'                  # {"instance space": "display id"}
-metricsTierByTypeCode: '{}'                 # {"asset type code": 1, 2 or 3}
+metricsTieringEnabled: false                # tiering is off by default; true also needs metricsTierByTypeCode
+metricsTierByTypeCode: '{}'                 # {"asset type code": 1, 2 or 3}, used only while tiering is on
 metricsDisciplineByTypeCode: '{}'           # {"asset type code": "discipline id"}
 metricsAssetTypeByEquipmentTypeCode: '{}'   # {"equipment type code": "asset type code"}
 metricsDivisionTagPrefix: ""                # a tag with this prefix names an asset's division; empty derives none

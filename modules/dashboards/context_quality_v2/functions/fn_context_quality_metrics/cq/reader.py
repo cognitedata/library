@@ -5,10 +5,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import Node, ViewId
+from cognite.client.data_classes.data_modeling import DirectRelation, MappedProperty, Node, ViewId
 from cognite.client.exceptions import CogniteAPIError
 
 from cq.discovery import ENTITY_KEYS, count_entities_by_space, discover_facility_spaces
+from cq.extra_links import ExtraLink, ViewNodes
 from cq.types import (
     LoadedData,
     Ref,
@@ -204,3 +205,43 @@ def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
     for key in ENTITY_KEYS:
         d[key] = _only(d[key], d["facility_spaces"])
     return d  # type: ignore[return-value]
+
+
+def load_extra_links(client: CogniteClient, links: list[ExtraLink]) -> ViewNodes:
+    """The nodes of every view the extra links name, read from every space.
+
+    Every space is read, not only the Core facilities, because the models in the config can hold their instances in
+    spaces that have no Core entity (see extra_links.extra_facility_spaces, which decides which become facilities).
+
+    Each model is looked up once with its views inlined, and every link is checked against it first: the view must be in
+    the model and the property must be a direct relation (or a list of them). A wrong name fails the run before any
+    instance is read, and the message names what was found.
+    """
+    view_ids: dict[tuple[str, str], ViewId] = {}
+    for model in dict.fromkeys(link["model"] for link in links):
+        space, xid, version = model.split(":")
+        found = client.data_modeling.data_models.retrieve((space, xid, version), inline_views=True)
+        if not found:
+            raise ValueError(f"The data model {model} was not found in this project")
+        views = {view.external_id: view for view in found[0].views or [] if not isinstance(view, ViewId)}
+        for link in (link for link in links if link["model"] == model):
+            view = views.get(link["view"])
+            if view is None:
+                raise ValueError(
+                    f"The view {link['view']} is not in {model}. Its views are: {', '.join(sorted(views)) or 'none'}"
+                )
+            definition = view.properties.get(link["property"])
+            name = f"{link['view']}.{link['property']}"
+            if definition is None:
+                raise ValueError(f"The property {name} does not exist in {model}")
+            if not (isinstance(definition, MappedProperty) and isinstance(definition.type, DirectRelation)):
+                raise ValueError(f"{name} is not a direct relation, so it is not a link")
+            view_ids[(model, link["view"])] = view.as_id()
+    return {
+        key: [
+            (node.space, dict(props))
+            for node in client.data_modeling.instances.list(instance_type="node", sources=view_id, space=None, limit=-1)
+            if (props := node.properties.get(view_id)) is not None
+        ]
+        for key, view_id in view_ids.items()
+    }

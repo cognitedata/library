@@ -12,7 +12,7 @@ SP = "sp_a"
 
 
 def run(loaded: dict[str, Any], overrides: dict[str, Any] | None = None) -> dict[str, Any]:
-    return compute(loaded, build_config(overrides), {}, now=NOW)  # type: ignore[arg-type]
+    return compute(loaded, build_config({"tieringEnabled": True, **(overrides or {})}), {}, now=NOW)  # type: ignore[arg-type]
 
 
 def tiers(result: dict[str, Any], metric: str, sub: str | None = None) -> dict[int | None, list[int]]:

@@ -170,6 +170,31 @@ def drilldown_rows(drill: list[DrillItem], cap: int) -> list[Row]:
     return out
 
 
+def extra_link_rows(counts: dict[tuple[str, str, str, str], list[int]], facility_spaces: dict[str, str]) -> list[Row]:
+    """One row per (model, view, property, facility). dimensionId names the model and view, metricId the property."""
+    out: list[Row] = []
+    for (model, view, prop, space), (elig, passing, issue) in counts.items():
+        out.append(
+            (
+                f"xlink:{_digest('extraLink', model, view, prop, space)}",
+                _clean(
+                    {
+                        "rowKind": "extraLink",
+                        "metricId": prop,
+                        "dimensionId": f"{model}/{view}",
+                        "reportingUnitId": space,
+                        "facilityId": facility_spaces.get(space),
+                        "eligibleCount": elig,
+                        "passingCount": passing,
+                        "issueCount": issue,
+                        "notApplicable": True if elig == 0 else None,
+                    }
+                ),
+            )
+        )
+    return out
+
+
 def annotation_bucket_rows(buckets: dict[tuple, list[Any]]) -> list[Row]:
     out: list[Row] = []
     for (unit, facility, div, tier, status, bucket), (count, csum) in buckets.items():

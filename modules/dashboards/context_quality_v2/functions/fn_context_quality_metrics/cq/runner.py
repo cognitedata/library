@@ -9,8 +9,9 @@ from cognite.client.data_classes.data_modeling import NodeId
 from cq import writer
 from cq.availability import encode_warnings
 from cq.config import require_resources
+from cq.extra_links import ExtraLink, count_links, extra_facility_spaces, parse_extra_links
 from cq.metrics import compute
-from cq.reader import load_all
+from cq.reader import load_all, load_extra_links
 from cq.types import EntityKey, LoadedData, Row, RunConfig
 
 
@@ -46,6 +47,15 @@ def compute_run(client: CogniteClient, cfg: RunConfig) -> tuple[LoadedData, dict
     return data, result
 
 
+def extra_link_rows(client: CogniteClient, links: list[ExtraLink], data: LoadedData, cfg: RunConfig) -> list[Row]:
+    """The rows for the payload's extra links, counted per facility. A run without any reads no model."""
+    if not links:
+        return []
+    nodes = load_extra_links(client, links)
+    facilities = extra_facility_spaces(nodes, data["facility_spaces"], cfg)
+    return writer.extra_link_rows(count_links(links, nodes, facilities), facilities)
+
+
 def build_rows(result: dict[str, Any], cfg: RunConfig) -> tuple[list[Row], list[Row]]:
     return (
         writer.aggregate_rows(result["agg"])
@@ -58,8 +68,10 @@ def build_rows(result: dict[str, Any], cfg: RunConfig) -> tuple[list[Row], list[
 
 def compute_metrics(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict[str, Any]:
     require_resources(cfg, writes=not payload.get("dry_run"))
+    links = parse_extra_links(payload.get("extraLinks"))
     data, result = compute_run(client, cfg)
     main_rows, anno_rows = build_rows(result, cfg)
+    main_rows += extra_link_rows(client, links, data, cfg)
     summary = {
         "action": "compute_metrics",
         "facilities": data["facility_spaces"],
@@ -67,6 +79,7 @@ def compute_metrics(client: CogniteClient, cfg: RunConfig, payload: dict[str, An
         "exclusionRows": sum(1 for k, _ in main_rows if k.startswith("excl")),
         "drilldownRows": sum(1 for k, _ in main_rows if k.startswith("drill")),
         "classificationRows": sum(1 for k, _ in main_rows if k.startswith("cls")),
+        "extraLinkRows": sum(1 for k, _ in main_rows if k.startswith("xlink")),
         "annotationBucketRows": len(anno_rows),
         "notApplicableRows": sum(1 for k, p in main_rows if k.startswith("agg") and p.get("notApplicable") is True),
         "warnings": result["warnings"],
@@ -74,7 +87,7 @@ def compute_metrics(client: CogniteClient, cfg: RunConfig, payload: dict[str, An
     if payload.get("dry_run"):
         summary["dryRun"] = True
         if payload.get("return_rows"):
-            summary["rows"] = [dict(key=k, **p) for k, p in main_rows if k.startswith(("agg", "excl", "cls"))]
+            summary["rows"] = [dict(key=k, **p) for k, p in main_rows if k.startswith(("agg", "excl", "cls", "xlink"))]
         return summary
     run_id, run_ts = writer.new_run_id(), datetime.now(UTC)
     writer.ingest(

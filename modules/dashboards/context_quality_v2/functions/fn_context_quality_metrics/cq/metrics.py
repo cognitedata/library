@@ -55,6 +55,11 @@ def compute(
     atype_code = data["asset_types"]
     etype_code = data["equipment_types"]
     fcat_code = data["file_categories"]
+    tiering = cfg["tieringEnabled"]
+
+    def labelled(tier: int | None, text: str) -> str:
+        """The drill-down detail: it names the tier only while tiering is on."""
+        return f"{_tier_label(tier)} {text}" if tiering else text
 
     # ---- asset facts
     A: dict[Any, AssetRow] = {(a["space"], a["id"]): a for a in data["assets"]}
@@ -65,7 +70,7 @@ def compute(
     for k, a in A.items():
         code = atype_code.get(a["type"]) if a["type"] else None
         a["code"] = code
-        a["tier"] = cfg["tierByTypeCode"].get(code) if code is not None else None
+        a["tier"] = cfg["tierByTypeCode"].get(code) if tiering and code is not None else None
         a["disc"] = cfg["disciplineByTypeCode"].get(code)
         prefix = cfg["divisionTagPrefix"]
         a["div"] = next((t[len(prefix) :] for t in a["tags"] if prefix and t.startswith(prefix)), None)
@@ -125,7 +130,7 @@ def compute(
         acc.add(key("hierarchyCompletionRate", dim, g), not a["root"], a["parent"] is not None)
         acc.add(key("orphanRate", dim, g), True, not a["orphan"])
         if a["orphan"]:
-            drilldown("orphansByTier", dim, g, a["id"], a["name"], f"{_tier_label(a['tier'])} orphan")
+            drilldown("orphansByTier", dim, g, a["id"], a["name"], labelled(a["tier"], "orphan"))
         d = depth(k)
         if d > cfg["maxDepth"]:
             drilldown("depthOutliers", dim, g, a["id"], a["name"], f"depth {d}")
@@ -170,10 +175,20 @@ def compute(
                         "typeInconsistencies", dim, g, e["id"], e["name"], f"{etype_code.get(e['etype'])} under {want}"
                     )
     for k, a in A.items():
-        if a["root"] or a["code"] is None or a["tier"] not in (1, 2):
+        if a["root"] or (tiering and a["tier"] not in (1, 2)):
             continue
         g = {"unit": a["space"], "facility": fac.get(a["space"]), "div": a["div"], "disc": a["disc"], "tier": a["tier"]}
-        acc.add(key("assetEquipmentCoverage", "equipment-asset", g), True, k in assets_with_equipment)
+        covered = k in assets_with_equipment
+        acc.add(key("assetEquipmentCoverage", "equipment-asset", g), True, covered)
+        if not covered:
+            drilldown(
+                "assetsWithoutEquipment",
+                "equipment-asset",
+                g,
+                a["id"],
+                a["name"],
+                labelled(a["tier"], "asset without equipment"),
+            )
 
     # ---- time series
     ts_assets = {r for t in data["timeseries"] for r in t["assets"]}
@@ -196,13 +211,20 @@ def compute(
             age = "no datapoints" if last is None else f"last {last.date()}"
             drilldown("staleTimeSeries", dim, g, t["id"], t["name"], age, owner)
     for k, a in A.items():
-        if a["root"] or a["code"] is None or a["tier"] not in (1, 2):
+        if a["root"] or (tiering and a["tier"] not in (1, 2)):
             continue
         g = {"unit": a["space"], "facility": fac.get(a["space"]), "div": a["div"], "disc": a["disc"], "tier": a["tier"]}
         has = k in ts_assets
         acc.add(key("monitoringCoverage", "time-series", g), True, has)
-        if not has and a["tier"] == 1:
-            drilldown("tier1CoverageGaps", "time-series", g, a["id"], a["name"], "tier 1 asset without time series")
+        if not has and (a["tier"] == 1 or not tiering):
+            drilldown(
+                "tier1CoverageGaps",
+                "time-series",
+                g,
+                a["id"],
+                a["name"],
+                labelled(a["tier"], "asset without time series"),
+            )
 
     # ---- maintenance
     wo_with_notif = {n["work_order"] for n in data["notifications"] if n["work_order"]}
@@ -215,20 +237,22 @@ def compute(
         acc.add(key("woCompletionRate", dim, g), True, w["completed"])
         if w["main_asset"] is None:
             drilldown("unlinkedMaintenance", dim, g, w["id"], w["name"], "work order without asset")
-        if not has_n and g["tier"] in (1, 2):
+        if not has_n and (g["tier"] in (1, 2) or not tiering):
             drilldown(
                 "woWithoutNotification",
                 dim,
                 g,
                 w["id"],
                 w["name"],
-                f"{_tier_label(g['tier'])} work order without notification",
+                labelled(g["tier"], "work order without notification"),
             )
     for n in data["notifications"]:
         g = ctx(n["space"], n["asset"])
         dim = "maintenance"
         acc.add(key("notificationToAssetRate", dim, g), True, n["asset"] is not None)
         acc.add(key("notificationToWoRate", dim, g), True, n["work_order"] is not None)
+        if n["work_order"] is None:
+            drilldown("notificationsWithoutWorkOrder", dim, g, n["id"], n["name"], "notification without work order")
         if n["asset"] is None:
             drilldown("unlinkedMaintenance", dim, g, n["id"], n["name"], "notification without asset")
 
@@ -265,16 +289,20 @@ def compute(
         g = ctx(o["space"], owner_asset)
         dim = "model-3d"
         acc.add(key("threeDToAssetRate", dim, g), True, owner_asset is not None)
+        if owner_asset is None:
+            drilldown("unlinked3dObjects", dim, g, o["id"], o["name"], "3D object without asset")
         acc.add(key("bboxCompleteness", dim, g), True, o["bbox"])
         if not o["bbox"]:
             drilldown("bboxGaps", dim, g, o["id"], o["name"], "missing bounding box value")
     for a in A.values():
-        if a["root"] or a["code"] is None or a["tier"] != 1:
+        if a["root"] or (tiering and a["tier"] != 1):
             continue
-        g = {"unit": a["space"], "facility": fac.get(a["space"]), "div": a["div"], "disc": a["disc"], "tier": 1}
+        g = {"unit": a["space"], "facility": fac.get(a["space"]), "div": a["div"], "disc": a["disc"], "tier": a["tier"]}
         acc.add(key("asset3dCoverage", "model-3d", g), True, a["object3d"] is not None)
         if a["object3d"] is None:
-            drilldown("unlinkedTier1", "model-3d", g, a["id"], a["name"], "tier 1 asset without 3D object")
+            drilldown(
+                "unlinkedTier1", "model-3d", g, a["id"], a["name"], labelled(a["tier"], "asset without 3D object")
+            )
 
     # ---- file annotation
     fa_rows = defaultdict(lambda: [0, 0.0])  # (unit, facility, div, tier, status, bucket) -> count, confSum

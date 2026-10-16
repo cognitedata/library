@@ -210,7 +210,7 @@ def test_contract_is_version_one_and_names_the_two_containers() -> None:
     assert CONTRACT.containers == CONTAINERS
 
 
-def test_the_six_row_kinds_are_the_contract_baseline() -> None:
+def test_the_row_kinds_are_the_six_of_the_baseline_and_extra_links() -> None:
     assert list(CONTRACT.rowKinds) == [
         "run",
         "aggregate",
@@ -218,6 +218,7 @@ def test_the_six_row_kinds_are_the_contract_baseline() -> None:
         "drilldown",
         "classification",
         "annotationBucket",
+        "extraLink",
     ]
 
 
@@ -259,7 +260,7 @@ def test_identifiers_are_unique_and_consistent() -> None:
     metrics = {metric.id: metric for metric in CONTRACT.metrics}
 
     assert len(dimensions) == 7
-    assert len(metrics) == len(CONTRACT.metrics) == 54
+    assert len(metrics) == len(CONTRACT.metrics) == 57
     assert len(CONTRACT.exclusionCategories) == 8
     assert len(CONTRACT.classificationKinds) == 4
     for metric in metrics.values():
@@ -423,6 +424,8 @@ def test_samples_use_only_identifiers_of_the_contract() -> None:
     for kind, example in SAMPLE_CASES:
         properties = example.properties
         label = f"{kind}/{example.name}"
+        if kind == "extraLink":  # named by the user's config file: a property, and a model and view
+            continue
         assert properties.get("metricId", next(iter(metrics))) in metrics, label
         assert properties.get("dimensionId", next(iter(dimensions))) in dimensions, label
         assert properties.get("exclusionCategory", next(iter(categories))) in categories, label

@@ -114,7 +114,7 @@ def _reason(
     populations: dict[str, dict[str, int]],
     excluded: dict[tuple[str, str], int],
 ) -> str:
-    if spec.requires == TIER_MAPPING and not cfg["tierByTypeCode"]:
+    if spec.requires == TIER_MAPPING and cfg["tieringEnabled"] and not cfg["tierByTypeCode"]:
         return "mapping-empty:tierByTypeCode"
     if spec.requires == EQUIPMENT_TYPE_MAPPING and not cfg["assetTypeByEquipmentTypeCode"]:
         return "mapping-empty:assetTypeByEquipmentTypeCode"
@@ -190,10 +190,20 @@ def build_warnings(
         ("disciplineByTypeCode", "assets", "no asset gets a discipline, so discipline slices are empty"),
         ("assetTypeByEquipmentTypeCode", "equipment", "equipment types cannot be checked against asset types"),
     ):
+        if key == "tierByTypeCode" and not cfg["tieringEnabled"]:
+            continue
         if total[population] and not cfg[key]:  # type: ignore[literal-required]
             warnings.append(_warning("mapping-empty", f"{key} is empty: {effect}.", key))
 
-    if cfg["tierByTypeCode"]:
+    if cfg["tierByTypeCode"] and not cfg["tieringEnabled"]:
+        warnings.append(
+            _warning(
+                "tiering-off",
+                "tierByTypeCode is set but tieringEnabled is false, so it is ignored and no asset has a tier.",
+                "tierByTypeCode",
+            )
+        )
+    if cfg["tieringEnabled"] and cfg["tierByTypeCode"]:
         untyped, unmapped, codes = 0, 0, set()
         for asset in data["assets"]:
             if asset["root"]:

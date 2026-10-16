@@ -525,6 +525,77 @@
         }
       ],
       "invalid": []
+    },
+    "extraLink": {
+      "container": "ContextQualityRelationship",
+      "appRequired": [
+        "metricId",
+        "dimensionId"
+      ],
+      "examples": [
+        {
+          "name": "golden",
+          "properties": {
+            "rowKind": "extraLink",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "type",
+            "dimensionId": "cdf_cdm:CogniteCore:v1/CogniteAsset",
+            "reportingUnitId": "unit-north",
+            "facilityId": "north",
+            "eligibleCount": 120,
+            "passingCount": 90,
+            "issueCount": 30
+          },
+          "parsed": {
+            "model": "cdf_cdm:CogniteCore:v1",
+            "modelLabel": "CogniteCore",
+            "view": "CogniteAsset",
+            "property": "type",
+            "facilityId": "north",
+            "eligibleCount": 120,
+            "passingCount": 90,
+            "notApplicable": false
+          }
+        },
+        {
+          "name": "nothing to count is not applicable",
+          "properties": {
+            "rowKind": "extraLink",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "files",
+            "dimensionId": "cdf_cdm:CogniteCore:v1/CogniteEquipment",
+            "reportingUnitId": "unit-north",
+            "eligibleCount": 0,
+            "passingCount": 0,
+            "issueCount": 0,
+            "notApplicable": true
+          },
+          "parsed": {
+            "model": "cdf_cdm:CogniteCore:v1",
+            "modelLabel": "CogniteCore",
+            "view": "CogniteEquipment",
+            "property": "files",
+            "facilityId": null,
+            "eligibleCount": 0,
+            "passingCount": 0,
+            "notApplicable": true
+          }
+        }
+      ],
+      "invalid": [
+        {
+          "reason": "metricId is missing",
+          "properties": {
+            "rowKind": "extraLink",
+            "runId": "r",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "dimensionId": "cdf_cdm:CogniteCore:v1/CogniteAsset",
+            "reportingUnitId": "u"
+          }
+        }
+      ]
     }
   }
 }
