@@ -1,0 +1,3 @@
+space: {{ dataProductSchemaSpace }}
+name: {{ dataProductSchemaSpace }}
+description: Schema space owned by the data quality data product (dataProductSchemaSpace).

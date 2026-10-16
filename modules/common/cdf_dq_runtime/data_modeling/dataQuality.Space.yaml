@@ -1,0 +1,3 @@
+space: {{ dataQualitySpace }}
+name: {{ dataQualitySpace }}
+description: Data quality runtime space for records, settings, and validation state (settings.yaml config_space).
