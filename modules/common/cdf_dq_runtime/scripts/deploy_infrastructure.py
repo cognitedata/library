@@ -81,8 +81,9 @@ def main(argv: list[str] | None = None) -> int:
         installed_version = "unknown"
 
     config_toml = Path(args.config_toml)
-    client = None if args.dry_run else resolve_cognite_client(config_toml)
-    project = client.config.project if client is not None else None
+    # Dry-run still needs CDF to compare existing functions/workflows/schedules.
+    client = resolve_cognite_client(config_toml)
+    project = client.config.project
 
     function_secrets = resolve_function_secrets(config_toml)
     if not function_secrets:
@@ -119,33 +120,29 @@ def main(argv: list[str] | None = None) -> int:
             if pack.timeseries_dir is not None:
                 print(f"timeseries_dir={pack.timeseries_dir}")
 
-        if client is not None:
-            access_report = verify_dq_access(client, function_secrets)
-            print_access_check_report(access_report)
-            if not access_report.ok:
-                print(
-                    "Error: grant the missing capabilities listed above "
-                    "(see README Access control), then re-run.",
-                    file=sys.stderr,
-                )
-                return 1
-            if not access_report.runtime_checked:
-                print(
-                    "Warning: function runtime access was not verified "
-                    "(set function secrets client-id/client-secret).",
-                    file=sys.stderr,
-                )
+        access_report = verify_dq_access(client, function_secrets)
+        print_access_check_report(access_report)
+        if not access_report.ok:
+            print(
+                "Error: grant the missing capabilities listed above "
+                "(see README Access control), then re-run.",
+                file=sys.stderr,
+            )
+            return 1
+        if not access_report.runtime_checked:
+            print(
+                "Warning: function runtime access was not verified "
+                "(set function secrets client-id/client-secret).",
+                file=sys.stderr,
+            )
 
         stream_id = records_stream_id(settings_raw)
-        if client is not None:
-            try:
-                stream_status = ensure_records_stream(client, stream_id, dry_run=args.dry_run)
-            except PermissionError as exc:
-                print(f"Error: {exc}", file=sys.stderr)
-                return 1
-            print(f"  Records stream: {stream_id} ({stream_status})")
-        elif args.dry_run:
-            print(f"  Records stream: {stream_id} (ensured on live deploy)")
+        try:
+            stream_status = ensure_records_stream(client, stream_id, dry_run=args.dry_run)
+        except PermissionError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+        print(f"  Records stream: {stream_id} ({stream_status})")
 
         deploy_kwargs: dict[str, object] = {
             "client": client,
@@ -170,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
 
         results = deploy_validation_infrastructure(**deploy_kwargs)
 
-        if args.enqueue_historic and not args.dry_run and client is not None:
+        if args.enqueue_historic and not args.dry_run:
             dq_space = data_quality_space(settings_raw)
             print(f"\n{'=' * 60}")
             print("ENQUEUE HISTORIC VALIDATION JOBS")

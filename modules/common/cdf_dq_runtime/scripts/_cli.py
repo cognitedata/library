@@ -165,8 +165,12 @@ def materialize_pack_yaml(
 ) -> Path:
     """Copy pack YAML into dest_dir with Toolkit placeholders substituted."""
     dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_dir_resolved = dest_dir.resolve()
     unresolved: list[str] = []
     for src in sorted(source_dir.rglob("*")):
+        # Skip output tree when dest_dir is inside source_dir (e.g. ./build).
+        if src.resolve().is_relative_to(dest_dir_resolved):
+            continue
         if not src.is_file():
             continue
         if src.suffix.lower() not in {".yaml", ".yml", ".ttl"}:
@@ -320,7 +324,10 @@ def create_client_from_credentials(
     cluster = os.environ.get("CDF_CLUSTER") or os.environ.get("COGNITE_CLUSTER", "api")
     project = project or os.environ.get("CDF_PROJECT") or os.environ.get("COGNITE_PROJECT")
     base_url = (
-        base_url or os.environ.get("CDF_URL") or os.environ.get("COGNITE_BASE_URL") or f"https://{cluster}.cognitedata.com"
+        base_url
+        or os.environ.get("CDF_URL")
+        or os.environ.get("COGNITE_BASE_URL")
+        or f"https://{cluster}.cognitedata.com"
     )
     token_url = os.environ.get("IDP_TOKEN_URL") or os.environ.get("COGNITE_TOKEN_URL")
     tenant_id = os.environ.get("IDP_TENANT_ID") or os.environ.get("AZURE_TENANT_ID")

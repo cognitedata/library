@@ -80,7 +80,7 @@ def _view_namespaces(dest: Path) -> set[tuple[str, str]]:
     return namespaces
 
 
-def test_module_variables_scope_to_dq_runtime(cli) -> None:
+def test_module_variables_scope_to_dq_runtime(cli: types.ModuleType) -> None:
     config = {
         "variables": {
             "global_var": "global_val",
@@ -103,7 +103,7 @@ def test_module_variables_scope_to_dq_runtime(cli) -> None:
     }
 
 
-def test_materialize_defaults_target_cognite_core_views(cli, tmp_path: Path) -> None:
+def test_materialize_defaults_target_cognite_core_views(cli: types.ModuleType, tmp_path: Path) -> None:
     dest = _materialize(cli, tmp_path)
 
     for path in dest.rglob("*.y*ml"):
@@ -137,7 +137,7 @@ def test_materialize_defaults_target_cognite_core_views(cli, tmp_path: Path) -> 
     assert ts_config["filter"]["space"] == "inst_location"
 
 
-def test_sample_shacl_rules_target_configured_views(cli, tmp_path: Path) -> None:
+def test_sample_shacl_rules_target_configured_views(cli: types.ModuleType, tmp_path: Path) -> None:
     dest = _materialize(cli, tmp_path)
     helper_types = {("cdf_cdm", "CogniteAssetType"), ("cdf_cdm", "CogniteEquipmentType")}
     assert _view_namespaces(dest) <= _CORE_VIEWS | helper_types
@@ -147,7 +147,7 @@ def test_sample_shacl_rules_target_configured_views(cli, tmp_path: Path) -> None
             assert legacy not in text, f"{path.name} still references {legacy}"
 
 
-def test_customer_overrides_flow_into_rules_and_views(cli, tmp_path: Path) -> None:
+def test_customer_overrides_flow_into_rules_and_views(cli: types.ModuleType, tmp_path: Path) -> None:
     dest = _materialize(
         cli,
         tmp_path,
@@ -171,13 +171,13 @@ def test_customer_overrides_flow_into_rules_and_views(cli, tmp_path: Path) -> No
     assert "http://purl.org/cognite/inst_acme/pi:160554" in ts_rules
 
 
-def test_data_quality_space_from_settings(cli, tmp_path: Path) -> None:
+def test_data_quality_space_from_settings(cli: types.ModuleType, tmp_path: Path) -> None:
     settings = tmp_path / "settings.yaml"
     settings.write_text("config_space: dataQuality\n", encoding="utf-8")
     assert cli.data_quality_space(cli.load_settings_raw(settings)) == "dataQuality"
 
 
-def test_records_stream_id_from_settings(cli, tmp_path: Path) -> None:
+def test_records_stream_id_from_settings(cli: types.ModuleType, tmp_path: Path) -> None:
     settings = tmp_path / "settings.yaml"
     settings.write_text(
         "records:\n  space: dataQuality\n  stream_id: test_stream_1\n",
@@ -186,7 +186,7 @@ def test_records_stream_id_from_settings(cli, tmp_path: Path) -> None:
     assert cli.records_stream_id(cli.load_settings_raw(settings)) == "test_stream_1"
 
 
-def test_ensure_records_stream_skips_when_exists(cli) -> None:
+def test_ensure_records_stream_skips_when_exists(cli: types.ModuleType) -> None:
     class _Client:
         config = SimpleNamespace(project="demo")
 
@@ -200,7 +200,7 @@ def test_ensure_records_stream_skips_when_exists(cli) -> None:
     assert cli.ensure_records_stream(_Client(), "test_stream_1") == "exists"
 
 
-def test_ensure_records_stream_url_encodes_stream_id(cli) -> None:
+def test_ensure_records_stream_url_encodes_stream_id(cli: types.ModuleType) -> None:
     from cognite.client.exceptions import CogniteAPIError
 
     seen: dict[str, str] = {}
@@ -219,7 +219,7 @@ def test_ensure_records_stream_url_encodes_stream_id(cli) -> None:
     assert seen["url"] == "/api/v1/projects/demo/streams/stream%20with%2Fslash"
 
 
-def test_ensure_records_stream_creates_when_missing(cli) -> None:
+def test_ensure_records_stream_creates_when_missing(cli: types.ModuleType) -> None:
     from cognite.client.exceptions import CogniteAPIError
 
     posted: dict[str, object] = {}
@@ -247,7 +247,7 @@ def test_ensure_records_stream_creates_when_missing(cli) -> None:
     }
 
 
-def test_ensure_records_stream_dry_run_does_not_create(cli) -> None:
+def test_ensure_records_stream_dry_run_does_not_create(cli: types.ModuleType) -> None:
     from cognite.client.exceptions import CogniteAPIError
 
     class _Client:
@@ -262,7 +262,7 @@ def test_ensure_records_stream_dry_run_does_not_create(cli) -> None:
     assert cli.ensure_records_stream(_Client(), "test_stream_1", dry_run=True) == "would_create"
 
 
-def test_ensure_records_stream_forbidden_raises_permission_error(cli) -> None:
+def test_ensure_records_stream_forbidden_raises_permission_error(cli: types.ModuleType) -> None:
     from cognite.client.exceptions import CogniteAPIError
 
     class _Client:
@@ -275,7 +275,7 @@ def test_ensure_records_stream_forbidden_raises_permission_error(cli) -> None:
         cli.ensure_records_stream(_Client(), "test_stream_1")
 
 
-def test_collect_granted_actions_from_token_dump(cli) -> None:
+def test_collect_granted_actions_from_token_dump(cli: types.ModuleType) -> None:
     granted = cli.collect_granted_actions(
         [
             {
@@ -297,7 +297,7 @@ def test_collect_granted_actions_from_token_dump(cli) -> None:
     assert granted["dataProductsAcl"] == {"READ"}
 
 
-def test_missing_capabilities_lists_absent_actions(cli) -> None:
+def test_missing_capabilities_lists_absent_actions(cli: types.ModuleType) -> None:
     granted = {"streamsAcl": {"READ"}, "dataProductsAcl": {"READ", "CREATE", "UPDATE", "DELETE"}}
     missing = cli.missing_capabilities(granted, cli.INSTALL_CAPABILITIES)
     assert "streamsAcl:CREATE" in missing
