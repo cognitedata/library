@@ -144,7 +144,7 @@ def test_the_function_has_no_raw_settings() -> None:
 def test_no_production_code_reads_a_raw_setting() -> None:
     from pathlib import Path
 
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parent.parent
     sources = [root / "handler.py", *sorted((root / "cq").glob("*.py"))]
 
     assert [p.name for p in sources if "rawDatabase" in p.read_text() or "rawDatapointsTable" in p.read_text()] == []

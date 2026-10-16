@@ -122,7 +122,7 @@ than of an environment, so they keep their defaults. The legacy at-dev deploymen
 (`cq_demo_metrics`, `sp_cq_demo_metrics`, `sp_cq_demo_metrics_data`). The function reads no RAW table.
 
 **What is deployed.** Toolkit zips the whole function folder, so the deployed package also contains the tests, their
-fixtures (`parity_dataset.py`, `tiny_data.py`, `sample_rules.py`, `conftest.py`). This matches
+fixtures (`parity_dataset.py`, `tiny_data.py`, `sample_rules.py`, all in the function's `tests/` folder, and `conftest.py`). This matches
 the library's other functions, which keep `test_*.py` beside the handler (for example `cdf_entity_matching`), so the
 packaging convention is unchanged. Nothing in `handler.py` or `cq/` imports any of those files (a test enforces it), so
 production cannot pick up any rules without a task `config` that supplies them. `sample_rules.py` is a test fixture:

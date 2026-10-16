@@ -239,7 +239,7 @@ def test_the_classification_payload_is_unchanged() -> None:
 
 def test_the_id_prefixes_are_the_ones_the_contract_lists() -> None:
     contract = json.loads(
-        (__import__("pathlib").Path(__file__).resolve().parents[2] / "contract" / "contract.json").read_text()
+        (__import__("pathlib").Path(__file__).resolve().parents[3] / "contract" / "contract.json").read_text()
     )
     rows = writer.drilldown_rows([item("sp_a", "a-1")], cap=5) + writer.classification_rows(classification())
 

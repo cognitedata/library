@@ -10,7 +10,7 @@ from cq.config import DEFAULT_CONFIG, build_config
 from sample_rules import SAMPLE_RULES
 from tiny_data import NOW, asset, data, equipment
 
-HERE = Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parent.parent
 PROJECT_MAPPINGS = ("tierByTypeCode", "disciplineByTypeCode", "assetTypeByEquipmentTypeCode", "defaultOwners")
 PROJECT_RULES = (*PROJECT_MAPPINGS, "ownerPrefixRules")
 DEMO_WORDS = (

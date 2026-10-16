@@ -17,7 +17,7 @@ from cq.metrics import compute
 from parity_dataset import A, B, build_dataset
 from sample_rules import SAMPLE_RESOURCES, SAMPLE_RULES
 
-CONTRACT = json.loads((Path(__file__).resolve().parents[2] / "contract" / "contract.json").read_text())
+CONTRACT = json.loads((Path(__file__).resolve().parents[3] / "contract" / "contract.json").read_text())
 
 
 def run(overrides: dict[str, Any] | None = None, mutate: Any = None) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -493,7 +493,7 @@ def test_every_warning_code_the_function_can_write_is_in_the_contract_and_the_ot
 
 
 def test_every_not_applicable_reason_is_documented_in_the_contract() -> None:
-    contract_md = (Path(__file__).resolve().parents[2] / "contract" / "CONTRACT.md").read_text()
+    contract_md = (Path(__file__).resolve().parents[3] / "contract" / "CONTRACT.md").read_text()
     source = Path(availability.__file__).read_text()
     reasons = set(re.findall(r'return "([a-z:A-Z-]+)"', source))
 
