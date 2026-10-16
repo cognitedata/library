@@ -306,6 +306,133 @@ def test_missing_capabilities_lists_absent_actions(cli) -> None:
     assert "dataProductsAcl:READ" not in missing
 
 
+def test_create_client_from_credentials_prefers_explicit_project_and_base_url(
+    cli, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeCredentials:
+        def __init__(self, **kwargs: object) -> None:
+            captured["credentials"] = kwargs
+
+    class _FakeClientConfig:
+        def __init__(self, **kwargs: object) -> None:
+            captured["config"] = kwargs
+
+    class _FakeCogniteClient:
+        def __init__(self, config: object) -> None:
+            self.config = config
+
+    fake_cognite = types.ModuleType("cognite")
+    fake_client = types.ModuleType("cognite.client")
+    fake_client.ClientConfig = _FakeClientConfig
+    fake_client.CogniteClient = _FakeCogniteClient
+    fake_credentials = types.ModuleType("cognite.client.credentials")
+    fake_credentials.OAuthClientCredentials = _FakeCredentials
+    monkeypatch.setitem(sys.modules, "cognite", fake_cognite)
+    monkeypatch.setitem(sys.modules, "cognite.client", fake_client)
+    monkeypatch.setitem(sys.modules, "cognite.client.credentials", fake_credentials)
+
+    monkeypatch.delenv("CDF_PROJECT", raising=False)
+    monkeypatch.delenv("COGNITE_PROJECT", raising=False)
+    monkeypatch.delenv("CDF_URL", raising=False)
+    monkeypatch.delenv("COGNITE_BASE_URL", raising=False)
+    monkeypatch.setenv("IDP_TENANT_ID", "tenant-id")
+    monkeypatch.setenv("CDF_CLUSTER", "westeurope-1")
+
+    cli.create_client_from_credentials(
+        "runtime-id",
+        "runtime-secret",
+        project="from-toml",
+        base_url="https://westeurope-1.cognitedata.com",
+    )
+    config = captured["config"]
+    assert isinstance(config, dict)
+    assert config["project"] == "from-toml"
+    assert config["base_url"] == "https://westeurope-1.cognitedata.com"
+
+
+def test_verify_dq_access_passes_install_client_config_to_runtime_client(
+    cli, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+
+    class _InstallClient:
+        config = SimpleNamespace(project="from-toml", base_url="https://westeurope-1.cognitedata.com")
+
+        def __init__(self) -> None:
+            self.iam = SimpleNamespace(token=SimpleNamespace(inspect=self._inspect))
+
+        def _inspect(self):
+            return SimpleNamespace(
+                capabilities=SimpleNamespace(
+                    dump=lambda: [
+                        {
+                            "dataProductsAcl": {"actions": ["CREATE", "READ", "UPDATE", "DELETE"]},
+                            "projectScope": {"all": {}},
+                        },
+                        {
+                            "ruleSetsAcl": {"actions": ["CREATE", "READ", "UPDATE", "DELETE"]},
+                            "projectScope": {"all": {}},
+                        },
+                        {
+                            "streamsAcl": {"actions": ["READ", "CREATE", "DELETE"]},
+                            "projectScope": {"all": {}},
+                        },
+                    ]
+                )
+            )
+
+    class _RuntimeClient:
+        def __init__(self) -> None:
+            self.iam = SimpleNamespace(token=SimpleNamespace(inspect=self._inspect))
+
+        def _inspect(self):
+            return SimpleNamespace(
+                capabilities=SimpleNamespace(
+                    dump=lambda: [
+                        {
+                            "streamsAcl": {"actions": ["READ"]},
+                            "projectScope": {"all": {}},
+                        },
+                        {
+                            "streamRecordsAcl": {"actions": ["READ", "WRITE"]},
+                            "projectScope": {"all": {}},
+                        },
+                    ]
+                )
+            )
+
+    def _fake_create(
+        client_id: str,
+        client_secret: str,
+        project: str | None = None,
+        base_url: str | None = None,
+    ) -> _RuntimeClient:
+        captured["call"] = {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "project": project,
+            "base_url": base_url,
+        }
+        return _RuntimeClient()
+
+    monkeypatch.setattr(cli, "create_client_from_credentials", _fake_create)
+
+    report = cli.verify_dq_access(
+        _InstallClient(),
+        function_secrets={"client-id": "runtime-id", "client-secret": "runtime-secret"},
+        deploy_client_id="deploy-id",
+    )
+    assert captured["call"] == {
+        "client_id": "runtime-id",
+        "client_secret": "runtime-secret",
+        "project": "from-toml",
+        "base_url": "https://westeurope-1.cognitedata.com",
+    }
+    assert report.runtime_checked is True
+
+
 def test_verify_dq_access_reports_missing_for_install_and_runtime(cli) -> None:
     install_caps = {
         "dataProductsAcl": {"CREATE", "READ", "UPDATE", "DELETE"},

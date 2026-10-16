@@ -307,14 +307,21 @@ def inspect_granted_actions(client: CogniteClient) -> dict[str, set[str]]:
     return collect_granted_actions(dump)
 
 
-def create_client_from_credentials(client_id: str, client_secret: str) -> CogniteClient:
+def create_client_from_credentials(
+    client_id: str,
+    client_secret: str,
+    project: str | None = None,
+    base_url: str | None = None,
+) -> CogniteClient:
     """Create a Cognite client using explicit client credentials and env project settings."""
     from cognite.client import ClientConfig, CogniteClient
     from cognite.client.credentials import OAuthClientCredentials
 
     cluster = os.environ.get("CDF_CLUSTER") or os.environ.get("COGNITE_CLUSTER", "api")
-    project = os.environ.get("CDF_PROJECT") or os.environ.get("COGNITE_PROJECT")
-    base_url = os.environ.get("CDF_URL") or os.environ.get("COGNITE_BASE_URL") or f"https://{cluster}.cognitedata.com"
+    project = project or os.environ.get("CDF_PROJECT") or os.environ.get("COGNITE_PROJECT")
+    base_url = (
+        base_url or os.environ.get("CDF_URL") or os.environ.get("COGNITE_BASE_URL") or f"https://{cluster}.cognitedata.com"
+    )
     token_url = os.environ.get("IDP_TOKEN_URL") or os.environ.get("COGNITE_TOKEN_URL")
     tenant_id = os.environ.get("IDP_TENANT_ID") or os.environ.get("AZURE_TENANT_ID")
 
@@ -391,7 +398,14 @@ def verify_dq_access(
     elif runtime_client is not None:
         runtime_granted = inspect_granted_actions(runtime_client)
     else:
-        runtime_granted = inspect_granted_actions(create_client_from_credentials(runtime_id, runtime_secret))
+        runtime_granted = inspect_granted_actions(
+            create_client_from_credentials(
+                runtime_id,
+                runtime_secret,
+                project=install_client.config.project,
+                base_url=install_client.config.base_url,
+            )
+        )
 
     runtime_missing = missing_capabilities(runtime_granted, RUNTIME_CAPABILITIES)
     return AccessCheckReport(
