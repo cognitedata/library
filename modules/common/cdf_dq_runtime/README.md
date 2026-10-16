@@ -176,6 +176,8 @@ The identity used by `cdf deploy` and `deploy_infrastructure.py` (Toolkit `.env`
 
 Grant these (typically all actions, scope `all`) in Fusion → Access management on the group linked to that identity — for Toolkit this is often `cognite_toolkit_service_principal`.
 
+`deploy_infrastructure.py` verifies these capabilities (and the function runtime ones below) via `token.inspect` before deploying, and exits if any are missing.
+
 The identity used **at runtime** by the CDF Function (the service principal whose `client-id` / `client-secret` were registered via `deploy_infrastructure.py`) must also have Streams access and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `test_stream_1`). Without these, validation fails when posting results:
 
 | Capability | Needed for |

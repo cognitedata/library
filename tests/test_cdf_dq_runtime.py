@@ -258,6 +258,126 @@ def test_ensure_records_stream_forbidden_raises_permission_error(cli) -> None:
         cli.ensure_records_stream(_Client(), "test_stream_1")
 
 
+def test_collect_granted_actions_from_token_dump(cli) -> None:
+    granted = cli.collect_granted_actions(
+        [
+            {
+                "projectScope": {"projects": ["demo"]},
+                "streamsAcl": {"actions": ["READ", "CREATE"], "scope": {"all": {}}},
+            },
+            {
+                "projectScope": {"all": {}},
+                "streamRecordsAcl": {"actions": ["READ", "WRITE"], "scope": {"all": {}}},
+            },
+            {
+                "dataProductsAcl": {"actions": ["read"], "scope": {"all": {}}},
+                "projectScope": {"projects": ["demo"]},
+            },
+        ]
+    )
+    assert granted["streamsAcl"] == {"READ", "CREATE"}
+    assert granted["streamRecordsAcl"] == {"READ", "WRITE"}
+    assert granted["dataProductsAcl"] == {"READ"}
+
+
+def test_missing_capabilities_lists_absent_actions(cli) -> None:
+    granted = {"streamsAcl": {"READ"}, "dataProductsAcl": {"READ", "CREATE", "UPDATE", "DELETE"}}
+    missing = cli.missing_capabilities(granted, cli.INSTALL_CAPABILITIES)
+    assert "streamsAcl:CREATE" in missing
+    assert "streamsAcl:DELETE" in missing
+    assert "ruleSetsAcl:READ" in missing
+    assert "dataProductsAcl:READ" not in missing
+
+
+def test_verify_dq_access_reports_missing_for_install_and_runtime(cli) -> None:
+    install_caps = {
+        "dataProductsAcl": {"CREATE", "READ", "UPDATE", "DELETE"},
+        "ruleSetsAcl": {"CREATE", "READ", "UPDATE", "DELETE"},
+        "streamsAcl": {"READ"},
+    }
+    runtime_caps = {
+        "streamsAcl": {"READ"},
+        # missing streamRecordsAcl WRITE
+    }
+
+    class _InstallClient:
+        config = SimpleNamespace(project="demo")
+
+        def __init__(self) -> None:
+            self.iam = SimpleNamespace(token=SimpleNamespace(inspect=self._inspect))
+
+        def _inspect(self):
+            return SimpleNamespace(
+                capabilities=SimpleNamespace(
+                    dump=lambda: [
+                        {"dataProductsAcl": {"actions": sorted(install_caps["dataProductsAcl"])}, "projectScope": {"all": {}}},
+                        {"ruleSetsAcl": {"actions": sorted(install_caps["ruleSetsAcl"])}, "projectScope": {"all": {}}},
+                        {"streamsAcl": {"actions": sorted(install_caps["streamsAcl"])}, "projectScope": {"all": {}}},
+                    ]
+                )
+            )
+
+    class _RuntimeClient:
+        config = SimpleNamespace(project="demo")
+
+        def __init__(self) -> None:
+            self.iam = SimpleNamespace(token=SimpleNamespace(inspect=self._inspect))
+
+        def _inspect(self):
+            return SimpleNamespace(
+                capabilities=SimpleNamespace(
+                    dump=lambda: [
+                        {"streamsAcl": {"actions": sorted(runtime_caps["streamsAcl"])}, "projectScope": {"all": {}}},
+                    ]
+                )
+            )
+
+    report = cli.verify_dq_access(
+        _InstallClient(),
+        function_secrets={"client-id": "runtime-id", "client-secret": "runtime-secret"},
+        runtime_client=_RuntimeClient(),
+    )
+    assert report.ok is False
+    assert "streamsAcl:CREATE" in report.install_missing
+    assert "streamRecordsAcl:WRITE" in report.runtime_missing
+    assert report.runtime_checked is True
+    assert report.same_identity is False
+
+
+def test_verify_dq_access_same_identity_checks_both_requirement_sets(cli) -> None:
+    caps = {
+        "dataProductsAcl": {"CREATE", "READ", "UPDATE", "DELETE"},
+        "ruleSetsAcl": {"CREATE", "READ", "UPDATE", "DELETE"},
+        "streamsAcl": {"READ", "CREATE", "DELETE"},
+        "streamRecordsAcl": {"READ", "WRITE"},
+    }
+
+    class _Client:
+        config = SimpleNamespace(project="demo")
+
+        def __init__(self) -> None:
+            self.iam = SimpleNamespace(token=SimpleNamespace(inspect=self._inspect))
+
+        def _inspect(self):
+            return SimpleNamespace(
+                capabilities=SimpleNamespace(
+                    dump=lambda: [
+                        {acl: {"actions": sorted(actions)}, "projectScope": {"all": {}}}
+                        for acl, actions in caps.items()
+                    ]
+                )
+            )
+
+    report = cli.verify_dq_access(
+        _Client(),
+        function_secrets={"client-id": "same", "client-secret": "secret"},
+        deploy_client_id="same",
+    )
+    assert report.ok is True
+    assert report.same_identity is True
+    assert report.runtime_checked is True
+
+
 def test_load_project_env_uses_cdf_toml_root(cli, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     project = tmp_path / "toolkit-project"
     project.mkdir()

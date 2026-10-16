@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import re
+import sys
 import tomllib
 import warnings
 from dataclasses import dataclass
@@ -227,6 +228,205 @@ def _streams_capability_error(stream_id: str, action: str, exc: Exception) -> Pe
         f"Grant streamsAcl:READ and streamsAcl:CREATE (scope all) on the group for the "
         f"credentials in .env / IDP_* used by deploy_infrastructure.py. Original error: {exc}"
     )
+
+
+# Capability requirements from README Access control (install vs function runtime).
+INSTALL_CAPABILITIES: dict[str, frozenset[str]] = {
+    "dataProductsAcl": frozenset({"CREATE", "READ", "UPDATE", "DELETE"}),
+    "ruleSetsAcl": frozenset({"CREATE", "READ", "UPDATE", "DELETE"}),
+    "streamsAcl": frozenset({"READ", "CREATE", "DELETE"}),
+}
+
+RUNTIME_CAPABILITIES: dict[str, frozenset[str]] = {
+    "streamsAcl": frozenset({"READ"}),
+    "streamRecordsAcl": frozenset({"READ", "WRITE"}),
+}
+
+
+@dataclass(frozen=True)
+class AccessCheckReport:
+    """Result of comparing token capabilities to README Access control requirements."""
+
+    install_missing: list[str]
+    runtime_missing: list[str]
+    runtime_checked: bool
+    same_identity: bool
+
+    @property
+    def ok(self) -> bool:
+        if self.install_missing:
+            return False
+        if self.runtime_checked and self.runtime_missing:
+            return False
+        return True
+
+
+def collect_granted_actions(capabilities_dump: list[dict[str, object]]) -> dict[str, set[str]]:
+    """Build ACL name → granted actions from a ``token.inspect`` capabilities dump."""
+    granted: dict[str, set[str]] = {}
+    for item in capabilities_dump:
+        if not isinstance(item, dict):
+            continue
+        for key, value in item.items():
+            if key in {"projectScope", "project_scope"}:
+                continue
+            if not isinstance(value, dict):
+                continue
+            actions = value.get("actions") or []
+            if not isinstance(actions, list):
+                continue
+            granted.setdefault(str(key), set()).update(str(action).upper() for action in actions)
+    return granted
+
+
+def missing_capabilities(
+    granted: dict[str, set[str]],
+    required: dict[str, frozenset[str]],
+) -> list[str]:
+    """Return sorted ``acl:ACTION`` entries that are required but not granted."""
+    missing: list[str] = []
+    for acl, actions in required.items():
+        have = granted.get(acl, set())
+        for action in sorted(actions):
+            if action not in have:
+                missing.append(f"{acl}:{action}")
+    return missing
+
+
+def inspect_granted_actions(client: CogniteClient) -> dict[str, set[str]]:
+    """Return ACL → actions for the current token via ``iam.token.inspect``."""
+    inspection = client.iam.token.inspect()
+    dump = inspection.capabilities.dump()
+    if not isinstance(dump, list):
+        raise TypeError("token.inspect capabilities.dump() did not return a list")
+    return collect_granted_actions(dump)
+
+
+def create_client_from_credentials(client_id: str, client_secret: str) -> CogniteClient:
+    """Create a Cognite client using explicit client credentials and env project settings."""
+    from cognite.client import ClientConfig, CogniteClient
+    from cognite.client.credentials import OAuthClientCredentials
+
+    cluster = os.environ.get("CDF_CLUSTER") or os.environ.get("COGNITE_CLUSTER", "api")
+    project = os.environ.get("CDF_PROJECT") or os.environ.get("COGNITE_PROJECT")
+    base_url = (
+        os.environ.get("CDF_URL")
+        or os.environ.get("COGNITE_BASE_URL")
+        or f"https://{cluster}.cognitedata.com"
+    )
+    token_url = os.environ.get("IDP_TOKEN_URL") or os.environ.get("COGNITE_TOKEN_URL")
+    tenant_id = os.environ.get("IDP_TENANT_ID") or os.environ.get("AZURE_TENANT_ID")
+
+    if not project:
+        raise ValueError("Missing CDF_PROJECT/COGNITE_PROJECT for function-identity access check")
+    if token_url:
+        oauth_url = token_url
+    elif tenant_id:
+        oauth_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+    else:
+        raise ValueError("Missing IDP_TOKEN_URL, COGNITE_TOKEN_URL, or IDP_TENANT_ID/AZURE_TENANT_ID")
+
+    scopes_env = os.environ.get("IDP_SCOPES")
+    if scopes_env:
+        scopes = [scope.strip() for scope in scopes_env.split() if scope.strip()]
+    else:
+        scopes = [f"https://{cluster}.cognitedata.com/.default"]
+
+    credentials = OAuthClientCredentials(
+        token_url=oauth_url,
+        client_id=client_id,
+        client_secret=client_secret,
+        scopes=scopes,
+    )
+    config = ClientConfig(
+        client_name="dq-toolkit-access-check",
+        project=project,
+        credentials=credentials,
+        base_url=base_url,
+    )
+    return CogniteClient(config)
+
+
+def _deploy_client_id() -> str | None:
+    return os.environ.get("IDP_CLIENT_ID") or os.environ.get("COGNITE_CLIENT_ID")
+
+
+def verify_dq_access(
+    install_client: CogniteClient,
+    function_secrets: dict[str, str] | None,
+    *,
+    runtime_client: CogniteClient | None = None,
+    deploy_client_id: str | None = None,
+) -> AccessCheckReport:
+    """Check install and function-runtime identities against README Access control.
+
+    Args:
+        install_client: Client used by ``deploy_infrastructure.py`` (``.env`` / ``IDP_*``).
+        function_secrets: Function secrets dict with ``client-id`` / ``client-secret``.
+        runtime_client: Optional pre-built client for the function identity (tests).
+        deploy_client_id: Optional deploy client id for same-identity detection (tests).
+
+    Returns:
+        AccessCheckReport with missing ``acl:ACTION`` entries per role.
+    """
+    install_granted = inspect_granted_actions(install_client)
+    install_missing = missing_capabilities(install_granted, INSTALL_CAPABILITIES)
+
+    deploy_id = deploy_client_id if deploy_client_id is not None else _deploy_client_id()
+    runtime_id = function_secrets.get("client-id") if function_secrets else None
+    runtime_secret = function_secrets.get("client-secret") if function_secrets else None
+    same_identity = bool(runtime_id and deploy_id and runtime_id == deploy_id)
+
+    if not runtime_id or not runtime_secret:
+        return AccessCheckReport(
+            install_missing=install_missing,
+            runtime_missing=[],
+            runtime_checked=False,
+            same_identity=False,
+        )
+
+    if same_identity and runtime_client is None:
+        runtime_granted = install_granted
+    elif runtime_client is not None:
+        runtime_granted = inspect_granted_actions(runtime_client)
+    else:
+        runtime_granted = inspect_granted_actions(
+            create_client_from_credentials(runtime_id, runtime_secret)
+        )
+
+    runtime_missing = missing_capabilities(runtime_granted, RUNTIME_CAPABILITIES)
+    return AccessCheckReport(
+        install_missing=install_missing,
+        runtime_missing=runtime_missing,
+        runtime_checked=True,
+        same_identity=same_identity,
+    )
+
+
+def print_access_check_report(report: AccessCheckReport) -> None:
+    """Print a human-readable access check summary to stdout/stderr."""
+    print("\nAccess check (README Access control)")
+    if report.install_missing:
+        print("  Install identity: MISSING", file=sys.stderr)
+        for item in report.install_missing:
+            print(f"    - {item}", file=sys.stderr)
+    else:
+        print("  Install identity: OK")
+
+    if not report.runtime_checked:
+        print(
+            "  Function runtime identity: SKIPPED (no client-id/client-secret function secrets)",
+            file=sys.stderr,
+        )
+        return
+
+    same = " (same as install)" if report.same_identity else ""
+    if report.runtime_missing:
+        print(f"  Function runtime identity{same}: MISSING", file=sys.stderr)
+        for item in report.runtime_missing:
+            print(f"    - {item}", file=sys.stderr)
+    else:
+        print(f"  Function runtime identity{same}: OK")
 
 
 def ensure_records_stream(

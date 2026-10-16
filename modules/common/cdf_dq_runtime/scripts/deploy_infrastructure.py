@@ -30,6 +30,7 @@ from _cli import (
     ensure_records_stream,
     load_project_env,
     load_settings_raw,
+    print_access_check_report,
     print_deploy_context,
     print_infrastructure_summary,
     print_verbose_results,
@@ -37,6 +38,7 @@ from _cli import (
     resolve_cognite_client,
     resolve_function_secrets,
     resolve_materialized_pack,
+    verify_dq_access,
 )
 
 
@@ -116,6 +118,23 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"views_dir={pack.views_dir}")
             if pack.timeseries_dir is not None:
                 print(f"timeseries_dir={pack.timeseries_dir}")
+
+        if client is not None:
+            access_report = verify_dq_access(client, function_secrets)
+            print_access_check_report(access_report)
+            if not access_report.ok:
+                print(
+                    "Error: grant the missing capabilities listed above "
+                    "(see README Access control), then re-run.",
+                    file=sys.stderr,
+                )
+                return 1
+            if not access_report.runtime_checked:
+                print(
+                    "Warning: function runtime access was not verified "
+                    "(set function secrets client-id/client-secret).",
+                    file=sys.stderr,
+                )
 
         stream_id = records_stream_id(settings_raw)
         if client is not None:
