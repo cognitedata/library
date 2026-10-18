@@ -61,13 +61,13 @@ def _materialize(cli: types.ModuleType, tmp_path: Path, overrides: dict[str, str
     return cli.materialize_pack_yaml(_MODULE, tmp_path / "out", variables)
 
 
-def _load_yaml(path: Path) -> dict:
+def _load_yaml(path: Path) -> dict[str, object]:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     assert isinstance(data, dict)
     return data
 
 
-def _data_product_version(dest: Path) -> dict:
+def _data_product_version(dest: Path) -> dict[str, object]:
     (path,) = (dest / "data_products").glob("*.DataProductVersion.yaml")
     return _load_yaml(path)
 
