@@ -99,10 +99,10 @@ def main(argv: list[str] | None = None) -> int:
         if not pack.settings_path.is_file():
             raise FileNotFoundError(f"settings.yaml not found: {pack.settings_path}")
 
-        settings_raw = load_settings_raw(pack.settings_path)
+        settings = load_settings_raw(pack.settings_path)
         dp_sync_cron = None
-        if settings_raw.get("config_source") == "dataproduct":
-            dp_sync_cron = str(settings_raw.get("data_product_sync_cron", "13 * * * *"))
+        if settings.config_source == "dataproduct":
+            dp_sync_cron = settings.data_product_sync_cron or "13 * * * *"
 
         credentials_source = str(env_path) if env_path is not None else None
         print_deploy_context(
@@ -134,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
 
-        stream_id = records_stream_id(settings_raw)
+        stream_id = records_stream_id(settings)
         try:
             stream_status = ensure_records_stream(client, stream_id, dry_run=args.dry_run)
         except PermissionError as exc:
@@ -166,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
         results = deploy_validation_infrastructure(**deploy_kwargs)
 
         if args.enqueue_historic and not args.dry_run:
-            dq_space = data_quality_space(settings_raw)
+            dq_space = data_quality_space(settings)
             print(f"\n{'=' * 60}")
             print("ENQUEUE HISTORIC VALIDATION JOBS")
             print(f"{'=' * 60}\n")

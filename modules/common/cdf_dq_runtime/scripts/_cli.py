@@ -206,30 +206,64 @@ def load_variables(toolkit_config: Path | None) -> dict[str, str]:
     return variables
 
 
-def load_settings_raw(settings_path: Path) -> dict[str, object]:
-    """Load settings.yaml as a plain dict."""
+@dataclass(frozen=True)
+class RecordsConfig:
+    """Records section from settings.yaml (space + stream for validation results)."""
+
+    space: str
+    stream_id: str
+
+
+@dataclass(frozen=True)
+class RuntimeSettings:
+    """Typed subset of settings.yaml used by the deploy scripts."""
+
+    records: RecordsConfig | None = None
+    config_space: str | None = None
+    config_source: str | None = None
+    data_product_sync_cron: str | None = None
+
+    @property
+    def effective_config_space(self) -> str:
+        if self.config_space:
+            return self.config_space
+        if self.records:
+            return self.records.space
+        raise ValueError("settings.yaml must set config_space or records.space")
+
+
+def load_settings_raw(settings_path: Path) -> RuntimeSettings:
+    """Load settings.yaml into a typed RuntimeSettings structure."""
     data = yaml.safe_load(settings_path.read_text(encoding="utf-8")) or {}
     if not isinstance(data, dict):
         raise ValueError(f"Expected a mapping in {settings_path}")
-    return data
+    records: RecordsConfig | None = None
+    records_data = data.get("records")
+    if isinstance(records_data, dict) and records_data.get("space") and records_data.get("stream_id"):
+        records = RecordsConfig(
+            space=str(records_data["space"]),
+            stream_id=str(records_data["stream_id"]),
+        )
+    return RuntimeSettings(
+        records=records,
+        config_space=str(data["config_space"]) if data.get("config_space") else None,
+        config_source=str(data["config_source"]) if data.get("config_source") else None,
+        data_product_sync_cron=str(data["data_product_sync_cron"]) if data.get("data_product_sync_cron") else None,
+    )
 
 
-def data_quality_space(settings_raw: dict[str, object]) -> str:
+def data_quality_space(settings: RuntimeSettings) -> str:
     """Resolve DMS space for DataQualitySettings / HistoricJobQueue."""
-    config_space = settings_raw.get("config_space")
-    if config_space:
-        return str(config_space)
-    records = settings_raw.get("records") or {}
-    if isinstance(records, dict) and records.get("space"):
-        return str(records["space"])
-    raise ValueError("settings.yaml must set config_space or records.space for historic enqueue")
+    try:
+        return settings.effective_config_space
+    except ValueError as exc:
+        raise ValueError("settings.yaml must set config_space or records.space for historic enqueue") from exc
 
 
-def records_stream_id(settings_raw: dict[str, object]) -> str:
+def records_stream_id(settings: RuntimeSettings) -> str:
     """Resolve the records stream external ID from settings.yaml."""
-    records = settings_raw.get("records") or {}
-    if isinstance(records, dict) and records.get("stream_id"):
-        return str(records["stream_id"])
+    if settings.records:
+        return settings.records.stream_id
     raise ValueError("settings.yaml must set records.stream_id")
 
 

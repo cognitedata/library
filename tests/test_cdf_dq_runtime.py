@@ -185,10 +185,46 @@ def test_customer_overrides_flow_into_rules_and_views(cli: types.ModuleType, tmp
     assert "http://purl.org/cognite/inst_acme/pi:160554" in ts_rules
 
 
+def test_load_settings_raw_returns_typed_runtime_settings(cli: types.ModuleType, tmp_path: Path) -> None:
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text(
+        "\n".join(
+            [
+                "config_space: dataQuality",
+                "config_source: dataproduct",
+                "data_product_sync_cron: '15 * * * *'",
+                "records:",
+                "  space: dataQuality",
+                "  stream_id: test_stream_1",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    settings = cli.load_settings_raw(settings_path)
+    assert isinstance(settings, cli.RuntimeSettings)
+    assert settings.config_space == "dataQuality"
+    assert settings.config_source == "dataproduct"
+    assert settings.data_product_sync_cron == "15 * * * *"
+    assert settings.records is not None
+    assert settings.records.space == "dataQuality"
+    assert settings.records.stream_id == "test_stream_1"
+    assert settings.effective_config_space == "dataQuality"
+
+
 def test_data_quality_space_from_settings(cli: types.ModuleType, tmp_path: Path) -> None:
     settings = tmp_path / "settings.yaml"
     settings.write_text("config_space: dataQuality\n", encoding="utf-8")
     assert cli.data_quality_space(cli.load_settings_raw(settings)) == "dataQuality"
+
+
+def test_data_quality_space_falls_back_to_records_space(cli: types.ModuleType, tmp_path: Path) -> None:
+    settings = tmp_path / "settings.yaml"
+    settings.write_text(
+        "records:\n  space: fromRecords\n  stream_id: test_stream_1\n",
+        encoding="utf-8",
+    )
+    assert cli.data_quality_space(cli.load_settings_raw(settings)) == "fromRecords"
 
 
 def test_records_stream_id_from_settings(cli: types.ModuleType, tmp_path: Path) -> None:
