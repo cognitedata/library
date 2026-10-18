@@ -651,7 +651,9 @@ def test_function_secrets_from_toml(cli: types.ModuleType, tmp_path: Path) -> No
     assert cli.function_secrets_from_toml(tmp_path / "missing.toml") is None
 
 
-def _install_fake_data_quality(monkeypatch: pytest.MonkeyPatch, *, pipeline_impl, settings) -> None:
+def _install_fake_data_quality(
+    monkeypatch: pytest.MonkeyPatch, *, pipeline_impl: object, settings: object
+) -> None:
     fake_cdq = types.ModuleType("cognite_data_quality")
     fake_cdq.deploy_validation_pipeline = pipeline_impl
     fake_deploy = types.ModuleType("cognite_data_quality.deploy")
@@ -670,7 +672,7 @@ def test_deploy_pipeline_dry_run_does_not_call_pipeline(
     settings_path = tmp_path / "settings.yaml"
     settings_path.write_text("config_space: dataQuality\n", encoding="utf-8")
 
-    def fail_if_called(*_args, **_kwargs):
+    def fail_if_called(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("deploy_validation_pipeline must not run during --dry-run")
 
     _install_fake_data_quality(
@@ -702,7 +704,7 @@ def test_deploy_pipeline_live_calls_package(
     settings_path.write_text("config_space: dataQuality\n", encoding="utf-8")
     captured: dict[str, object] = {}
 
-    def fake_pipeline(*_args, **kwargs):
+    def fake_pipeline(*_args: object, **kwargs: object) -> dict[str, object]:
         captured.update(kwargs)
         return {"status": "ok", "total_enqueued": 2}
 
@@ -736,7 +738,7 @@ def test_deploy_pipeline_requires_data_product_external_id(
     settings_path = tmp_path / "settings.yaml"
     settings_path.write_text("config_space: dataQuality\n", encoding="utf-8")
 
-    def fail_if_called(*_args, **_kwargs):
+    def fail_if_called(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("deploy_validation_pipeline must not run without data product")
 
     _install_fake_data_quality(
