@@ -1,0 +1,63 @@
+dataProductExternalId: {{ dataProductExternalId }}
+version: "{{ dataProductVersion }}"
+status: published
+description: Views validated by the data quality runtime (defaults to Cognite Core and Process Industries views).
+views:
+  - space: {{ schemaSpace }}
+    externalId: {{ viewAssetExternalId }}
+    version: "{{ viewVersion }}"
+    instanceSpaces:
+      read:
+        - {{ instanceSpace }}
+      write: []
+  - space: {{ schemaSpace }}
+    externalId: {{ viewEquipmentExternalId }}
+    version: "{{ viewVersion }}"
+    instanceSpaces:
+      read:
+        - {{ instanceSpace }}
+      write: []
+  - space: {{ schemaSpace }}
+    externalId: {{ viewTimeSeriesExternalId }}
+    version: "{{ viewVersion }}"
+    instanceSpaces:
+      read:
+        - {{ instanceSpace }}
+      write: []
+  - space: {{ secondarySchemaSpace }}
+    externalId: {{ viewMaintenanceOrderExternalId }}
+    version: "{{ viewVersion }}"
+    instanceSpaces:
+      read:
+        - {{ instanceSpace }}
+      write: []
+  - space: {{ secondarySchemaSpace }}
+    externalId: {{ viewOperationExternalId }}
+    version: "{{ viewVersion }}"
+    instanceSpaces:
+      read:
+        - {{ instanceSpace }}
+      write: []
+  - space: {{ secondarySchemaSpace }}
+    externalId: {{ viewNotificationExternalId }}
+    version: "{{ viewVersion }}"
+    instanceSpaces:
+      read:
+        - {{ instanceSpace }}
+      write: []
+quality:
+  rules:
+    - externalId: asset_shacl_rules
+      version: "{{ ruleSetVersion }}"
+    - externalId: equipment_shacl_rules
+      version: "{{ ruleSetVersion }}"
+    - externalId: maintenance_order_shacl_rules
+      version: "{{ ruleSetVersion }}"
+    - externalId: maintenance_order_rule_logic_test_shacl_rules
+      version: "{{ ruleSetVersion }}"
+    - externalId: notification_shacl_rules
+      version: "{{ ruleSetVersion }}"
+    - externalId: operation_shacl_rules
+      version: "{{ ruleSetVersion }}"
+    - externalId: timeseries_quality_rules
+      version: "{{ ruleSetVersion }}"

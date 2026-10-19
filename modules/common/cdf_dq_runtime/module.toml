@@ -1,0 +1,7 @@
+[module]
+title = "Data Quality Validation"
+id = "dp:data_quality:cdf_dq_runtime"
+package_id = "dp:data_quality"
+description = "Data quality validation for Data Products."
+is_selected_by_default = true
+tags = ["data-quality", "shacl", "rulesets", "dataproducts"]
