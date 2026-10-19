@@ -144,9 +144,9 @@ def main(argv: list[str] | None = None) -> int:
 
         deploy_kwargs: dict[str, object] = {
             "client": client,
-            "settings_path": pack.settings_path,
-            "views_dir": pack.views_dir,
-            "timeseries_dir": pack.timeseries_dir,
+            "settings_path": str(pack.settings_path),
+            "views_dir": str(pack.views_dir) if pack.views_dir else None,
+            "timeseries_dir": str(pack.timeseries_dir) if pack.timeseries_dir else None,
             "function_secrets": function_secrets,
             "force": args.force,
             "force_workflows": args.force_workflows,

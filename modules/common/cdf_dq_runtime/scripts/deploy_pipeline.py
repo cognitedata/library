@@ -89,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
 
     with tempfile.TemporaryDirectory(prefix="dq-toolkit-pack-") as tmp:
         pack = resolve_materialized_pack(args, Path(tmp))
-        settings = load_settings(pack.settings_path)
+        settings = load_settings(str(pack.settings_path))
         data_product_external_id = args.data_product_external_id
         if not data_product_external_id and settings.external_dataproducts:
             data_product_external_id = settings.external_dataproducts[0].external_id

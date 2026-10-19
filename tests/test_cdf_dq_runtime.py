@@ -761,6 +761,7 @@ def test_deploy_pipeline_live_calls_package(
     assert pipeline.main(["--settings-path", str(settings_path), "--historic-mode", "enqueue"]) == 0
     assert captured["historic_mode"] == "enqueue"
     assert captured["data_product_external_id"] == "dp-1"
+    assert isinstance(captured["settings_path"], str)
     assert "dry_run" not in captured
 
 
