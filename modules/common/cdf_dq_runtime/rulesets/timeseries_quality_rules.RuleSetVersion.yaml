@@ -49,7 +49,7 @@ rules:
         a sh:NodeShape ;
         sh:targetClass sp_ts:{{ viewTimeSeriesExternalId }} ;
         sh:name "Time Series Has Recent Data" ;
-        sh:description "Validates that time series has data in the last 90 minutes." ;
+        sh:description "Validates that time series has data in the last 60 minutes." ;
         sh:severity sh:Violation ;
 
         sh:sparql [
