@@ -152,7 +152,7 @@ Validation outputs are **Records** (not DMS instances). This module does **not**
 - **Do not** add the view to a `*.DataModel.yaml` — [data models cannot include record views yet](https://docs.cognite.com/cdf/dm/records/concepts/records_and_streams#record-views). Records are not returned by `/models/instances/query` or GraphQL.
 - **Do not** expect CDF Transformations (Spark SQL) to read or write this view — Transformations have no records/stream destination; use the Records API, a Function, or (for stream pipelines) Hosted Extractors.
 
-Field reference: [Records output](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/records_output.html). `deploy_infrastructure.py` creates the stream if it does not exist (`BasicArchive`) and ensures the record containers. Deploy the Toolkit record view after the stream and container exist (`cdf deploy` then `deploy_infrastructure.py`, or re-run `cdf deploy` after the Python deploy).
+Field reference: [Records output](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/records_output.html). `deploy_infrastructure.py` creates the stream if it does not exist (`BasicArchive`) and ensures the record containers. **On a fresh project, deploying the Toolkit record view before the stream and container exist can fail.** Deploy order: `cdf deploy` → `deploy_infrastructure.py` (creates stream + containers) → re-run `cdf deploy` so the record view succeeds.
 
 See also: [Deploy infrastructure](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/deploy.html), [Lifecycle and CI/CD](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/lifecycle.html).
 
@@ -288,10 +288,11 @@ The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space
 ```bash
 cdf modules add dp:data_quality
 # Ensure data-products = true under [alpha_flags] in cdf.toml (see Prerequisites)
-cdf build && cdf deploy                    # RuleSets + DataProducts
+cdf build && cdf deploy                    # RuleSets + DataProducts (+ record view may fail on first run)
 pip install cognite-data-quality==0.4.9
 python modules/common/cdf_dq_runtime/scripts/deploy_infrastructure.py \
   --toolkit-config config.dev.yaml
+cdf deploy                                 # re-run so the record view lands after stream + containers exist
 ```
 
 ### Build notes
