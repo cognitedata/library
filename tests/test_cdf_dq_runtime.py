@@ -131,7 +131,7 @@ def test_materialize_defaults_target_cognite_core_views(cli: types.ModuleType, t
         assert (override["view"]["space"], override["view"]["external_id"]) in _CORE_VIEWS
         assert override["instance_spaces"] == ["inst_location"]
 
-    (ts_path,) = (dest / "timeseries").glob("*.yaml")
+    (ts_path,) = (dest / "timeseries_config").glob("*.yaml")
     ts_config = _load_yaml(ts_path)
     assert (ts_config["datamodel"]["space"], ts_config["datamodel"]["external_id"]) == ("cdf_cdm", "CogniteTimeSeries")
     assert ts_config["filter"]["space"] == "inst_location"

@@ -19,7 +19,7 @@ workflow:
     # abortWorkflow stops the run on task failure; skipTask continues with remaining tasks.
     on_failure: abortWorkflow
 
-# Time series datapoint validation workflows (one per file in timeseries/, cron scheduled).
+# Time series datapoint validation workflows (one per file in timeseries_config/, cron scheduled).
 timeseries_workflow:
   # Prefix for time series workflow external IDs: <prefix>-<timeseries config name>.
   external_id_prefix: dq-ts-shacl
@@ -61,7 +61,7 @@ data_product_sync_cron: "13 * * * *"
 
 timeseries:
   # Folder (relative to this file) with time series validation configs.
-  config_dir: timeseries
+  config_dir: timeseries_config
 
 # Data products published by Toolkit (data_products/). Listed here so the deploy script wires
 # workflows for them without republishing.
