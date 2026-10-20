@@ -121,8 +121,7 @@ SharePoint Online example with a single extraction path. Before production use:
 ### State store
 
 The extractor tracks progress in a state store so it only uploads new or changed files.
-The shipped config uses a local JSON file. To keep the state in CDF RAW instead (for
-example when the extractor runs in a container without persistent disk):
+The shipped config uses a local JSON file. To keep the state in CDF RAW instead:
 
 1. Add `raw/<name>.Database.yaml` and `raw/<name>.Table.yaml` to this module, e.g. database
    `raw_files_{{location}}_{{sourceSystem}}` with table `state_store`.
@@ -164,12 +163,6 @@ deployment:
 4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
    in Fusion. Toolkit does not remove them for you, and the new group keeps the same
    `sourceId`, so no IdP change is needed.
-
-The module no longer deploys a RAW database or grants RAW access; nothing in the shipped
-config used them. If you enabled the RAW state store, keep it working by adding the
-database, table, and `rawAcl` to your copy of the module as described in
-[State store](#state-store). Toolkit does not delete the existing database, so the stored
-state is kept.
 
 The instance space also changed from `sp_{{location}}_files` to `inst_{{location}}_files`
 (`setup_project.py` writes the new name on its next run). Instances already in the old
