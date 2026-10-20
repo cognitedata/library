@@ -15,16 +15,13 @@ cdf_files_extractor/
 ├── extraction_pipelines/
 │   ├── ep_files_sharepoint.ExtractionPipeline.yaml         # Pipeline definition (contacts, schedule, source)
 │   └── ep_files_sharepoint.ExtractionPipeline.Config.yaml  # Files Extractor runtime config (file provider, paths, filters)
-├── raw/
-│   └── db_files.Database.yaml                               # raw_files_{{location}}_{{sourceSystem}} (optional RAW-backed state store)
 └── module.toml
 ```
 
 > **Note:** File bytes and `CogniteFile` metadata land in CDF Files and
 > `{{instanceSpace}}` (the shipped example uses `destination-mode: cdm`). The
-> module does **not** stage file content to RAW. The `raw/` folder deploys
-> `raw_files_{{location}}_{{sourceSystem}}` so the producer group can use RAW for an optional
-> extractor state store (see `state-store` in `ExtractionPipeline.Config.yaml`).
+> module does **not** use RAW. The extractor keeps its state store in a local file by
+> default; see [State store](#state-store) to keep it in RAW instead.
 
 ## Data Flow
 
@@ -44,7 +41,6 @@ Files Extractor   (destination-mode: cdm)
 |---|---|---|
 | ExtractionPipeline | `ep_files_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
 | Data set | `{{dataset}}` | Groups uploaded files and pipeline resources |
-| RAW Database | `raw_files_{{location}}_{{sourceSystem}}` | Optional RAW-backed extractor state store (not used for file ingestion) |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
 | Access Group | `producer_{{location}}_ep_file_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
 
@@ -112,10 +108,8 @@ SharePoint Online example with a single extraction path. Before production use:
    keep deleted files visible with a `deleted` metadata flag.
 5. **Pick a state-store path** in `Config.yaml` that the extractor service
    account can write to (default: `/path/to/state-store.json` is a placeholder
-   — change before running). For cluster deployments, uncomment the RAW
-   `state-store` block and point `database` at `raw_files_{{location}}_{{sourceSystem}}` (deployed
-   from `raw/db_files.Database.yaml`). Add a `*.Table.yaml` under `raw/` if you
-   want Toolkit to create the state table at deploy time.
+   — change before running). Without a state store the extractor re-checks every
+   file on each run. For cluster deployments, use a [RAW state store](#state-store).
 6. **Confirm `data_model.space`** matches your `instanceSpace` — `CogniteFile`
    instances are written there. The CDM destination requires that the space
    already exists (this module deploys it automatically).
@@ -123,6 +117,19 @@ SharePoint Online example with a single extraction path. Before production use:
    used by `SP_CLIENT_ID` needs the `Sites.Read.All` (or narrower)
    application permission with admin consent granted. Follow the SharePoint
    setup guide linked below.
+
+### State store
+
+The extractor tracks progress in a state store so it only uploads new or changed files.
+The shipped config uses a local JSON file. To keep the state in CDF RAW instead (for
+example when the extractor runs in a container without persistent disk):
+
+1. Add `raw/<name>.Database.yaml` and `raw/<name>.Table.yaml` to this module, e.g. database
+   `raw_files_{{location}}_{{sourceSystem}}` with table `state_store`.
+2. Add a `rawAcl` capability (`READ`, `WRITE`, `LIST`) to `producer.ep.files.Group.yaml`,
+   scoped with `tableScope` to that database and table.
+3. In `Config.yaml`, replace the local `state-store` block with the RAW one and set
+   `database` and `table`.
 
 ## Getting Started
 
@@ -158,10 +165,11 @@ deployment:
    in Fusion. Toolkit does not remove them for you, and the new group keeps the same
    `sourceId`, so no IdP change is needed.
 
-The optional RAW state-store database also changed from `db_{{location}}_files` to
-`raw_files_{{location}}_{{sourceSystem}}`. If you enabled the RAW state store, update
-`state-store.database` in `Config.yaml`. The extractor starts with an empty state, so the
-first run re-checks every file.
+The module no longer deploys a RAW database or grants RAW access; nothing in the shipped
+config used them. If you enabled the RAW state store, keep it working by adding the
+database, table, and `rawAcl` to your copy of the module as described in
+[State store](#state-store). Toolkit does not delete the existing database, so the stored
+state is kept.
 
 The instance space also changed from `sp_{{location}}_files` to `inst_{{location}}_files`
 (`setup_project.py` writes the new name on its next run). Instances already in the old
