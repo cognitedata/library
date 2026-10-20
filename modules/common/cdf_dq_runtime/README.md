@@ -11,7 +11,7 @@ By default the module validates the **Cognite Core** (`cdf_cdm`) and **Cognite P
 | RuleSets / DataProducts | Yes | Consumes via `external_dataproducts` |
 | Function + containers | — | Yes |
 | Instance workflows | — | Yes (external DataProduct + `views/` overrides) |
-| Time-series workflows | — | Yes (`timeseries/` configs) |
+| Time-series workflows | — | Yes (`timeseries_config/` configs) |
 | `data_product_sync` + historic queue | — | Yes (`data_product_sync_cron`) |
 
 ## Process and data flow
@@ -110,14 +110,14 @@ flowchart TB
 
 ### Workflows: when they run and what they do
 
-Prefixes and crons below match this module’s `settings.yaml` / sample `views/` and `timeseries/` (customize per project).
+Prefixes and crons below match this module’s `settings.yaml` / sample `views/` and `timeseries_config/` (customize per project).
 
 | Workflow | Trigger / schedule | What it does |
 | --- | --- | --- |
 | **Instance sync-cursor** (`dq-shacl-…`) | DMS data-change trigger (batched: `trigger.batch_size` / `batch_timeout`) | Incremental SHACL on changed instances since the last cursor; writes validation records. One consolidated workflow per view (or DataProduct grouping). Does **not** run uniqueness. |
 | **Uniqueness** (`…-uniqueness`) | Cron — from SHACL `dqs:schedule`, or view `uniqueness_cron` (sample: Equipment `0 */4 * * *`, MaintenanceOrder `2 * * * *`; default often `0 6 * * *`) | Global uniqueness checks declared in RuleSet (`dqs:uniquenessConstraint` / `dqs:unique`). Created only when SHACL has uniqueness for that view. |
 | **Edge existence** (`…-edge-existence`) | Two DMS sync triggers per rule (node + edge), no backfill | Typed-edge cardinality (`dqs:edgeExistenceConstraint`). Deploy-time triggers; baseline over in-scope nodes also runs as part of historic orchestration when rules/DP version change. |
-| **Time-series** (`dq-ts-shacl-…`) | Cron from `timeseries/*.yaml` (sample: `2 * * * *`) | Datapoint SHACL for filtered series; RuleSets whose `sh:targetClass` matches the timeseries view. |
+| **Time-series** (`dq-ts-shacl-…`) | Cron from `timeseries_config/*.yaml` (sample: `2 * * * *`) | Datapoint SHACL for filtered series; RuleSets whose `sh:targetClass` matches the timeseries view. |
 | **`data_product_sync`** | Cron `data_product_sync_cron` (sample: `13 * * * *`) | Loads managed / external DataProducts; if version or rules changed, redeploys instance/uniqueness/edge/timeseries workflows and may **enqueue historic** jobs for affected views. |
 | **Historic queue manager** (`dq-historic-queue-manager`) | Cron ~every 5 minutes (package default) | Drains `HistoricJobQueue` **sequentially** (one orchestration at a time); starts the next job when the current completes or fails; supersedes older queued jobs for the same view when a newer DP version lands. |
 | **Historic orchestrator** (function, not a standing WF id) | Started by queue manager or `deploy_pipeline.py` / `--enqueue-historic` | Partitioned full-history SHACL for a view; then hands off to sync-cursor + a short-lived **Monitor** function schedule (~every 2 min) until orchestration finishes. |
@@ -128,7 +128,7 @@ Optional (not in this sample): **`rule_engine_result_sync`** listener workflows 
 ### Data movement (short)
 
 1. **Catalog** — Toolkit publishes RuleSets and DataProduct versions (views + `instanceSpaces` + `quality.rules`).
-2. **Wire-up** — Python deploy creates the Function, state containers in `config_space` (`dataQuality`), workflows/triggers from `external_dataproducts` + optional `views/` / `timeseries/` overrides, and persists `DataQualitySettings` / `ViewConfigState`.
+2. **Wire-up** — Python deploy creates the Function, state containers in `config_space` (`dataQuality`), workflows/triggers from `external_dataproducts` + optional `views/` / `timeseries_config/` overrides, and persists `DataQualitySettings` / `ViewConfigState`.
 3. **Steady state** — Change triggers and crons invoke the Function; it reads instances (or datapoints) and RuleSets, writes **Records** to `records.space` / `records.stream_id`, and updates cursors / orchestration state in DMS.
 4. **Version bump** — `data_product_sync` detects a new DataProduct/RuleSet version → redeploys workflows → enqueues historic → queue manager runs full revalidation, then incremental sync resumes.
 
@@ -220,25 +220,25 @@ variables:
         # ... any other key from default.config.yaml
 ```
 
-`cdf build` substitutes them into `rulesets/`, `data_products/` and `data_modeling/`. `deploy_infrastructure.py --toolkit-config config.<env>.yaml` substitutes the same values into `settings.yaml`, `views/` and `timeseries/`, using only `variables.modules.common.cdf_dq_runtime` (plus values on its parent levels), so variables with the same name in other modules do not leak in.
+`cdf build` substitutes them into `rulesets/`, `data_products/` and `data_modeling/`. `deploy_infrastructure.py --toolkit-config config.<env>.yaml` substitutes the same values into `settings.yaml`, `views/` and `timeseries_config/`, using only `variables.modules.common.cdf_dq_runtime` (plus values on its parent levels), so variables with the same name in other modules do not leak in.
 
 | Variable | Default | Used in | Meaning |
 | --- | --- | --- | --- |
-| `schemaSpace` | `cdf_cdm` | rulesets, data product, views, timeseries | Schema space of the asset, equipment and time series views |
+| `schemaSpace` | `cdf_cdm` | rulesets, data product, views, timeseries_config | Schema space of the asset, equipment and time series views |
 | `secondarySchemaSpace` | `cdf_idm` | rulesets, data product, views | Schema space of the maintenance order, operation and notification views. Set equal to `schemaSpace` when all views live in one enterprise space |
-| `viewVersion` | `v1` | data product, views, timeseries | Version of every validated view |
+| `viewVersion` | `v1` | data product, views, timeseries_config | Version of every validated view |
 | `viewAssetExternalId` | `CogniteAsset` | rulesets, data product, views | Asset view (in `schemaSpace`) |
 | `viewEquipmentExternalId` | `CogniteEquipment` | rulesets, data product, views | Equipment view (in `schemaSpace`) |
-| `viewTimeSeriesExternalId` | `CogniteTimeSeries` | rulesets, data product, timeseries | Time series view (in `schemaSpace`) |
+| `viewTimeSeriesExternalId` | `CogniteTimeSeries` | rulesets, data product, timeseries_config | Time series view (in `schemaSpace`) |
 | `viewMaintenanceOrderExternalId` | `CogniteMaintenanceOrder` | rulesets, data product, views | Maintenance order view (in `secondarySchemaSpace`) |
 | `viewOperationExternalId` | `CogniteOperation` | rulesets, data product, views | Operation view (in `secondarySchemaSpace`) |
 | `viewNotificationExternalId` | `CogniteNotification` | rulesets, data product, views | Notification view (in `secondarySchemaSpace`) |
-| `instanceSpace` | `inst_location` | rulesets, data product, views, timeseries | Instance space with the nodes to validate (all views). Must already exist |
-| `timeSeriesExternalIdPrefix` | `pi:` | timeseries | External ID prefix selecting time series for datapoint validation |
+| `instanceSpace` | `inst_location` | rulesets, data product, views, timeseries_config | Instance space with the nodes to validate (all views). Must already exist |
+| `timeSeriesExternalIdPrefix` | `pi:` | timeseries_config | External ID prefix selecting time series for datapoint validation |
 | `dataProductSchemaSpace` | `sp_dq_data_product` | data product, data_modeling | Schema space owned exclusively by the data product. Must not be a `cdf_*` space or owned by another data product |
 | `dataProductExternalId` | `cognite-core-data-quality` | data product, settings | Data product binding views, instance spaces and rule sets |
 | `dataProductVersion` | `1.0.0` | data product, settings | Data product version. Bump when views, instance spaces or rule set versions change (they are immutable on an existing version) |
-| `ruleSetVersion` | `2.0.0` | rulesets, data product, timeseries | Version of every RuleSetVersion. Bump when you edit rule content |
+| `ruleSetVersion` | `2.0.0` | rulesets, data product, timeseries_config | Version of every RuleSetVersion. Bump when you edit rule content |
 | `dataQualitySpace` | `dataQuality` | settings, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
 | `recordsStreamId` | `test_stream_1` | settings | Records stream for validation results. Created by `deploy_infrastructure.py` if missing |
 | `functionCodeDatasetExternalId` | `dq_shacl_rules` | settings | Data set for the CDF Function code file |
@@ -262,10 +262,10 @@ A data product version may only reference views in its own schema space or in a 
 | `function_code_dataset_external_id` | Data set for the Function code file |
 | `config_source` | `dataproduct`: read views, instance spaces and rules from the data products in `external_dataproducts` |
 | `data_product_sync_cron` | Cron (UTC) for `data_product_sync`, which redeploys workflows and enqueues historic revalidation on version changes |
-| `timeseries.config_dir` | Folder with time series validation configs |
+| `timeseries.config_dir` | Folder with time series validation configs (`timeseries_config`) |
 | `external_dataproducts` | Data products published by Toolkit; wired without republishing |
 
-Per-view tuning (partitioning, batch sizes, `uniqueness_cron`) is in `views/*.yaml`; time series schedule and filter in `timeseries/timeseries_quality.yaml`.
+Per-view tuning (partitioning, batch sizes, `uniqueness_cron`) is in `views/*.yaml`; time series schedule and filter in `timeseries_config/timeseries_quality.yaml`.
 
 ### SHACL rules and view IRIs
 
@@ -285,10 +285,6 @@ python modules/common/cdf_dq_runtime/scripts/deploy_infrastructure.py \
 ```
 
 ### Build notes
-
-**`IgnoredFileWarning` for `timeseries/timeseries_quality.yaml`**
-
-Toolkit treats `timeseries/` as a CDF TimeSeries resource directory, so it warns that this file has no kind suffix (for example `.TimeSeries.yaml`) and ignores it. That is expected: the YAML is config for `deploy_infrastructure.py`, not a Toolkit TimeSeries resource. The warning is harmless; build and deploy can continue.
 
 Credentials come from the Toolkit project ``.env`` (next to ``cdf.toml``) when present,
 then environment variables (same as [data-quality-validation-deploy](https://github.com/cognitedata/data-quality-validation-deploy)):
@@ -372,7 +368,7 @@ cdf_dq_runtime/
 ├── data_products/             # Toolkit: DataProduct + DataProductVersion (views, instance spaces, rules)
 ├── rulesets/                  # Toolkit: RuleSet + RuleSetVersion (SHACL) per view
 ├── views/                     # Deploy script: per-view workflow overrides
-├── timeseries/                # Deploy script: time series validation config
+├── timeseries_config/         # Deploy script: time series validation config
 └── scripts/                   # deploy_infrastructure.py, deploy_pipeline.py, _cli.py, manage_rulesets.ipynb, inspect_dq_content.ipynb
 ```
 

@@ -849,7 +849,7 @@ def resolve_materialized_pack(args: argparse.Namespace, dest_dir: Path) -> Mater
         views_dir = Path(args.views_dir) if args.views_dir else None
         timeseries_dir = Path(args.timeseries_dir) if args.timeseries_dir else None
         if timeseries_dir is None:
-            candidate = settings_path.parent / "timeseries"
+            candidate = settings_path.parent / "timeseries_config"
             timeseries_dir = candidate if candidate.is_dir() else None
         if views_dir is None:
             candidate = settings_path.parent / "views"
@@ -859,7 +859,7 @@ def resolve_materialized_pack(args: argparse.Namespace, dest_dir: Path) -> Mater
     variables = load_variables(Path(args.toolkit_config) if args.toolkit_config else None)
     materialize_pack_yaml(module_root(), dest_dir, variables)
     views = dest_dir / "views"
-    timeseries = dest_dir / "timeseries"
+    timeseries = dest_dir / "timeseries_config"
     return MaterializedPack(
         settings_path=dest_dir / "settings.yaml",
         views_dir=views if views.is_dir() else None,

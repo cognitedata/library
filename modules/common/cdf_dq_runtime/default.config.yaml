@@ -3,7 +3,7 @@
 # Override these in config.<env>.yaml under variables.modules.common.cdf_dq_runtime.
 # Toolkit (`cdf build`) substitutes them into rulesets/, data_products/ and data_modeling/;
 # scripts/deploy_infrastructure.py substitutes the same values into settings.yaml, views/
-# and timeseries/ before deploying workflows. Defaults target the Cognite Core (cdf_cdm) and
+# and timeseries_config/ before deploying workflows. Defaults target the Cognite Core (cdf_cdm) and
 # Cognite Process Industries (cdf_idm) views with instances in inst_location.
 #
 # Trailing "# was: ..." comments show the value used by the original cog-ai YourOrg sample
@@ -34,7 +34,7 @@ viewNotificationExternalId: CogniteNotification  # was: YourOrgNotification
 # was: springfield_instances (asset, equipment, time series) and test_data_pumps
 # (maintenance order, operation, notification); both spaces were created by this module.
 instanceSpace: inst_location
-# External ID prefix used to select time series for datapoint validation (timeseries/).
+# External ID prefix used to select time series for datapoint validation (timeseries_config/).
 timeSeriesExternalIdPrefix: "" # was: "pi:"
 
 # --- Data product and rule sets --------------------------------------------------------
