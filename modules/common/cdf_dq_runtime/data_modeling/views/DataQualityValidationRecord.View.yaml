@@ -1,0 +1,134 @@
+space: "{{ dataQualitySpace }}"
+externalId: DataQualityValidationRecord
+name: Data quality validation record
+description: >
+  Record view over DataQualityValidationRecord (usedFor: record) for browsing
+  SHACL validation results in CDF UI and querying via the Records API / Flows.
+version: v1
+streamId:
+  - "{{ recordsStreamId }}"
+properties:
+  ruleSetId:
+    name: Rule set ID
+    description: External ID of the SHACL RuleSet that produced this validation record.
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: ruleSetId
+  ruleSetVersion:
+    name: Rule set version
+    description: Version of the RuleSet that produced this validation record.
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: ruleSetVersion
+  jobRunId:
+    name: Job run ID
+    description: Unique identifier for the validation job run that wrote this record.
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: jobRunId
+  validationType:
+    name: Validation type
+    description: >
+      Record mode — single_violation for per-focus results, or group_violation for
+      grouped uniqueness summaries.
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: validationType
+  groupViolationType:
+    name: Group violation type
+    description: >
+      Present on grouped uniqueness only — global_overflow, value_overflow, or pass.
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: groupViolationType
+  passedValidation:
+    name: Passed validation
+    description: True when there are no Violation-severity findings; false otherwise.
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: passedValidation
+  resultSeverity:
+    name: Result severity
+    description: Severities from violations — Violation, Warning, Info (empty on pass).
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: resultSeverity
+  failedConstraints:
+    name: Failed constraints
+    description: >
+      Machine tokens for failed constraints (for example MinCountConstraintComponent::name
+      or dqs:UniquenessConstraint::workOrderNumber).
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: failedConstraints
+  focusNode:
+    name: Focus node
+    description: URI of the validated instance (focus node). Omitted on group_violation records.
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: focusNode
+  focusNodeInstance:
+    name: Focus node instance
+    description: >
+      Direct relation to the validated DMS node instance (space + externalId).
+      Omitted for RAW rows, group_violation, and edge-view SHACL. Polymorphic —
+      no source view, because focus can be any validated type.
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: focusNodeInstance
+  sourceShape:
+    name: Source shape
+    description: Source shape URIs from SHACL when available.
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: sourceShape
+  dimensions:
+    name: Dimensions
+    description: >
+      Quality-dimension annotations from SHACL (dq:dimension), for example Completeness,
+      Validity, Conformity, Consistency.
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: dimensions
+  dataDomainExternalId:
+    name: Data domain
+    description: Optional data domain / view / DataProduct tag written by some builders.
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: dataDomainExternalId
+  validationReport:
+    name: Validation report
+    description: >
+      Full report JSON with violations, violationCount, and summary (plus type-specific
+      detail).
+    container:
+      type: container
+      space: "{{ dataQualitySpace }}"
+      externalId: DataQualityValidationRecord
+    containerPropertyIdentifier: validationReport
