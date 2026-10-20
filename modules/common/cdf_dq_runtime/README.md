@@ -252,7 +252,6 @@ variables:
 | `dataQualitySpace` | `dataQuality` | settings, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
 | `recordsStreamId` | `test_stream_1` | settings | Records stream for validation results. Created by `deploy_infrastructure.py` if missing |
 | `functionCodeDatasetExternalId` | `dq_shacl_rules` | settings | Data set for the CDF Function code file |
-| `dq_pypi_version` | `0.4.9` | install instructions | `cognite-data-quality` version for the deploy script and Function |
 
 A data product version may only reference views in its own schema space or in a `cdf_*` system space. To validate your own enterprise views, set `dataProductSchemaSpace`, `schemaSpace` and `secondarySchemaSpace` to the enterprise schema space (when no other data product owns it).
 
@@ -289,7 +288,7 @@ The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space
 cdf modules add dp:data_quality
 # Ensure data-products = true under [alpha_flags] in cdf.toml (see Prerequisites)
 cdf build && cdf deploy                    # RuleSets + DataProducts (+ record view may fail on first run)
-pip install cognite-data-quality==0.4.9
+pip install -U cognite-data-quality
 python modules/common/cdf_dq_runtime/scripts/deploy_infrastructure.py \
   --toolkit-config config.dev.yaml
 cdf deploy                                 # re-run so the record view lands after stream + containers exist

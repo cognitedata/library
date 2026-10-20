@@ -9,9 +9,6 @@
 # Trailing "# was: ..." comments show the value used by the original cog-ai YourOrg sample
 # (data-quality-validation-deploy). Keys without such a comment are unchanged.
 
-# PyPI version of cognite-data-quality installed for deploy_infrastructure.py and the CDF Function.
-dq_pypi_version: "0.4.9"
-
 # --- Validated views -------------------------------------------------------------------
 # Schema space of the asset, equipment and time series views (Cognite Core: cdf_cdm).
 schemaSpace: cdf_cdm  # was: sp_enterprise_process_industry
