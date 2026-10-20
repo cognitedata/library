@@ -30,7 +30,6 @@ modules/
 │   └── cfihos_oil_and_gas_extension_search/
 │
 ├── solutions/                   # Product verticals (CDM-backed)
-│   ├── cdm_maintain/            # CDM Maintain (5 submodules)
 │   ├── cdf_infield/             # CDM Infield (location module)
 │   └── cdf_ai_extractor/        # Atlas AI property extractor
 │
@@ -69,7 +68,6 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 | `dp:dashboards` | Dashboards | `dashboards/` |
 | `dp:data_quality` | Data Quality Validation | `common/cdf_dq_runtime` |
 | `dp:atlas_ai` | Atlas AI Deployment Pack | `solutions/cdf_ai_extractor` |
-| `dp:cdm_maintain` | CDM Maintain | `solutions/cdm_maintain/*` |
 | `dp:infield` | Infield | `solutions/cdf_infield/cdf_infield_location` |
 | `tool` | Tools and Accelerators | `tools/` |
 | `dp:emptymodule` | Empty Module | `custom/my_module` |
