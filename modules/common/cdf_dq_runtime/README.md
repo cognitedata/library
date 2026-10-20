@@ -9,7 +9,8 @@ By default the module validates the **Cognite Core** (`cdf_cdm`) and **Cognite P
 | Layer | Toolkit (`cdf deploy`) | Module script (`deploy_infrastructure.py`) |
 | --- | --- | --- |
 | RuleSets / DataProducts | Yes | Consumes via `external_dataproducts` |
-| Function + containers | — | Yes |
+| Record view (`DataQualityValidationRecord`) | Yes (`data_modeling/views/` — `streamId` only) | — (`usedFor: record` is on the container from Python deploy) |
+| Function + record containers | — | Yes |
 | Instance workflows | — | Yes (external DataProduct + `views/` overrides) |
 | Time-series workflows | — | Yes (`timeseries_config/` configs) |
 | `data_product_sync` + historic queue | — | Yes (`data_product_sync_cron`) |
@@ -26,11 +27,12 @@ flowchart LR
     RS[RuleSets / RuleSetVersions]
     DP[DataProduct versions]
     SP[Spaces]
+    RV[Record view DataQualityValidationRecord]
   end
 
   subgraph py["`deploy_infrastructure.py`"]
     FN[CDF Function]
-    CTR[DQ containers / records views]
+    CTR[DQ record containers]
     WF[Workflows + triggers]
     SET[DataQualitySettings in DMS]
   end
@@ -141,14 +143,22 @@ Validation outputs are **Records** (not DMS instances). This module does **not**
 | Result container schemas | [`cognite-data-quality`](https://github.com/cognitedata/data-quality-validation) package (`cognite_data_quality/_records.py`), applied by `deploy_validation_infrastructure()` / `deploy_infrastructure.py` |
 | Validation results | Container `DataQualityValidationRecord` (`usedFor: record`) in `records.space` |
 | SHACL-AF / rule-engine inferences | Container `RuleEngineResult` (`usedFor: record`) in the same space |
-| Record views | Same external IDs, version `v1`, bound to `records.stream_id` |
+| Record view | Toolkit `data_modeling/views/DataQualityValidationRecord.View.yaml` — same external ID, version `v1`, `streamId: [recordsStreamId]`. Maps the validation container; CDF **computes** `usedFor: record` on the view from `streamId` (do not set `usedFor` on the view YAML). |
 | Stream + space target | This module’s `settings.yaml` → `records.space` / `records.stream_id` (variables `dataQualitySpace` / `recordsStreamId`, defaults `dataQuality` / `test_stream_1`) |
 
-Field reference: [Records output](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/records_output.html). `deploy_infrastructure.py` creates the stream if it does not exist (`BasicArchive`); the package ensures the containers and views.
+**How to use the record view**
+
+- **Do** read/write through the [Records API](https://docs.cognite.com/cdf/dm/records/concepts/records_and_streams#record-views) (filter / sync / aggregate / upsert / list / retrieve), optionally with the view as `source`, or via Flows / clients that call those endpoints. The view binds `streamId` so consumers need not hard-code the stream.
+- **Do not** add the view to a `*.DataModel.yaml` — [data models cannot include record views yet](https://docs.cognite.com/cdf/dm/records/concepts/records_and_streams#record-views). Records are not returned by `/models/instances/query` or GraphQL.
+- **Do not** expect CDF Transformations (Spark SQL) to read or write this view — Transformations have no records/stream destination; use the Records API, a Function, or (for stream pipelines) Hosted Extractors.
+
+Field reference: [Records output](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/records_output.html). `deploy_infrastructure.py` creates the stream if it does not exist (`BasicArchive`) and ensures the record containers. Deploy the Toolkit record view after the stream and container exist (`cdf deploy` then `deploy_infrastructure.py`, or re-run `cdf deploy` after the Python deploy).
 
 See also: [Deploy infrastructure](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/deploy.html), [Lifecycle and CI/CD](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/lifecycle.html).
 
 ## Prerequisites
+
+Requires Cognite Toolkit version **> 0.9** for Records support (`streamId` on views and streams used by validation results; the `record-views` alpha flag is no longer required).
 
 RuleSets and DataProducts require the Toolkit [`data-products` alpha flag](https://docs.cognite.com/cdf/deploy/cdf_toolkit/api/alpha_flags#alpha-flag-data-products) (Toolkit `0.7.207+`). Enable it in `cdf.toml` before `cdf build`:
 
@@ -343,7 +353,7 @@ Use [`scripts/inspect_dq_content.ipynb`](scripts/inspect_dq_content.ipynb) for a
 | Function | What it does |
 | --- | --- |
 | `get_stream()` / `aggregate_records()` | Stream metadata and counts for `recordsStreamId` (default last 7 days) |
-| `list_validation_records(...)` | Lists top 20 `DataQualityValidationRecord` rows by default (optional `passed_validation` / `rule_set_id` filters; raise `max_records` or use `None` for the full window) |
+| `list_validation_records(...)` | Lists top 20 validation rows from the records stream via the Records API (container `DataQualityValidationRecord`; optional `passed_validation` / `rule_set_id` filters; raise `max_records` or use `None` for the full window) |
 | `list_rule_engine_results(...)` | Lists `RuleEngineResult` inference rows from the same stream |
 | `list_rulesets()` / `list_data_products()` | Catalog resources published by Toolkit |
 | `list_dq_function()` / `list_dq_workflows()` / `list_monitor_schedules()` | Runtime function, workflows/triggers, and Monitor schedules |
@@ -364,7 +374,7 @@ cdf_dq_runtime/
 ├── default.config.yaml        # Customer identifiers (variables), see Configuration
 ├── settings.yaml              # Runtime settings (deploy script only, not Toolkit)
 ├── module.toml
-├── data_modeling/             # Toolkit: data product schema space + runtime space
+├── data_modeling/             # Toolkit: spaces + record view (DataQualityValidationRecord)
 ├── data_products/             # Toolkit: DataProduct + DataProductVersion (views, instance spaces, rules)
 ├── rulesets/                  # Toolkit: RuleSet + RuleSetVersion (SHACL) per view
 ├── views/                     # Deploy script: per-view workflow overrides
