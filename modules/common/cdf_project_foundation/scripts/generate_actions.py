@@ -58,6 +58,7 @@ MANIFEST_MEDIA_TYPES = (
 
 # Module domains vendored in by the deployment packs. modules/custom/ is deliberately
 # absent — that is where team-authored modules live, and their code must stay linted.
+# atlas_ai/ is no longer shipped but stays listed: projects that pulled it earlier still vendor it.
 PACK_MODULE_DOMAINS = (
     "atlas_ai",
     "common",

@@ -47,9 +47,6 @@ modules/
 ├── dashboards/                  # Streamlit apps & reporting
 │   └── context_quality/
 │
-├── atlas_ai/
-│   └── ootb_agents/
-│
 ├── tools/
 │   └── apps/qualitizer/
 │
@@ -71,7 +68,7 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 | `dp:models` | Data models | `datamodels/` |
 | `dp:dashboards` | Dashboards | `dashboards/` |
 | `dp:data_quality` | Data Quality Validation | `common/cdf_dq_runtime` |
-| `dp:atlas_ai` | Atlas AI | `atlas_ai/`, `solutions/cdf_ai_extractor` |
+| `dp:atlas_ai` | Atlas AI Deployment Pack | `solutions/cdf_ai_extractor` |
 | `dp:cdm_maintain` | CDM Maintain | `solutions/cdm_maintain/*` |
 | `dp:infield` | Infield | `solutions/cdf_infield/cdf_infield_location` |
 | `tool` | Tools and Accelerators | `tools/` |

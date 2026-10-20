@@ -19,7 +19,6 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 | [`sourcesystem/`](modules/sourcesystem/) | Extraction pipeline configs (PI, OPC-UA, SAP, database, files) and synthetic data dumps |
 | [`dashboards/`](modules/dashboards/) | Streamlit dashboards and reporting |
 | [`common/cdf_dq_runtime/`](modules/common/cdf_dq_runtime/) | SHACL data-quality validation (`cdf_dq_runtime`) |
-| [`atlas_ai/`](modules/atlas_ai/) | Atlas AI agents |
 | [`tools/`](modules/tools/) | Qualitizer |
 | [`custom/`](modules/custom/) | Empty module template |
 
