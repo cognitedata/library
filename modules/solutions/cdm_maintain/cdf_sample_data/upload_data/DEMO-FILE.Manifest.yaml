@@ -1,0 +1,22 @@
+kind: FileContent
+type: fileDataModelingTemplate
+fileDirectory: ./files
+viewId:
+  space: cdf_cdm
+  externalId: CogniteFile
+  version: v1
+template:
+  instanceId:
+    space: {{instanceSpace}}
+    externalId: DEMO-FILE
+  name: DEMO-FILE.pdf
+  description: "Demo Document"
+  mimeType: application/pdf
+  tags:
+    - demo
+    - document
+  assets:
+    - space: {{instanceSpace}}
+      externalId: "{{location}}_root"
+    - space: {{instanceSpace}}
+      externalId: abc_12345
