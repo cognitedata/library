@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     except ModuleNotFoundError:
         print(
             "cognite-data-quality is not installed. "
-            "pip install 'cognite-data-quality==<dq_pypi_version from default.config.yaml>'",
+            "pip install -U cognite-data-quality",
             file=sys.stderr,
         )
         return 1

@@ -5,7 +5,7 @@ Mirrors ``data-quality-validation-deploy/scripts/deploy_infrastructure.py``:
 function, instance workflows (via external DataProducts), time-series workflows,
 ``data_product_sync``, and historic queue manager.
 
-Install the PyPI pin from ``default.config.yaml`` (``dq_pypi_version``), then::
+Install or upgrade the package (``pip install -U cognite-data-quality``), then::
 
     python scripts/deploy_infrastructure.py --toolkit-config config.dev.yaml --dry-run
     python scripts/deploy_infrastructure.py --toolkit-config config.dev.yaml
@@ -70,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     except ModuleNotFoundError:
         print(
             "cognite-data-quality is not installed. "
-            "pip install 'cognite-data-quality==<dq_pypi_version from default.config.yaml>'",
+            "pip install -U cognite-data-quality",
             file=sys.stderr,
         )
         return 1
