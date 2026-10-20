@@ -1,4 +1,4 @@
-space: {{ dataQualitySpace }}
+space: "{{ dataQualitySpace }}"
 externalId: DataQualityValidationRecord
 name: Data quality validation record
 description: >
@@ -6,14 +6,14 @@ description: >
   SHACL validation results in CDF UI and querying via the Records API / Flows.
 version: v1
 streamId:
-  - {{ recordsStreamId }}
+  - "{{ recordsStreamId }}"
 properties:
   ruleSetId:
     name: Rule set ID
     description: External ID of the SHACL RuleSet that produced this validation record.
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: ruleSetId
   ruleSetVersion:
@@ -21,7 +21,7 @@ properties:
     description: Version of the RuleSet that produced this validation record.
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: ruleSetVersion
   jobRunId:
@@ -29,7 +29,7 @@ properties:
     description: Unique identifier for the validation job run that wrote this record.
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: jobRunId
   validationType:
@@ -39,7 +39,7 @@ properties:
       grouped uniqueness summaries.
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: validationType
   groupViolationType:
@@ -48,7 +48,7 @@ properties:
       Present on grouped uniqueness only — global_overflow, value_overflow, or pass.
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: groupViolationType
   passedValidation:
@@ -56,7 +56,7 @@ properties:
     description: True when there are no Violation-severity findings; false otherwise.
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: passedValidation
   resultSeverity:
@@ -64,7 +64,7 @@ properties:
     description: Severities from violations — Violation, Warning, Info (empty on pass).
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: resultSeverity
   failedConstraints:
@@ -74,7 +74,7 @@ properties:
       or dqs:UniquenessConstraint::workOrderNumber).
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: failedConstraints
   focusNode:
@@ -82,7 +82,7 @@ properties:
     description: URI of the validated instance (focus node). Omitted on group_violation records.
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: focusNode
   focusNodeInstance:
@@ -93,7 +93,7 @@ properties:
       no source view, because focus can be any validated type.
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: focusNodeInstance
   sourceShape:
@@ -101,7 +101,7 @@ properties:
     description: Source shape URIs from SHACL when available.
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: sourceShape
   dimensions:
@@ -111,7 +111,7 @@ properties:
       Validity, Conformity, Consistency.
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: dimensions
   dataDomainExternalId:
@@ -119,7 +119,7 @@ properties:
     description: Optional data domain / view / DataProduct tag written by some builders.
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: dataDomainExternalId
   validationReport:
@@ -129,6 +129,6 @@ properties:
       detail).
     container:
       type: container
-      space: {{ dataQualitySpace }}
+      space: "{{ dataQualitySpace }}"
       externalId: DataQualityValidationRecord
     containerPropertyIdentifier: validationReport
