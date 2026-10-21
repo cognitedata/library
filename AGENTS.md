@@ -182,37 +182,24 @@ When adding or changing modules under `modules/`:
   `functions/`, `workflows/`, …); use Toolkit variables for cross-module references, not
   absolute paths.
 - Validate with `python validate_packages.py` before committing.
+- Apply the Cognite best-practice skills (`cog-vd-best-practices` plugin from the public
+  [cognite-ai-tooling-marketplace](https://github.com/cognitedata/cognite-ai-tooling-marketplace))
+  that match the change — `cdf-naming-check` for identifiers, `cdf-data-modeling`,
+  `cdf-transformation`, `cdf-function`, `cdf-workflow`, `cdf-dms-queries`, and `cog-vd-audit`
+  for new modules. See [CONTRIBUTING.md](CONTRIBUTING.md#code-quality) for the full mapping.
+- Every module needs a `README.md` in the standard structure — see
+  [CONTRIBUTING.md](CONTRIBUTING.md#every-module-needs-a-readme). Add or update it in the same
+  PR as the module change.
 
-### Every module needs a README
-
-Each module must contain a `README.md` following the structure of
-[`modules/data_models/rmdm/README.md`](https://github.com/cognitedata/library/blob/main/modules/data_models/rmdm/README.md).
-Adapt the sections to the module, but keep this skeleton and order:
-
-1. **Title** — module name plus a short descriptive name.
-2. **Overview** — what the module is and why it's needed (the problem it solves).
-3. **Module Components / contents** — the key resources the module ships (e.g. data
-   model entities, transformations, functions, workflows).
-4. **Deployment** — Prerequisites (minimum Toolkit version) and the setup paths:
-   adding it to an existing Toolkit project, and starting from scratch (build and
-   deploy steps).
-5. **Module Structure** — the folder/file layout.
-6. **Support** — where to get help, and any reference links (docs, Cognite Hub).
-
-A module is not complete without its README; add or update it in the same PR as the
-module change.
-
-Authoring details live in
-[ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md) and
+Authoring details live in [CONTRIBUTING.md](CONTRIBUTING.md) and
 [modules/README.md](modules/README.md) — follow them rather than inventing new patterns.
 
 ## Documentation
 
 - [README.md](README.md) — consumer overview and naming conventions.
-- [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md) — how to add modules
-  and packages.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — contribution workflow, quality checks, and how to
+  add modules and packages.
 - [modules/README.md](modules/README.md) — folder layout, registry, module structure.
-- [RELEASE_WORKFLOW.md](RELEASE_WORKFLOW.md) — release process.
 - [.gemini/styleguide.md](.gemini/styleguide.md) — full Python and review style guide.
 
 When behaviour or a convention changes, update the relevant doc in the same PR.

@@ -66,3 +66,6 @@ cdf.toml
 config.dev.yaml
 *.jib03
 .env.jib02
+
+# Output of the cog-vd-audit best-practice skill
+AUDIT_REPORT.md
