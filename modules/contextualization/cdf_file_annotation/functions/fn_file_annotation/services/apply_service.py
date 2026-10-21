@@ -370,7 +370,7 @@ class GeneralApplyService(IApplyService):
         return boxes
 
     def _find_protected_box(
-        self, protected_boxes: list[ProtectedBox], page: object, bounding_box: BoundingBox
+        self, protected_boxes: list[ProtectedBox], page: int | None, bounding_box: BoundingBox
     ) -> ProtectedBox | None:
         """The protected box on the same page that equals, contains, or lies inside the given box."""
         coords = self._bounding_box_to_coords(bounding_box)
