@@ -3,8 +3,10 @@
 import json
 import sys
 from pathlib import Path
+from typing import cast
 from unittest.mock import MagicMock
 
+import pytest
 from cognite.client.data_classes.data_modeling import EdgeApply, NodeId, ViewId
 
 sys.path.append(str(Path(__file__).parent))
@@ -15,6 +17,7 @@ from services.config_service import Config  # isort: skip
 
 FILE_ID = NodeId("inst_location", "file_PH-ME-P-0153-001.pdf")
 FILE_VIEW_ID = ViewId("cdf_cdm", "CogniteFile", "v1")
+ANNOTATION_VIEW_ID = ViewId("cdf_cdm", "CogniteDiagramAnnotation", "v1")
 LINKED_FILE = {
     "annotation_type": "diagrams.FileLink",
     "external_id": "file_PH-ME-P-0152-001.pdf",
@@ -87,22 +90,62 @@ def _pattern(region: dict[str, object]) -> dict:
     return {"annotations": [{"entities": [LINKED_FILE], "region": region, "text": "PH-ME-P-0152-001 REV 2"}]}
 
 
+def _existing_edge(
+    region: dict[str, object] | None,
+    source_user: str = "user@example.com",
+    external_id: str = "manual-mapping",
+) -> MagicMock:
+    """An annotation edge already on the file, shaped like an instances.list result."""
+    properties: dict[str, object] = {"sourceCreatedUser": source_user, "status": "Approved"}
+    if region is not None:
+        vertices = cast(list[dict[str, float]], region["vertices"])
+        properties.update(
+            {
+                "startNodePageNumber": region["page"],
+                "startNodeXMin": min(v["x"] for v in vertices),
+                "startNodeYMin": min(v["y"] for v in vertices),
+                "startNodeXMax": max(v["x"] for v in vertices),
+                "startNodeYMax": max(v["y"] for v in vertices),
+            }
+        )
+    edge = MagicMock()
+    edge.space = "inst_other_app"
+    edge.external_id = external_id
+    edge.properties = {ANNOTATION_VIEW_ID: properties}
+    return edge
+
+
+def _run_apply(
+    config: Config,
+    regular: list[dict],
+    pattern: dict | None = None,
+    file_properties: dict[str, object] | None = None,
+    existing: list[MagicMock] | None = None,
+) -> tuple[list[EdgeApply], MagicMock, MagicMock, tuple[str, str]]:
+    """Run the apply step for one file; return the edges written, the client, the logger, and the summaries."""
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = existing or []
+    logger = MagicMock()
+    file_node = MagicMock()
+    file_node.as_id.return_value = FILE_ID
+    file_node.properties = {FILE_VIEW_ID: file_properties or {}}
+
+    summaries = GeneralApplyService(client, config, logger).process_and_apply_annotations_for_file(
+        file_node, {"annotations": regular}, pattern, clean_old=False
+    )
+    return client.data_modeling.instances.apply.call_args.kwargs["edges"], client, logger, summaries
+
+
 def _apply(
     config: Config,
     regular: list[dict],
     pattern: dict | None = None,
     file_properties: dict[str, object] | None = None,
+    existing: list[MagicMock] | None = None,
 ) -> tuple[list[EdgeApply], MagicMock]:
     """Run the apply step for one file and return the edges written plus the mocked client."""
-    client = MagicMock()
-    file_node = MagicMock()
-    file_node.as_id.return_value = FILE_ID
-    file_node.properties = {FILE_VIEW_ID: file_properties or {}}
-
-    GeneralApplyService(client, config, MagicMock()).process_and_apply_annotations_for_file(
-        file_node, {"annotations": regular}, pattern, clean_old=False
-    )
-    return client.data_modeling.instances.apply.call_args.kwargs["edges"], client
+    edges, client, _, _ = _run_apply(config, regular, pattern, file_properties, existing)
+    return edges, client
 
 
 def _status_by_end_node(edges: list[EdgeApply]) -> dict[str, object]:
@@ -258,3 +301,101 @@ def test_document_and_asset_raw_rows_include_the_file_scope_property_values() ->
     for row in rows:
         assert row.columns["primaryScopeProperty"] == "PlantA"
         assert row.columns["secondaryScopeProperty"] == "U100"
+
+
+INSIDE_TITLE_BLOCK = _box(0.86, 0.948, 0.94, 0.955)
+PATTERN_REGION = _box(0.3, 0.3, 0.4, 0.4)
+SINK = "pattern_detection_sink_node"
+
+
+@pytest.mark.parametrize(
+    "manual_region",
+    [TITLE_BLOCK, INSIDE_TITLE_BLOCK, ENCLOSING],
+    ids=["equal", "inside", "enclosing"],
+)
+def test_a_detection_on_top_of_a_manual_mapping_is_not_created(manual_region: dict[str, object]) -> None:
+    edges, client, logger, summaries = _run_apply(
+        _config(), [_detection(LINKED_FILE, 1.0)], existing=[_existing_edge(manual_region)]
+    )
+
+    assert edges == []
+    assert _doc_doc_rows(client) == []
+    logged = " ".join(str(call.args[0]) for call in logger.info.call_args_list)
+    assert "manual-mapping" in logged
+    assert "user@example.com" in logged
+    assert "Skipped 1" in summaries[0]
+
+
+@pytest.mark.parametrize(
+    "manual_region",
+    [PATTERN_REGION, _box(0.32, 0.32, 0.38, 0.38), _box(0.25, 0.25, 0.45, 0.45)],
+    ids=["equal", "inside", "enclosing"],
+)
+def test_a_pattern_on_top_of_a_manual_mapping_is_not_created(manual_region: dict[str, object]) -> None:
+    edges, client = _apply(_config(), [], _pattern(PATTERN_REGION), existing=[_existing_edge(manual_region)])
+
+    assert SINK not in _status_by_end_node(edges)
+    assert _raw_rows(client, "annotation_documents_patterns") == []
+
+
+def test_a_pattern_inside_a_detection_skipped_for_a_manual_mapping_is_not_created() -> None:
+    """The detection region stays taken even though the manual mapping kept it from being written."""
+    # Inside the detection, but only crossing the manual box, so the manual box alone would not skip it.
+    pattern = _pattern(_box(0.87, 0.947, 0.95, 0.950))
+
+    edges, _ = _apply(_config(), [_detection(LINKED_FILE, 1.0)], pattern, existing=[_existing_edge(INSIDE_TITLE_BLOCK)])
+
+    assert edges == []
+
+
+def test_a_pattern_enclosing_a_detection_still_replaces_it_without_a_manual_mapping() -> None:
+    edges, client = _apply(
+        _config(), [_detection(LINKED_FILE, 1.0)], _pattern(ENCLOSING), existing=[_existing_edge(PATTERN_REGION)]
+    )
+
+    assert _status_by_end_node(edges) == {SINK: "Suggested"}
+    assert _doc_doc_rows(client) == []
+
+
+def test_edges_created_by_this_function_do_not_block_a_new_detection() -> None:
+    existing = [
+        _existing_edge(TITLE_BLOCK, source_user="fn_file_annotation"),
+        _existing_edge(TITLE_BLOCK, source_user="fn_file_annotation_finalize"),
+    ]
+
+    edges, _ = _apply(_config(), [_detection(LINKED_FILE, 1.0)], existing=existing)
+
+    assert _status_by_end_node(edges)["file_PH-ME-P-0152-001.pdf"] == "Approved"
+
+
+def test_a_manual_mapping_without_a_box_does_not_block_a_detection() -> None:
+    edges, _ = _apply(_config(), [_detection(LINKED_FILE, 1.0)], existing=[_existing_edge(None)])
+
+    assert _status_by_end_node(edges)["file_PH-ME-P-0152-001.pdf"] == "Approved"
+
+
+def test_a_manual_mapping_that_only_partly_overlaps_does_not_block_a_detection() -> None:
+    crossing = _box(0.80, 0.90, 0.90, 0.95)
+
+    edges, _ = _apply(_config(), [_detection(LINKED_FILE, 1.0)], existing=[_existing_edge(crossing)])
+
+    assert _status_by_end_node(edges)["file_PH-ME-P-0152-001.pdf"] == "Approved"
+
+
+def test_a_manual_mapping_on_another_page_does_not_block_a_detection() -> None:
+    other_page = {**TITLE_BLOCK, "page": 2}
+
+    edges, _ = _apply(_config(), [_detection(LINKED_FILE, 1.0)], existing=[_existing_edge(other_page)])
+
+    assert _status_by_end_node(edges)["file_PH-ME-P-0152-001.pdf"] == "Approved"
+
+
+def test_existing_annotations_are_read_from_every_space_with_their_properties() -> None:
+    _, client = _apply(_config(), [_detection(LINKED_FILE, 1.0)])
+
+    kwargs = client.data_modeling.instances.list.call_args.kwargs
+    assert kwargs["instance_type"] == "edge"
+    assert kwargs["sources"] == [ANNOTATION_VIEW_ID]
+    assert kwargs.get("space") is None
+    dumped = json.dumps(kwargs["filter"].dump())
+    assert FILE_ID.external_id in dumped

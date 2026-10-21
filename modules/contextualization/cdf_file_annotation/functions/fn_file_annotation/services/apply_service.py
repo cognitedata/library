@@ -1,5 +1,6 @@
 import abc
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
 from typing import cast
@@ -24,6 +25,17 @@ from fa_constants import FUNCTION_EXTERNAL_ID, QUERY_PAGE_SIZE
 from services.config_service import Config
 from services.logger_service import CogniteFunctionLogger
 from utils.data_structures import DiagramAnnotationStatus
+
+
+@dataclass(frozen=True)
+class ProtectedBox:
+    """Region of an annotation on the file that another user or application created."""
+
+    page: int
+    coords: tuple[float, float, float, float]
+    edge_space: str
+    edge_external_id: str
+    source_created_user: str
 
 
 class IApplyService(abc.ABC):
@@ -123,14 +135,19 @@ class GeneralApplyService(IApplyService):
                 f"{deleted_counts['pattern']} pattern annotations."
             )
 
+        has_regular = bool(regular_item and regular_item.get("annotations"))
+        has_pattern = bool(pattern_item and pattern_item.get("annotations"))
+        protected_boxes = self._list_protected_boxes(file_id) if has_regular or has_pattern else []
+
         # Step 1: Process regular annotations and collect their spatial locations
         # Mapping dict: key=(page, (x_min, y_min, x_max, y_max)), value=set of external_ids
         # Used to prevent duplicate annotations
         regular_edges, doc_rows, tag_rows = [], [], []
         processed_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]] = {}
-        if regular_item and regular_item.get("annotations"):
+        skipped_count = 0
+        if regular_item and has_regular:
             for annotation in regular_item["annotations"]:
-                edges = self._detect_annotation_to_edge_applies(
+                edges, skipped = self._detect_annotation_to_edge_applies(
                     file_id,
                     source_id,
                     doc_rows,
@@ -138,14 +155,16 @@ class GeneralApplyService(IApplyService):
                     annotation,
                     processed_bounding_boxes,
                     scope_columns,
+                    protected_boxes,
                 )
                 regular_edges.extend(edges)
+                skipped_count += skipped
 
         # Step 2: Process pattern annotations, skipping those with spatial overlap
         pattern_edges, pattern_rows = [], []
-        if pattern_item and pattern_item.get("annotations"):
+        if pattern_item and has_pattern:
             pattern_edges, pattern_rows, removed_pattern_external_ids = self._process_pattern_results(
-                pattern_item, file_node, processed_bounding_boxes
+                pattern_item, file_node, processed_bounding_boxes, protected_boxes
             )
             if removed_pattern_external_ids:
                 regular_edges = [e for e in regular_edges if e.external_id not in removed_pattern_external_ids]
@@ -176,8 +195,11 @@ class GeneralApplyService(IApplyService):
                 ensure_parent=True,
             )
 
+        regular_summary = f"Applied {len(doc_rows)} doc and {len(tag_rows)} tag annotations."
+        if skipped_count:
+            regular_summary += f" Skipped {skipped_count} detections already annotated by another source."
         return (
-            f"Applied {len(doc_rows)} doc and {len(tag_rows)} tag annotations.",
+            regular_summary,
             f"Created {len(pattern_rows)} new pattern detections.",
         )
 
@@ -300,11 +322,71 @@ class GeneralApplyService(IApplyService):
             if not cursor or len(page) < QUERY_PAGE_SIZE:
                 return edges
 
+    def _list_protected_boxes(self, file_id: NodeId) -> list[ProtectedBox]:
+        """
+        Reads the regions of annotations on a file that this function did not create.
+
+        Manual mappings and annotations from other applications can live in any instance space, so the
+        edges are listed by start node only.
+
+        Args:
+            file_id: NodeId of the file being annotated.
+
+        Returns:
+            One ProtectedBox per such edge that has a page and a box with an area.
+        """
+        edges = self.client.data_modeling.instances.list(
+            instance_type="edge",
+            sources=[self.core_annotation_view_id],
+            filter=And(
+                Equals(["edge", "startNode"], {"space": file_id.space, "externalId": file_id.external_id}),
+                HasData(views=[self.core_annotation_view_id]),
+            ),
+            limit=-1,
+        )
+
+        boxes: list[ProtectedBox] = []
+        for edge in edges:
+            properties = (edge.properties or {}).get(self.core_annotation_view_id) or {}
+            source_created_user = properties.get("sourceCreatedUser")
+            if source_created_user in self.OWN_SOURCE_CREATED_USERS:
+                continue
+            page = properties.get("startNodePageNumber")
+            values = [properties.get(f"startNode{axis}") for axis in ("XMin", "YMin", "XMax", "YMax")]
+            if not isinstance(page, int) or not all(isinstance(value, (int, float)) for value in values):
+                continue
+            x_min, y_min, x_max, y_max = (float(cast(float, value)) for value in values)
+            if x_max <= x_min or y_max <= y_min:
+                continue
+            boxes.append(
+                ProtectedBox(
+                    page=page,
+                    coords=(x_min, y_min, x_max, y_max),
+                    edge_space=edge.space,
+                    edge_external_id=edge.external_id,
+                    source_created_user=str(source_created_user),
+                )
+            )
+        return boxes
+
+    def _find_protected_box(
+        self, protected_boxes: list[ProtectedBox], page: object, bounding_box: BoundingBox
+    ) -> ProtectedBox | None:
+        """The protected box on the same page that equals, contains, or lies inside the given box."""
+        coords = self._bounding_box_to_coords(bounding_box)
+        for box in protected_boxes:
+            if box.page != page:
+                continue
+            if self._bounding_box_contains(box.coords, coords) or self._bounding_box_contains(coords, box.coords):
+                return box
+        return None
+
     def _process_pattern_results(
         self,
         result_item: dict[str, object],
         file_node: Node,
         existing_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]],
+        protected_boxes: list[ProtectedBox],
     ) -> tuple[list[EdgeApply], list[RowWrite], set[str]]:
         """
         Processes pattern mode detection results into annotation edges and RAW rows.
@@ -312,7 +394,7 @@ class GeneralApplyService(IApplyService):
         Creates pattern-based annotations that link to a sink node rather than specific entities,
         allowing review and approval of pattern-detected annotations before linking to actual entities.
         Uses spatial deduplication to skip patterns already covered by regular detection results that
-        met confidence thresholds.
+        met confidence thresholds, and patterns on top of manual or third-party annotations.
 
         Args:
             result_item: Dictionary containing pattern mode detection results with 'annotations' key.
@@ -320,6 +402,8 @@ class GeneralApplyService(IApplyService):
             existing_bounding_boxes: Mapping of (page, (x_min, y_min, x_max, y_max)) to sets of
                 external IDs from regular annotations that met confidence thresholds.
                 Used to avoid duplicate annotations.
+            protected_boxes: Regions of annotations this function did not create. A pattern that equals,
+                contains, or lies inside one of them is skipped.
 
         Returns:
             A tuple containing:
@@ -337,6 +421,9 @@ class GeneralApplyService(IApplyService):
             region = detect_annotation.get("region") or {}
             bounding_box: BoundingBox = self._extract_bounding_box_from_region(region)
             page = region.get("page")
+
+            if self._find_protected_box(protected_boxes, page, bounding_box) is not None:
+                continue
 
             if self._is_bounding_box_covered(existing_bounding_boxes, page, bounding_box):
                 continue
@@ -442,7 +529,8 @@ class GeneralApplyService(IApplyService):
         detect_annotation: dict[str, object],
         processed_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]],
         scope_columns: dict[str, str],
-    ) -> list[EdgeApply]:
+        protected_boxes: list[ProtectedBox],
+    ) -> tuple[list[EdgeApply], bool]:
         """
         Converts a single detection annotation into edge applies and RAW row writes.
 
@@ -450,6 +538,8 @@ class GeneralApplyService(IApplyService):
         to determine approval/suggestion status. Also creates corresponding RAW table entries.
         Only annotations meeting confidence thresholds are added to the
         processed_bounding_boxes dict for spatial deduplication with pattern mode results.
+        A detection on top of a manual or third-party annotation writes nothing, but its region is
+        still recorded so pattern mode treats it as taken.
 
         Args:
             file_instance_id: NodeId of the file being annotated.
@@ -461,9 +551,12 @@ class GeneralApplyService(IApplyService):
             processed_bounding_boxes: Mapping of (page, (x_min, y_min, x_max, y_max)) to
                 sets of external IDs for regular annotations (modified in place).
             scope_columns: File primary/secondary scope values to store on each RAW row.
+            protected_boxes: Regions of annotations this function did not create.
 
         Returns:
-            List of EdgeApply objects for each entity in the detection that meets confidence thresholds.
+            A tuple containing:
+                - EdgeApply objects for each entity in the detection that meets confidence thresholds
+                - Whether the detection was skipped because a protected box already covers it
         """
         edges = []
         # NOTE: File annotation endpoint returns multiple of the same entities when matched on different aliases
@@ -471,6 +564,8 @@ class GeneralApplyService(IApplyService):
         region = detect_annotation.get("region") or {}
         bounding_box: BoundingBox = self._extract_bounding_box_from_region(region)
         page = region.get("page")
+        protected_box = self._find_protected_box(protected_boxes, page, bounding_box)
+        skipped = False
         for entity in detect_annotation.get("entities", []):
             # NOTE: Remove self references
             if file_instance_id.as_tuple() == (entity.get("space"), entity.get("external_id")):
@@ -485,6 +580,10 @@ class GeneralApplyService(IApplyService):
             external_id = self._create_annotation_id(file_instance_id, entity, detect_annotation, bounding_box)
 
             self._add_processed_bounding_box(processed_bounding_boxes, page, bounding_box, external_id)
+
+            if protected_box is not None:
+                skipped = True
+                continue
 
             # skip when duplicate is present
             if external_id in edge_external_id:
@@ -536,7 +635,15 @@ class GeneralApplyService(IApplyService):
                 doc_doc.append(RowWrite(key=external_id, columns=doc_log))
             else:
                 doc_tag.append(RowWrite(key=external_id, columns=doc_log))
-        return edges
+
+        if skipped and protected_box is not None:
+            self.logger.info(
+                f"\t- Already annotated: '{detect_annotation.get('text')}' on page {page} of "
+                f"{file_instance_id.external_id} is covered by edge "
+                f"({protected_box.edge_space}, {protected_box.edge_external_id}) "
+                f"created by {protected_box.source_created_user}. Not recreated."
+            )
+        return edges, skipped
 
     def _status_for_confidence(self, annotation_type: str | None, confidence: float) -> str | None:
         """

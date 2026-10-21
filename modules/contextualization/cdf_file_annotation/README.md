@@ -194,7 +194,9 @@ flowchart TD
 **Key Features**:
 - 🔒 **Optimistic Locking**: Claims jobs to prevent race conditions
 - 🔀 **Result Merging**: Combines standard and pattern results with deduplication
-- 📊 **Confidence Filtering**: Auto-approve vs. suggest based on thresholds, set separately for asset links and file links- 📁 **RAW Reporting**: Writes to `doc_tag`, `doc_doc`, and `doc_pattern` tables
+- 📊 **Confidence Filtering**: Auto-approve vs. suggest based on thresholds, set separately for asset links and file links
+- ✋ **Keeps Existing Boxes**: Reads the annotations other users and applications created on the file. A Diagram Detect or pattern-mode box that equals, contains, or lies inside one of them on the same page is logged as already annotated and not created
+- 📁 **RAW Reporting**: Writes to `doc_tag`, `doc_doc`, and `doc_pattern` tables
 - 📄 **Multi-Page Tracking**: Handles progress for large documents
 
 <details>
@@ -218,7 +220,7 @@ flowchart TD
     RetrieveResults --> MergeResults[Merge regular and pattern<br/>results by file ID<br/>Creates unified result per file]
     MergeResults --> LoopFiles[For each file in merged results]
 
-    LoopFiles --> ProcessResults[Process file results:<br/>- Filter standard by AssetLink / FileLink confidence thresholds<br/>- Capture regular annotations bounding box and page in a set<br/>- Skip pattern duplicates by checking if bounding box exist in set]
+    LoopFiles --> ProcessResults[Process file results:<br/>- Read boxes of manual and third-party annotations on the file<br/>- Filter standard by AssetLink / FileLink confidence thresholds<br/>- Skip standard and pattern boxes on top of a manual or third-party box<br/>- Capture regular annotations bounding box and page in a set<br/>- Skip pattern duplicates by checking if bounding box exist in set]
 
     ProcessResults --> CheckClean{First run for<br/>multi-page file?}
     CheckClean -->|Yes| CleanOld[Clean old annotations]
