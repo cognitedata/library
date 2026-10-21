@@ -43,8 +43,7 @@ def _parse_locale_code(value: str | None) -> str | None:
 
 
 def _detect_macos_ui_language() -> str | None:
-    """Read the user's macOS UI language via ``defaults read -g AppleLocale``.
-    """
+    """Read the user's macOS UI language via ``defaults read -g AppleLocale``."""
     try:
         result = subprocess.run(
             ["/usr/bin/defaults", "read", "-g", "AppleLocale"],
@@ -61,8 +60,7 @@ def _detect_macos_ui_language() -> str | None:
 
 
 def _detect_windows_ui_language() -> str | None:
-    """Read the user's Windows UI language via the Win32 API.
-    """
+    """Read the user's Windows UI language via the Win32 API."""
     try:
         langid = ctypes.windll.kernel32.GetUserDefaultUILanguage()  # type: ignore[attr-defined]
     except (AttributeError, OSError):

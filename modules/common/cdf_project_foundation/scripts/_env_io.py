@@ -1,6 +1,5 @@
 """Read and write helpers for ``.env`` files used by the setup wizard."""
 
-
 from pathlib import Path
 
 
@@ -37,7 +36,7 @@ def upsert_env(
     value: str,
 ) -> None:
     """Insert or replace a ``KEY=value`` entry in *lines*, updating *key_idx* in place."""
-    entry = f'{key}={value}\n'
+    entry = f"{key}={value}\n"
     if key in key_idx:
         lines[key_idx[key]] = entry
     else:

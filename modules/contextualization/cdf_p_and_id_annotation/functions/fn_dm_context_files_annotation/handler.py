@@ -1,4 +1,3 @@
-
 import os
 import sys
 from pathlib import Path
@@ -25,17 +24,24 @@ def _report_usage(client: CogniteClient) -> None:
         import threading
 
         from mixpanel import Consumer, Mixpanel
+
         mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
         distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
+
         def _send() -> None:
-            mp.track(distinct_id, "fn-handle", {
-                "source": _SOURCE,
-                "tracker_version": _TRACKER_VERSION,
-                "dp_version": _DP_VERSION,
-                "type": "py-function",
-                "cdf_cluster": client.config.cdf_cluster,
-                "cdf_project": client.config.project,
-            })
+            mp.track(
+                distinct_id,
+                "fn-handle",
+                {
+                    "source": _SOURCE,
+                    "tracker_version": _TRACKER_VERSION,
+                    "dp_version": _DP_VERSION,
+                    "type": "py-function",
+                    "cdf_cluster": client.config.cdf_cluster,
+                    "cdf_project": client.config.project,
+                },
+            )
+
         threading.Thread(target=_send, daemon=True).start()
     except Exception:
         # Usage tracking is best-effort; must not affect the handler.
@@ -47,7 +53,9 @@ def handle(data: dict, client: CogniteClient) -> dict:
     loglevel = data.get("logLevel", "INFO")
     logger = CogniteFunctionLogger(loglevel)
     try:
-        logger.info(f"Starting diagram parsing annotation with loglevel = {loglevel},  reading parameters from extraction pipeline config: {data.get('ExtractionPipelineExtId')}")
+        logger.info(
+            f"Starting diagram parsing annotation with loglevel = {loglevel},  reading parameters from extraction pipeline config: {data.get('ExtractionPipelineExtId')}"
+        )
         config = load_config_parameters(client, data)
         logger.debug("Loaded config successfully")
         annotate_p_and_id(client, logger, data, config)
@@ -56,7 +64,6 @@ def handle(data: dict, client: CogniteClient) -> dict:
         message = f"failed, Message: {e!s}"
         logger.error(message)
         return {"status": "failure", "message": message}
-
 
 
 def run_locally():

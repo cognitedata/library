@@ -18,7 +18,7 @@ contacts:
     role: Data Owner
     sendNotification: {{data_owner_send_notification}}
 notificationConfig:
-  # Files Extractor runs on a schedule; alert if not seen for >2 hours
+  # Files Extractor runs continuously; alert if not seen for >2 hours
   allowedNotSeenRangeInMinutes: 120
 createdBy: cognite-toolkit
 # CDF_PROJECT and CDF_URL in the sample below use $${VAR} so the deployed docs keep an

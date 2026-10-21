@@ -1,6 +1,6 @@
 externalId: "ep_files_{{location}}_{{sourceSystem}}"
 config:
-  # Runtime config for the Files Extractor — see ep_files.ExtractionPipeline.yaml
+  # Runtime config for the Files Extractor — see ep_files_sharepoint.ExtractionPipeline.yaml
   # documentation block for required environment variables and install steps.
 
 
@@ -30,7 +30,8 @@ config:
       # final save will also be made on extractor shutdown.
       #save-interval: 30s
 
-      # Uncomment to use a RAW table for state storage
+      # Uncomment to use a RAW table for state storage. This module does not deploy a RAW
+      # database or grant RAW access — see "State store" in the module README.
       #type: raw
         # RAW database and table to use
       #database:
