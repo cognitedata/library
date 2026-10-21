@@ -167,4 +167,3 @@ def load_config(client: CogniteClient, extraction_pipeline_external_id: str, log
     except ValueError as e:
         logger.error(f"Invalid config: {e}")
         raise e
-

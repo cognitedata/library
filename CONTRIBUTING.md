@@ -36,12 +36,7 @@ plugin). Install it in your AI coding assistant:
 # Claude Code
 /plugin marketplace add cognitedata/cognite-ai-tooling-marketplace
 /plugin install cog-vd-best-practices@cognite-ai-tooling-marketplace
-
-# GitHub Copilot
-copilot plugin marketplace add cognitedata/cognite-ai-tooling-marketplace
-copilot plugin install cog-vd-best-practices@cognite-ai-tooling-marketplace
 ```
-
 In Cursor, add the marketplace URL under **Settings → Plugins** and install `cog-vd-best-practices`.
 
 Run the skills that match your change and fix what they report:

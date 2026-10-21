@@ -31,32 +31,29 @@ def save_metrics_to_file(
     """Save metrics to Cognite Files as JSON, overwriting if exists."""
     # Create temp file
     temp_path = os.path.join(tempfile.gettempdir(), file_name)
-    
+
     with open(temp_path, "w") as f:
         json.dump(metrics, f, indent=2, default=str)
-    
+
     # Upload with overwrite
     client.files.upload(
-        path=temp_path,
-        external_id=file_external_id,
-        name=file_name,
-        mime_type="application/json",
-        overwrite=True
+        path=temp_path, external_id=file_external_id, name=file_name, mime_type="application/json", overwrite=True
     )
-    
+
     # Clean up temp file
     try:
         os.remove(temp_path)
     except Exception:
         # Metric collection is best-effort for optional storage checks.
         pass
-    
+
     logger.info(f"📁 Saved metrics to Cognite Files: {file_external_id}")
 
 
 # ----------------------------------------------------
 # BATCH PROCESSING FUNCTIONS
 # ----------------------------------------------------
+
 
 def get_batch_file_external_id(batch_index: int) -> str:
     """Get the external ID for a batch file."""
@@ -74,7 +71,7 @@ def save_batch_file(
 ) -> None:
     """
     Save accumulator data to a batch file for later aggregation.
-    
+
     Args:
         client: CogniteClient instance
         accumulator: CombinedAccumulator with collected data
@@ -85,59 +82,53 @@ def save_batch_file(
     """
     file_external_id = get_batch_file_external_id(batch_index)
     file_name = f"{file_external_id}.json"
-    
+
     # Combine accumulator data with metadata
     batch_data = {
         "batch_index": batch_index,
         "batch_metadata": batch_metadata or {},
         "accumulator": accumulator.to_dict(),
         "model3d_accumulator": (model3d_accumulator or Model3DAccumulator()).to_dict(),
-        "file_annotation_accumulator": (
-            file_annotation_accumulator or FileAnnotationAccumulator()
-        ).to_dict(),
+        "file_annotation_accumulator": (file_annotation_accumulator or FileAnnotationAccumulator()).to_dict(),
     }
-    
+
     # Create temp file
     temp_path = os.path.join(tempfile.gettempdir(), file_name)
-    
+
     with open(temp_path, "w") as f:
         json.dump(batch_data, f, indent=2, default=str)
-    
+
     # Upload with overwrite
     client.files.upload(
-        path=temp_path,
-        external_id=file_external_id,
-        name=file_name,
-        mime_type="application/json",
-        overwrite=True
+        path=temp_path, external_id=file_external_id, name=file_name, mime_type="application/json", overwrite=True
     )
-    
+
     # Clean up temp file
     try:
         os.remove(temp_path)
     except Exception:
         # Metric collection is best-effort for optional storage checks.
         pass
-    
+
     logger.info(f"📁 Saved batch file: {file_external_id}")
 
 
 def list_batch_files(client: CogniteClient, max_batches: int = 20) -> list[str]:
     """
     List all batch files in CDF by checking for expected external IDs.
-    
+
     This approach is more robust than listing all files and filtering,
     as it directly checks for batch files by their expected external IDs.
-    
+
     Args:
         client: CogniteClient instance
         max_batches: Maximum number of batches to check for (default 20)
-    
+
     Returns:
         List of batch file external IDs that exist, sorted by batch index
     """
     batch_files = []
-    
+
     # Check for each expected batch file by external ID
     for i in range(max_batches):
         ext_id = get_batch_file_external_id(i)
@@ -151,7 +142,7 @@ def list_batch_files(client: CogniteClient, max_batches: int = 20) -> list[str]:
             # File doesn't exist - stop checking (batches are sequential)
             # But continue checking a few more in case of gaps
             continue
-    
+
     logger.info(f"Found {len(batch_files)} batch files")
     return batch_files
 
@@ -159,11 +150,11 @@ def list_batch_files(client: CogniteClient, max_batches: int = 20) -> list[str]:
 def load_batch_file(client: CogniteClient, file_external_id: str) -> dict | None:
     """
     Load a single batch file.
-    
+
     Args:
         client: CogniteClient instance
         file_external_id: External ID of the batch file
-        
+
     Returns:
         Batch data dict or None if failed
     """
@@ -189,37 +180,35 @@ def load_and_merge_all_batches(
         (merged CombinedAccumulator or None, merged Model3DAccumulator, merged FileAnnotationAccumulator)
     """
     batch_files = list_batch_files(client)
-    
+
     if not batch_files:
         logger.warning("No batch files found")
         return None, Model3DAccumulator(), FileAnnotationAccumulator()
-    
+
     logger.info(f"Found {len(batch_files)} batch files to merge")
-    
+
     merged_acc: CombinedAccumulator | None = None
     merged_m3d: Model3DAccumulator | None = None
     merged_ann: FileAnnotationAccumulator | None = None
-    
+
     for file_ext_id in batch_files:
         logger.info(f"Loading batch file: {file_ext_id}")
         batch_data = load_batch_file(client, file_ext_id)
-        
+
         if not batch_data:
             logger.warning(f"Skipping empty/invalid batch file: {file_ext_id}")
             continue
-        
+
         acc_data = batch_data.get("accumulator", {})
         batch_acc = CombinedAccumulator.from_dict(acc_data)
-        
+
         if merged_acc is None:
             merged_acc = batch_acc
         else:
             merged_acc.merge_from(batch_acc)
 
         m3d_part = Model3DAccumulator.from_dict(batch_data.get("model3d_accumulator") or {})
-        ann_part = FileAnnotationAccumulator.from_dict(
-            batch_data.get("file_annotation_accumulator") or {}
-        )
+        ann_part = FileAnnotationAccumulator.from_dict(batch_data.get("file_annotation_accumulator") or {})
         if merged_m3d is None:
             merged_m3d = m3d_part
         else:
@@ -228,10 +217,12 @@ def load_and_merge_all_batches(
             merged_ann = ann_part
         else:
             merged_ann.merge_from(ann_part)
-        
-        logger.info(f"Merged batch {batch_data.get('batch_index', '?')}: "
-                   f"assets={batch_acc.total_assets:,}, ts={batch_acc.total_ts:,}")
-    
+
+        logger.info(
+            f"Merged batch {batch_data.get('batch_index', '?')}: "
+            f"assets={batch_acc.total_assets:,}, ts={batch_acc.total_ts:,}"
+        )
+
     if merged_acc is None:
         return None, Model3DAccumulator(), FileAnnotationAccumulator()
 
@@ -240,26 +231,28 @@ def load_and_merge_all_batches(
     if merged_ann is None:
         merged_ann = FileAnnotationAccumulator()
 
-    logger.info(f"✅ Merged all batches: "
-               f"total_assets={merged_acc.total_assets:,}, "
-               f"total_ts={merged_acc.total_ts:,}, "
-               f"total_equipment={merged_acc.total_equipment:,}")
-    
+    logger.info(
+        f"✅ Merged all batches: "
+        f"total_assets={merged_acc.total_assets:,}, "
+        f"total_ts={merged_acc.total_ts:,}, "
+        f"total_equipment={merged_acc.total_equipment:,}"
+    )
+
     return merged_acc, merged_m3d, merged_ann
 
 
 def delete_batch_files(client: CogniteClient) -> int:
     """
     Delete all batch files after successful aggregation.
-    
+
     Returns:
         Number of files deleted
     """
     batch_files = list_batch_files(client)
-    
+
     if not batch_files:
         return 0
-    
+
     deleted = 0
     for file_ext_id in batch_files:
         try:
@@ -268,5 +261,5 @@ def delete_batch_files(client: CogniteClient) -> int:
             logger.info(f"🗑️ Deleted batch file: {file_ext_id}")
         except Exception as e:
             logger.warning(f"Failed to delete batch file {file_ext_id}: {e}")
-    
+
     return deleted

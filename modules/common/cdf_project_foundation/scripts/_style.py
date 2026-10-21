@@ -1,6 +1,5 @@
 """Terminal styling helpers for the setup wizard."""
 
-
 import sys
 import unicodedata
 
@@ -31,16 +30,17 @@ def _display_width(text: str) -> int:
 class _C:
     """ANSI escape codes — empty strings when stdout is not a TTY."""
 
-    BOLD:   str = "\033[1m"  if _USE_COLOR else ""
-    DIM:    str = "\033[2m"  if _USE_COLOR else ""
-    GREEN:  str = "\033[32m" if _USE_COLOR else ""
+    BOLD: str = "\033[1m" if _USE_COLOR else ""
+    DIM: str = "\033[2m" if _USE_COLOR else ""
+    GREEN: str = "\033[32m" if _USE_COLOR else ""
     YELLOW: str = "\033[33m" if _USE_COLOR else ""
-    CYAN:   str = "\033[36m" if _USE_COLOR else ""
-    RED:    str = "\033[31m" if _USE_COLOR else ""
-    RESET:  str = "\033[0m"  if _USE_COLOR else ""
+    CYAN: str = "\033[36m" if _USE_COLOR else ""
+    RED: str = "\033[31m" if _USE_COLOR else ""
+    RESET: str = "\033[0m" if _USE_COLOR else ""
 
 
 # ── Print helpers ──────────────────────────────────────────────────────────────
+
 
 def _banner(title: str) -> None:
     # The box is at least 56 columns wide (the original fixed width, kept for

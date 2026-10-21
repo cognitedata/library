@@ -17,39 +17,41 @@ from .common import get_external_id, get_props
 # 3D ACCUMULATOR
 # ----------------------------------------------------
 
+
 @dataclass
 class Model3DAccumulator:
     """
     Accumulates data for 3D model contextualization metrics.
     """
+
     # Asset-3D relationship tracking
     total_assets_checked: int = 0
     assets_with_3d: int = 0
     asset_ids_with_3d: set[str] = field(default_factory=set)
-    
+
     # Critical asset tracking
     critical_assets_total: int = 0
     critical_assets_with_3d: int = 0
-    
+
     # 3D Object tracking
     total_3d_objects: int = 0
     objects_3d_ids_seen: set[str] = field(default_factory=set)
     objects_3d_duplicate_ids: list = field(default_factory=list)  # Duplicate external IDs
-    
+
     # 3D → Asset contextualization (MOST IMPORTANT)
     objects_with_asset_link: int = 0
-    
+
     # Bounding box completeness
     objects_with_complete_bbox: int = 0
     objects_with_partial_bbox: int = 0
     objects_with_no_bbox: int = 0
-    
+
     # Model type coverage (CAD, 360, PointCloud)
     objects_with_cad_nodes: int = 0
     objects_with_360_images: int = 0
     objects_with_point_cloud: int = 0
     objects_with_multiple_models: int = 0
-    
+
     def to_dict(self) -> dict:
         """Serialize for batch storage."""
         return {
@@ -70,7 +72,7 @@ class Model3DAccumulator:
             "objects_with_point_cloud": self.objects_with_point_cloud,
             "objects_with_multiple_models": self.objects_with_multiple_models,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "Model3DAccumulator":
         """Deserialize from batch storage."""
@@ -92,7 +94,7 @@ class Model3DAccumulator:
         acc.objects_with_point_cloud = data.get("objects_with_point_cloud", 0)
         acc.objects_with_multiple_models = data.get("objects_with_multiple_models", 0)
         return acc
-    
+
     def merge_from(self, other: "Model3DAccumulator") -> None:
         """Merge another accumulator (for batch aggregation)."""
         self.total_assets_checked += other.total_assets_checked
@@ -117,6 +119,7 @@ class Model3DAccumulator:
 # BATCH PROCESSORS
 # ----------------------------------------------------
 
+
 def get_direct_relation_id(prop) -> str | None:
     """Extract external ID from a direct relation property."""
     if not prop:
@@ -133,7 +136,7 @@ def process_asset_3d_batch(
 ) -> None:
     """
     Process assets to check for 3D object associations.
-    
+
     Checks:
     - object3D property for 3D link
     - criticality/technicalObjectAbcIndicator for critical asset tracking
@@ -142,33 +145,26 @@ def process_asset_3d_batch(
         node_id = get_external_id(node)
         if not node_id:
             continue
-        
+
         acc.total_assets_checked += 1
         props = get_props(node, asset_view)
-        
+
         # Check for 3D object link
         object_3d = props.get("object3D")
         object_3d_id = get_direct_relation_id(object_3d)
-        
+
         has_3d = object_3d_id is not None
-        
+
         if has_3d:
             acc.assets_with_3d += 1
             acc.asset_ids_with_3d.add(node_id)
-        
+
         # Check criticality - support multiple property names
-        criticality = (
-            props.get("criticality") or 
-            props.get("technicalObjectAbcIndicator") or
-            ""
-        )
-        
+        criticality = props.get("criticality") or props.get("technicalObjectAbcIndicator") or ""
+
         # Treat "A" or "critical" as critical
-        is_critical = (
-            criticality.upper() == "A" or 
-            criticality.lower() == "critical"
-        )
-        
+        is_critical = criticality.upper() == "A" or criticality.lower() == "critical"
+
         if is_critical:
             acc.critical_assets_total += 1
             if has_3d:
@@ -182,28 +178,28 @@ def process_3d_object_batch(
 ) -> None:
     """
     Process 3D objects for contextualization, bounding box, and model type coverage.
-    
+
     Checks:
     - asset property for 3D→Asset contextualization (MOST IMPORTANT)
     - xMin, xMax, yMin, yMax, zMin, zMax for bounding box completeness
     - cadNodes, images360, pointCloudVolumes for model type coverage
     """
     bbox_props = ["xMin", "xMax", "yMin", "yMax", "zMin", "zMax"]
-    
+
     for node in object_batch:
         node_id = get_external_id(node)
         if not node_id:
             continue
-        
+
         # Skip duplicates
         if node_id in acc.objects_3d_ids_seen:
             acc.objects_3d_duplicate_ids.append(node_id)
             continue
         acc.objects_3d_ids_seen.add(node_id)
         acc.total_3d_objects += 1
-        
+
         props = get_props(node, object_view)
-        
+
         # Check 3D → Asset contextualization (MOST IMPORTANT METRIC)
         # The 'asset' property is a reverse relation from CogniteAsset.object3D
         asset_link = props.get("asset")
@@ -216,29 +212,29 @@ def process_3d_object_batch(
                 has_asset = asset_link.get("externalId") is not None
         else:
             has_asset = False
-        
+
         if has_asset:
             acc.objects_with_asset_link += 1
-        
+
         # Check bounding box completeness
         bbox_values = [props.get(p) for p in bbox_props]
         bbox_count = sum(1 for v in bbox_values if v is not None)
-        
+
         if bbox_count == 6:
             acc.objects_with_complete_bbox += 1
         elif bbox_count > 0:
             acc.objects_with_partial_bbox += 1
         else:
             acc.objects_with_no_bbox += 1
-        
+
         # Check model type coverage (these are reverse relations, may be empty)
         # For now, we track if properties are present
         has_cad = props.get("cadNodes") is not None
         has_360 = props.get("images360") is not None
         has_pc = props.get("pointCloudVolumes") is not None
-        
+
         model_count = sum([has_cad, has_360, has_pc])
-        
+
         if has_cad:
             acc.objects_with_cad_nodes += 1
         if has_360:
@@ -253,10 +249,11 @@ def process_3d_object_batch(
 # METRIC COMPUTATION
 # ----------------------------------------------------
 
+
 def compute_3d_metrics(acc: Model3DAccumulator) -> dict:
     """
     Compute 3D model contextualization metrics.
-    
+
     Returns dict with:
     - 3D Contextualization Rate (3D → Asset) - MOST IMPORTANT
     - Asset 3D coverage metrics (Asset → 3D)
@@ -266,77 +263,47 @@ def compute_3d_metrics(acc: Model3DAccumulator) -> dict:
     """
     total_assets = acc.total_assets_checked
     total_objects = acc.total_3d_objects
-    
+
     # PRIMARY METRIC: 3D → Asset Contextualization Rate
     # This is the MOST IMPORTANT metric - shows how many 3D objects are linked to assets
     object_contextualization_rate = round(
         (acc.objects_with_asset_link / total_objects * 100) if total_objects > 0 else 0, 1
     )
-    
+
     # Secondary metrics
-    asset_3d_coverage = round(
-        (acc.assets_with_3d / total_assets * 100) if total_assets > 0 else 0, 1
-    )
-    
+    asset_3d_coverage = round((acc.assets_with_3d / total_assets * 100) if total_assets > 0 else 0, 1)
+
     critical_3d_rate = round(
-        (acc.critical_assets_with_3d / acc.critical_assets_total * 100)
-        if acc.critical_assets_total > 0 else 0, 1
+        (acc.critical_assets_with_3d / acc.critical_assets_total * 100) if acc.critical_assets_total > 0 else 0, 1
     )
-    
-    bbox_completeness = round(
-        (acc.objects_with_complete_bbox / total_objects * 100)
-        if total_objects > 0 else 0, 1
-    )
-    
+
+    bbox_completeness = round((acc.objects_with_complete_bbox / total_objects * 100) if total_objects > 0 else 0, 1)
+
     # Bounding box distribution
-    bbox_complete_pct = round(
-        (acc.objects_with_complete_bbox / total_objects * 100)
-        if total_objects > 0 else 0, 1
-    )
-    bbox_partial_pct = round(
-        (acc.objects_with_partial_bbox / total_objects * 100)
-        if total_objects > 0 else 0, 1
-    )
-    bbox_none_pct = round(
-        (acc.objects_with_no_bbox / total_objects * 100)
-        if total_objects > 0 else 0, 1
-    )
-    
+    bbox_complete_pct = round((acc.objects_with_complete_bbox / total_objects * 100) if total_objects > 0 else 0, 1)
+    bbox_partial_pct = round((acc.objects_with_partial_bbox / total_objects * 100) if total_objects > 0 else 0, 1)
+    bbox_none_pct = round((acc.objects_with_no_bbox / total_objects * 100) if total_objects > 0 else 0, 1)
+
     # Model type distribution
-    cad_pct = round(
-        (acc.objects_with_cad_nodes / total_objects * 100)
-        if total_objects > 0 else 0, 1
-    )
-    img360_pct = round(
-        (acc.objects_with_360_images / total_objects * 100)
-        if total_objects > 0 else 0, 1
-    )
-    pointcloud_pct = round(
-        (acc.objects_with_point_cloud / total_objects * 100)
-        if total_objects > 0 else 0, 1
-    )
-    multi_model_pct = round(
-        (acc.objects_with_multiple_models / total_objects * 100)
-        if total_objects > 0 else 0, 1
-    )
-    
+    cad_pct = round((acc.objects_with_cad_nodes / total_objects * 100) if total_objects > 0 else 0, 1)
+    img360_pct = round((acc.objects_with_360_images / total_objects * 100) if total_objects > 0 else 0, 1)
+    pointcloud_pct = round((acc.objects_with_point_cloud / total_objects * 100) if total_objects > 0 else 0, 1)
+    multi_model_pct = round((acc.objects_with_multiple_models / total_objects * 100) if total_objects > 0 else 0, 1)
+
     return {
         # Primary metric (MOST IMPORTANT)
         "model3d_contextualization_rate": object_contextualization_rate,
         "model3d_objects_with_asset": acc.objects_with_asset_link,
-        
         # Secondary metrics
         "model3d_asset_coverage": asset_3d_coverage,
         "model3d_critical_asset_rate": critical_3d_rate,
         "model3d_bbox_completeness": bbox_completeness,
-        
         # Counts
         "model3d_total_assets": total_assets,
         "model3d_assets_with_3d": acc.assets_with_3d,
         "model3d_critical_total": acc.critical_assets_total,
         "model3d_critical_with_3d": acc.critical_assets_with_3d,
         "model3d_total_objects": total_objects,
-        
         # Bounding box distribution
         "model3d_bbox_complete_count": acc.objects_with_complete_bbox,
         "model3d_bbox_partial_count": acc.objects_with_partial_bbox,
@@ -344,7 +311,6 @@ def compute_3d_metrics(acc: Model3DAccumulator) -> dict:
         "model3d_bbox_complete_pct": bbox_complete_pct,
         "model3d_bbox_partial_pct": bbox_partial_pct,
         "model3d_bbox_none_pct": bbox_none_pct,
-        
         # Model type distribution
         "model3d_cad_count": acc.objects_with_cad_nodes,
         "model3d_360_count": acc.objects_with_360_images,
@@ -354,7 +320,6 @@ def compute_3d_metrics(acc: Model3DAccumulator) -> dict:
         "model3d_360_pct": img360_pct,
         "model3d_pointcloud_pct": pointcloud_pct,
         "model3d_multi_model_pct": multi_model_pct,
-        
         # Duplicate tracking
         "model3d_duplicates": len(acc.objects_3d_duplicate_ids),
         "model3d_duplicate_ids": acc.objects_3d_duplicate_ids,

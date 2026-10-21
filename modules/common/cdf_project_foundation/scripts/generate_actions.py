@@ -20,7 +20,6 @@ Run from the Toolkit project root after `cdf modules add -d dp:foundation`:
   python modules/common/cdf_project_foundation/scripts/generate_actions.py --provider ado
 """
 
-
 import argparse
 import json
 import os
@@ -625,9 +624,7 @@ def ado_trust_boundary_note(projects: dict[str, str]) -> str:
             " wrong commit, not against someone who can push one — it lives in the YAML the tag itself"
             " supplies."
         )
-    parts.append(
-        "Each `-toolkit-credentials` group only ever needs to be authorized for its one deploy pipeline."
-    )
+    parts.append("Each `-toolkit-credentials` group only ever needs to be authorized for its one deploy pipeline.")
     return "\n\n".join(parts)
 
 
@@ -843,9 +840,7 @@ def branching_rows(projects: dict[str, str], provider: str) -> str:
         )
     if "prod" in projects:
         prod_trigger = (
-            "GitHub Release (tag `vX.Y.Z` from `main`)"
-            if provider == "github"
-            else "Git tag `vX.Y.Z` pushed to `main`"
+            "GitHub Release (tag `vX.Y.Z` from `main`)" if provider == "github" else "Git tag `vX.Y.Z` pushed to `main`"
         )
         rows.append(f"| {prod_trigger} | `{projects['prod']}` | Deploy |")
     return "\n".join(rows or ["| *(none)* | *(none)* | No CI/CD workflows generated |"])
@@ -893,13 +888,11 @@ def branch_protection_note(projects: dict[str, str], provider: str) -> str:
         return (
             "PRs to `dev` only run `cdf build` CI (0 reviewers). The `Source branch guardrail` check does"
             " not run on `dev` — it only applies to PRs targeting `main`, where it enforces that changes"
-            " are promoted from `dev` or `hotfix/*`."
-            + regen_note
+            " are promoted from `dev` or `hotfix/*`." + regen_note
         )
     if branches == {"dev"}:
         return (
-            "PRs to `dev` only run the `toolkit-pr-validate` Build Validation policy"
-            " (no reviewer requirement enabled)."
+            "PRs to `dev` only run the `toolkit-pr-validate` Build Validation policy (no reviewer requirement enabled)."
         )
     if branches == {"main"}:
         return (

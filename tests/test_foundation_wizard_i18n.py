@@ -153,7 +153,10 @@ class TestPromptSiteAndProjectNames:
         monkeypatch.setattr(_i18n, "_locale", "ja")
         monkeypatch.setattr("builtins.input", _echo_input("Invalid Site!", "oslo"))
         assert sp._prompt_site("") == "oslo"
-        assert "小文字の英字、数字、アンダースコアのみを使用してください — CDF の external ID ではハイフンは使用できません。" in capsys.readouterr().out
+        assert (
+            "小文字の英字、数字、アンダースコアのみを使用してください — CDF の external ID ではハイフンは使用できません。"
+            in capsys.readouterr().out
+        )
 
     def test_project_name_validation_error_in_japanese(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -302,4 +305,7 @@ class TestWarnDisabledNotifications:
         sp._warn_disabled_notifications(tmp_path, tmp_path)
         out = capsys.readouterr().out
         assert "警告: config.dev.yaml でメールアドレスが未設定のため sendNotification が無効になっています:" in out
-        assert "これらの連絡先にはパイプライン失敗時の通知が送信されません。実行: python scripts/setup_project.py -y" in out
+        assert (
+            "これらの連絡先にはパイプライン失敗時の通知が送信されません。実行: python scripts/setup_project.py -y"
+            in out
+        )

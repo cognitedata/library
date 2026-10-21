@@ -822,9 +822,7 @@ class GeneralPromoteService(IPromoteService):
         merged_properties.update(update_properties)
         # EdgeApply.sources is a read-only property (no setter); mutate the list in place.
         # Do not assign edge_apply.sources = [...] — that raises AttributeError.
-        source_data = NodeOrEdgeData(
-            source=self.core_annotation_view.as_view_id(), properties=merged_properties
-        )
+        source_data = NodeOrEdgeData(source=self.core_annotation_view.as_view_id(), properties=merged_properties)
         sources = edge_apply.sources
         if sources:
             sources[0] = source_data

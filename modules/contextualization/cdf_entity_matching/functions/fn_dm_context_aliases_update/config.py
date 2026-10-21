@@ -1,4 +1,3 @@
-
 import re
 from typing import Any, Literal
 
@@ -87,8 +86,10 @@ class JobConfig(BaseModel, alias_generator=to_camel):
     # metadata is then skipped rather than failing the run.
     file_view: ViewPropertyConfig | None = None
 
+
 class ConfigData(BaseModel, alias_generator=to_camel):
     job: JobConfig
+
 
 class Config(BaseModel, alias_generator=to_camel):
     parameters: Parameters

@@ -357,7 +357,7 @@ _MODULE_DATASET_BASE: dict[str, str] = {
     "cdf_pi_extractor": "ds_pi",
     "cdf_sap_extractor": "ds_sap",
     "cdf_opcua_extractor": "ds_opcua",
-    "cdf_db_extractor":    "ds_db",
+    "cdf_db_extractor": "ds_db",
     "cdf_files_extractor": "ds_files",
 }
 
@@ -668,8 +668,7 @@ def _write_config_fresh(path: Path, env: str, project: str, overlay: dict) -> No
     """Create a brand-new config file from the skeleton + overlay."""
     merged = deep_merge(_skeleton_config(env, project), overlay)
     path.write_text(
-        _YAML_HEADER
-        + yaml.dump(merged, sort_keys=False, allow_unicode=True, default_flow_style=False),
+        _YAML_HEADER + yaml.dump(merged, sort_keys=False, allow_unicode=True, default_flow_style=False),
         encoding="utf-8",
     )
     _ok(t("Created  {path.name}").format(path=path))
@@ -951,8 +950,10 @@ def _migrate_staging_to_test(pack_root: Path) -> bool:
         return False
     if test.exists():
         _warn(
-            t("Both config.staging.yaml and config.test.yaml exist — "
-              "skipping automatic staging migration. Remove one manually.")
+            t(
+                "Both config.staging.yaml and config.test.yaml exist — "
+                "skipping automatic staging migration. Remove one manually."
+            )
         )
         return False
 
@@ -1169,11 +1170,7 @@ def remove_redundant_diagram_annotation(repo_root: Path | None = None) -> list[P
         if task_count:
             workflow_path.write_text("".join(lines), encoding="utf-8")
             removed.append(workflow_path)
-            _ok(
-                t("Removed {n} redundant diagram-annotation task(s) from cdf_ingestion workflow.").format(
-                    n=task_count
-                )
-            )
+            _ok(t("Removed {n} redundant diagram-annotation task(s) from cdf_ingestion workflow.").format(n=task_count))
 
     config_path = _ingestion_config_path(repo_root)
     if config_path.exists():
@@ -1453,6 +1450,7 @@ def _run_cicd_wizard(pack_root: Path) -> list[Path]:
 
     cmd = [sys.executable, str(generate_script), "--force"]
     from _style import _C
+
     print(f"\n  {_C.DIM}{t('Running: {cmd}').format(cmd=' '.join(cmd))}{_C.RESET}")
     # Output is parsed below by prefix match ("Wrote "/"Skipped ") — force English
     # regardless of the caller's locale so that parsing stays stable.
@@ -1545,8 +1543,7 @@ def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
             return installed_envs
         _hint(t("Select which environments to set up:"))
         selected = tuple(
-            env for env in ENVIRONMENTS
-            if prompt_yes_no(_include_prompt(env), default=(env in installed_envs))
+            env for env in ENVIRONMENTS if prompt_yes_no(_include_prompt(env), default=(env in installed_envs))
         )
         if not selected:
             raise SystemExit(t("No environments selected — nothing to do."))
@@ -1569,10 +1566,7 @@ def _prompt_environments(pack_root: Path) -> tuple[str, ...]:
         return ("dev",)
     if choice == 3:
         return ("dev", "prod")
-    selected = tuple(
-        env for env in ENVIRONMENTS
-        if prompt_yes_no(_include_environment_prompt(env), default=True)
-    )
+    selected = tuple(env for env in ENVIRONMENTS if prompt_yes_no(_include_environment_prompt(env), default=True))
     if not selected:
         raise SystemExit(t("No environments selected — nothing to do."))
     return selected
@@ -1615,9 +1609,7 @@ def _prompt_site(existing_site: str) -> str:
             continue
         if re.fullmatch(r"[a-z0-9_]+", site):
             return site
-        _warn(
-            t("Use only lowercase letters, digits, and underscores — hyphens are not allowed in CDF external IDs.")
-        )
+        _warn(t("Use only lowercase letters, digits, and underscores — hyphens are not allowed in CDF external IDs."))
 
 
 def _prompt_cfihos_owners(existing: dict) -> tuple[str, str, str]:
@@ -1671,7 +1663,7 @@ def _prompt_group_source_ids(
     for persona in PERSONAS:
         var = f"{persona.upper()}_SOURCE_ID"
         print(f"\n  {t('{persona} persona group  →  {var}').format(persona=persona.capitalize(), var=var)}")
-        _hint(t("  Source ID of the '{group}' group in your IdP.").format(group=group_name(persona, site, 'dev')))
+        _hint(t("  Source ID of the '{group}' group in your IdP.").format(group=group_name(persona, site, "dev")))
         prompt_env_var(var, env_vals, env_lines, env_key_idx)
 
     if installed_ss:
@@ -1927,10 +1919,9 @@ def _finalize_wizard(
         )
     if diagram_annotation_removed:
         _ok(
-            t(
-                "{n} redundant diagram-annotation file(s) "
-                "removed (cdf_file_annotation is installed)."
-            ).format(n=len(diagram_annotation_removed))
+            t("{n} redundant diagram-annotation file(s) removed (cdf_file_annotation is installed).").format(
+                n=len(diagram_annotation_removed)
+            )
         )
     if cicd_files:
         _ok(t("{n} CI/CD workflow file(s) generated.").format(n=len(cicd_files)))
@@ -2168,15 +2159,12 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
 
         if disabled:
             print(
-                t("WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:").format(
-                    env=env
-                )
+                t("WARNING: sendNotification disabled (no email configured) in config.{env}.yaml for:").format(env=env)
             )
             for entry in disabled:
                 print(f"  - {entry}")
             msg = t(
-                "  These contacts will not be notified on pipeline failure. "
-                "Run: python scripts/setup_project.py -y"
+                "  These contacts will not be notified on pipeline failure. Run: python scripts/setup_project.py -y"
             )
             print(f"{msg}\n")
 

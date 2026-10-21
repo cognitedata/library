@@ -80,6 +80,7 @@ canCherryPick = true
 modules = [
     "datamodels/rmdm",
     "datamodels/isa_manufacturing_extension",
+    "datamodels/isa_manufacturing_extension_search",
     "datamodels/cfihos_oil_and_gas_extension",
     "datamodels/cfihos_oil_and_gas_extension_search",
 ]

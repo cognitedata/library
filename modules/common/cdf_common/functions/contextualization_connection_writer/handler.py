@@ -34,17 +34,24 @@ def _report_usage(client: CogniteClient) -> None:
         import threading
 
         from mixpanel import Consumer, Mixpanel
+
         mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
         distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
+
         def _send() -> None:
-            mp.track(distinct_id, "fn-handle", {
-                "source": _SOURCE,
-                "tracker_version": _TRACKER_VERSION,
-                "dp_version": _DP_VERSION,
-                "type": "py-function",
-                "cdf_cluster": client.config.cdf_cluster,
-                "cdf_project": client.config.project,
-            })
+            mp.track(
+                distinct_id,
+                "fn-handle",
+                {
+                    "source": _SOURCE,
+                    "tracker_version": _TRACKER_VERSION,
+                    "dp_version": _DP_VERSION,
+                    "type": "py-function",
+                    "cdf_cluster": client.config.cdf_cluster,
+                    "cdf_project": client.config.project,
+                },
+            )
+
         threading.Thread(target=_send, daemon=False).start()
     except Exception:
         # Usage tracking is best-effort; must not affect the handler.
