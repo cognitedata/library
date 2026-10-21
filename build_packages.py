@@ -45,9 +45,7 @@ def create_modules_zip(output_name: str | None = None) -> str:
             # Walk through the modules directory
             for root, dirs, files in os.walk(modules_dir):
                 # Skip __pycache__ and other common Python cache directories
-                dirs[:] = [
-                    d for d in dirs if d not in ["__pycache__", ".pytest_cache", ".git"]
-                ]
+                dirs[:] = [d for d in dirs if d not in ["__pycache__", ".pytest_cache", ".git"]]
 
                 # Add files to zip
                 for file in files:

@@ -232,9 +232,7 @@ def test_github_cdf_jobs_pass_provider_so_cogidp_can_authenticate(tmp_path: Path
             assert isinstance(job, dict)
             steps = job.get("steps", [])
             assert isinstance(steps, list)
-            runs_deploy = any(
-                isinstance(step, dict) and "cdf deploy" in str(step.get("run", "")) for step in steps
-            )
+            runs_deploy = any(isinstance(step, dict) and "cdf deploy" in str(step.get("run", "")) for step in steps)
             env = job.get("env", {})
             if path.name == "dry-run.yml":
                 assert isinstance(env, dict)

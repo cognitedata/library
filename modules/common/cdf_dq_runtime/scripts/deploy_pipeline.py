@@ -81,8 +81,7 @@ def main(argv: list[str] | None = None) -> int:
         from cognite_data_quality.deploy import load_settings
     except ModuleNotFoundError:
         print(
-            "cognite-data-quality is not installed. "
-            "pip install -U cognite-data-quality",
+            "cognite-data-quality is not installed. pip install -U cognite-data-quality",
             file=sys.stderr,
         )
         return 1
