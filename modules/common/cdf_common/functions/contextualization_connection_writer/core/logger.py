@@ -29,4 +29,3 @@ class CogniteFunctionLogger:
 
     def error(self, message: str) -> None:
         self._print("[ERROR]", message)
-

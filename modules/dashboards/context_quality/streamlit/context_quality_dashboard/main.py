@@ -7,7 +7,7 @@ Contextualization Quality Metrics Cognite Function.
 Tabs:
 - Configuration (configure data model views and trigger function) - FIRST for onboarding
 - Asset Hierarchy Quality
-- Equipment-Asset Quality  
+- Equipment-Asset Quality
 - Time Series Contextualization
 - Maintenance Workflow Quality (RMDM v1)
 - File Annotation Quality (CDM CogniteDiagramAnnotation)
@@ -25,6 +25,7 @@ from cognite.client import CogniteClient
 
 try:
     import pyodide_http  # type: ignore[import-untyped]
+
     pyodide_http.patch_all()
 except ImportError:
     # pyodide_http is only available when Streamlit runs in the browser (Pyodide).
@@ -44,13 +45,9 @@ from dashboards import (
 )
 
 # ----------------------------------------------------
-# PAGE CONFIG 
+# PAGE CONFIG
 # ----------------------------------------------------
-st.set_page_config(
-    page_title="Contextualization Quality Dashboard",
-    layout="wide",
-    page_icon="*"
-)
+st.set_page_config(page_title="Contextualization Quality Dashboard", layout="wide", page_icon="*")
 
 # ----------------------------------------------------
 # CONFIGURATION
@@ -79,19 +76,25 @@ def _report_usage(cdf_client) -> None:
             m = re.match(r"https://([^.]+)\.cognitedata\.com", getattr(cdf_client.config, "base_url", "") or "")
             cluster = m.group(1) if m else "unknown"
         distinct_id = f"{cdf_client.config.project}:{cluster}"
-        payload = base64.b64encode(json.dumps([{
-            "event": "streamlit-session",
-            "properties": {
-                "token": "8f28374a6614237dd49877a0d27daa78",
-                "distinct_id": distinct_id,
-                "source": _SOURCE,
-                "tracker_version": _TRACKER_VERSION,
-                "dp_version": _DP_VERSION,
-                "type": "streamlit",
-                "cdf_cluster": cluster,
-                "cdf_project": cdf_client.config.project,
-            },
-        }]).encode()).decode()
+        payload = base64.b64encode(
+            json.dumps(
+                [
+                    {
+                        "event": "streamlit-session",
+                        "properties": {
+                            "token": "8f28374a6614237dd49877a0d27daa78",
+                            "distinct_id": distinct_id,
+                            "source": _SOURCE,
+                            "tracker_version": _TRACKER_VERSION,
+                            "dp_version": _DP_VERSION,
+                            "type": "streamlit",
+                            "cdf_cluster": cluster,
+                            "cdf_project": cdf_client.config.project,
+                        },
+                    }
+                ]
+            ).encode()
+        ).decode()
         requests.post(
             "https://api-eu.mixpanel.com/track",
             data={"data": payload, "verbose": 1, "ip": 1},
@@ -134,16 +137,18 @@ metrics = load_metrics_from_file(METRICS_FILE_EXTERNAL_ID)
 has_metrics = metrics is not None
 
 # Tab navigation - Configuration FIRST for better onboarding
-tab_config, tab_asset, tab_equipment, tab_ts, tab_maintenance, tab_annotation, tab_3d, tab_files = st.tabs([
-    "Configure & Run",
-    "Asset Hierarchy",
-    "Equipment-Asset",
-    "Time Series",
-    "Maintenance",
-    "File Annotation",
-    "3D Model",
-    "Files"
-])
+tab_config, tab_asset, tab_equipment, tab_ts, tab_maintenance, tab_annotation, tab_3d, tab_files = st.tabs(
+    [
+        "Configure & Run",
+        "Asset Hierarchy",
+        "Equipment-Asset",
+        "Time Series",
+        "Maintenance",
+        "File Annotation",
+        "3D Model",
+        "Files",
+    ]
+)
 
 # Configuration tab - always available
 with tab_config:
@@ -160,7 +165,7 @@ if not has_metrics:
     
     Once the function completes, the metrics will appear here automatically.
     """
-    
+
     with tab_asset:
         st.info(no_metrics_message)
     with tab_equipment:
@@ -178,7 +183,7 @@ if not has_metrics:
 else:
     # Render sidebar with metadata
     render_metadata_sidebar(metrics)
-    
+
     with tab_asset:
         render_asset_hierarchy_dashboard(metrics)
 
@@ -197,6 +202,6 @@ else:
     with tab_3d:
         model3d_metrics = metrics.get("model3d_metrics", {})
         render_3d_model_dashboard(model3d_metrics, metrics.get("metadata"))
-    
+
     with tab_files:
         render_files_dashboard(metrics)

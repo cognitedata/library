@@ -38,6 +38,10 @@ members = [
 line-length = 120
 target-version = "py313"
 
+[tool.ruff.format]
+# Python only; keep code samples in docs as written
+exclude = ["*.md"]
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S", "RUF", "C4", "SIM"]
 ignore = [

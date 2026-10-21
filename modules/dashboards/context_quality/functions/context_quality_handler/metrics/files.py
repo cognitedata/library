@@ -4,7 +4,6 @@ File processing and metrics computation.
 Measures file contextualization quality based on the CogniteFile view from CDM.
 """
 
-
 from cognite.client.data_classes.data_modeling import ViewId
 
 from .common import (
@@ -23,7 +22,9 @@ def _unique_files_by_id(file_list: list[FileData]) -> list[FileData]:
     return list(by_id.values())
 
 
-def _file_counts_from_unique_files(unique: list[FileData]) -> tuple[
+def _file_counts_from_unique_files(
+    unique: list[FileData],
+) -> tuple[
     int,
     int,
     int,
@@ -114,23 +115,23 @@ def process_file_batch(
         file_id = get_external_id(file_node)
         if not file_id:
             continue
-        
+
         acc.total_file_instances += 1
-        
+
         # Skip if already processed (duplicate)
         if file_id in acc.file_ids_seen:
             acc.file_duplicate_ids.append(file_id)
             continue
         acc.file_ids_seen.add(file_id)
-        
+
         props = get_props(file_node, file_view)
-        
+
         # Extract asset links (direct relation, can be multiple)
         asset_ids = get_direct_relation_ids(props.get("assets"))
-        
+
         # Extract category (direct relation to CogniteFileCategory)
         category_id = get_direct_relation_id(props.get("category"))
-        
+
         # Extract other properties
         mime_type = props.get("mimeType")
         directory = props.get("directory")
@@ -138,7 +139,7 @@ def process_file_batch(
         name = props.get("name")
         description = props.get("description")
         source_id = props.get("sourceId")
-        
+
         file_data = FileData(
             file_id=file_id,
             asset_ids=asset_ids,
@@ -150,24 +151,24 @@ def process_file_batch(
             description=description,
             source_id=source_id,
         )
-        
+
         acc.file_list.append(file_data)
-        
+
         # Track file-asset relationships
         if asset_ids:
             acc.files_with_assets += 1
             for asset_id in asset_ids:
                 acc.assets_with_files.add(asset_id)
-        
+
         # Track category usage
         if category_id:
             acc.files_with_category += 1
             acc.file_category_counts[category_id] = acc.file_category_counts.get(category_id, 0) + 1
-        
+
         # Track upload status
         if is_uploaded:
             acc.files_uploaded += 1
-        
+
         # Track metadata completeness
         if name and str(name).strip():
             acc.files_with_name += 1
@@ -175,7 +176,7 @@ def process_file_batch(
             acc.files_with_description += 1
         if source_id and str(source_id).strip():
             acc.files_with_source_id += 1
-        
+
         # Track MIME type distribution
         if mime_type:
             acc.file_mime_type_counts[mime_type] = acc.file_mime_type_counts.get(mime_type, 0) + 1
@@ -184,7 +185,7 @@ def process_file_batch(
 def compute_file_metrics(acc: CombinedAccumulator) -> dict:
     """
     Compute all file contextualization metrics.
-    
+
     Primary metric: Files to Asset Contextualization (% of files linked to at least one asset)
 
     When ``acc.file_list`` is populated (quick run and batch runs with per-file rows), all
@@ -210,6 +211,7 @@ def compute_file_metrics(acc: CombinedAccumulator) -> dict:
         ) = _file_counts_from_unique_files(unique_files)
     else:
         total_files = acc.total_files
+
         # Summed counters across batches can exceed unique file count; clamp for legacy JSON
         def _clamp(c: int) -> int:
             return min(c, total_files) if total_files > 0 else c
@@ -224,31 +226,16 @@ def compute_file_metrics(acc: CombinedAccumulator) -> dict:
         file_mime_type_counts = dict(acc.file_mime_type_counts)
 
     # PRIMARY: File to Asset Contextualization
-    file_to_asset_rate = (
-        (files_with_assets / total_files * 100) if total_files > 0 else 0.0
-    )
+    file_to_asset_rate = (files_with_assets / total_files * 100) if total_files > 0 else 0.0
 
     # Asset File Coverage (% of assets that have at least one file)
-    asset_file_coverage = (
-        (len(acc.assets_with_files) / acc.total_assets * 100)
-        if acc.total_assets > 0 else 0.0
-    )
+    asset_file_coverage = (len(acc.assets_with_files) / acc.total_assets * 100) if acc.total_assets > 0 else 0.0
 
-    category_rate = (
-        (files_with_category / total_files * 100) if total_files > 0 else 0.0
-    )
-    upload_rate = (
-        (files_uploaded / total_files * 100) if total_files > 0 else 0.0
-    )
-    name_rate = (
-        (files_with_name / total_files * 100) if total_files > 0 else 0.0
-    )
-    description_rate = (
-        (files_with_description / total_files * 100) if total_files > 0 else 0.0
-    )
-    source_id_rate = (
-        (files_with_source_id / total_files * 100) if total_files > 0 else 0.0
-    )
+    category_rate = (files_with_category / total_files * 100) if total_files > 0 else 0.0
+    upload_rate = (files_uploaded / total_files * 100) if total_files > 0 else 0.0
+    name_rate = (files_with_name / total_files * 100) if total_files > 0 else 0.0
+    description_rate = (files_with_description / total_files * 100) if total_files > 0 else 0.0
+    source_id_rate = (files_with_source_id / total_files * 100) if total_files > 0 else 0.0
 
     # Files per asset — same deduplicated rows as numerators (avoids double-counting links)
     if acc.assets_with_files and unique_files:
@@ -266,12 +253,8 @@ def compute_file_metrics(acc: CombinedAccumulator) -> dict:
         avg_files_per_asset = 0.0
         max_files_per_asset = 0
 
-    top_mime_types = dict(
-        sorted(file_mime_type_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-    )
-    top_categories = dict(
-        sorted(file_category_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-    )
+    top_mime_types = dict(sorted(file_mime_type_counts.items(), key=lambda x: x[1], reverse=True)[:10])
+    top_categories = dict(sorted(file_category_counts.items(), key=lambda x: x[1], reverse=True)[:10])
 
     return {
         "file_to_asset_rate": round(file_to_asset_rate, 2),

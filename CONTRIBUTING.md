@@ -1,37 +1,67 @@
-# Guide: Adding Packages and Modules
+# Contributing
 
-This note explains how to extend the library with new modules (the smallest delivery unit) and how to bundle them into Toolkit deployment packs.
+This guide covers how to contribute to the library: the workflow, the quality checks every change must pass, how
+to add modules (the smallest delivery unit), and how to bundle them into Toolkit deployment packs.
+
+Python coding conventions, test-driven development, and commit message rules are in [AGENTS.md](AGENTS.md) and
+[.gemini/styleguide.md](.gemini/styleguide.md). The folder layout is in [modules/README.md](modules/README.md), and
+naming conventions are in the [root README](README.md#naming-conventions).
 
 ## Prerequisites
 
-- Python 3.11+ (used by `validate_packages.py` and `build_packages.py`).
+- Python 3.13+ and [uv](https://docs.astral.sh/uv/) (`uv sync --group dev` installs the dev tools).
 - Familiarity with Cognite Toolkit module structure and the assets you plan to ship.
 - A clean working tree: commit unrelated work before changing `packages.toml` or module metadata.
 
 ## Contributing workflow
 
-1. Branch from `main` (for example `feature/add-<module-slug>` or `fix/<topic>`).
-2. Make changes under `modules/` and run validation locally (see [Validation](#validation--release)).
-3. Open a pull request to `main`. CI runs lint, type check, `validate_packages.py`, and `build_packages.py`.
-4. Do **not** commit `packages.zip` — it is built in CI on merge to `main` and published to the `latest` GitHub release.
+1. Branch from `main` (for example `feat/add-<module-slug>` or `fix/<topic>`).
+2. Make changes, then run the [local checks](AGENTS.md#local-checks) and the [best-practice skills](#code-quality)
+   that match what you changed.
+3. Open a pull request to `main` with a [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
+   title. Keep it to one concern, ideally under ~500 new lines. CI runs lint, type check, tests,
+   `validate_packages.py`, and `build_packages.py`, and must be green before merge.
+4. Do **not** commit `packages.zip` — it is built in CI on merge to `main` and published to the `latest` GitHub
+   release.
 
-## Repository layout
+## Code quality
 
+### Best-practice skills
+
+CDF configuration is reviewed against the Cognite best-practice skills in the public
+[cognite-ai-tooling-marketplace](https://github.com/cognitedata/cognite-ai-tooling-marketplace) (`cog-vd-best-practices`
+plugin). Install it in your AI coding assistant:
+
+```bash
+# Claude Code
+/plugin marketplace add cognitedata/cognite-ai-tooling-marketplace
+/plugin install cog-vd-best-practices@cognite-ai-tooling-marketplace
 ```
-modules/
-  packages.toml           # Registry of every deployable package
-  common/                 # Shared CDF platform modules
-  contextualization/      # Contextualization toolkit modules
-  datamodels/             # Industry and extension data models
-  solutions/              # Product verticals (cdm_maintain, cdf_infield, cdf_ai_extractor, …)
-  sourcesystem/           # Source system connectors
-  dashboards/             # Streamlit dashboards and reporting
-  atlas_ai/               # Atlas AI agents
-  tools/                  # Notebooks and apps (e.g. Qualitizer)
-  custom/                 # Empty module template
-```
+In Cursor, add the marketplace URL under **Settings → Plugins** and install `cog-vd-best-practices`.
 
-Naming conventions for folder and module names are documented in the [root README](README.md#naming-conventions).
+Run the skills that match your change and fix what they report:
+
+| You changed | Run |
+|-------------|-----|
+| Any resource identifier (spaces, data sets, external IDs, groups) | `cdf-naming-check` |
+| Containers, views, or data models | `cdf-data-modeling` |
+| Transformation SQL or YAML | `cdf-transformation` |
+| CDF Functions | `cdf-function` |
+| Workflows | `cdf-workflow` |
+| Python that queries DMS | `cdf-dms-queries` |
+| A new module, or a large change to an existing one | `cog-vd-audit` |
+
+The plugin is in alpha, so CI stays the only merge gate. If you disagree with a finding, say why in the PR rather
+than silently ignoring it. `cog-vd-audit` writes an `AUDIT_REPORT.md`; it is git-ignored — do not commit it.
+
+### Pull request checklist
+
+- [ ] CI is green (ruff, pyright, tests, `validate_packages.py`, `build_packages.py`).
+- [ ] The best-practice skills for your change were run, and each finding is fixed or explained in the PR.
+- [ ] New code is covered by tests (see [Test-driven development](AGENTS.md#test-driven-development)).
+- [ ] Every new or changed module has a README that follows the [standard structure](#every-module-needs-a-readme).
+- [ ] No hard-coded secrets, project or cluster names, or customer identifiers — use Toolkit variables.
+- [ ] Docs affected by the change are updated in the same PR.
 
 ## Module identifiers
 
@@ -64,7 +94,7 @@ package_id = "dp:contextualization"
 
 1. **Plan identifiers** — unique `id`, folder under `modules/<domain>/<module_name>/`, primary `package_id`.
 
-2. **Create the module directory** — deployable assets (`functions/`, `data_modeling/`, etc.) and a `README.md` for consumers.
+2. **Create the module directory** — deployable assets (`functions/`, `data_modeling/`, etc.) and a `README.md` (see [Every module needs a README](#every-module-needs-a-readme)).
 
 3. **Author `module.toml`** (required at module root):
 
@@ -103,6 +133,23 @@ location = "common/cdf_common/data_sets/demo.DataSet.yaml"
 
 7. **Wire the module into `packages.toml`** — add the module path (relative to `modules/`) to every pack that should include it.
 
+### Every module needs a README
+
+Each module must contain a `README.md` following the structure of
+[`modules/datamodels/rmdm/README.md`](modules/datamodels/rmdm/README.md). Adapt the sections to the module, but keep
+this skeleton and order:
+
+1. **Title** — module name plus a short descriptive name.
+2. **Overview** — what the module is and why it's needed (the problem it solves).
+3. **Module Components / contents** — the key resources the module ships (e.g. data model entities,
+   transformations, functions, workflows).
+4. **Deployment** — Prerequisites (minimum Toolkit version) and the setup paths: adding it to an existing Toolkit
+   project, and starting from scratch (build and deploy steps).
+5. **Module Structure** — the folder/file layout.
+6. **Support** — where to get help, and any reference links (docs, Cognite Hub).
+
+A module is not complete without its README; add or update it in the same PR as the module change.
+
 ## Adding a new package
 
 1. Open `modules/packages.toml`.
@@ -111,14 +158,15 @@ location = "common/cdf_common/data_sets/demo.DataSet.yaml"
 4. Document intent in the package or module `README.md`.
 
 ```toml
-[packages.atlas_ai]
-id = "dp:atlas_ai"
-title = "Atlas AI Deployment Pack"
-description = "Deploy Atlas AI modules in one package."
+[packages.contextualization]
+id = "dp:contextualization"
+title = "Contextualization"
+description = "Automate P&ID annotation, file tagging, and entity matching."
 canCherryPick = true
 modules = [
-    "atlas_ai/ootb_agents",
-    "solutions/cdf_ai_extractor",
+    "contextualization/cdf_p_and_id_annotation",
+    "contextualization/cdf_file_annotation",
+    "contextualization/cdf_entity_matching",
 ]
 ```
 
@@ -131,11 +179,12 @@ python validate_packages.py
 python build_packages.py   # optional local smoke test; produces packages.zip (do not commit)
 ```
 
-On merge to `main`, GitHub Actions validates, builds `packages.zip`, and updates the `latest` release. The Cognite Toolkit ships `[library.cognite]` pointing at this release by default, so consumers automatically pick up the new content without editing `cdf.toml`.
+On merge to `main`, GitHub Actions ([build-packages.yml](.github/workflows/build-packages.yml)) validates, builds `packages.zip`, and overwrites the single `latest` release — there are no versioned releases. The Cognite Toolkit ships `[library.cognite]` pointing at this release by default, so consumers pick up new content without editing `cdf.toml`, and anything merged to `main` is live for every new `cdf modules add` immediately.
 
 ## Quick reference
 
-- Every module needs `module.toml`, assets, and documentation.
+- Every module needs `module.toml`, assets, and a README in the standard structure.
+- Run the matching best-practice skills before opening a PR.
 - Use `dp:<pack>:<slug>` for new `id` values; set `package_id` to the primary pack even when listed in multiple packs.
 - Add `default.config.yaml` when users must configure spaces, datasets, or similar.
 - Use `[[extra_resources]]` only for paths outside the module folder; paths must exist under `modules/`.

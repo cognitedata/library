@@ -24,17 +24,17 @@ def process_equipment_batch(
         eq_id = get_external_id(eq)
         if not eq_id:
             continue
-        
+
         acc.total_equipment_instances += 1
-        
+
         # Skip if already processed (duplicate)
         if eq_id in acc.equipment_ids_seen:
             acc.equipment_duplicate_ids.append(eq_id)
             continue
         acc.equipment_ids_seen.add(eq_id)
-        
+
         props = get_props(eq, eq_view)
-        
+
         eq_data = EquipmentData(
             equipment_id=eq_id,
             equipment_type=props.get("equipmentType"),
@@ -43,10 +43,10 @@ def process_equipment_batch(
             manufacturer=props.get("manufacturer"),
             criticality=props.get("criticality"),
         )
-        
+
         acc.equipment_list.append(eq_data)
         acc.equipment_to_asset[eq_id] = eq_data.asset_id
-        
+
         if eq_data.asset_id:
             acc.assets_with_equipment.setdefault(eq_data.asset_id, []).append(eq_id)
 
@@ -54,25 +54,23 @@ def process_equipment_batch(
 def compute_equipment_metrics(acc: CombinedAccumulator) -> dict:
     """Compute all equipment-asset contextualization metrics."""
     total_eq = acc.total_equipment
-    
+
     # Association rate
     linked_eq = sum(1 for aid in acc.equipment_to_asset.values() if aid)
     association_rate = (linked_eq / total_eq * 100) if total_eq else 0.0
-    
+
     # Asset equipment coverage
     assets_with_eq = len(acc.assets_with_equipment)
     coverage_rate = (assets_with_eq / acc.total_assets * 100) if acc.total_assets else 0.0
-    
+
     # Serial number completeness
-    serial_valid = sum(1 for eq in acc.equipment_list 
-                       if eq.serial_number and str(eq.serial_number).strip())
+    serial_valid = sum(1 for eq in acc.equipment_list if eq.serial_number and str(eq.serial_number).strip())
     serial_rate = (serial_valid / total_eq * 100) if total_eq else 0.0
-    
+
     # Manufacturer completeness
-    manu_valid = sum(1 for eq in acc.equipment_list 
-                     if eq.manufacturer and str(eq.manufacturer).strip())
+    manu_valid = sum(1 for eq in acc.equipment_list if eq.manufacturer and str(eq.manufacturer).strip())
     manu_rate = (manu_valid / total_eq * 100) if total_eq else 0.0
-    
+
     # Type consistency
     consistent = 0
     for eq in acc.equipment_list:
@@ -80,14 +78,14 @@ def compute_equipment_metrics(acc: CombinedAccumulator) -> dict:
         if is_type_consistent(eq.equipment_type, asset_type):
             consistent += 1
     type_rate = (consistent / total_eq * 100) if total_eq else 0.0
-    
+
     # Critical equipment contextualization
     critical_eq = [eq for eq in acc.equipment_list if eq.criticality == "critical"]
     total_critical = len(critical_eq)
     linked_critical = sum(1 for eq in critical_eq if eq.asset_id)
     # Return None if no critical equipment exists (N/A case)
     critical_rate = (linked_critical / total_critical * 100) if total_critical > 0 else None
-    
+
     # Equipment per asset stats
     if acc.assets_with_equipment:
         eq_counts = [len(eq_list) for eq_list in acc.assets_with_equipment.values()]
@@ -96,7 +94,7 @@ def compute_equipment_metrics(acc: CombinedAccumulator) -> dict:
     else:
         avg_eq_per_asset = 0.0
         max_eq_per_asset = 0
-    
+
     return {
         "eq_total": total_eq,
         "eq_association_rate": round(association_rate, 2),

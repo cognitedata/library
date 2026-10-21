@@ -12,15 +12,15 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 
 | Folder | Purpose |
 |--------|---------|
-| [`common/`](modules/common/) | Shared CDF platform modules (`cdf_common`, `cdf_dq_runtime`, `cdf_ingestion`, `cdf_search`) |
-| [`contextualization/`](modules/contextualization/) | File annotation, entity matching, P&ID, connection SQL |
+| [`common/`](modules/common/) | Shared CDF platform modules (`cdf_common`, `cdf_ingestion`, `cdf_project_foundation`, `cdf_search`) |
+| [`contextualization/`](modules/contextualization/) | File annotation, entity matching, P&ID annotation |
 | [`datamodels/`](modules/datamodels/) | Industry and extension data models (`rmdm`, ISA, CFIHOS, …) |
 | [`solutions/`](modules/solutions/) | Product verticals (`cdm_maintain`, `cdf_infield`, `cdf_ai_extractor`) |
-| [`sourcesystem/`](modules/sourcesystem/) | Source connectors (PI, SAP, SharePoint, OID sync) |
+| [`sourcesystem/`](modules/sourcesystem/) | Extraction pipeline configs (PI, OPC-UA, SAP, database, files) and synthetic data dumps |
 | [`dashboards/`](modules/dashboards/) | Streamlit dashboards and reporting |
 | [`common/cdf_dq_runtime/`](modules/common/cdf_dq_runtime/) | SHACL data-quality validation (`cdf_dq_runtime`) |
 | [`atlas_ai/`](modules/atlas_ai/) | Atlas AI agents |
-| [`tools/`](modules/tools/) | Qualitizer, performance notebooks |
+| [`tools/`](modules/tools/) | Qualitizer |
 | [`custom/`](modules/custom/) | Empty module template |
 
 [`scripts/`](scripts/) — contributor tooling for the uv workspace and CDF deploy `requirements.txt` generation ([scripts/README.md](scripts/README.md)).
@@ -29,13 +29,13 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 
 | Prefix | Use for | Examples |
 |--------|---------|----------|
-| `cdf_` | Cognite-built platform capabilities | `cdf_common`, `cdf_pi`, `cdf_file_annotation` |
+| `cdf_` | Cognite-built platform capabilities | `cdf_common`, `cdf_pi_extractor`, `cdf_file_annotation` |
 | `cdm_` / `cdf_` | Solutions on Cognite Data Model | `cdm_maintain`, `cdf_infield` |
 | *(none)* | Industry models, dashboards, tools | `rmdm`, `context_quality`, `qualitizer` |
 
 Apply the prefix on **module folder names** where it helps discovery. Top-level folders (`common/`, `datamodels/`, …) are not prefixed.
 
-Contributors: see [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md), [scripts/README.md](scripts/README.md) (uv workspace and deploy requirements), and [modules/README.md](modules/README.md).
+Contributors: see [CONTRIBUTING.md](CONTRIBUTING.md), [scripts/README.md](scripts/README.md) (uv workspace and deploy requirements), and [modules/README.md](modules/README.md).
 
 ## Usage
 

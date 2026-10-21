@@ -1,4 +1,3 @@
-
 from typing import Any, Literal
 
 import yaml
@@ -39,6 +38,7 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     def as_property_ref(self, property) -> list[str]:
         return [self.schema_space, f"{self.external_id}/{self.version}", property]
 
+
 class AnnotationViewProperty(BaseModel, alias_generator=to_camel):
     schema_space: str
     external_id: str
@@ -47,13 +47,16 @@ class AnnotationViewProperty(BaseModel, alias_generator=to_camel):
     def as_view_id(self) -> dm.ViewId:
         return dm.ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
 
+
 class AnnotationJobConfig(BaseModel, alias_generator=to_camel):
     file_view: ViewPropertyConfig
     entity_views: list[ViewPropertyConfig]
 
+
 class ConfigData(BaseModel, alias_generator=to_camel):
     annotation_view: AnnotationViewProperty
     annotation_job: AnnotationJobConfig
+
 
 class Config(BaseModel, alias_generator=to_camel):
     parameters: Parameters

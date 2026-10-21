@@ -7,10 +7,10 @@ preserving comments, blank lines, and unrelated indentation.
 Only updates or deletes existing keys—does not add new ones.
 """
 
-
 import re
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
+
 
 def _remove_block_items(lines: list[str], start: int, parent_indent: int) -> bool:
     """Remove consecutive block-sequence lines (``- …``) after *start* that are
@@ -35,6 +35,7 @@ def _remove_block_items(lines: list[str], start: int, parent_indent: int) -> boo
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
+
 def find_line(lines: list[str], dotted_path: str) -> int | None:
     """Return the index of the line that owns the leaf key, or ``None``."""
     parts = dotted_path.split(".")
@@ -46,7 +47,7 @@ def find_line(lines: list[str], dotted_path: str) -> int | None:
         if not stripped or stripped.startswith("#"):
             continue
         indent = len(line) - len(stripped)
-        key_match = re.match(r'^([A-Za-z0-9_\-\.]+)\s*:', stripped)
+        key_match = re.match(r"^([A-Za-z0-9_\-\.]+)\s*:", stripped)
         if not key_match:
             continue
         key = key_match.group(1)
@@ -71,7 +72,7 @@ def get_value(lines: list[str], dotted_path: str) -> str | None:
     idx = find_line(lines, dotted_path)
     if idx is None:
         return None
-    m = re.match(r'^(\s*[^:]+:\s*)(.*?)(\s*#.*)?$', lines[idx].rstrip())
+    m = re.match(r"^(\s*[^:]+:\s*)(.*?)(\s*#.*)?$", lines[idx].rstrip())
     if m:
         return m.group(2).strip().strip('"').strip("'") or None
     return None
@@ -93,14 +94,14 @@ def set_value(lines: list[str], dotted_path: str, new_val: str) -> tuple[str | N
         return None, False
 
     line = lines[idx]
-    m = re.match(r'^(\s*[^:]+:\s*)(.*?)(\s*(#.*)?)$', line.rstrip())
+    m = re.match(r"^(\s*[^:]+:\s*)(.*?)(\s*(#.*)?)$", line.rstrip())
     if not m:
         return None, False
 
-    prefix   = m.group(1).rstrip() + " "  # ensure exactly one space after the colon
-    old_raw  = m.group(2).strip()
-    comment  = m.group(4) or ""
-    old_val  = old_raw.strip('"').strip("'")
+    prefix = m.group(1).rstrip() + " "  # ensure exactly one space after the colon
+    old_raw = m.group(2).strip()
+    comment = m.group(4) or ""
+    old_val = old_raw.strip('"').strip("'")
 
     key_indent = len(line) - len(line.lstrip())
 

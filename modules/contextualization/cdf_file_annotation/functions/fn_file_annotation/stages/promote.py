@@ -123,9 +123,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None) -> Non
     """
     log_level = config_file.get("logLevel", "DEBUG")
     if log_path:
-        logger_instance: CogniteFunctionLogger = create_write_logger_service(
-            log_level=log_level, filepath=log_path
-        )
+        logger_instance: CogniteFunctionLogger = create_write_logger_service(log_level=log_level, filepath=log_path)
     else:
         logger_instance = create_logger_service(log_level=log_level)
     tracker_instance: PromoteTracker = PromoteTracker()

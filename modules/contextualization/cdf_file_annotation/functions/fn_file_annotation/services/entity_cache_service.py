@@ -41,7 +41,9 @@ def format_pattern_groups_for_log(
     return lines
 
 
-def split_entities_by_kind(entities: list[dict[str, object]]) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+def split_entities_by_kind(
+    entities: list[dict[str, object]],
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     """
     Split diagram-detect entities into asset-like vs file-like lists.
 

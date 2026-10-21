@@ -1002,6 +1002,7 @@ class TestExtractorDataSetResources:
 class TestModuleInstanceSpace:
     def test_per_extractor_space_uses_location_and_suffix(self) -> None:
         from setup_project import _module_instance_space
+
         assert _module_instance_space("cdf_sap_extractor", "oslo") == "inst_oslo_sap"
         assert _module_instance_space("cdf_pi_extractor", "oslo") == "inst_oslo_pi"
         assert _module_instance_space("cdf_opcua_extractor", "oslo") == "inst_oslo_opcua"
@@ -1010,6 +1011,7 @@ class TestModuleInstanceSpace:
 
     def test_no_location_falls_back_to_default_config_value(self) -> None:
         from setup_project import _module_instance_space
+
         assert _module_instance_space("cdf_pi_extractor", "") == "inst_pi"
 
     def test_different_locations_produce_different_spaces(self) -> None:
@@ -1020,9 +1022,8 @@ class TestModuleInstanceSpace:
 
     def test_resolve_sourcesystem_gives_per_module_spaces(self, tmp_path: Path) -> None:
         from setup_project import resolve_sourcesystem_variables
-        result = resolve_sourcesystem_variables(
-            ["cdf_sap_extractor", "cdf_pi_extractor"], "dev", "oslo"
-        )
+
+        result = resolve_sourcesystem_variables(["cdf_sap_extractor", "cdf_pi_extractor"], "dev", "oslo")
         assert result["cdf_sap_extractor"]["instanceSpace"] == "inst_oslo_sap"
         assert result["cdf_pi_extractor"]["instanceSpace"] == "inst_oslo_pi"
         # Confirm they are distinct
@@ -1596,9 +1597,7 @@ class TestPatchDataDumpUploadDataSpaces:
         import setup_project
 
         monkeypatch.setattr(_i18n, "_locale", "ja")
-        self._manifest(
-            tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_cfihos_oil_and_gas"
-        )
+        self._manifest(tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_cfihos_oil_and_gas")
         setup_project._finalize_wizard(
             tmp_path,
             (),
@@ -2553,10 +2552,9 @@ class TestGetOrgDirName:
         (tmp_path / "cdf.toml").write_text('default_organization_dir = "wrong"\n')
         assert get_org_dir_name(tmp_path) is None
 
-    def test_malformed_toml_warns_and_returns_none(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_malformed_toml_warns_and_returns_none(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         from _pack_config import get_org_dir_name
+
         (tmp_path / "cdf.toml").write_text("[cdf\nbroken =\n")
         assert get_org_dir_name(tmp_path) is None
         assert "WARNING: Failed to parse TOML file" in capsys.readouterr().out
@@ -2566,6 +2564,7 @@ class TestGetOrgDirName:
     ) -> None:
         import _i18n
         from _pack_config import get_org_dir_name
+
         monkeypatch.setattr(_i18n, "_locale", "ja")
         (tmp_path / "cdf.toml").write_text("[cdf\nbroken =\n")
         get_org_dir_name(tmp_path)
