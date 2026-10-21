@@ -99,10 +99,9 @@ modules = [
 [packages.atlas_ai]
 id = "dp:atlas_ai"
 title = "Atlas AI Deployment Pack"
-description = "Ready-to-deploy Atlas AI agents and AI extractor."
+description = "AI property extractor: fill structured data model properties from free text with an Atlas AI agent."
 canCherryPick = true
 modules = [
-    "atlas_ai/ootb_agents",
     "solutions/cdf_ai_extractor",
 ]
 
@@ -113,19 +112,6 @@ description = "Infield location configuration for CDM-backed deployments."
 canCherryPick = true
 modules = [
     "solutions/cdf_infield/cdf_infield_location",
-]
-
-[packages.cdm_maintain]
-id = "dp:cdm_maintain"
-title = "CDM Maintain"
-description = "Full Maintain deployment: data models, locations, and sample data."
-canCherryPick = false
-modules = [
-    "solutions/cdm_maintain/cdf_maintain_config_base",
-    "solutions/cdm_maintain/cdf_maintain_location",
-    "solutions/cdm_maintain/cdf_maintain_solution_model",
-    "solutions/cdm_maintain/cdf_maintain_source_data_model",
-    "solutions/cdm_maintain/cdf_sample_data",
 ]
 
 [packages.dashboards]
