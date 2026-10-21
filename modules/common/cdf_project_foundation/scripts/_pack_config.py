@@ -134,11 +134,7 @@ def list_installed_contextualization_modules(repo_root: Path | None = None) -> l
     ctx_dir = get_contextualization_dir(repo_root)
     if not ctx_dir.is_dir():
         return []
-    return [
-        module_dir
-        for module_dir in CONTEXTUALIZATION_REDUNDANT_AUTH
-        if (ctx_dir / module_dir).is_dir()
-    ]
+    return [module_dir for module_dir in CONTEXTUALIZATION_REDUNDANT_AUTH if (ctx_dir / module_dir).is_dir()]
 
 
 def list_installed_source_system_modules(repo_root: Path | None = None) -> list[str]:
@@ -146,11 +142,7 @@ def list_installed_source_system_modules(repo_root: Path | None = None) -> list[
     sourcesystem_dir = get_sourcesystem_dir(repo_root)
     if not sourcesystem_dir.is_dir():
         return []
-    return [
-        module_dir
-        for module_dir in SOURCE_SYSTEM_MODULE_DIRS
-        if (sourcesystem_dir / module_dir).is_dir()
-    ]
+    return [module_dir for module_dir in SOURCE_SYSTEM_MODULE_DIRS if (sourcesystem_dir / module_dir).is_dir()]
 
 
 def list_installed_demo_source_system_modules(repo_root: Path | None = None) -> list[str]:
@@ -161,11 +153,7 @@ def list_installed_demo_source_system_modules(repo_root: Path | None = None) -> 
     sourcesystem_dir = get_sourcesystem_dir(repo_root)
     if not sourcesystem_dir.is_dir():
         return []
-    return [
-        module_dir
-        for module_dir in DEMO_SOURCE_SYSTEM_MODULE_DIRS
-        if (sourcesystem_dir / module_dir).is_dir()
-    ]
+    return [module_dir for module_dir in DEMO_SOURCE_SYSTEM_MODULE_DIRS if (sourcesystem_dir / module_dir).is_dir()]
 
 
 def find_env_configs(repo_root: Path | None = None) -> list[Path]:
@@ -204,11 +192,7 @@ def detect_data_model_variant(data_models_dir: Path) -> str:
     if not data_models_dir.is_dir():
         return DEFAULT_DATA_MODEL_VARIANT
 
-    present = [
-        name
-        for name in KNOWN_DATA_MODEL_DIRS
-        if (data_models_dir / name).is_dir()
-    ]
+    present = [name for name in KNOWN_DATA_MODEL_DIRS if (data_models_dir / name).is_dir()]
     if not present:
         return DEFAULT_DATA_MODEL_VARIANT
     if len(present) > 1:

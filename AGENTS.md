@@ -124,6 +124,7 @@ Run these before committing; CI runs the same and must stay green:
 uv sync --group dev      # install dev dependencies
 ruff check .          # lint
 ruff format .         # format (line length 120)
+ruff format --check . # verify formatting (CI enforces this)
 pyright               # type-check (Python 3.13)
 uv run pytest         # tests
 python validate_packages.py   # registry is valid (run if you touched modules/ or packages.toml)

@@ -430,9 +430,7 @@ def test_run_rejects_edge_with_missing_annotation_type() -> None:
     service.run()
 
     service._find_entity_with_cache.assert_not_called()
-    client.data_modeling.instances.delete.assert_called_once_with(
-        edges=[EdgeId("patterns", "pattern:file:tag:notype")]
-    )
+    client.data_modeling.instances.delete.assert_called_once_with(edges=[EdgeId("patterns", "pattern:file:tag:notype")])
 
 
 def test_run_applies_ambiguous_edge_and_deletes_sink_edge() -> None:

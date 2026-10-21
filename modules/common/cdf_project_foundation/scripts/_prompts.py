@@ -1,6 +1,5 @@
 """Interactive prompt helpers for the setup wizard."""
 
-
 from _env_io import upsert_env
 from _i18n import t
 from _style import _C, _display_width, _warn

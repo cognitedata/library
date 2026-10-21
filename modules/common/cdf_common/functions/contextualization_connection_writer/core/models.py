@@ -75,4 +75,3 @@ class State(BaseModel):
             key=self.key,
             columns=self.model_dump(),
         )
-

@@ -19,15 +19,16 @@ from pydantic.alias_generators import to_camel
 class WriteMode(StrEnum):
     """
     Write mode for property extraction.
-    
+
     - add_new_only: Only write if target property is empty (default, safest)
     - append: Append new values to existing lists (deduplicates)
     - overwrite: Always overwrite with new value
-    
+
     All modes are supported. The function uses a dedicated timestamp property
     (lastProcessedByAiExtractor) on each node to track processing state,
     avoiding the infinite-reprocessing issue with the system lastUpdatedTime.
     """
+
     ADD_NEW_ONLY = "add_new_only"
     APPEND = "append"
     OVERWRITE = "overwrite"
@@ -41,17 +42,17 @@ def parse_json_string(v: object, expected_type: type) -> list[object] | dict[str
     """
     Parse a JSON string to dict/list, or return value as-is if already parsed.
     Also handles empty values by returning None.
-    
+
     Args:
         v: The value to parse (could be str, dict, list, or None)
         expected_type: Expected type (dict or list)
-    
+
     Returns:
         Parsed value or None if empty
     """
     if v is None:
         return None
-    
+
     # If it's a string, try to parse as JSON
     if isinstance(v, str):
         v = v.strip()
@@ -62,7 +63,7 @@ def parse_json_string(v: object, expected_type: type) -> list[object] | dict[str
         except json.JSONDecodeError:
             # If it can't be parsed, return None for safety
             return None
-    
+
     if v is not None and not isinstance(v, expected_type):
         return None
 
@@ -76,24 +77,20 @@ def parse_json_string(v: object, expected_type: type) -> list[object] | dict[str
 class PropertyConfig(BaseModel, alias_generator=to_camel):
     """
     Configuration for a single property extraction.
-    
+
     Supports per-property write modes and optional target property mapping.
     """
-    property: str = Field(
-        ...,
-        description="The source property ID to extract from the view"
-    )
+
+    property: str = Field(..., description="The source property ID to extract from the view")
     target_property: str | None = Field(
-        default=None,
-        description="Target property ID to write to. Defaults to source property if not specified."
+        default=None, description="Target property ID to write to. Defaults to source property if not specified."
     )
     write_mode: WriteMode = Field(
-        default=WriteMode.ADD_NEW_ONLY,
-        description="How to handle existing values: add_new_only, append, or overwrite"
+        default=WriteMode.ADD_NEW_ONLY, description="How to handle existing values: add_new_only, append, or overwrite"
     )
-    
-    @model_validator(mode='after')
-    def validate_write_mode_supported(self) -> 'PropertyConfig':
+
+    @model_validator(mode="after")
+    def validate_write_mode_supported(self) -> "PropertyConfig":
         """Validate that the write mode is currently supported."""
         if self.write_mode not in SUPPORTED_WRITE_MODES:
             raise ValueError(
@@ -101,7 +98,7 @@ class PropertyConfig(BaseModel, alias_generator=to_camel):
                 f"Supported modes: {', '.join(m.value for m in SUPPORTED_WRITE_MODES)}"
             )
         return self
-    
+
     def get_target_property(self) -> str:
         """Get the target property, defaulting to source property if not specified."""
         return self.target_property or self.property
@@ -110,25 +107,16 @@ class PropertyConfig(BaseModel, alias_generator=to_camel):
 class StateStoreConfig(BaseModel, alias_generator=to_camel):
     """
     Configuration for the state store.
-    
+
     The state store uses CDF RAW to track extraction progress via a cursor.
     This enables efficient incremental processing of large datasets.
     """
-    enabled: bool = Field(
-        default=True,
-        description="Whether to enable state tracking"
-    )
-    raw_database: str = Field(
-        default="ai_extractor_state",
-        description="RAW database name for state storage"
-    )
-    raw_table: str = Field(
-        default="extraction_state",
-        description="RAW table name for state storage"
-    )
+
+    enabled: bool = Field(default=True, description="Whether to enable state tracking")
+    raw_database: str = Field(default="ai_extractor_state", description="RAW database name for state storage")
+    raw_table: str = Field(default="extraction_state", description="RAW table name for state storage")
     config_version: str | None = Field(
-        default=None,
-        description="Config version string. Changing this triggers a full re-run."
+        default=None, description="Config version string. Changing this triggers a full re-run."
     )
 
 
@@ -164,119 +152,110 @@ Example output:
 
 class AgentConfig(BaseModel, alias_generator=to_camel):
     """Configuration for the LLM agent."""
+
     external_id: str
 
 
 class ViewConfig(BaseModel, alias_generator=to_camel):
     """Configuration for a data modeling view (source or target)."""
+
     model_config = ConfigDict(populate_by_name=True)
-    
+
     space: str
     external_id: str
     version: str = "v1"
 
     def as_view_id(self) -> dm.ViewId:
-        return dm.ViewId(
-            space=self.space, 
-            external_id=self.external_id, 
-            version=self.version
-        )
+        return dm.ViewId(space=self.space, external_id=self.external_id, version=self.version)
 
 
 class TargetViewConfig(BaseModel, alias_generator=to_camel):
     """
     Optional configuration for the target view where extracted properties are written.
-    
+
     If not specified, properties are written to the source view.
     All fields are required when the target view is specified.
     """
+
     space: str
     external_id: str
     version: str = "v1"
 
     def as_view_id(self) -> dm.ViewId:
-        return dm.ViewId(
-            space=self.space, 
-            external_id=self.external_id, 
-            version=self.version
-        )
+        return dm.ViewId(space=self.space, external_id=self.external_id, version=self.version)
 
 
 class ExtractionConfig(BaseModel, alias_generator=to_camel):
     """
     Configuration for property extraction.
-    
+
     Supports two configuration styles:
     1. New style (recommended): Use 'properties' list with per-property write modes
     2. Legacy style: Use 'propertiesToExtract' list and 'aiPropertyMapping' dict
-    
+
     If 'properties' is provided, it takes precedence over legacy fields.
     """
-    text_property: str = Field(
-        ..., 
-        description="The property containing text to extract from"
-    )
+
+    text_property: str = Field(..., description="The property containing text to extract from")
     ai_timestamp_property: str | None = Field(
         default=None,
         description="Property name used to stamp each processed node with a timestamp. "
-                    "Required when any property uses 'append' or 'overwrite' write mode. "
-                    "Must exist in the target view as a Timestamp type. "
-                    "Not needed for pure 'add_new_only' mode."
+        "Required when any property uses 'append' or 'overwrite' write mode. "
+        "Must exist in the target view as a Timestamp type. "
+        "Not needed for pure 'add_new_only' mode.",
     )
-    
-    @field_validator('ai_timestamp_property', mode='before')
+
+    @field_validator("ai_timestamp_property", mode="before")
     @classmethod
     def empty_string_to_none(cls, v: object) -> object:
         """Convert empty strings to None (common in YAML configs)."""
-        if isinstance(v, str) and v.strip() == '':
+        if isinstance(v, str) and v.strip() == "":
             return None
         return v
-    
+
     # New-style per-property configuration with write modes
     properties: list[PropertyConfig] | None = Field(
-        default=None,
-        description="List of property configurations with per-property write modes"
+        default=None, description="List of property configurations with per-property write modes"
     )
-    
+
     # Legacy fields (maintained for backward compatibility)
     properties_to_extract: list[str] | None = Field(
         default=None,
-        description="[Legacy] List of property IDs to extract. Use 'properties' instead for write mode support."
+        description="[Legacy] List of property IDs to extract. Use 'properties' instead for write mode support.",
     )
     ai_property_mapping: dict[str, str] | None = Field(
-        default=None,
-        description="[Legacy] Mapping from source property to target property. Use 'properties' instead."
+        default=None, description="[Legacy] Mapping from source property to target property. Use 'properties' instead."
     )
-    
-    @field_validator('properties_to_extract', mode='before')
+
+    @field_validator("properties_to_extract", mode="before")
     @classmethod
     def parse_properties_to_extract(cls, v: object) -> object:
         """Parse JSON string to list, handle empty values."""
         return parse_json_string(v, list)
-    
-    @field_validator('ai_property_mapping', mode='before')
+
+    @field_validator("ai_property_mapping", mode="before")
     @classmethod
     def parse_ai_property_mapping(cls, v: object) -> object:
         """Parse JSON string to dict, handle empty values."""
         return parse_json_string(v, dict)
-    
-    @field_validator('properties', mode='before')
+
+    @field_validator("properties", mode="before")
     @classmethod
     def parse_properties(cls, v: object) -> object:
         """Parse JSON string to list of property configs."""
         return parse_json_string(v, list)
-    
+
     def get_property_configs(self) -> list[PropertyConfig]:
         """
         Get list of property configurations.
-        
+
         Converts legacy format to PropertyConfig objects if needed.
         Returns empty list if no properties are configured.
         """
         # If new-style properties are configured, use them
         if self.properties:
             return self.properties
-        
+
         # Convert legacy format to PropertyConfig objects
         if self.properties_to_extract:
             ai_mapping = self.ai_property_mapping or {}
@@ -284,19 +263,19 @@ class ExtractionConfig(BaseModel, alias_generator=to_camel):
                 PropertyConfig(
                     property=prop,
                     target_property=ai_mapping.get(prop),
-                    write_mode=WriteMode.ADD_NEW_ONLY  # Legacy behavior
+                    write_mode=WriteMode.ADD_NEW_ONLY,  # Legacy behavior
                 )
                 for prop in self.properties_to_extract
             ]
-        
+
         return []
-    
+
     def get_properties_to_extract(self) -> list[str] | None:
         """Get list of source property IDs to extract (for backward compatibility)."""
         if self.properties:
             return [p.property for p in self.properties]
         return self.properties_to_extract
-    
+
     def get_ai_property_mapping(self) -> dict[str, str] | None:
         """Get source->target property mapping (for backward compatibility)."""
         if self.properties:
@@ -310,26 +289,21 @@ class ExtractionConfig(BaseModel, alias_generator=to_camel):
 
 class ProcessingConfig(BaseModel, alias_generator=to_camel):
     """Configuration for processing behavior."""
+
     batch_size: int = Field(
-        default=10, 
-        ge=1, 
-        le=100,
-        description="Number of instances to process per batch (query batch size)"
+        default=10, ge=1, le=100, description="Number of instances to process per batch (query batch size)"
     )
     llm_batch_size: int = Field(
         default=1,
         ge=1,
         le=50,
         description="Number of instances to send to LLM in a single prompt. "
-                    "Set to 1 for individual processing (default). "
-                    "Higher values reduce API calls but require more context window."
+        "Set to 1 for individual processing (default). "
+        "Higher values reduce API calls but require more context window.",
     )
-    filters: list[dict[str, object]] | None = Field(
-        default=None,
-        description="Optional filters for instance selection"
-    )
-    
-    @field_validator('filters', mode='before')
+    filters: list[dict[str, object]] | None = Field(default=None, description="Optional filters for instance selection")
+
+    @field_validator("filters", mode="before")
     @classmethod
     def parse_filters(cls, v: object) -> object:
         """Parse JSON string to list, handle empty values."""
@@ -338,21 +312,21 @@ class ProcessingConfig(BaseModel, alias_generator=to_camel):
 
 class PromptConfig(BaseModel, alias_generator=to_camel):
     """Configuration for the LLM prompt."""
+
     custom_instructions: str | None = Field(
-        default=None,
-        description="Additional instructions appended to the base prompt to customize LLM behavior"
+        default=None, description="Additional instructions appended to the base prompt to customize LLM behavior"
     )
     template: str | None = Field(
         default=None,
-        description="Custom prompt template. Available placeholders: {text}, {properties}, {custom_instructions}"
+        description="Custom prompt template. Available placeholders: {text}, {properties}, {custom_instructions}",
     )
-    
+
     def get_template(self) -> str:
         """Get the prompt template, falling back to default if not configured."""
         if self.template and self.template.strip():
             return self.template
         return DEFAULT_PROMPT_TEMPLATE
-    
+
     def get_custom_instructions(self) -> str:
         """Get custom instructions, returning empty string if not configured."""
         if self.custom_instructions and self.custom_instructions.strip():
@@ -362,29 +336,27 @@ class PromptConfig(BaseModel, alias_generator=to_camel):
 
 class Config(BaseModel, alias_generator=to_camel):
     """Root configuration model for the AI Property Extractor."""
+
     agent: AgentConfig
     view: ViewConfig
     target_view: TargetViewConfig | None = Field(
         default=None,
-        description="Optional target view for writing extracted properties. If not specified, writes to the source view."
+        description="Optional target view for writing extracted properties. If not specified, writes to the source view.",
     )
     extraction: ExtractionConfig
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
     prompt: PromptConfig = Field(default_factory=PromptConfig)
     state_store: StateStoreConfig = Field(default_factory=StateStoreConfig)
-    
-    @model_validator(mode='after')
-    def validate_ai_timestamp_for_reprocess_modes(self) -> 'Config':
+
+    @model_validator(mode="after")
+    def validate_ai_timestamp_for_reprocess_modes(self) -> "Config":
         """
         Validate that ai_timestamp_property is set when any property uses
         append or overwrite write mode. These modes require the AI timestamp
         to prevent infinite reprocessing.
         """
         property_configs = self.extraction.get_property_configs()
-        has_reprocess_modes = any(
-            pc.write_mode in (WriteMode.APPEND, WriteMode.OVERWRITE)
-            for pc in property_configs
-        )
+        has_reprocess_modes = any(pc.write_mode in (WriteMode.APPEND, WriteMode.OVERWRITE) for pc in property_configs)
         if has_reprocess_modes and not self.extraction.ai_timestamp_property:
             reprocess_props = [
                 f"'{pc.property}' ({pc.write_mode.value})"
@@ -398,38 +370,35 @@ class Config(BaseModel, alias_generator=to_camel):
                 f"(e.g., 'lastProcessedByAiExtractor')."
             )
         return self
-    
+
     def get_target_view_config(self) -> ViewConfig:
         """Get the target view config, falling back to source view if not specified."""
         if self.target_view:
             # Convert TargetViewConfig to ViewConfig for consistency
             return ViewConfig(
-                space=self.target_view.space,
-                external_id=self.target_view.external_id,
-                version=self.target_view.version
+                space=self.target_view.space, external_id=self.target_view.external_id, version=self.target_view.version
             )
         return self.view
-    
+
     def has_reprocess_modes(self) -> bool:
         """Check if any property uses append or overwrite write mode."""
         return any(
-            pc.write_mode in (WriteMode.APPEND, WriteMode.OVERWRITE)
-            for pc in self.extraction.get_property_configs()
+            pc.write_mode in (WriteMode.APPEND, WriteMode.OVERWRITE) for pc in self.extraction.get_property_configs()
         )
 
 
 def load_config(client: CogniteClient, function_data: dict[str, object], logger=None) -> Config:
     """
     Load configuration from the extraction pipeline.
-    
+
     Args:
         client: Authenticated CogniteClient
         function_data: Function input data containing ExtractionPipelineExtId
         logger: Optional logger instance
-    
+
     Returns:
         Parsed Config object
-    
+
     Raises:
         ValueError: If ExtractionPipelineExtId is missing or config is empty
         RuntimeError: If unable to retrieve pipeline config from CDF
@@ -438,7 +407,7 @@ def load_config(client: CogniteClient, function_data: dict[str, object], logger=
         raise ValueError("Missing key 'ExtractionPipelineExtId' in input data to the function")
 
     pipeline_ext_id = cast(str, function_data["ExtractionPipelineExtId"])
-    
+
     try:
         raw_config = client.extraction_pipelines.config.retrieve(external_id=pipeline_ext_id)
         if raw_config.config is None:
@@ -453,5 +422,3 @@ def load_config(client: CogniteClient, function_data: dict[str, object], logger=
 
     config_dict = yaml.safe_load(raw_config.config)
     return Config.model_validate(config_dict)
-
-

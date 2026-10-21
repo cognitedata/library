@@ -436,9 +436,7 @@ class GeneralDataModelService(IDataModelService):
         primary_configured = bool((launch.primary_scope_property or "").strip())
         # No primary value ⇒ unscoped file batch: match every tagged entity (ignore secondary too).
         primary_property = launch.primary_scope_property if primary_scope_value else None
-        secondary_property = (
-            launch.secondary_scope_property if primary_scope_value and secondary_scope_value else None
-        )
+        secondary_property = launch.secondary_scope_property if primary_scope_value and secondary_scope_value else None
         view_id = view.as_view_id()
 
         # The read does not depend on the scope, so it is shared by every scope in the space.

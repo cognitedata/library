@@ -57,6 +57,7 @@ from pipeline import (
 # Fixtures                                                                    #
 # --------------------------------------------------------------------------- #
 
+
 @pytest.fixture
 def logger() -> CogniteFunctionLogger:
     return CogniteFunctionLogger("DEBUG")
@@ -126,6 +127,7 @@ def _file_node(space: str, external_id: str, view_id: dm.ViewId, name: str, alia
 # _truncate                                                                   #
 # --------------------------------------------------------------------------- #
 
+
 class TestTruncate:
     def test_short_message_unchanged(self):
         assert _truncate("hello", 100) == "hello"
@@ -150,6 +152,7 @@ class TestTruncate:
 # --------------------------------------------------------------------------- #
 # create_annotation_id                                                        #
 # --------------------------------------------------------------------------- #
+
 
 class TestCreateAnnotationId:
     @staticmethod
@@ -205,6 +208,7 @@ class TestCreateAnnotationId:
 # read_state_cursor / read_state_batch_num (C8)                                #
 # --------------------------------------------------------------------------- #
 
+
 class TestReadStateValues:
     @staticmethod
     def _client_with_rows(rows):
@@ -246,9 +250,7 @@ class TestReadStateValues:
     def test_batch_num_returns_zero_for_unparseable_string(self, logger):
         # The pre-C8 implementation would have returned a non-int and made
         # the caller's `range(file_num, ...)` blow up. Now we coerce and warn.
-        client = self._client_with_rows(
-            [self._row(STAT_STORE_NUM_IN_BATCH, "not-an-int")]
-        )
+        client = self._client_with_rows([self._row(STAT_STORE_NUM_IN_BATCH, "not-an-int")])
         assert read_state_batch_num(client, logger, "db", "tbl") == 0
 
 
@@ -256,10 +258,9 @@ class TestReadStateValues:
 # get_all_entities (C4 + H8)                                                  #
 # --------------------------------------------------------------------------- #
 
+
 class TestGetAllEntities:
-    def test_file_entities_use_file_search_property_as_key(
-        self, logger, base_config_dict, file_view_id
-    ):
+    def test_file_entities_use_file_search_property_as_key(self, logger, base_config_dict, file_view_id):
         """C4: file entities must store their searchable value under
         file_view.search_property (here: 'alias'), not the literal key
         'search_property'. Otherwise diagram-detect's search_field never
@@ -278,9 +279,7 @@ class TestGetAllEntities:
         assert all("search_property" not in e for e in entities)
         assert all(e["annotation_type_external_id"] == "diagrams.FileLink" for e in entities)
 
-    def test_entity_view_normalises_to_canonical_search_property(
-        self, logger, base_config_dict, asset_view_id
-    ):
+    def test_entity_view_normalises_to_canonical_search_property(self, logger, base_config_dict, asset_view_id):
         """C4 second-order: entity views that declare a different
         search_property than the file view must still store under the file
         view's search_property (which is the diagram-detect search_field)."""
@@ -313,9 +312,7 @@ class TestGetAllEntities:
         assert "tag" not in entities[0]
         assert entities[0]["annotation_type_external_id"] == "diagrams.AssetLink"
 
-    def test_dedup_drops_duplicate_space_external_id(
-        self, logger, base_config_dict, file_view_id, asset_view_id
-    ):
+    def test_dedup_drops_duplicate_space_external_id(self, logger, base_config_dict, file_view_id, asset_view_id):
         """H8: a node listed by two views (e.g. file_view + an entity_view
         both pointing at the same instance) must yield a single entity
         after dedup, not two."""
@@ -350,6 +347,7 @@ class TestGetAllEntities:
 # --------------------------------------------------------------------------- #
 # get_new_files (C7)                                                          #
 # --------------------------------------------------------------------------- #
+
 
 class TestGetNewFiles:
     @staticmethod
@@ -395,9 +393,7 @@ class TestGetNewFiles:
 
     def test_400_after_max_retries_raises_without_persisting_state(self, logger, config):
         client = MagicMock()
-        client.data_modeling.instances.sync.side_effect = CogniteAPIError(
-            "persistent 400", code=400
-        )
+        client.data_modeling.instances.sync.side_effect = CogniteAPIError("persistent 400", code=400)
         files_view_id = config.data.annotation_job.file_view.as_view_id()
 
         with (
@@ -411,13 +407,14 @@ class TestGetNewFiles:
 
     def test_non_400_error_raises_immediately(self, logger, config):
         client = MagicMock()
-        client.data_modeling.instances.sync.side_effect = CogniteAPIError(
-            "server error", code=500
-        )
+        client.data_modeling.instances.sync.side_effect = CogniteAPIError("server error", code=500)
         files_view_id = config.data.annotation_job.file_view.as_view_id()
 
-        with patch("pipeline.update_state_store") as mock_update, \
-                patch("pipeline.time.sleep") as mock_sleep, pytest.raises(Exception):
+        with (
+            patch("pipeline.update_state_store") as mock_update,
+            patch("pipeline.time.sleep") as mock_sleep,
+            pytest.raises(Exception),
+        ):
             get_new_files(client, logger, "old-cursor", files_view_id, config)
 
         mock_update.assert_not_called()
@@ -429,10 +426,9 @@ class TestGetNewFiles:
 # push_result_to_annotations (C3)                                             #
 # --------------------------------------------------------------------------- #
 
+
 class TestPushResultToAnnotations:
-    def test_missing_file_instance_id_does_not_abort_batch(
-        self, logger, config, file_view_id
-    ):
+    def test_missing_file_instance_id_does_not_abort_batch(self, logger, config, file_view_id):
         """C3: a result item missing 'fileInstanceId' must NOT cause the
         function to bail with a tuple. The remaining valid items must still
         be processed and the function must return an int.
@@ -483,9 +479,7 @@ class TestPushResultToAnnotations:
         # the batch on the first malformed item.
         client.data_modeling.instances.apply.assert_called_once()
 
-    def test_clean_old_annotations_batches_into_single_call(
-        self, logger, base_config_dict, file_view_id
-    ):
+    def test_clean_old_annotations_batches_into_single_call(self, logger, base_config_dict, file_view_id):
         """M6: with clean_old_annotations=True, the per-page cleanup must go
         through delete_annotations_for_files in a single batched call, not
         per-file."""
@@ -507,8 +501,10 @@ class TestPushResultToAnnotations:
         }
         annotation_view_id = config.data.annotation_view.as_view_id()
 
-        with patch("pipeline._result_item_to_edge_applies", return_value=([], 0)), \
-                patch("pipeline.delete_annotations_for_files") as mock_delete:
+        with (
+            patch("pipeline._result_item_to_edge_applies", return_value=([], 0)),
+            patch("pipeline.delete_annotations_for_files") as mock_delete,
+        ):
             count = push_result_to_annotations(
                 client,
                 config,
