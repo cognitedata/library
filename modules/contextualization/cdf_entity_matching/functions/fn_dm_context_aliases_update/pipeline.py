@@ -257,8 +257,9 @@ def _process_view(
     examined = 0
     total_updates = 0
     state = start
+    in_progress = run_all or bool(stored.full_read_in_progress and stored.cursor)
     for page, page_state in iter_synced_pages(client, logger, view_config, start, label):
-        state = replace(page_state, full_read_in_progress=run_all)
+        state = replace(page_state, full_read_in_progress=in_progress)
         examined += len(page)
         updates = [
             update

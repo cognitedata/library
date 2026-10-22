@@ -509,6 +509,50 @@ class TestPipelineHelpers(unittest.TestCase):
             ],
         )
 
+    def test_a_resumed_full_read_keeps_in_progress_when_run_all_is_off(self) -> None:
+        """Otherwise a second interruption looks incremental and the full read is abandoned."""
+        config = self._config(run_all=False, update_all=False)
+        pages = iter(
+            [
+                ([node()], alias_sync.SyncState("c1", 1000)),
+                ([node()], alias_sync.SyncState("c2", 1000)),
+            ]
+        )
+
+        with (
+            self._patched_state(stored_cursor="halfway", full_read_in_progress=True) as state,
+            patch.object(pipeline, "iter_synced_pages", return_value=pages),
+        ):
+            pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
+
+        stored = [call.args[-1] for call in state["write_sync_state"].call_args_list]
+        self.assertEqual(
+            stored,
+            [
+                alias_sync.SyncState("c1", 1000, True),
+                alias_sync.SyncState("c2", 1000, True),
+                alias_sync.SyncState("c2", 1000, False),
+            ],
+        )
+
+    def test_a_failed_resumed_full_read_keeps_in_progress(self) -> None:
+        config = self._config(run_all=False, update_all=False)
+
+        def pages():
+            yield [node()], alias_sync.SyncState("c1", 1000)
+            raise CogniteAPIError("Unavailable", code=503)
+
+        with (
+            self._patched_state(stored_cursor="halfway", full_read_in_progress=True) as state,
+            patch.object(pipeline, "iter_synced_pages", return_value=pages()),
+            self.assertRaises(CogniteAPIError),
+        ):
+            pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
+
+        last = state["write_sync_state"].call_args.args[-1]
+        self.assertEqual(last.cursor, "c1")
+        self.assertTrue(last.full_read_in_progress)
+
     def test_a_failed_type_does_not_move_the_cursor(self) -> None:
         """The next run must read again what this one did not finish."""
         config = self._config(run_all=False, update_all=False)
