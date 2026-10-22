@@ -139,14 +139,20 @@ matching can compare like-for-like tags. The workflow runs this function first, 
 submit, then collect. A failed read or write fails the function call so matching does
 not run on stale aliases.
 
-The function reads its own extraction pipeline, `ep_ctx_aliases_update`. It pages
-instances with only `name` and `aliases`, derives aliases from each name with the
-view's `aliasPattern` list, and writes the page back before reading the next. Capture
-groups are joined by `-`, and separators inside a captured tag (`_`, `.`, `:`) are
+The function reads its own extraction pipeline, `ep_ctx_aliases_update`. It syncs
+instances 1000 at a time with only `name` and `aliases`, derives aliases from each name
+with the view's `aliasPattern` list, and writes the page back before reading the next.
+Capture groups are joined by `-`, and separators inside a captured tag (`_`, `.`, `:`) are
 rewritten to `-` as well — so `VAL_23-KA-9101:X.Value` becomes `23-KA-9101`.
 
-By default only instances that are missing `aliases` are fetched. On the extraction
-pipeline config, `runAll` fetches every instance, `updateAll` rebuilds generated
+Each type (timeseries, assets, files) keeps its own sync cursor in the state store, written
+after every page, and memory is released before the next type is read. A run stopped by the
+function time limit continues from the last written page on the next run. A normal run
+reads only the instances created or changed since the previous run; the first run reads
+everything. `filterProperty` / `filterValues` on each view narrow what is read — see
+[`viewFilterProperty`](#viewfilterproperty).
+
+On the extraction pipeline config, `runAll` fetches every instance, `updateAll` rebuilds generated
 aliases while keeping hand-curated ones, and `removeOldAliases` replaces the whole
 list. `updateAll` and `removeOldAliases` both imply `runAll`. A write — and an
 "updated" count — happens only when the rebuilt list differs from what is stored.
@@ -158,7 +164,7 @@ it is always kept when a pattern hit.
 
 | Parameter | Purpose |
 |---|---|
-| `runAll` | Fetch all instances, not only those missing `aliases` |
+| `runAll` | Fetch all instances, not only those changed since the last run |
 | `updateAll` | Rebuild generated aliases on every fetched instance (implies `runAll`) |
 | `removeOldAliases` | Discard every existing alias and write only this run's output (implies `runAll`) |
 
@@ -194,6 +200,7 @@ secondaryScopeProperty: ''
 viewFilterProperty: tags
 targetViewFilterValues: []
 entityViewFilterValues: []
+fileViewFilterValues: []
 # One or more regexes per view that find the tag in a name; the alias is the capture
 # groups joined by "-". aliasSelection: all | longest when several patterns match
 timeseriesAliasPattern:
@@ -228,11 +235,16 @@ workflowSchedule: '0 0 29 2 *'
 
 #### `viewFilterProperty`
 
-`{{ viewFilterProperty }}` is the view property entity matching filters on: `filterProperty`
-on both `targetView` and `entityView` in the timeseries entity matching extraction
-pipeline config. It only narrows the instances considered when the matching
-`targetViewFilterValues` or `entityViewFilterValues` is non-empty. Aliases update does
-not use it — that function writes `aliases` and nothing else.
+`{{ viewFilterProperty }}` is the view property entity matching and aliases update filter
+on: `filterProperty` on `targetView` and `entityView` in the entity matching extraction
+pipeline config, and on every view in the aliases update config. It only narrows the
+instances read when the matching value list is non-empty:
+
+| Variable | Entity matching | Aliases update |
+|---|---|---|
+| `targetViewFilterValues` | `targetView` | `assetView` |
+| `entityViewFilterValues` | `entityView` | `timeseriesView` |
+| `fileViewFilterValues` | — | `fileView` |
 
 **Default:** `tags` — matches Cognite Data Model (CDM) views such as `CogniteAsset`, where filtering and metadata use the `tags` property.
 
@@ -461,6 +473,7 @@ variables:
       viewFilterProperty: tags  # use labels for CFIHOS (dm_dom_oil_and_gas)
       targetViewFilterValues: []
       entityViewFilterValues: []
+      fileViewFilterValues: []
       workflowClientId: ${IDP_CLIENT_ID}
       workflowClientSecret: ${IDP_CLIENT_SECRET}
       entity_matching_processing_group_source_id: ${GROUP_SOURCE_ID}
@@ -625,14 +638,15 @@ cdf workflows logs EntityMatching
 
 2. **Memory Issues**
    - Reduce batch sizes in function configurations
+   - For aliases update, set the filter values to read only part of each view
    - Set `dmUpdate: false` to skip data-model writes while still writing RAW
 
 3. **`Property '<name>' does not exist in view '<view>'` (400)**
    - `viewFilterProperty` names a property the configured views do not have. The
      `cdf_cdm` views expose it as `tags`; the CFIHOS views in `dm_dom_oil_and_gas` call
      it `labels`. Set it to match the views you deployed
-   - Only entity matching uses it, and only once `targetViewFilterValues` or
-     `entityViewFilterValues` is non-empty — an empty filter value list never builds the
+   - It is only used once `targetViewFilterValues`, `entityViewFilterValues` or
+     `fileViewFilterValues` is non-empty — an empty filter value list never builds the
      filter, so a wrong name can sit unnoticed until you start filtering
 
 4. **Workflow Failures**

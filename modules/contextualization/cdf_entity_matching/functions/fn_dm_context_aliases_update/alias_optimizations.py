@@ -634,6 +634,13 @@ class OptimizedMetadataProcessor:
         """
         return _merge_file_aliases(aliases_tuple, name, rule)
 
+    @classmethod
+    def clear_alias_caches(cls) -> None:
+        """Release the cached aliases, which are keyed by the names of the view just processed."""
+        cls._get_timeseries_alias_list_optimized.cache_clear()
+        cls._get_asset_alias_list_optimized.cache_clear()
+        cls._get_file_alias_list_optimized.cache_clear()
+
     def get_stats(self) -> dict[str, float | int]:
         """Get processing statistics"""
         return {

@@ -3,7 +3,7 @@
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import DEFAULT, MagicMock, patch
 
 sys.path.append(str(Path(__file__).resolve().parents[2] / "functions" / "fn_dm_context_aliases_update"))
 
@@ -12,21 +12,31 @@ from cognite.client.exceptions import CogniteAPIError, CogniteConnectionError
 from pydantic import ValidationError
 
 from config import Config, ConfigData, JobConfig, Parameters, ViewPropertyConfig, format_config_for_log  # isort: skip
-from constants import ALIAS_PAGE_SIZE, DEFAULT_ALIAS_PATTERN, TS_NODE  # isort: skip
+from constants import ALIAS_PAGE_SIZE, ASSET_NODE, DEFAULT_ALIAS_PATTERN, TS_NODE  # isort: skip
+import alias_sync  # isort: skip
+from alias_sync import SyncState  # isort: skip
 import handler  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
 import pipeline  # isort: skip
 
 
 class Page:
-    """Stand-in for a query result: one page of nodes and the cursor to the next."""
+    """Stand-in for a sync result: one page of nodes and the cursor to the next."""
 
-    def __init__(self, nodes: list[object], cursor: str | None = None) -> None:
+    def __init__(self, nodes: list[object], cursor: str | None = "next") -> None:
         self.nodes = nodes
         self.cursors = {"items": cursor}
 
     def __getitem__(self, key: str) -> list[object]:
         return self.nodes
+
+
+def node(external_id: str = "n", deleted: bool = False) -> MagicMock:
+    item = MagicMock()
+    item.space = "sp"
+    item.external_id = external_id
+    item.deleted_time = 1 if deleted else None
+    return item
 
 
 class TestPipelineHelpers(unittest.TestCase):
@@ -87,20 +97,21 @@ class TestPipelineHelpers(unittest.TestCase):
         self.assertIn("timeseriesView:", summary)
         self.assertIn("CogniteTimeSeries", summary)
         self.assertIn("assetView:", summary)
+        self.assertIn("filterProperty: None", summary)
 
     def test_file_view_is_optional(self) -> None:
         """A config written before file support existed must still load."""
         self.assertIsNone(self._config(run_all=False, update_all=False).data.job.file_view)
 
     def test_files_are_skipped_when_no_file_view_is_configured(self) -> None:
-        """Without a fileView there is nothing to fetch, so no query is issued."""
+        """Without a fileView there is nothing to fetch, so no read is issued."""
         client = MagicMock()
         config = self._config(run_all=True, update_all=False)
 
         updates = pipeline._process_files_optimized(client, self.logger, config, MagicMock(), MagicMock())
 
         self.assertEqual(updates, 0)
-        client.data_modeling.instances.list.assert_not_called()
+        client.data_modeling.instances.sync.assert_not_called()
 
     def test_file_view_carries_its_own_alias_pattern(self) -> None:
         """Documents can follow a different naming convention than assets."""
@@ -195,123 +206,157 @@ class TestPipelineHelpers(unittest.TestCase):
                 aliasPattern=r"\d{2}-[A-Z]{2,3}",
             )
 
-    def _pages(self, client: MagicMock) -> list[list[object]]:
-        return list(pipeline.iter_new_items(client, self.logger, self.view_config, run_all=True, label=TS_NODE))
+    def _filtered_view(self, filter_property: object, filter_values: object) -> ViewPropertyConfig:
+        return ViewPropertyConfig(
+            schemaSpace="cdf_cdm",
+            instanceSpace="inst",
+            externalId="CogniteAsset",
+            version="v1",
+            filterProperty=filter_property,
+            filterValues=filter_values,
+        )
+
+    def test_a_single_filter_value_is_wrapped_in_a_list(self) -> None:
+        self.assertEqual(self._filtered_view("tags", "pump").filter_values, ["pump"])
+
+    def test_an_empty_filter_is_unset(self) -> None:
+        """The module defaults render as an empty list and must not filter everything out."""
+        view = self._filtered_view("", [])
+        self.assertIsNone(view.filter_property)
+        self.assertIsNone(view.filter_values)
+
+    def test_the_property_filter_is_left_out_without_values(self) -> None:
+        expected = dm.filters.And(
+            dm.filters.In(["node", "space"], ["inst"]),
+            dm.filters.HasData(views=[dm.ViewId("cdf_cdm", "CogniteAsset", "v1")]),
+        )
+        self.assertEqual(alias_sync.sync_filter(self._filtered_view("tags", [])).dump(), expected.dump())
+
+    def test_the_property_filter_narrows_the_read(self) -> None:
+        view = self._filtered_view("tags", ["pump", "valve"])
+        expected = dm.filters.And(
+            dm.filters.In(["node", "space"], ["inst"]),
+            dm.filters.HasData(views=[view.as_view_id()]),
+            dm.filters.In(view.as_property_ref("tags"), ["pump", "valve"]),
+        )
+        self.assertEqual(alias_sync.sync_filter(view).dump(), expected.dump())
+
+    def test_a_filter_change_gets_a_cursor_of_its_own(self) -> None:
+        """A cursor taken over one population must never be applied to another."""
+        unfiltered = alias_sync.sync_state_key(self._filtered_view("tags", []), ASSET_NODE)
+        filtered = alias_sync.sync_state_key(self._filtered_view("tags", ["pump"]), ASSET_NODE)
+        self.assertNotEqual(unfiltered, filtered)
+
+    def _pages(self, client: MagicMock, cursor: str | None = None) -> list[tuple[list[object], SyncState]]:
+        state = SyncState(cursor, ALIAS_PAGE_SIZE)
+        return list(alias_sync.iter_synced_pages(client, self.logger, self.view_config, state, TS_NODE))
 
     def test_a_rejected_request_fails_the_run_without_retrying(self) -> None:
         """A 400 means the request itself is wrong; an empty result would hide that."""
         client = MagicMock()
-        client.data_modeling.instances.query.side_effect = CogniteAPIError("Bad request", code=400)
+        client.data_modeling.instances.sync.side_effect = CogniteAPIError("Bad request", code=400)
 
         with self.assertRaises(CogniteAPIError):
             self._pages(client)
 
-        self.assertEqual(client.data_modeling.instances.query.call_count, 1)
+        self.assertEqual(client.data_modeling.instances.sync.call_count, 1)
+
+    def test_a_rejected_stored_cursor_reads_everything_again(self) -> None:
+        """An expired cursor leaves no way to tell what changed."""
+        client = MagicMock()
+        client.data_modeling.instances.sync.side_effect = [CogniteAPIError("Bad cursor", code=400), Page([node()])]
+
+        pages = self._pages(client, cursor="expired")
+
+        self.assertEqual(len(pages), 1)
+        retried = client.data_modeling.instances.sync.call_args.args[0]
+        self.assertEqual(retried.cursors, {"items": None})
 
     def test_a_server_error_is_retried(self) -> None:
         """A 5xx is transient, so the next attempt stands a chance of succeeding."""
         client = MagicMock()
-        client.data_modeling.instances.query.side_effect = [CogniteAPIError("Unavailable", code=503), Page(["node"])]
+        client.data_modeling.instances.sync.side_effect = [CogniteAPIError("Unavailable", code=503), Page([node()])]
 
-        with patch("pipeline.time.sleep"):
+        with patch("alias_sync.time.sleep"):
             pages = self._pages(client)
 
-        self.assertEqual(pages, [["node"]])
-        self.assertEqual(client.data_modeling.instances.query.call_count, 2)
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(client.data_modeling.instances.sync.call_count, 2)
 
-    def test_a_timed_out_read_is_retried(self) -> None:
+    def test_a_timed_out_read_is_read_again_with_a_smaller_page(self) -> None:
         client = MagicMock()
-        client.data_modeling.instances.query.side_effect = [CogniteAPIError("Timeout", code=408), Page(["node"])]
+        client.data_modeling.instances.sync.side_effect = [CogniteAPIError("Timeout", code=408), Page([node()])]
 
-        with patch("pipeline.time.sleep"):
-            self.assertEqual(self._pages(client), [["node"]])
+        pages = self._pages(client)
+
+        self.assertEqual(pages[0][1].batch_size, int(ALIAS_PAGE_SIZE * 0.8))
+        expression = client.data_modeling.instances.sync.call_args.args[0].with_["items"]
+        self.assertEqual(expression.limit, int(ALIAS_PAGE_SIZE * 0.8))
 
     def test_a_connection_error_is_retried(self) -> None:
         """A dropped connection is transient, so the next attempt stands a chance."""
         client = MagicMock()
-        client.data_modeling.instances.query.side_effect = [CogniteConnectionError("Connection reset"), Page(["node"])]
+        client.data_modeling.instances.sync.side_effect = [CogniteConnectionError("Connection reset"), Page([node()])]
 
-        with patch("pipeline.time.sleep"):
+        with patch("alias_sync.time.sleep"):
             pages = self._pages(client)
 
-        self.assertEqual(pages, [["node"]])
-        self.assertEqual(client.data_modeling.instances.query.call_count, 2)
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(client.data_modeling.instances.sync.call_count, 2)
 
     def test_a_retry_backs_off_before_trying_again(self) -> None:
         """Retrying a rate-limited request with no delay just hits the limiter again."""
         client = MagicMock()
-        client.data_modeling.instances.query.side_effect = [
+        client.data_modeling.instances.sync.side_effect = [
             CogniteAPIError("Too many requests", code=429),
             CogniteAPIError("Too many requests", code=429),
-            Page(["node"]),
+            Page([node()]),
         ]
 
-        with patch("pipeline.time.sleep") as sleep:
-            pages = self._pages(client)
+        with patch("alias_sync.time.sleep") as sleep:
+            self._pages(client)
 
-        self.assertEqual(pages, [["node"]])
         self.assertEqual([call.args[0] for call in sleep.call_args_list], [2, 4])
 
-    def test_pages_are_read_until_the_cursor_runs_out(self) -> None:
+    def test_pages_are_read_until_a_short_page(self) -> None:
         client = MagicMock()
-        client.data_modeling.instances.query.side_effect = [Page(["a"] * ALIAS_PAGE_SIZE, "c1"), Page(["b"])]
+        client.data_modeling.instances.sync.side_effect = [
+            Page([node()] * ALIAS_PAGE_SIZE, "c1"),
+            Page([node()], "c2"),
+        ]
 
         pages = self._pages(client)
 
-        self.assertEqual([len(page) for page in pages], [ALIAS_PAGE_SIZE, 1])
-        second_query = client.data_modeling.instances.query.call_args_list[1].args[0]
+        self.assertEqual([len(page) for page, _ in pages], [ALIAS_PAGE_SIZE, 1])
+        self.assertEqual(pages[-1][1].cursor, "c2")
+        second_query = client.data_modeling.instances.sync.call_args_list[1].args[0]
         self.assertEqual(second_query.cursors, {"items": "c1"})
 
-    def _node(self, external_id: str) -> MagicMock:
-        node = MagicMock()
-        node.space = "sp"
-        node.external_id = external_id
-        return node
-
-    def test_incremental_pages_re_query_the_filter_head_after_each_write(self) -> None:
-        """After a page is written, those instances leave the missing-aliases filter.
-
-        Continuing the previous cursor over that smaller set would skip the instances
-        that slid into the vacated slots.
-        """
-        first = [self._node(f"n{i}") for i in range(ALIAS_PAGE_SIZE)]
-        remaining = [self._node("rest")]
+    def test_the_stored_cursor_is_passed_to_the_first_read(self) -> None:
         client = MagicMock()
+        client.data_modeling.instances.sync.return_value = Page([])
 
-        def query(q: object) -> Page:
-            cursors = getattr(q, "cursors", None)
-            if cursors:
-                return Page([self._node("skipped")])
-            if client.data_modeling.instances.query.call_count == 1:
-                return Page(first, "c1")
-            return Page(remaining)
+        pages = self._pages(client, cursor="stored")
 
-        client.data_modeling.instances.query.side_effect = query
+        self.assertEqual(client.data_modeling.instances.sync.call_args.args[0].cursors, {"items": "stored"})
+        self.assertEqual(pages, [([], SyncState("next", ALIAS_PAGE_SIZE))])
 
-        pages = list(pipeline.iter_new_items(client, self.logger, self.view_config, run_all=False, label=TS_NODE))
-
-        self.assertEqual([node.external_id for node in pages[1]], ["rest"])
-        second_query = client.data_modeling.instances.query.call_args_list[1].args[0]
-        self.assertFalse(second_query.cursors)
-
-    def test_incremental_stops_when_the_filter_head_does_not_shrink(self) -> None:
-        stuck = [self._node("stuck")]
+    def test_deleted_instances_are_not_returned(self) -> None:
+        """Sync reports deletes too, and there is nothing to alias on those."""
         client = MagicMock()
-        client.data_modeling.instances.query.side_effect = [Page(stuck, "c1"), Page(stuck, "c1")]
+        client.data_modeling.instances.sync.return_value = Page([node("kept"), node("gone", deleted=True)])
 
-        pages = list(pipeline.iter_new_items(client, self.logger, self.view_config, run_all=False, label=TS_NODE))
+        pages = self._pages(client)
 
-        self.assertEqual([node.external_id for node in pages[0]], ["stuck"])
-        self.assertEqual(len(pages), 1)
-        self.assertEqual(client.data_modeling.instances.query.call_count, 2)
+        self.assertEqual([item.external_id for item in pages[0][0]], ["kept"])
 
     def test_only_the_properties_alias_generation_uses_are_read(self) -> None:
         client = MagicMock()
-        client.data_modeling.instances.query.return_value = Page([])
+        client.data_modeling.instances.sync.return_value = Page([])
 
         self._pages(client)
 
-        query = client.data_modeling.instances.query.call_args.args[0]
+        query = client.data_modeling.instances.sync.call_args.args[0]
         self.assertEqual(query.select["items"].sources[0].properties, ["name", "aliases"])
 
     def test_effective_run_all_when_update_all_enabled(self) -> None:
@@ -334,37 +379,20 @@ class TestPipelineHelpers(unittest.TestCase):
         config = self._config(run_all=False, update_all=False)
         self.assertIn("incremental", pipeline.describe_processing_mode(config))
 
-    def test_timeseries_are_fetched_on_space_and_aliases_alone(self) -> None:
-        """Time series are selected like assets and files: nothing but space and the alias check."""
-        client = MagicMock()
-        client.data_modeling.instances.query.return_value = Page([])
-
-        self._pages(client)
-
-        query = client.data_modeling.instances.query.call_args.args[0]
-        expected = dm.filters.And(
-            dm.filters.In(["node", "space"], self.view_config.instance_spaces),
-            pipeline.get_alias_filter(self.view_config, self.logger, run_all=True),
-        )
-        self.assertEqual(query.with_["items"].filter.dump(), expected.dump())
-
-    def test_get_alias_filter_skips_alias_exists_when_incremental(self) -> None:
-        filter_query = pipeline.get_alias_filter(self.view_config, self.logger, run_all=False)
-        self.assertIsInstance(filter_query, dm.filters.And)
-
-    def test_get_alias_filter_fetches_all_when_run_all(self) -> None:
-        filter_query = pipeline.get_alias_filter(self.view_config, self.logger, run_all=True)
-        self.assertIsInstance(filter_query, dm.filters.HasData)
+    def _patched_state(self, stored_cursor: str | None = None, full_read_in_progress: bool = False):
+        stored = SyncState(stored_cursor, ALIAS_PAGE_SIZE, full_read_in_progress)
+        return patch.multiple(pipeline, read_sync_state=MagicMock(return_value=stored), write_sync_state=DEFAULT)
 
     def test_each_page_is_written_before_the_next_is_read(self) -> None:
-        """Holding every instance in memory is what times a large project out."""
+        """Holding every instance in memory is what runs a large project out of memory."""
         config = self._config(run_all=False, update_all=False)
         processor = MagicMock()
         processor.process_timeseries_metadata.return_value = MagicMock()
         batch_processor = MagicMock()
         batch_processor.apply_updates_in_batches.side_effect = [2, 1]
+        pages = iter([([node(), node()], SyncState("c1", 1000)), ([node()], SyncState("c2", 1000))])
 
-        with patch.object(pipeline, "iter_new_items", return_value=iter([[MagicMock(), MagicMock()], [MagicMock()]])):
+        with self._patched_state(), patch.object(pipeline, "iter_synced_pages", return_value=pages):
             total = pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, processor, batch_processor)
 
         self.assertEqual(batch_processor.apply_updates_in_batches.call_count, 2)
@@ -375,18 +403,133 @@ class TestPipelineHelpers(unittest.TestCase):
         processor = MagicMock()
         batch_processor = MagicMock()
         batch_processor.apply_updates_in_batches.return_value = 1
+        pages = iter([([node()], SyncState("c1", 1000))])
 
-        with patch.object(pipeline, "iter_new_items", return_value=iter([[MagicMock()]])) as fetch:
+        with self._patched_state(), patch.object(pipeline, "iter_synced_pages", return_value=pages) as fetch:
             total = pipeline._process_assets_optimized(MagicMock(), self.logger, config, processor, batch_processor)
 
         self.assertIs(fetch.call_args.args[2], config.data.job.asset_view)
         processor.process_asset_metadata.assert_called_once()
         self.assertEqual(total, 1)
 
+    def test_incremental_reads_from_the_stored_cursor(self) -> None:
+        config = self._config(run_all=False, update_all=False)
+
+        with (
+            self._patched_state(stored_cursor="stored"),
+            patch.object(pipeline, "iter_synced_pages", return_value=iter([])) as fetch,
+        ):
+            pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
+
+        self.assertEqual(fetch.call_args.args[3].cursor, "stored")
+
+    def test_run_all_reads_everything_and_stores_the_new_cursor(self) -> None:
+        config = self._config(run_all=True, update_all=False)
+        pages = iter([([], SyncState("fresh", 800))])
+
+        with (
+            self._patched_state(stored_cursor="stored") as state,
+            patch.object(pipeline, "iter_synced_pages", return_value=pages) as fetch,
+        ):
+            pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
+
+        self.assertIsNone(fetch.call_args.args[3].cursor)
+        self.assertEqual(state["write_sync_state"].call_args.args[-1], SyncState("fresh", 800))
+
+    def test_the_cursor_is_stored_after_every_page(self) -> None:
+        """A run stopped by the function time limit must not send the next run back to the start."""
+        config = self._config(run_all=False, update_all=False)
+        pages = iter([([node()], SyncState("c1", 1000)), ([node()], SyncState("c2", 1000))])
+
+        with self._patched_state() as state, patch.object(pipeline, "iter_synced_pages", return_value=pages):
+            pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
+
+        stored = [call.args[-1].cursor for call in state["write_sync_state"].call_args_list]
+        self.assertEqual(stored, ["c1", "c2"])
+
+    def test_a_failure_keeps_the_cursor_of_the_last_written_page(self) -> None:
+        config = self._config(run_all=False, update_all=False)
+
+        def pages():
+            yield [node()], SyncState("c1", 1000)
+            raise CogniteAPIError("Unavailable", code=503)
+
+        with (
+            self._patched_state() as state,
+            patch.object(pipeline, "iter_synced_pages", return_value=pages()),
+            self.assertRaises(CogniteAPIError),
+        ):
+            pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
+
+        self.assertEqual(state["write_sync_state"].call_args.args[-1].cursor, "c1")
+
+    def test_an_interrupted_full_read_continues_where_it_stopped(self) -> None:
+        """runAll would otherwise start from zero on every run and never finish a large view."""
+        config = self._config(run_all=True, update_all=False)
+
+        with (
+            self._patched_state(stored_cursor="halfway", full_read_in_progress=True),
+            patch.object(pipeline, "iter_synced_pages", return_value=iter([])) as fetch,
+        ):
+            pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
+
+        self.assertEqual(fetch.call_args.args[3].cursor, "halfway")
+
+    def test_a_full_read_is_marked_in_progress_until_the_view_is_done(self) -> None:
+        config = self._config(run_all=True, update_all=False)
+        pages = iter([([node()], SyncState("c1", 1000)), ([node()], SyncState("c2", 1000))])
+
+        with self._patched_state() as state, patch.object(pipeline, "iter_synced_pages", return_value=pages):
+            pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
+
+        stored = [call.args[-1] for call in state["write_sync_state"].call_args_list]
+        self.assertEqual(
+            stored,
+            [SyncState("c1", 1000, True), SyncState("c2", 1000, True), SyncState("c2", 1000, False)],
+        )
+
+    def test_a_failed_type_does_not_move_the_cursor(self) -> None:
+        """The next run must read again what this one did not finish."""
+        config = self._config(run_all=False, update_all=False)
+
+        with (
+            self._patched_state() as state,
+            patch.object(pipeline, "iter_synced_pages", side_effect=CogniteAPIError("Unavailable", code=503)),
+            self.assertRaises(CogniteAPIError),
+        ):
+            pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
+
+        state["write_sync_state"].assert_not_called()
+
+    def test_the_timeseries_cursor_is_stored_before_assets_are_read(self) -> None:
+        """Each type is finished, stored and released before the next one is read."""
+        config = self._config(run_all=False, update_all=False)
+        events: list[str] = []
+
+        def read(client, logger, view, state, label):
+            events.append(f"read {label}")
+            return iter([([], SyncState("c", 1000))])
+
+        with (
+            self._patched_state() as state,
+            patch.object(pipeline, "iter_synced_pages", side_effect=read),
+            patch.object(pipeline, "update_pipeline_run"),
+            patch.object(pipeline.gc, "collect", side_effect=lambda: events.append("collect")),
+        ):
+            state["write_sync_state"].side_effect = lambda *args: events.append(f"write {args[3]}")
+            pipeline.metadata_update(MagicMock(), self.logger, {"ExtractionPipelineExtId": "ep"}, config)
+
+        ts_key = alias_sync.sync_state_key(config.data.job.timeseries_view, TS_NODE)
+        asset_key = alias_sync.sync_state_key(config.data.job.asset_view, ASSET_NODE)
+        self.assertEqual(
+            events,
+            [f"read {TS_NODE}", f"write {ts_key}", "collect", f"read {ASSET_NODE}", f"write {asset_key}", "collect"],
+        )
+
     def test_process_timeseries_handles_empty_fetch(self) -> None:
         config = self._config(run_all=False, update_all=False)
 
-        with patch.object(pipeline, "iter_new_items", return_value=iter([])):
+        with self._patched_state(), patch.object(pipeline, "iter_synced_pages", return_value=iter([])):
             total = pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
 
         self.assertEqual(total, 0)
@@ -408,6 +551,40 @@ class TestPipelineHelpers(unittest.TestCase):
                     handler.handle(data, client)
                 load.assert_not_called()
                 self.assertEqual(client.mock_calls, [])
+
+
+class TestSyncState(unittest.TestCase):
+    def setUp(self) -> None:
+        self.logger = CogniteFunctionLogger("DEBUG")
+        self.parameters = Parameters(runAll=False, rawDb="db", rawTableState="state")
+
+    def test_a_first_run_starts_with_no_cursor(self) -> None:
+        client = MagicMock()
+        client.raw.rows.retrieve.return_value = None
+
+        state = alias_sync.read_sync_state(client, self.parameters, self.logger, "key")
+
+        self.assertEqual(state, SyncState(None, ALIAS_PAGE_SIZE))
+
+    def test_an_existing_state_table_is_not_an_error(self) -> None:
+        client = MagicMock()
+        client.raw.databases.create.side_effect = CogniteAPIError("already exists", code=400)
+        client.raw.tables.create.side_effect = CogniteAPIError("already created", code=400)
+        client.raw.rows.retrieve.return_value = MagicMock(
+            columns={"syncCursor": "c", "batchSize": 800, "fullReadInProgress": True}
+        )
+
+        state = alias_sync.read_sync_state(client, self.parameters, self.logger, "key")
+
+        self.assertEqual(state, SyncState("c", 800, True))
+
+    def test_a_failed_cursor_write_does_not_fail_the_run(self) -> None:
+        """The previous cursor still holds, so the next run only reads more than it needs to."""
+        client = MagicMock()
+        client.raw.rows.insert.side_effect = CogniteAPIError("Unavailable", code=503)
+        view = ViewPropertyConfig(schemaSpace="s", instanceSpace="i", externalId="v", version="v1")
+
+        alias_sync.write_sync_state(client, self.parameters, self.logger, "key", view, SyncState("c", 1000))
 
 
 if __name__ == "__main__":
