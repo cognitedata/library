@@ -135,9 +135,10 @@ def list_batch_files(client: CogniteClient, max_batches: int = 20) -> list[str]:
                 batch_files.append(ext_id)
                 logger.info(f"Found batch file: {ext_id}")
         except CogniteAPIError as e:
-            # retrieve() returns None for a missing file, so this is a real API error.
-            logger.warning(f"Could not check batch file {ext_id}: {e}")
-            continue
+            # retrieve() returns None for a missing file, so this is a real API error. Merging
+            # without this batch would report metrics from a subset as if complete.
+            logger.error(f"Could not check batch file {ext_id}: {e}")
+            raise
 
     logger.info(f"Found {len(batch_files)} batch files")
     return batch_files

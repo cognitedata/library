@@ -19,17 +19,15 @@ def _client(retrieve: object) -> MagicMock:
     return client
 
 
-def test_list_batch_files_skips_a_failed_lookup_and_keeps_checking() -> None:
+def test_list_batch_files_returns_only_existing_batches() -> None:
     present = {get_batch_file_external_id(0), get_batch_file_external_id(2)}
 
     def retrieve(external_id: str) -> SimpleNamespace | None:
-        if external_id == get_batch_file_external_id(1):
-            raise CogniteAPIError("service unavailable", code=503)
         return SimpleNamespace() if external_id in present else None
 
     assert list_batch_files(_client(retrieve), max_batches=4) == sorted(present)
 
 
-def test_list_batch_files_raises_unexpected_errors_instead_of_reporting_no_batches() -> None:
-    with pytest.raises(RuntimeError):
-        list_batch_files(_client(RuntimeError("bug")), max_batches=2)
+def test_list_batch_files_raises_on_api_error_instead_of_merging_a_subset() -> None:
+    with pytest.raises(CogniteAPIError):
+        list_batch_files(_client(CogniteAPIError("service unavailable", code=503)), max_batches=2)
