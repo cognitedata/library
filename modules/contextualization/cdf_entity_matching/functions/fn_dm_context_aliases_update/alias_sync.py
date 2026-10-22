@@ -77,24 +77,13 @@ def sync_state_key(view_config: ViewPropertyConfig, label: str) -> str:
     return f"{SYNC_STATE_KEY_PREFIX}{label}_{hashlib.sha256(configuration.encode('utf-8')).hexdigest()[:16]}"
 
 
-def _create_state_table(client: CogniteClient, db: str, table: str) -> None:
-    """Create the RAW database and table unless a previous run already did.
-
-    RAW answers an existing database or table with a 400, so that is what is let through.
-    """
-    for create in (lambda: client.raw.databases.create(db), lambda: client.raw.tables.create(db, table)):
-        try:
-            create()
-        except CogniteAPIError as e:
-            if e.code != HTTP_STATUS_BAD_REQUEST:
-                raise
-
-
 def read_sync_state(
     client: CogniteClient, parameters: Parameters, logger: CogniteFunctionLogger, key: str
 ) -> SyncState:
-    """The cursor and page size the previous run stored, or none and the default size on a first run."""
-    _create_state_table(client, parameters.raw_db, parameters.raw_table_state)
+    """The cursor and page size the previous run stored, or none and the default size on a first run.
+
+    A missing database or table reads as a missing row; the first write creates them.
+    """
     row = client.raw.rows.retrieve(parameters.raw_db, parameters.raw_table_state, key)
     columns = row.columns if row and row.columns else {}
     cursor = columns.get(SYNC_COL_CURSOR)
@@ -128,7 +117,7 @@ def write_sync_state(
         SYNC_COL_UPDATED_AT: datetime.now(UTC).isoformat(),
     }
     try:
-        client.raw.rows.insert(parameters.raw_db, parameters.raw_table_state, Row(key, columns))
+        client.raw.rows.insert(parameters.raw_db, parameters.raw_table_state, Row(key, columns), ensure_parent=True)
     except CogniteException as e:
         # The stored cursor is older but still valid, so the next run reads more than it
         # has to rather than skipping anything.

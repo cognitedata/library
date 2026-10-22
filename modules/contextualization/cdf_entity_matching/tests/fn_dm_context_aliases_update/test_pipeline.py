@@ -566,10 +566,8 @@ class TestSyncState(unittest.TestCase):
 
         self.assertEqual(state, SyncState(None, ALIAS_PAGE_SIZE))
 
-    def test_an_existing_state_table_is_not_an_error(self) -> None:
+    def test_reading_the_state_creates_nothing(self) -> None:
         client = MagicMock()
-        client.raw.databases.create.side_effect = CogniteAPIError("already exists", code=400)
-        client.raw.tables.create.side_effect = CogniteAPIError("already created", code=400)
         client.raw.rows.retrieve.return_value = MagicMock(
             columns={"syncCursor": "c", "batchSize": 800, "fullReadInProgress": True}
         )
@@ -577,6 +575,16 @@ class TestSyncState(unittest.TestCase):
         state = alias_sync.read_sync_state(client, self.parameters, self.logger, "key")
 
         self.assertEqual(state, SyncState("c", 800, True))
+        client.raw.databases.create.assert_not_called()
+        client.raw.tables.create.assert_not_called()
+
+    def test_writing_the_state_creates_a_missing_state_table(self) -> None:
+        client = MagicMock()
+        view = ViewPropertyConfig(schemaSpace="s", instanceSpace="i", externalId="v", version="v1")
+
+        alias_sync.write_sync_state(client, self.parameters, self.logger, "key", view, SyncState("c", 1000))
+
+        self.assertTrue(client.raw.rows.insert.call_args.kwargs.get("ensure_parent"))
 
     def test_a_failed_cursor_write_does_not_fail_the_run(self) -> None:
         """The previous cursor still holds, so the next run only reads more than it needs to."""
