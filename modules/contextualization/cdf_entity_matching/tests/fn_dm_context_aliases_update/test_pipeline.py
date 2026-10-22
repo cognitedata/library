@@ -389,7 +389,9 @@ class TestPipelineHelpers(unittest.TestCase):
         processor.process_timeseries_metadata.return_value = MagicMock()
         batch_processor = MagicMock()
         batch_processor.apply_updates_in_batches.side_effect = [2, 1]
-        pages = iter([([node(), node()], alias_sync.SyncState("c1", 1000)), ([node()], alias_sync.SyncState("c2", 1000))])
+        pages = iter(
+            [([node(), node()], alias_sync.SyncState("c1", 1000)), ([node()], alias_sync.SyncState("c2", 1000))]
+        )
 
         with self._patched_state(), patch.object(pipeline, "iter_synced_pages", return_value=pages):
             total = pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, processor, batch_processor)
@@ -484,7 +486,11 @@ class TestPipelineHelpers(unittest.TestCase):
         stored = [call.args[-1] for call in state["write_sync_state"].call_args_list]
         self.assertEqual(
             stored,
-            [alias_sync.SyncState("c1", 1000, True), alias_sync.SyncState("c2", 1000, True), alias_sync.SyncState("c2", 1000, False)],
+            [
+                alias_sync.SyncState("c1", 1000, True),
+                alias_sync.SyncState("c2", 1000, True),
+                alias_sync.SyncState("c2", 1000, False),
+            ],
         )
 
     def test_a_failed_type_does_not_move_the_cursor(self) -> None:
