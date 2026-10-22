@@ -390,7 +390,10 @@ class TestPipelineHelpers(unittest.TestCase):
         batch_processor = MagicMock()
         batch_processor.apply_updates_in_batches.side_effect = [2, 1]
         pages = iter(
-            [([node(), node()], alias_sync.SyncState("c1", 1000)), ([node()], alias_sync.SyncState("c2", 1000))]
+            [
+                ([node(), node()], alias_sync.SyncState("c1", 1000)),
+                ([node()], alias_sync.SyncState("c2", 1000)),
+            ]
         )
 
         with self._patched_state(), patch.object(pipeline, "iter_synced_pages", return_value=pages):
@@ -440,7 +443,12 @@ class TestPipelineHelpers(unittest.TestCase):
     def test_the_cursor_is_stored_after_every_page(self) -> None:
         """A run stopped by the function time limit must not send the next run back to the start."""
         config = self._config(run_all=False, update_all=False)
-        pages = iter([([node()], alias_sync.SyncState("c1", 1000)), ([node()], alias_sync.SyncState("c2", 1000))])
+        pages = iter(
+            [
+                ([node()], alias_sync.SyncState("c1", 1000)),
+                ([node()], alias_sync.SyncState("c2", 1000)),
+            ]
+        )
 
         with self._patched_state() as state, patch.object(pipeline, "iter_synced_pages", return_value=pages):
             pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
@@ -478,7 +486,12 @@ class TestPipelineHelpers(unittest.TestCase):
 
     def test_a_full_read_is_marked_in_progress_until_the_view_is_done(self) -> None:
         config = self._config(run_all=True, update_all=False)
-        pages = iter([([node()], alias_sync.SyncState("c1", 1000)), ([node()], alias_sync.SyncState("c2", 1000))])
+        pages = iter(
+            [
+                ([node()], alias_sync.SyncState("c1", 1000)),
+                ([node()], alias_sync.SyncState("c2", 1000)),
+            ]
+        )
 
         with self._patched_state() as state, patch.object(pipeline, "iter_synced_pages", return_value=pages):
             pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
