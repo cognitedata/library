@@ -207,7 +207,7 @@ def render_metadata_sidebar(metrics: dict) -> None:
     st.sidebar.title("Metrics Info")
 
     computed_at = metadata.get("computed_at", "Unknown")
-    if computed_at != "Unknown":
+    if isinstance(computed_at, str) and computed_at != "Unknown":
         # Keep the raw value when it is not an ISO timestamp.
         with contextlib.suppress(ValueError):
             dt = datetime.fromisoformat(computed_at.replace("Z", "+00:00"))
