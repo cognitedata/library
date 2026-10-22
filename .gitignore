@@ -20,6 +20,9 @@ dist/
 build/
 .eggs/
 .env
+.env.*
+!.env.tmpl
+!.env.example
 .venv
 env/
 venv/
@@ -64,8 +67,3 @@ Desktop.ini
 .cursor/settings.json
 cdf.toml
 config.dev.yaml
-*.jib03
-.env.jib02
-
-# Output of the cog-vd-audit best-practice skill
-AUDIT_REPORT.md

@@ -767,7 +767,6 @@ def _detect_annotation_to_edge_applies(
     approve_threshold = config.parameters.auto_approval_threshold
     suggest_threshold = config.parameters.auto_suggest_threshold
     try:
-        # logger.debug(f"Detected annotation: {detect_annotation}")
         for entity in detect_annotation["entities"]:
             if detect_annotation["confidence"] >= approve_threshold:
                 annotation_status = DiagramAnnotationStatus.APPROVED.value
