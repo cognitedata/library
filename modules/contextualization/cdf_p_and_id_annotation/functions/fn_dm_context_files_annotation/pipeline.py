@@ -1,4 +1,3 @@
-import contextlib
 import json
 import time
 import traceback
@@ -900,11 +899,18 @@ def write_mapping_to_raw(
 
 
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
-    # The database and table may already exist when the pipeline is re-run.
-    with contextlib.suppress(CogniteAPIError):
+    # The database and table may already exist when the pipeline is re-run (400 or 409).
+    # Any other API error, such as missing access, is raised.
+    try:
         client.raw.databases.create(raw_db)
-    with contextlib.suppress(CogniteAPIError):
+    except CogniteAPIError as e:
+        if e.code not in (400, 409):
+            raise
+    try:
         client.raw.tables.create(raw_db, tbl)
+    except CogniteAPIError as e:
+        if e.code not in (400, 409):
+            raise
 
 
 def delete_table(client: CogniteClient, db: str, tbl: str) -> None:

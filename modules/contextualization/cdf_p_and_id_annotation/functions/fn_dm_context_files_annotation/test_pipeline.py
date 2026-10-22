@@ -542,6 +542,21 @@ class TestCreateTable:
 
         client.raw.tables.create.assert_called_once_with("db", "tbl")
 
+    def test_already_exists_as_409_is_not_an_error(self) -> None:
+        client = MagicMock()
+        client.raw.databases.create.side_effect = CogniteAPIError("duplicated", code=409)
+
+        create_table(client, "db", "tbl")
+
+        client.raw.tables.create.assert_called_once_with("db", "tbl")
+
+    def test_missing_access_is_raised(self) -> None:
+        client = MagicMock()
+        client.raw.databases.create.side_effect = CogniteAPIError("forbidden", code=403)
+
+        with pytest.raises(CogniteAPIError):
+            create_table(client, "db", "tbl")
+
     def test_unexpected_errors_are_raised(self) -> None:
         client = MagicMock()
         client.raw.databases.create.side_effect = ConnectionError("network down")
