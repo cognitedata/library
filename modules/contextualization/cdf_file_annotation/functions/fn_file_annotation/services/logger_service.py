@@ -23,7 +23,8 @@ class CogniteFunctionLogger:
                 dir_name = os.path.dirname(self.filepath)
                 if dir_name:
                     os.makedirs(dir_name, exist_ok=True)
-                self.file_handler = open(self.filepath, "a", encoding="utf-8")
+                # Held open for the logger's lifetime; closed in close().
+                self.file_handler = open(self.filepath, "a", encoding="utf-8")  # noqa: SIM115
             except OSError as e:
                 print(f"[LOGGER_SETUP_ERROR] Could not open log file {self.filepath}: {e}")
                 self.write = False

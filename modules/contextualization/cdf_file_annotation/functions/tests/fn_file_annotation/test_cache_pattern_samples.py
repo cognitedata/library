@@ -120,6 +120,19 @@ def test_legacy_mode_keeps_a_bracketed_resource_type_constant_containing_a() -> 
     assert result[0]["sample"] == ["[KA]-[XX]-0000"]
 
 
+def test_legacy_mode_expands_each_template_with_its_own_letter_groups() -> None:
+    service = _cache_service(structural_auto_patterns=False)
+    entities = [
+        _entity("23-KA-9101", ["23-KA-9101"]),
+        _entity("23-PC-9102", ["23-PC-9102"]),
+        _entity("AB-100", ["AB-100"]),
+    ]
+
+    result = service._generate_tag_samples_from_entities(entities, source_view="test", normalize_patterns=[])
+
+    assert result[0]["sample"] == ["00-[KA|PC]-0000", "[AB]-000"]
+
+
 def test_structural_patterns_skip_aliases_not_matching_normalize_patterns() -> None:
     service = _cache_service(structural_auto_patterns=True)
     entities = [

@@ -611,7 +611,7 @@ class GeneralCacheService(ICacheService):
 
                 var_iter: Iterator[list[set[str]]] = iter(collected_vars)
 
-                def build_segment(segment_template: str) -> str:
+                def build_segment(segment_template: str, var_iter: Iterator[list[set[str]]]) -> str:
                     if "A" not in segment_template:
                         return segment_template
                     try:
@@ -627,7 +627,7 @@ class GeneralCacheService(ICacheService):
                         return segment_template
 
                 parts = [p for p in re.split(r"(\[[^\]]+\]|[^A-Za-z0-9])", template_key) if p != ""]
-                final_pattern_parts = [p if p.startswith("[") else build_segment(p) for p in parts]
+                final_pattern_parts = [p if p.startswith("[") else build_segment(p, var_iter) for p in parts]
                 final_samples.append("".join(final_pattern_parts))
 
             def _has_alpha_or_class(s: str) -> bool:
