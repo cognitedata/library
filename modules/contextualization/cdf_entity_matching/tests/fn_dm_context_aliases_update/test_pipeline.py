@@ -14,7 +14,6 @@ from pydantic import ValidationError
 from config import Config, ConfigData, JobConfig, Parameters, ViewPropertyConfig, format_config_for_log  # isort: skip
 from constants import ALIAS_PAGE_SIZE, ASSET_NODE, DEFAULT_ALIAS_PATTERN, TS_NODE  # isort: skip
 import alias_sync  # isort: skip
-from alias_sync import SyncState  # isort: skip
 import handler  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
 import pipeline  # isort: skip
@@ -247,8 +246,8 @@ class TestPipelineHelpers(unittest.TestCase):
         filtered = alias_sync.sync_state_key(self._filtered_view("tags", ["pump"]), ASSET_NODE)
         self.assertNotEqual(unfiltered, filtered)
 
-    def _pages(self, client: MagicMock, cursor: str | None = None) -> list[tuple[list[object], SyncState]]:
-        state = SyncState(cursor, ALIAS_PAGE_SIZE)
+    def _pages(self, client: MagicMock, cursor: str | None = None) -> list[tuple[list[object], alias_sync.SyncState]]:
+        state = alias_sync.SyncState(cursor, ALIAS_PAGE_SIZE)
         return list(alias_sync.iter_synced_pages(client, self.logger, self.view_config, state, TS_NODE))
 
     def test_a_rejected_request_fails_the_run_without_retrying(self) -> None:
@@ -339,7 +338,7 @@ class TestPipelineHelpers(unittest.TestCase):
         pages = self._pages(client, cursor="stored")
 
         self.assertEqual(client.data_modeling.instances.sync.call_args.args[0].cursors, {"items": "stored"})
-        self.assertEqual(pages, [([], SyncState("next", ALIAS_PAGE_SIZE))])
+        self.assertEqual(pages, [([], alias_sync.SyncState("next", ALIAS_PAGE_SIZE))])
 
     def test_deleted_instances_are_not_returned(self) -> None:
         """Sync reports deletes too, and there is nothing to alias on those."""
@@ -380,7 +379,7 @@ class TestPipelineHelpers(unittest.TestCase):
         self.assertIn("incremental", pipeline.describe_processing_mode(config))
 
     def _patched_state(self, stored_cursor: str | None = None, full_read_in_progress: bool = False):
-        stored = SyncState(stored_cursor, ALIAS_PAGE_SIZE, full_read_in_progress)
+        stored = alias_sync.SyncState(stored_cursor, ALIAS_PAGE_SIZE, full_read_in_progress)
         return patch.multiple(pipeline, read_sync_state=MagicMock(return_value=stored), write_sync_state=DEFAULT)
 
     def test_each_page_is_written_before_the_next_is_read(self) -> None:
@@ -390,7 +389,7 @@ class TestPipelineHelpers(unittest.TestCase):
         processor.process_timeseries_metadata.return_value = MagicMock()
         batch_processor = MagicMock()
         batch_processor.apply_updates_in_batches.side_effect = [2, 1]
-        pages = iter([([node(), node()], SyncState("c1", 1000)), ([node()], SyncState("c2", 1000))])
+        pages = iter([([node(), node()], alias_sync.SyncState("c1", 1000)), ([node()], alias_sync.SyncState("c2", 1000))])
 
         with self._patched_state(), patch.object(pipeline, "iter_synced_pages", return_value=pages):
             total = pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, processor, batch_processor)
@@ -403,7 +402,7 @@ class TestPipelineHelpers(unittest.TestCase):
         processor = MagicMock()
         batch_processor = MagicMock()
         batch_processor.apply_updates_in_batches.return_value = 1
-        pages = iter([([node()], SyncState("c1", 1000))])
+        pages = iter([([node()], alias_sync.SyncState("c1", 1000))])
 
         with self._patched_state(), patch.object(pipeline, "iter_synced_pages", return_value=pages) as fetch:
             total = pipeline._process_assets_optimized(MagicMock(), self.logger, config, processor, batch_processor)
@@ -425,7 +424,7 @@ class TestPipelineHelpers(unittest.TestCase):
 
     def test_run_all_reads_everything_and_stores_the_new_cursor(self) -> None:
         config = self._config(run_all=True, update_all=False)
-        pages = iter([([], SyncState("fresh", 800))])
+        pages = iter([([], alias_sync.SyncState("fresh", 800))])
 
         with (
             self._patched_state(stored_cursor="stored") as state,
@@ -434,12 +433,12 @@ class TestPipelineHelpers(unittest.TestCase):
             pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
 
         self.assertIsNone(fetch.call_args.args[3].cursor)
-        self.assertEqual(state["write_sync_state"].call_args.args[-1], SyncState("fresh", 800))
+        self.assertEqual(state["write_sync_state"].call_args.args[-1], alias_sync.SyncState("fresh", 800))
 
     def test_the_cursor_is_stored_after_every_page(self) -> None:
         """A run stopped by the function time limit must not send the next run back to the start."""
         config = self._config(run_all=False, update_all=False)
-        pages = iter([([node()], SyncState("c1", 1000)), ([node()], SyncState("c2", 1000))])
+        pages = iter([([node()], alias_sync.SyncState("c1", 1000)), ([node()], alias_sync.SyncState("c2", 1000))])
 
         with self._patched_state() as state, patch.object(pipeline, "iter_synced_pages", return_value=pages):
             pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
@@ -451,7 +450,7 @@ class TestPipelineHelpers(unittest.TestCase):
         config = self._config(run_all=False, update_all=False)
 
         def pages():
-            yield [node()], SyncState("c1", 1000)
+            yield [node()], alias_sync.SyncState("c1", 1000)
             raise CogniteAPIError("Unavailable", code=503)
 
         with (
@@ -477,7 +476,7 @@ class TestPipelineHelpers(unittest.TestCase):
 
     def test_a_full_read_is_marked_in_progress_until_the_view_is_done(self) -> None:
         config = self._config(run_all=True, update_all=False)
-        pages = iter([([node()], SyncState("c1", 1000)), ([node()], SyncState("c2", 1000))])
+        pages = iter([([node()], alias_sync.SyncState("c1", 1000)), ([node()], alias_sync.SyncState("c2", 1000))])
 
         with self._patched_state() as state, patch.object(pipeline, "iter_synced_pages", return_value=pages):
             pipeline._process_timeseries_optimized(MagicMock(), self.logger, config, MagicMock(), MagicMock())
@@ -485,7 +484,7 @@ class TestPipelineHelpers(unittest.TestCase):
         stored = [call.args[-1] for call in state["write_sync_state"].call_args_list]
         self.assertEqual(
             stored,
-            [SyncState("c1", 1000, True), SyncState("c2", 1000, True), SyncState("c2", 1000, False)],
+            [alias_sync.SyncState("c1", 1000, True), alias_sync.SyncState("c2", 1000, True), alias_sync.SyncState("c2", 1000, False)],
         )
 
     def test_a_failed_type_does_not_move_the_cursor(self) -> None:
@@ -508,7 +507,7 @@ class TestPipelineHelpers(unittest.TestCase):
 
         def read(client, logger, view, state, label):
             events.append(f"read {label}")
-            return iter([([], SyncState("c", 1000))])
+            return iter([([], alias_sync.SyncState("c", 1000))])
 
         with (
             self._patched_state() as state,
@@ -564,7 +563,7 @@ class TestSyncState(unittest.TestCase):
 
         state = alias_sync.read_sync_state(client, self.parameters, self.logger, "key")
 
-        self.assertEqual(state, SyncState(None, ALIAS_PAGE_SIZE))
+        self.assertEqual(state, alias_sync.SyncState(None, ALIAS_PAGE_SIZE))
 
     def test_a_missing_state_store_reads_as_a_first_run(self) -> None:
         """The database and table are created by the first write, so their absence is not a failure."""
@@ -577,7 +576,7 @@ class TestSyncState(unittest.TestCase):
             client.raw.rows.retrieve.side_effect = error
             with self.subTest(message=error.message, code=error.code):
                 state = alias_sync.read_sync_state(client, self.parameters, self.logger, "key")
-                self.assertEqual(state, SyncState(None, ALIAS_PAGE_SIZE))
+                self.assertEqual(state, alias_sync.SyncState(None, ALIAS_PAGE_SIZE))
 
     def test_a_state_read_error_fails_the_run(self) -> None:
         """Only a missing store is a first run. A bad key or an outage must still fail."""
@@ -598,7 +597,7 @@ class TestSyncState(unittest.TestCase):
 
         state = alias_sync.read_sync_state(client, self.parameters, self.logger, "key")
 
-        self.assertEqual(state, SyncState("c", 800, True))
+        self.assertEqual(state, alias_sync.SyncState("c", 800, True))
         client.raw.databases.create.assert_not_called()
         client.raw.tables.create.assert_not_called()
 
@@ -606,7 +605,7 @@ class TestSyncState(unittest.TestCase):
         client = MagicMock()
         view = ViewPropertyConfig(schemaSpace="s", instanceSpace="i", externalId="v", version="v1")
 
-        alias_sync.write_sync_state(client, self.parameters, self.logger, "key", view, SyncState("c", 1000))
+        alias_sync.write_sync_state(client, self.parameters, self.logger, "key", view, alias_sync.SyncState("c", 1000))
 
         self.assertTrue(client.raw.rows.insert.call_args.kwargs.get("ensure_parent"))
 
@@ -616,7 +615,7 @@ class TestSyncState(unittest.TestCase):
         client.raw.rows.insert.side_effect = CogniteAPIError("Unavailable", code=503)
         view = ViewPropertyConfig(schemaSpace="s", instanceSpace="i", externalId="v", version="v1")
 
-        alias_sync.write_sync_state(client, self.parameters, self.logger, "key", view, SyncState("c", 1000))
+        alias_sync.write_sync_state(client, self.parameters, self.logger, "key", view, alias_sync.SyncState("c", 1000))
 
 
 if __name__ == "__main__":
