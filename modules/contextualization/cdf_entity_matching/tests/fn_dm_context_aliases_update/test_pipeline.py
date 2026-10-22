@@ -566,6 +566,30 @@ class TestSyncState(unittest.TestCase):
 
         self.assertEqual(state, SyncState(None, ALIAS_PAGE_SIZE))
 
+    def test_a_missing_state_store_reads_as_a_first_run(self) -> None:
+        """The database and table are created by the first write, so their absence is not a failure."""
+        for error in (
+            CogniteAPIError("Not found", code=404),
+            CogniteAPIError("Database not found", code=400),
+            CogniteAPIError("Table not found.", code=400),
+        ):
+            client = MagicMock()
+            client.raw.rows.retrieve.side_effect = error
+            with self.subTest(message=error.message, code=error.code):
+                state = alias_sync.read_sync_state(client, self.parameters, self.logger, "key")
+                self.assertEqual(state, SyncState(None, ALIAS_PAGE_SIZE))
+
+    def test_a_state_read_error_fails_the_run(self) -> None:
+        """Only a missing store is a first run. A bad key or an outage must still fail."""
+        for error in (
+            CogniteAPIError("Key is invalid", code=400),
+            CogniteAPIError("Unavailable", code=503),
+        ):
+            client = MagicMock()
+            client.raw.rows.retrieve.side_effect = error
+            with self.subTest(message=error.message, code=error.code), self.assertRaises(CogniteAPIError):
+                alias_sync.read_sync_state(client, self.parameters, self.logger, "key")
+
     def test_reading_the_state_creates_nothing(self) -> None:
         client = MagicMock()
         client.raw.rows.retrieve.return_value = MagicMock(

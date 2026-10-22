@@ -36,6 +36,7 @@ from constants import (  # isort: skip
     ALIAS_SYNC_MAX_RETRIES,
     ALIAS_SYNC_RETRY_BACKOFF_SECONDS,
     HTTP_STATUS_BAD_REQUEST,
+    HTTP_STATUS_NOT_FOUND,
     HTTP_STATUS_REQUEST_TIMEOUT,
     ITEMS_QUERY_NAME,
     SYNC_COL_BATCH_SIZE,
@@ -77,6 +78,21 @@ def sync_state_key(view_config: ViewPropertyConfig, label: str) -> str:
     return f"{SYNC_STATE_KEY_PREFIX}{label}_{hashlib.sha256(configuration.encode('utf-8')).hexdigest()[:16]}"
 
 
+def _missing_state_store(error: CogniteAPIError) -> bool:
+    """Whether the state database or table does not exist yet.
+
+    A missing row never arrives here: the SDK returns None for it. A missing
+    database or table is a 400 that names it. A 404 is the same situation when
+    it reaches the caller.
+    """
+    if error.code == HTTP_STATUS_NOT_FOUND:
+        return True
+    if error.code != HTTP_STATUS_BAD_REQUEST:
+        return False
+    message = error.message.casefold()
+    return "database not found" in message or "table not found" in message
+
+
 def read_sync_state(
     client: CogniteClient, parameters: Parameters, logger: CogniteFunctionLogger, key: str
 ) -> SyncState:
@@ -84,7 +100,12 @@ def read_sync_state(
 
     A missing database or table reads as a missing row; the first write creates them.
     """
-    row = client.raw.rows.retrieve(parameters.raw_db, parameters.raw_table_state, key)
+    try:
+        row = client.raw.rows.retrieve(parameters.raw_db, parameters.raw_table_state, key)
+    except CogniteAPIError as e:
+        if not _missing_state_store(e):
+            raise
+        row = None
     columns = row.columns if row and row.columns else {}
     cursor = columns.get(SYNC_COL_CURSOR)
     batch_size = columns.get(SYNC_COL_BATCH_SIZE)

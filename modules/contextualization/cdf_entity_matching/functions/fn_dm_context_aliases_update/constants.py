@@ -24,6 +24,7 @@ SYNC_COL_FULL_READ = "fullReadInProgress"
 SYNC_COL_VIEW = "view"
 SYNC_COL_UPDATED_AT = "updatedAt"
 HTTP_STATUS_BAD_REQUEST = 400
+HTTP_STATUS_NOT_FOUND = 404
 HTTP_STATUS_REQUEST_TIMEOUT = 408
 # Tag shape used to derive an alias from a name when a view configures no aliasPattern,
 # e.g. VAL_23-KA-9101 -> 23-KA-9101. The alias is the capture groups joined by "-".
