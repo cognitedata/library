@@ -601,9 +601,10 @@ class TestSyncState(unittest.TestCase):
                 self.assertEqual(state, alias_sync.SyncState(None, ALIAS_PAGE_SIZE))
 
     def test_a_state_read_error_fails_the_run(self) -> None:
-        """Only a missing store is a first run. A bad key or an outage must still fail."""
+        """Only a missing store is a first run. A bad key, empty message, or outage must still fail."""
         for error in (
             CogniteAPIError("Key is invalid", code=400),
+            CogniteAPIError(None, code=400),
             CogniteAPIError("Unavailable", code=503),
         ):
             client = MagicMock()

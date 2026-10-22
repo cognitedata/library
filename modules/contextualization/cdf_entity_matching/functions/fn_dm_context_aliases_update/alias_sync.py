@@ -89,7 +89,7 @@ def _missing_state_store(error: CogniteAPIError) -> bool:
         return True
     if error.code != HTTP_STATUS_BAD_REQUEST:
         return False
-    message = error.message.casefold()
+    message = (error.message or "").casefold()
     return "database not found" in message or "table not found" in message
 
 
