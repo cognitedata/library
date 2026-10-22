@@ -2,6 +2,7 @@
 Sidebar metadata display component.
 """
 
+import contextlib
 from datetime import datetime
 
 import streamlit as st
@@ -107,9 +108,8 @@ def render_metadata_sidebar(metrics: dict) -> None:
                 key="dl_asset",
                 use_container_width=True,
             )
-        except Exception:
-            # PDF export is optional when report generation fails.
-            pass
+        except Exception as e:
+            st.error(f"Could not generate the Asset Hierarchy report: {e}")
 
         # Equipment
         try:
@@ -122,9 +122,8 @@ def render_metadata_sidebar(metrics: dict) -> None:
                 key="dl_equipment",
                 use_container_width=True,
             )
-        except Exception:
-            # PDF export is optional when report generation fails.
-            pass
+        except Exception as e:
+            st.error(f"Could not generate the Equipment-Asset report: {e}")
 
         # Time Series
         try:
@@ -137,9 +136,8 @@ def render_metadata_sidebar(metrics: dict) -> None:
                 key="dl_timeseries",
                 use_container_width=True,
             )
-        except Exception:
-            # PDF export is optional when report generation fails.
-            pass
+        except Exception as e:
+            st.error(f"Could not generate the Time Series report: {e}")
 
         # Maintenance (if available)
         if metrics.get("maintenance_metrics"):
@@ -153,9 +151,8 @@ def render_metadata_sidebar(metrics: dict) -> None:
                     key="dl_maintenance",
                     use_container_width=True,
                 )
-            except Exception:
-                # PDF export is optional when report generation fails.
-                pass
+            except Exception as e:
+                st.error(f"Could not generate the Maintenance report: {e}")
 
         # File Annotation (if available)
         if metrics.get("file_annotation_metrics"):
@@ -169,9 +166,8 @@ def render_metadata_sidebar(metrics: dict) -> None:
                     key="dl_annotation",
                     use_container_width=True,
                 )
-            except Exception:
-                # PDF export is optional when report generation fails.
-                pass
+            except Exception as e:
+                st.error(f"Could not generate the File Annotation report: {e}")
 
         # 3D Model (if available)
         if metrics.get("model3d_metrics"):
@@ -185,9 +181,8 @@ def render_metadata_sidebar(metrics: dict) -> None:
                     key="dl_3d",
                     use_container_width=True,
                 )
-            except Exception:
-                # PDF export is optional when report generation fails.
-                pass
+            except Exception as e:
+                st.error(f"Could not generate the 3D Model report: {e}")
 
         # Files (if available)
         if metrics.get("file_metrics"):
@@ -201,9 +196,8 @@ def render_metadata_sidebar(metrics: dict) -> None:
                     key="dl_files",
                     use_container_width=True,
                 )
-            except Exception:
-                # PDF export is optional when report generation fails.
-                pass
+            except Exception as e:
+                st.error(f"Could not generate the Files report: {e}")
 
     st.sidebar.markdown("---")
 
@@ -213,13 +207,11 @@ def render_metadata_sidebar(metrics: dict) -> None:
     st.sidebar.title("Metrics Info")
 
     computed_at = metadata.get("computed_at", "Unknown")
-    if computed_at != "Unknown":
-        try:
+    if isinstance(computed_at, str) and computed_at != "Unknown":
+        # Keep the raw value when it is not an ISO timestamp.
+        with contextlib.suppress(ValueError):
             dt = datetime.fromisoformat(computed_at.replace("Z", "+00:00"))
             computed_at = dt.strftime("%Y-%m-%d %H:%M:%S UTC")
-        except Exception:
-            # PDF export is optional when report generation fails.
-            pass
 
     st.sidebar.markdown(f"**Computed At:** {computed_at}")
 

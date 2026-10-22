@@ -2,6 +2,8 @@
 Time Series processing and metrics computation.
 """
 
+import logging
+
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import NodeId, ViewId
 
@@ -11,6 +13,8 @@ from .common import (
     get_props,
     normalize_timestamp,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def process_timeseries_batch(
@@ -69,9 +73,9 @@ def process_timeseries_batch(
                         unit = props_dump.get("unit")
                     if src_unit is None:
                         src_unit = props_dump.get("sourceUnit")
-            except Exception:
-                # Skip unit metadata when instance properties cannot be read.
-                pass
+            except Exception as e:
+                # Unit metadata is optional; skip it when instance properties cannot be read.
+                logger.debug(f"Could not read unit metadata for time series {ts_id}: {e}")
 
         acc.unit_checks += 1
 

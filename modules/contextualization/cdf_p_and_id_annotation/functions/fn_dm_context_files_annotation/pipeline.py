@@ -899,19 +899,18 @@ def write_mapping_to_raw(
 
 
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
+    # The database and table may already exist when the pipeline is re-run (400 or 409).
+    # Any other API error, such as missing access, is raised.
     try:
         client.raw.databases.create(raw_db)
-    except Exception:
-        # Database may already exist when the pipeline is re-run.
-        # Expected failure; continue without affecting the caller.
-        pass
-
+    except CogniteAPIError as e:
+        if e.code not in (400, 409):
+            raise
     try:
         client.raw.tables.create(raw_db, tbl)
-    except Exception:
-        # Table may already exist when the pipeline is re-run.
-        # Expected failure; continue without affecting the caller.
-        pass
+    except CogniteAPIError as e:
+        if e.code not in (400, 409):
+            raise
 
 
 def delete_table(client: CogniteClient, db: str, tbl: str) -> None:

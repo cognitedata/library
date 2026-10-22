@@ -47,10 +47,6 @@ select = ["E", "F", "I", "B", "UP", "S", "RUF", "C4", "SIM"]
 ignore = [
     "E501",  # line too long — address per-file as needed
     "E701",  # multiple statements on one line (colon)
-    # Incremental adoption — remove as violations are fixed:
-    "S110",  # best-effort side effects in handlers (must not fail the handler)
-    "SIM105",  # stylistic; contextlib.suppress vs try/except/pass
-    "S112",  # try-except-continue in batch processing loops
 ]
 
 [tool.ruff.lint.per-file-ignores]

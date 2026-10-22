@@ -1,5 +1,6 @@
 """Best-effort deployment-pack usage reporting."""
 
+import contextlib
 import threading
 
 from cognite.client import CogniteClient
@@ -18,7 +19,8 @@ def report_usage(client: CogniteClient) -> None:
         distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
 
         def send() -> None:
-            try:
+            # Usage tracking is best-effort; must not affect the handler.
+            with contextlib.suppress(Exception):
                 mixpanel.track(
                     distinct_id,
                     "fn-handle",
@@ -31,11 +33,8 @@ def report_usage(client: CogniteClient) -> None:
                         "cdf_project": client.config.project,
                     },
                 )
-            except Exception:
-                # Usage tracking is best-effort; must not affect the handler.
-                pass
 
         threading.Thread(target=send, daemon=True).start()
-    except Exception:
+    except Exception:  # noqa: S110
         # Usage tracking is best-effort; must not affect the handler.
         pass

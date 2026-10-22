@@ -155,19 +155,11 @@ class DataFetcher:
         def _apply_normalized_status(df: pd.DataFrame) -> None:
             df[norm_col] = df.apply(DataProcessor.derive_normalized_status, axis=1)
 
-        try:
-            if actual_df is not None and not actual_df.empty:
-                _apply_normalized_status(actual_df)
-        except Exception:
-            # Optional filter step; continue when column metadata is unavailable.
-            pass
+        if actual_df is not None and not actual_df.empty:
+            _apply_normalized_status(actual_df)
 
-        try:
-            if potential_df is not None and not potential_df.empty:
-                _apply_normalized_status(potential_df)
-        except Exception:
-            # Optional filter step; continue when column metadata is unavailable.
-            pass
+        if potential_df is not None and not potential_df.empty:
+            _apply_normalized_status(potential_df)
 
         return AnnotationFrames(actual_df=actual_df, potential_df=potential_df)
 
