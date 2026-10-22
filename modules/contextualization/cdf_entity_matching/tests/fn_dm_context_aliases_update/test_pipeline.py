@@ -2,6 +2,7 @@
 
 import sys
 import unittest
+from contextlib import AbstractContextManager
 from pathlib import Path
 from unittest.mock import DEFAULT, MagicMock, patch
 
@@ -378,7 +379,9 @@ class TestPipelineHelpers(unittest.TestCase):
         config = self._config(run_all=False, update_all=False)
         self.assertIn("incremental", pipeline.describe_processing_mode(config))
 
-    def _patched_state(self, stored_cursor: str | None = None, full_read_in_progress: bool = False):
+    def _patched_state(
+        self, stored_cursor: str | None = None, full_read_in_progress: bool = False
+    ) -> AbstractContextManager[dict[str, MagicMock]]:
         stored = alias_sync.SyncState(stored_cursor, ALIAS_PAGE_SIZE, full_read_in_progress)
         return patch.multiple(pipeline, read_sync_state=MagicMock(return_value=stored), write_sync_state=DEFAULT)
 
