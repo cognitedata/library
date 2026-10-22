@@ -25,7 +25,6 @@ class ViewPropertyConfig:
         return ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
 
 
-@dataclass
 class AnnotationStatus(StrEnum):
     APPROVED = "Approved"
     SUGGESTED = "Suggested"

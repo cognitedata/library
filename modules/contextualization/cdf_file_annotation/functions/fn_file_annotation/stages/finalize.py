@@ -57,7 +57,7 @@ def handle(data: dict[str, object], function_call_info: dict[str, object], clien
             format_finalize_config(config_instance, stage_input.extraction_pipeline_ext_id), section="START"
         )
         # NOTE: Random delay to stagger API requests and avoid empty results under high concurrency.
-        delay = random.uniform(0.1, 1.0)
+        delay = random.uniform(0.1, 1.0)  # noqa: S311
         time.sleep(delay)
         while datetime.now(UTC) - start_time < timedelta(minutes=FUNCTION_TIME_BUDGET_MINUTES):
             logger_instance.start_run()

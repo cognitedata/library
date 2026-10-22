@@ -1,9 +1,11 @@
+from typing import ClassVar
+
 from constants import FieldNames
 from data_structures import CallerType, FunctionRunConfig
 
 
 class FunctionRunConfigRegistry:
-    _CONFIGS: list[FunctionRunConfig] = [
+    _CONFIGS: ClassVar[list[FunctionRunConfig]] = [
         FunctionRunConfig(
             caller_type=CallerType.LAUNCH,
             function_id_field=FieldNames.LAUNCH_FUNCTION_ID_CAMEL_CASE,
