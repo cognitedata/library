@@ -85,3 +85,23 @@ capabilities:
             - {{ annotationSchemaSpace }}
             - {{ assetInstanceSpace }}
             - {{ fileInstanceSpace }}
+  # The tagging transformations update asset/file nodes; the function writes and
+  # cleans annotation edges in the file instance space
+  - dataModelInstancesAcl:
+      actions:
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ assetInstanceSpace }}
+            - {{ fileInstanceSpace }}
+  # The function's state store and doc_tag/doc_doc tables
+  - rawAcl:
+      actions:
+        - READ
+        - WRITE
+        - LIST
+      scope:
+        tableScope:
+          dbsToTables:
+            ds_files_{{location_name}}_{{source_name}}: []
