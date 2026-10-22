@@ -46,6 +46,7 @@ from pipeline import (
     STAT_STORE_VALUE,
     _truncate,
     create_annotation_id,
+    create_table,
     get_all_entities,
     get_new_files,
     push_result_to_annotations,
@@ -524,3 +525,26 @@ class TestPushResultToAnnotations:
         passed_nodes = mock_delete.call_args.args[3]
         assert len(passed_nodes) == 2
         assert {n.external_id for n in passed_nodes} == {"f1", "f2"}
+
+
+# --------------------------------------------------------------------------- #
+# create_table                                                                #
+# --------------------------------------------------------------------------- #
+
+
+class TestCreateTable:
+    def test_existing_database_and_table_are_not_an_error(self) -> None:
+        client = MagicMock()
+        client.raw.databases.create.side_effect = CogniteAPIError("already created", code=400)
+        client.raw.tables.create.side_effect = CogniteAPIError("already created", code=400)
+
+        create_table(client, "db", "tbl")
+
+        client.raw.tables.create.assert_called_once_with("db", "tbl")
+
+    def test_unexpected_errors_are_raised(self) -> None:
+        client = MagicMock()
+        client.raw.databases.create.side_effect = ConnectionError("network down")
+
+        with pytest.raises(ConnectionError):
+            create_table(client, "db", "tbl")

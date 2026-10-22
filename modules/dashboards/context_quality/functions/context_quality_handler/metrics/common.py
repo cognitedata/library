@@ -2,6 +2,7 @@
 Common utilities, data classes, and accumulator for metrics computation.
 """
 
+import contextlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
@@ -534,11 +535,9 @@ class CombinedAccumulator:
         # Parse timestamp
         now_str = data.get("now")
         if now_str:
-            try:
+            # Ignore malformed timestamps from persisted batch data.
+            with contextlib.suppress(ValueError):
                 acc.now = datetime.fromisoformat(now_str)
-            except ValueError:
-                # Ignore malformed timestamps from persisted batch data.
-                pass
 
         # Time Series Data
         acc.assets_with_ts = set(data.get("assets_with_ts", []))

@@ -8,12 +8,14 @@ Supports both single-run mode and batch processing mode:
               delete_batch_files() cleans up after aggregation
 """
 
+import contextlib
 import json
 import logging
 import os
 import tempfile
 
 from cognite.client import CogniteClient
+from cognite.client.exceptions import CogniteAPIError
 
 from .common import BATCH_FILE_PREFIX, CombinedAccumulator
 from .file_annotation import FileAnnotationAccumulator
@@ -41,11 +43,8 @@ def save_metrics_to_file(
     )
 
     # Clean up temp file
-    try:
+    with contextlib.suppress(OSError):
         os.remove(temp_path)
-    except Exception:
-        # Metric collection is best-effort for optional storage checks.
-        pass
 
     logger.info(f"📁 Saved metrics to Cognite Files: {file_external_id}")
 
@@ -104,11 +103,8 @@ def save_batch_file(
     )
 
     # Clean up temp file
-    try:
+    with contextlib.suppress(OSError):
         os.remove(temp_path)
-    except Exception:
-        # Metric collection is best-effort for optional storage checks.
-        pass
 
     logger.info(f"📁 Saved batch file: {file_external_id}")
 
@@ -138,9 +134,9 @@ def list_batch_files(client: CogniteClient, max_batches: int = 20) -> list[str]:
             if file_metadata:
                 batch_files.append(ext_id)
                 logger.info(f"Found batch file: {ext_id}")
-        except Exception:
-            # File doesn't exist - stop checking (batches are sequential)
-            # But continue checking a few more in case of gaps
+        except CogniteAPIError as e:
+            # retrieve() returns None for a missing file, so this is a real API error.
+            logger.warning(f"Could not check batch file {ext_id}: {e}")
             continue
 
     logger.info(f"Found {len(batch_files)} batch files")
