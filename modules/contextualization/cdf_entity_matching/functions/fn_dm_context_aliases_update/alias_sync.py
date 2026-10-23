@@ -185,8 +185,11 @@ def _sync_page(
         query = Query(
             with_={ITEMS_QUERY_NAME: NodeResultSetExpression(filter=sync_filter(view_config), limit=batch_size)},
             select={ITEMS_QUERY_NAME: Select([SourceSelector(view_config.as_view_id(), ALIAS_SOURCE_PROPERTIES)])},
-            cursors={ITEMS_QUERY_NAME: cursor},
+            cursors={ITEMS_QUERY_NAME: cursor} if cursor else None,
         )
+        if not cursor:
+            # Query fills in {name: None} when cursors is omitted, and that serializes as null.
+            query.cursors = None
         try:
             return client.data_modeling.instances.sync(query), batch_size
         # Deliberately broad: `is_retryable` decides what is worth another attempt, and

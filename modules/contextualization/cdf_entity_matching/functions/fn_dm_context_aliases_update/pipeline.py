@@ -91,6 +91,7 @@ def metadata_update(client: CogniteClient, logger: CogniteFunctionLogger, data: 
             )
             batch_processor = BatchProcessor()
 
+        mode = describe_processing_mode(config)
         passes = (
             ("Timeseries", "timeseriesView", job.timeseries_view, _process_timeseries_optimized),
             ("Asset", "assetView", job.asset_view, _process_assets_optimized),
@@ -103,9 +104,9 @@ def metadata_update(client: CogniteClient, logger: CogniteFunctionLogger, data: 
             with time_operation(f"{label} processing", logger):
                 updates = process(client, logger, config, metadata_processor, batch_processor)
                 if updates > 0:
-                    msg = f"{label} metadata finished — {updates} instance(s) updated ({describe_processing_mode(config)})"
+                    msg = f"{label} metadata finished — {updates} instance(s) updated ({mode})"
                 else:
-                    msg = f"{label} metadata finished — no updates required ({describe_processing_mode(config)})"
+                    msg = f"{label} metadata finished — no updates required ({mode})"
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
 
         if all(view is None for _, _, view, _ in passes):

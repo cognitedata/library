@@ -312,7 +312,7 @@ class TestPipelineHelpers(unittest.TestCase):
 
         self.assertEqual(len(pages), 1)
         retried = client.data_modeling.instances.sync.call_args.args[0]
-        self.assertEqual(retried.cursors, {"items": None})
+        self.assertIsNone(retried.cursors)
 
     def test_a_server_error_is_retried(self) -> None:
         """A 5xx is transient, so the next attempt stands a chance of succeeding."""
@@ -371,6 +371,8 @@ class TestPipelineHelpers(unittest.TestCase):
 
         self.assertEqual([len(page) for page, _ in pages], [ALIAS_PAGE_SIZE, 1])
         self.assertEqual(pages[-1][1].cursor, "c2")
+        first_query = client.data_modeling.instances.sync.call_args_list[0].args[0]
+        self.assertIsNone(first_query.cursors)
         second_query = client.data_modeling.instances.sync.call_args_list[1].args[0]
         self.assertEqual(second_query.cursors, {"items": "c1"})
 
