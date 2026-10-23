@@ -78,62 +78,44 @@ def metadata_update(client: CogniteClient, logger: CogniteFunctionLogger, data: 
                 "every alias with freshly produced values"
             )
 
+        job = config.data.job
         # Process configuration
         with time_operation("Configuration processing", logger):
             # Initialize processors. BatchProcessor keeps its own write batch size,
             # independent of the read page size.
-            file_view = config.data.job.file_view
             metadata_processor = OptimizedMetadataProcessor(
                 logger,
-                alias_rule(config.data.job.timeseries_view),
-                alias_rule(config.data.job.asset_view),
-                alias_rule(file_view),
+                alias_rule(job.timeseries_view),
+                alias_rule(job.asset_view),
+                alias_rule(job.file_view),
             )
             batch_processor = BatchProcessor()
 
-        # Process timeseries
-        with time_operation("Timeseries processing", logger):
-            ts_updates = _process_timeseries_optimized(client, logger, config, metadata_processor, batch_processor)
-
-            if ts_updates > 0:
-                msg = (
-                    f"Timeseries metadata finished — {ts_updates} instance(s) updated "
-                    f"({describe_processing_mode(config)})"
-                )
-                update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-            else:
-                msg = f"Timeseries metadata finished — no updates required ({describe_processing_mode(config)})"
-                update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-
-        # Process assets
-        with time_operation("Asset processing", logger):
-            asset_updates = _process_assets_optimized(client, logger, config, metadata_processor, batch_processor)
-
-            if asset_updates > 0:
-                msg = (
-                    f"Asset metadata finished — {asset_updates} instance(s) updated "
-                    f"({describe_processing_mode(config)})"
-                )
-                update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-            else:
-                msg = f"Asset metadata finished — no updates required ({describe_processing_mode(config)})"
-                update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-
-        # Process files, when a fileView is configured
-        if file_view:
-            with time_operation("File processing", logger):
-                file_updates = _process_files_optimized(client, logger, config, metadata_processor, batch_processor)
-
-                if file_updates > 0:
-                    msg = (
-                        f"File metadata finished — {file_updates} instance(s) updated "
-                        f"({describe_processing_mode(config)})"
-                    )
+        passes = (
+            ("Timeseries", "timeseriesView", job.timeseries_view, _process_timeseries_optimized),
+            ("Asset", "assetView", job.asset_view, _process_assets_optimized),
+            ("File", "fileView", job.file_view, _process_files_optimized),
+        )
+        for label, config_key, view, process in passes:
+            if view is None:
+                logger.info(f"{label} metadata skipped — no {config_key} configured")
+                continue
+            with time_operation(f"{label} processing", logger):
+                updates = process(client, logger, config, metadata_processor, batch_processor)
+                if updates > 0:
+                    msg = f"{label} metadata finished — {updates} instance(s) updated ({describe_processing_mode(config)})"
                 else:
-                    msg = f"File metadata finished — no updates required ({describe_processing_mode(config)})"
+                    msg = f"{label} metadata finished — no updates required ({describe_processing_mode(config)})"
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-        else:
-            logger.info("File metadata skipped — no fileView configured")
+
+        if all(view is None for _, _, view, _ in passes):
+            update_pipeline_run(
+                client,
+                logger,
+                pipeline_ext_id,
+                "success",
+                "Aliases Update finished — no views configured, nothing processed",
+            )
 
         # Log performance statistics
         processor_stats = metadata_processor.get_stats()
@@ -159,12 +141,17 @@ def _process_timeseries_optimized(
     metadata_processor: OptimizedMetadataProcessor,
     batch_processor: BatchProcessor,
 ) -> int:
-    """Process timeseries metadata"""
+    """Process timeseries metadata, when a timeseriesView is configured"""
+    timeseries_view = config.data.job.timeseries_view
+    if timeseries_view is None:
+        logger.info("Timeseries skipped — no timeseriesView configured")
+        return 0
+
     return _process_view(
         client,
         logger,
         config,
-        config.data.job.timeseries_view,
+        timeseries_view,
         TS_NODE,
         metadata_processor.process_timeseries_metadata,
         batch_processor,
@@ -178,12 +165,17 @@ def _process_assets_optimized(
     metadata_processor: OptimizedMetadataProcessor,
     batch_processor: BatchProcessor,
 ) -> int:
-    """Process asset metadata"""
+    """Process asset metadata, when an assetView is configured"""
+    asset_view = config.data.job.asset_view
+    if asset_view is None:
+        logger.info("Assets skipped — no assetView configured")
+        return 0
+
     return _process_view(
         client,
         logger,
         config,
-        config.data.job.asset_view,
+        asset_view,
         ASSET_NODE,
         metadata_processor.process_asset_metadata,
         batch_processor,

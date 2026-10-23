@@ -142,8 +142,10 @@ value list, or no `filterProperty`, reads the whole view.
 `instanceSpace` on each view takes either a single space or a list of spaces. Instances
 are read from every listed space and updated in the space they were read from.
 
-`fileView` is optional. Leave it out and files are skipped — a configuration written
-before file support existed keeps working untouched.
+`timeseriesView`, `assetView` and `fileView` are each optional. Leave one out and that
+type is skipped with a log line — a configuration written before file support existed
+keeps working untouched. With no view configured the run succeeds, reads nothing, and
+reports that on the extraction pipeline.
 
 ### Alias pattern
 
@@ -161,7 +163,8 @@ When no pattern extracts anything from a name, **no alias is produced**. The `al
 property is then written as null, which clears whatever was stored — an empty list would
 leave the old values in place, so `removeOldAliases` would not remove anything. Instances
 that had no aliases to begin with are left untouched. The run logs `No alias extracted based on configured <view> regular expression for name: …` for
-the first ten such names, then counts the rest and reports the total once at the end. A run
+the first ten such names as warnings, logs the rest only at `logLevel: DEBUG`, and reports
+the total once at the end. A run
 full of those warnings means the pattern does not match your names, not that the data is
 wrong.
 

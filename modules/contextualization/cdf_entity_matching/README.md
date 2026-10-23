@@ -157,7 +157,9 @@ aliases while keeping hand-curated ones, and `removeOldAliases` replaces the who
 list. `updateAll` and `removeOldAliases` both imply `runAll`. A write — and an
 "updated" count — happens only when the rebuilt list differs from what is stored.
 
-`fileView` is optional. When it is configured, files get pattern-derived aliases plus
+`timeseriesView`, `assetView` and `fileView` are each optional: only the views present in
+the config are processed, and a view left out is skipped with a log line. With none
+configured the run succeeds without reading anything. When `fileView` is configured, files get pattern-derived aliases plus
 the file name without its final extension, **only when a pattern matches**. A name that
 matches nothing produces no alias. `aliasSelection` does not apply to that stem alias;
 it is always kept when a pattern hit.
@@ -340,7 +342,8 @@ names. Separators inside a captured group (`_`, `.`, `:`) are rewritten to `-` a
 well.
 
 A name no pattern reads produces no alias. It is logged as `No alias extracted based on
-configured <view> regular expression for name: …` (the first ten names, then a total),
+configured <view> regular expression for name: …` (the first ten names as warnings, the
+rest only with `logLevel: DEBUG`, then a total),
 and a run full of those warnings points at the pattern, not the data. When nothing is
 extracted, `aliases` is written as null so a previous list is cleared; an empty list
 would leave the old values in place.

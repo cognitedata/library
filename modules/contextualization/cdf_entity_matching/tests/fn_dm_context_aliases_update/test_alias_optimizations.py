@@ -386,9 +386,16 @@ class TestOptimizedMetadataProcessor(unittest.TestCase):
         """A naming convention no pattern covers must not bury the rest of the run log."""
         processor = OptimizedMetadataProcessor(self.logger, timeseries_alias_rule=AliasRule.from_config([PUMP_PATTERN]))
 
-        with patch.object(self.logger, "warning") as warning:
+        with patch.object(self.logger, "warning") as warning, patch.object(self.logger, "debug") as debug:
             self._process_names_without_alias(processor, 12)
             self.assertEqual(warning.call_count, 10)
+            self.assertEqual(
+                [call.args[0] for call in debug.call_args_list if "No alias extracted" in call.args[0]],
+                [
+                    "No alias extracted based on Configured timeseries regular expression for name: Reactor outlet 10",
+                    "No alias extracted based on Configured timeseries regular expression for name: Reactor outlet 11",
+                ],
+            )
 
             processor.log_missing_alias_summary()
             self.assertIn("12", warning.call_args.args[0])

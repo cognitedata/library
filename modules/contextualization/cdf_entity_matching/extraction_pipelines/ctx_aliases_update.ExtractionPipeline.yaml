@@ -29,9 +29,10 @@ documentation: >
    rawDb - Raw database where status Information is stored
    rawTableState - Raw table to store state related to process, including the sync cursor of each view
 
-   timeseriesView - View to to access time series
-   assetView - View to to access assets
+   timeseriesView - View to to access time series. Optional: remove it to leave time series untouched
+   assetView - View to to access assets. Optional: remove it to leave assets untouched
    fileView - View to to access files. Optional: remove it to leave files untouched
+   With no view configured the run succeeds and processes nothing.
 
    Each view takes:
 

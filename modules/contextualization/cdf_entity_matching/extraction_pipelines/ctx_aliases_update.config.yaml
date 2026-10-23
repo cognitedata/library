@@ -13,6 +13,7 @@ config:
       # 'longest' for only the longest. Both are configured per view.
       # filterProperty and filterValues narrow what is read: only instances whose
       # filterProperty holds one of the values. An empty list reads the whole view.
+      # Optional. Remove this section to leave time series metadata untouched.
       timeseriesView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ timeseriesInstanceSpace }}
@@ -22,6 +23,7 @@ config:
         aliasSelection: {{ timeseriesAliasSelection }}
         filterProperty: {{ viewFilterProperty }}
         filterValues: {{ entityViewFilterValues }}
+      # Optional. Remove this section to leave asset metadata untouched.
       assetView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ assetInstanceSpace }}

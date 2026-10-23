@@ -103,6 +103,48 @@ class TestPipelineHelpers(unittest.TestCase):
         """A config written before file support existed must still load."""
         self.assertIsNone(self._config(run_all=False, update_all=False).data.job.file_view)
 
+    def test_every_view_is_optional(self) -> None:
+        """Only the views present in the config are processed, so each may be left out."""
+        for job in ({"assetView": self.view_config}, {"timeseriesView": self.view_config}, {}):
+            with self.subTest(job=list(job)):
+                config = JobConfig.model_validate(job)
+                self.assertEqual(config.timeseries_view, job.get("timeseriesView"))
+                self.assertEqual(config.asset_view, job.get("assetView"))
+                self.assertIsNone(config.file_view)
+
+    def test_unconfigured_timeseries_and_assets_are_not_read(self) -> None:
+        client = MagicMock()
+        config = self._config(run_all=True, update_all=False)
+        config.data.job.timeseries_view = None
+        config.data.job.asset_view = None
+
+        ts_updates = pipeline._process_timeseries_optimized(client, self.logger, config, MagicMock(), MagicMock())
+        asset_updates = pipeline._process_assets_optimized(client, self.logger, config, MagicMock(), MagicMock())
+
+        self.assertEqual((ts_updates, asset_updates), (0, 0))
+        client.data_modeling.instances.sync.assert_not_called()
+
+    def test_a_run_with_no_views_configured_succeeds_without_reading(self) -> None:
+        client = MagicMock()
+        config = Config(
+            parameters=Parameters(runAll=False, rawDb="db", rawTableState="state"),
+            data=ConfigData(job=JobConfig()),
+        )
+
+        with (
+            patch.object(pipeline, "update_pipeline_run") as report,
+            patch.object(self.logger, "info") as info,
+        ):
+            pipeline.metadata_update(client, self.logger, {"ExtractionPipelineExtId": "ep"}, config)
+
+        client.data_modeling.instances.sync.assert_not_called()
+        report.assert_called_once()
+        self.assertEqual(report.call_args.args[3], "success")
+        self.assertIn("no views configured", report.call_args.args[4])
+        logged = [call.args[0] for call in info.call_args_list]
+        for label in ("Timeseries", "Asset", "File"):
+            self.assertTrue(any(message.startswith(f"{label} metadata skipped") for message in logged), label)
+
     def test_files_are_skipped_when_no_file_view_is_configured(self) -> None:
         """Without a fileView there is nothing to fetch, so no read is issued."""
         client = MagicMock()

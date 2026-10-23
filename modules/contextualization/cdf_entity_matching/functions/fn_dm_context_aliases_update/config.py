@@ -96,10 +96,10 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
 
 
 class JobConfig(BaseModel, alias_generator=to_camel):
-    timeseries_view: ViewPropertyConfig
-    asset_view: ViewPropertyConfig
-    # Optional so a configuration written before file support existed still loads; file
-    # metadata is then skipped rather than failing the run.
+    # Each view is optional: only the configured ones are processed, and a view left out is
+    # skipped rather than failing the run.
+    timeseries_view: ViewPropertyConfig | None = None
+    asset_view: ViewPropertyConfig | None = None
     file_view: ViewPropertyConfig | None = None
 
 
