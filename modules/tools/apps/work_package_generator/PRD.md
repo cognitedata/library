@@ -154,7 +154,7 @@ The app requires the following to be present in the target CDF project:
 
 ### Config node and `app.json`
 
-Per-project settings (views, canvas spaces, resource types, agent, templates, solution tag, limits) live on one CDF config node, `inst_wpg_app_config` / `wpg_config`, deployed by the toolkit module in `toolkit/modules/work_package_generator`. The toolkit folder must be deployed before the app is run or deployed; the app shows a setup screen without the node. There are no in-code defaults. `app.json` holds only app identity and the CLI deployment target; the running app does not read it. The runtime agent id is `{project}_{agent.externalIdSuffix}`, unless `agent.existingAgentExternalId` is set.
+Per-project settings (views, canvas spaces, resource types, agent, templates, solution tag, limits) live on one CDF config node, `inst_wpg_app_config` / `wpg_config`, deployed by this module's Toolkit resources (`agents/`, `data_modeling/`). They must be deployed before the app is run or deployed; the app shows a setup screen without the node. There are no in-code defaults. `app.json` holds only app identity and the CLI deployment target; the running app does not read it. The runtime agent id is `{project}_{agent.externalIdSuffix}`, unless `agent.existingAgentExternalId` is set.
 
 Shipped identifiers:
 

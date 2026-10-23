@@ -157,7 +157,7 @@ As a user, I want the app to authenticate via Fusion and use the current CDF pro
 | `FdmInstanceContainerReference` | `cdf_industrial_canvas` | `v1` | Template slots / canvas items |
 | `CanvasAnnotation` | `cdf_industrial_canvas` | `v1` | Annotations copied onto the new canvas |
 
-Identifiers live on the `wpg_config` node in space `inst_wpg_app_config` (view `WPGConfig` in `dm_sol_wpg_app`). The `toolkit/` folder creates that node and must be deployed before the app is run (`cdf build` and `cdf deploy`). Change that node, through the toolkit module, when a tenant uses different spaces or view versions. The app loads the node at startup, so the JavaScript bundle does not need a rebuild. There are no in-code defaults: a missing node, a 403, or an invalid section shows a setup screen and lists every problem with its path.
+Identifiers live on the `wpg_config` node in space `inst_wpg_app_config` (view `WPGConfig` in `dm_sol_wpg_app`). This module's Toolkit resources (`agents/`, `data_modeling/`) create that node and must be deployed before the app is run (`cdf build` and `cdf deploy`). Change that node, through the Toolkit resources, when a tenant uses different spaces or view versions. The app loads the node at startup, so the JavaScript bundle does not need a rebuild. There are no in-code defaults: a missing node, a 403, or an invalid section shows a setup screen and lists every problem with its path.
 
 ### Spaces written
 

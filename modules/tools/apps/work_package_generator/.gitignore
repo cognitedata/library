@@ -9,6 +9,7 @@ docs
 
 # Environment variables
 .env
+.*.env
 .env.local
 
 # Agent / assistant tooling (local only)

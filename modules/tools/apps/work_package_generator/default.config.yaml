@@ -1,8 +1,9 @@
 # Defaults for the Work Package Generator module.
-# cdf build does not read this file. Copy these values into
-# toolkit/config.<env>.yaml under modules.work_package_generator.
 # Do not rename the fixed identifiers (spaces, WPGConfig_SOL, WPGConfig, wpg_config).
 # The app looks them up by those names.
+
+# CDF project the module is deployed to. Used in the agent external id: {cdf_project}_{wpg_agent_external_id_suffix}.
+cdf_project: <cdf-project>
 
 wpg_config_version: v1
 wpg_cdm_view_version: v1
