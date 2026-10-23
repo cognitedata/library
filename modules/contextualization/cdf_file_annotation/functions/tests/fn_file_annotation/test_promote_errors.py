@@ -1,5 +1,6 @@
 """Promote fails on API errors it cannot recover from and never loses annotations on a failed search."""
 
+import sys
 from unittest.mock import MagicMock
 
 import pytest
@@ -53,7 +54,7 @@ def test_permission_error_on_candidates_is_raised(monkeypatch: pytest.MonkeyPatc
 
 
 def test_transient_error_on_candidates_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
-    import services.promote_service as promote_module
+    promote_module = sys.modules[GeneralPromoteService.__module__]
 
     monkeypatch.setattr(promote_module.time, "sleep", lambda seconds: None)
     service = GeneralPromoteService(MagicMock(), _config(), MagicMock(), MagicMock(), MagicMock(), MagicMock())
