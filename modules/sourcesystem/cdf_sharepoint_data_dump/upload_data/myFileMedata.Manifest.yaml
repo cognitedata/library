@@ -1,13 +1,9 @@
-kind: FileContent
-type: fileDataModelingTemplate
-fileDirectory: ./data
-viewId:
-  space: dm_dom_oil_and_gas
-  externalId: Files
-  version: v1
+kind: CogniteFileContent
+type: CogniteFileTemplate
+fileDirectory: modules/sourcesystem/cdf_sharepoint_data_dump/upload_data/data
+guessMimeType: false
 template:
-  instanceId:
-    space: inst_cfihos_oil_and_gas
-    externalId: file_$FILENAME
+  space: inst_cfihos_oil_and_gas
+  externalId: file_$FILENAME
   name: $FILENAME
   mimeType: application/pdf

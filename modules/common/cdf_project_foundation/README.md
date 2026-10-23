@@ -32,7 +32,7 @@ Both packs include this module (`cdf_project_foundation`) for the persona access
 
 Ensure the following are in place:
 
-- **Cognite Toolkit latest >= 0.8.102** installed. Follow the [setup instructions](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/setup).
+- **Cognite Toolkit latest >= 0.9.0** (`cdf data upload` and the `CogniteFileContent` manifests need 0.9) installed. Follow the [setup instructions](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/setup).
 - A `cdf.toml` exists in your project root. If missing, run `cdf init` and choose **Create toml file (required)**.
 - Authentication configured and verified:
   ```bash

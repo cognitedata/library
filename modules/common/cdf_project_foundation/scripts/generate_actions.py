@@ -1017,7 +1017,7 @@ def main() -> None:
     projects = load_environment_projects(repo_root, org_dir)
     workflows_dir = workflows_output_dir(args.provider, repo_root)
 
-    toolkit_version = cdf.get("modules", {}).get("version", "0.7.220")
+    toolkit_version = cdf.get("modules", {}).get("version", "0.9.15")
     resolve_modules_root(repo_root, org_dir)
 
     setup_check_cmd = setup_project_check_cmd(repo_root, org_dir)

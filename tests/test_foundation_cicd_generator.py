@@ -77,7 +77,7 @@ def test_generate_actions_writes_workflows_and_docs(tmp_path: Path) -> None:
 default_organization_dir = "{org_dir}"
 
 [modules]
-version = "0.7.220"
+version = "0.9.15"
 """.strip(),
         encoding="utf-8",
     )
@@ -126,7 +126,7 @@ environment:
     assert "EXCLUDE='^industrial/modules/(atlas_ai|" in dry_run
     assert "|sourcesystem|tools)/'" in dry_run
     assert "custom" not in dry_run
-    assert "cdf build --env dev" in dry_run
+    assert "cdf build -c industrial/config.dev.yaml" in dry_run
     assert "cdf deploy --dry-run" not in dry_run
     assert "IDP_CLIENT_SECRET" not in dry_run
     assert "environment:" not in dry_run
@@ -138,7 +138,7 @@ environment:
 
     deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(encoding="utf-8")
     assert "name: Deploy to acme-dev" in deploy_dev
-    assert "run: cdf build --env dev" in deploy_dev
+    assert "run: cdf build -c industrial/config.dev.yaml" in deploy_dev
     assert "run: cdf deploy --dry-run" in deploy_dev
     assert "run: cdf deploy" in deploy_dev
     assert "cdf deploy --env" not in deploy_dev
@@ -305,11 +305,11 @@ def test_github_toolkit_jobs_run_in_the_toolkit_container(tmp_path: Path) -> Non
 
 def test_github_toolkit_container_tag_follows_cdf_toml_version(tmp_path: Path) -> None:
     _scaffold_project_with_envs(tmp_path, ("dev",))
-    (tmp_path / "cdf.toml").write_text('[modules]\nversion = "0.7.220"\n', encoding="utf-8")
+    (tmp_path / "cdf.toml").write_text('[modules]\nversion = "0.9.15"\n', encoding="utf-8")
     subprocess.run([sys.executable, str(GENERATE_ACTIONS), "--force"], check=True, cwd=tmp_path)
 
     deploy_dev = (tmp_path / ".github" / "workflows" / "deploy-dev.yml").read_text(encoding="utf-8")
-    assert f"image: cognite/toolkit:0.7.220@{FAKE_DIGEST}" in deploy_dev
+    assert f"image: cognite/toolkit:0.9.15@{FAKE_DIGEST}" in deploy_dev
 
 
 class _FakeResponse(io.BytesIO):
@@ -377,7 +377,7 @@ def test_generate_actions_validates_environment_name(tmp_path: Path) -> None:
     (tmp_path / "cdf.toml").write_text(
         """
 [modules]
-version = "0.7.220"
+version = "0.9.15"
 """.strip(),
         encoding="utf-8",
     )
