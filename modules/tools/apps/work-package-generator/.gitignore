@@ -1,0 +1,39 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+coverage
+reviews
+docs
+
+# Environment variables
+.env
+.env.local
+
+# Agent / assistant tooling (local only)
+.agents/
+.claude/
+.cursor/
+.gemini/
+skills-lock.json
+components.json
+knip.json
+
+# Editor directories
+.vscode
+.idea
+.cursor
+
+# Logs & caches
+*.log
+.cache/
+.vite/
+
+# Local archives / exports
+*.zip
+
+# OS files
+.DS_Store
+Thumbs.db
+

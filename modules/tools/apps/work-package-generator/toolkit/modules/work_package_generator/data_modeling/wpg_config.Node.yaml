@@ -1,0 +1,105 @@
+space: inst_wpg_app_config
+externalId: wpg_config
+sources:
+  - source:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      version: "{{ wpg_config_version }}"
+      type: view
+    properties:
+      schemaVersion: 1
+      name: "Work Package Generator"
+      description: "A tool to easily create, manage, and customize work packages in canvas for team projects."
+      dataModel:
+        views:
+          asset:
+            space: cdf_cdm
+            externalId: CogniteAsset
+            version: "{{ wpg_cdm_view_version }}"
+          equipment:
+            space: cdf_cdm
+            externalId: CogniteEquipment
+            version: "{{ wpg_cdm_view_version }}"
+          activity:
+            space: cdf_cdm
+            externalId: CogniteActivity
+            version: "{{ wpg_cdm_view_version }}"
+          timeSeries:
+            space: cdf_cdm
+            externalId: CogniteTimeSeries
+            version: "{{ wpg_cdm_view_version }}"
+          file:
+            space: cdf_cdm
+            externalId: CogniteFile
+            version: "{{ wpg_cdm_view_version }}"
+          solutionTag:
+            space: cdf_apps_shared
+            externalId: CogniteSolutionTag
+            version: "{{ wpg_solution_tag_view_version }}"
+        activityContainer:
+          space: cdf_cdm
+          externalId: CogniteActivity
+      canvas:
+        schemaSpace: cdf_industrial_canvas
+        instanceSpace: "{{ wpg_canvas_instance_space }}"
+        canvasView:
+          space: cdf_industrial_canvas
+          externalId: Canvas
+          version: "{{ wpg_canvas_view_version }}"
+        instanceView:
+          space: cdf_industrial_canvas
+          externalId: FdmInstanceContainerReference
+          version: "{{ wpg_canvas_view_version }}"
+        annotationView:
+          space: cdf_industrial_canvas
+          externalId: CanvasAnnotation
+          version: "{{ wpg_canvas_view_version }}"
+        dimensions:
+          x: 0
+          y: 0
+          width: 600
+          height: 400
+          maxWidth: 1200
+          maxHeight: 1200
+        userId: work-package-generator
+        visibility: public
+        style:
+          backgroundColor: "#fff59d"
+          color: "#333333"
+          borderColor: "rgba(83, 88, 127, 0.24)"
+          borderWidth: 2
+          borderRadius: 4
+      resourceTypes: {"activity":{"displayName":"Activities","view":"activity","properties":["name","description","externalId"],"assetRelationProperty":"assets","assetRelationIsArray":true},"asset":{"displayName":"Assets","view":"asset","properties":["name","description","externalId"],"assetRelationProperty":"parent","assetRelationIsArray":false},"equipment":{"displayName":"Equipment","view":"equipment","properties":["name","description","externalId"],"assetRelationProperty":"asset","assetRelationIsArray":false},"file":{"displayName":"Files","view":"file","properties":["name","description","externalId"],"assetRelationProperty":"assets","assetRelationIsArray":true},"timeseries":{"displayName":"Time Series","view":"timeSeries","properties":["name","description","externalId"],"assetRelationProperty":"assets","assetRelationIsArray":true,"activityContainerIdentifier":"timeSeries"}}
+      context: {"workOrder":{"properties":["name","description","type","status","priority","category","workOrderType","maintenanceType","scheduledStartTime","scheduledEndTime","estimatedDuration","actualStartTime","actualEndTime","workOrderNumber","requester","assignedTo","location","equipment","system","frequency","criticality"]},"asset":{"properties":["name","description","type","category","subcategory","assetType","criticality","status","location","parentAsset","parentAssetExternalId","hierarchy","specifications","manufacturer","model","serialNumber","installationDate","operatingConditions","capacity","powerRating","pressureRating","temperatureRating","flowRate","dimensions","weight","material","system","process","area","zone","building","floor","room"]}}
+      agent:
+        model: "{{ wpg_agent_model }}"
+        runtimeVersion: "{{ wpg_agent_runtime_version }}"
+        externalIdSuffix: "{{ wpg_agent_external_id_suffix }}"
+        name: "{{ wpg_agent_name }}"
+        description: "{{ wpg_agent_description }}"
+        instructions: ""
+        tools: []
+      templates: {"namePrefix":"template","baseTemplate":{"id":"__base_all_resources__","name":"All Resources","visibility":"public","space":"local"}}
+      solutionTag:
+        instanceSpace: "{{ wpg_solution_tag_instance_space }}"
+        externalId: wpg-work-package
+        name: "Work Package"
+      limits:
+        instancePageSize: {{ wpg_limits_instance_page_size }}
+        upsertBatchSize: {{ wpg_limits_upsert_batch_size }}
+        deleteBatchSize: {{ wpg_limits_delete_batch_size }}
+        searchResultLimit: {{ wpg_limits_search_result_limit }}
+        resourcesDisplayLimit: {{ wpg_limits_resources_display_limit }}
+        maxCanvasListScanItems: {{ wpg_limits_max_canvas_list_scan_items }}
+        maxResourceInstancesTotal: {{ wpg_limits_max_resource_instances_total }}
+        maxTemplateCanvasChildItems: {{ wpg_limits_max_template_canvas_child_items }}
+        maxCanvasCleanupItems: {{ wpg_limits_max_canvas_cleanup_items }}
+        findCanvasByNameMaxItems: {{ wpg_limits_find_canvas_by_name_max_items }}
+      cluster: {"apiHostSuffix":"cognitedata.com","hostAliases":{"api.cognitedata.com":"api"}}
+      fusion:
+        hostSuffix: ".fusion.cognite.com"
+        canvasWorkspace: industrial-tools
+        fallbackOrganization: "{{ wpg_fusion_fallback_organization }}"
+      workOrderProperties: {"name":"name","description":"description","type":"type","status":"status","priority":"priority","scheduledStartTime":"scheduledStartTime","scheduledEndTime":"scheduledEndTime","workOrderNumber":"workOrderNumber","sourceId":"sourceId","assets":"assets"}
+      prompts: {"resourceSelection":"{{workOrderSection}}\n\n{{assetSection}}\n\nTASK: Select the best {{resourceName}} for the label \"{{label}}\" from the available options.\n\nThe label \"{{label}}\" indicates what type of {{resourceName}} is needed for this specific work order and asset combination.\n\nSELECTION CRITERIA:\n- The label \"{{label}}\" indicates what type of {{resourceType}} is needed\n- Consider how the {{resourceType}} relates to the work order and asset context\n- Look for the most relevant {{resourceType}} for this specific work order on this asset\n\nAVAILABLE {{resourceNameUpper}}:\n{{optionsText}}\n\nYou MUST respond with ONLY the external ID of the best matching {{resourceName}}. Do not include any explanation or additional text.\nIf none of the available {{resourceName}}s are good matches, respond with an empty response.","templateSelection":"WORK ORDER CONTEXT:\n- Name: {{workOrderName}}\n- Type: {{workOrderType}}\n- Description: {{workOrderDescription}}\n\nASSET CONTEXT:\n- Name: {{assetName}}\n- Type: {{assetType}}\n- Description: {{assetDescription}}\n\nAVAILABLE RESOURCES:\n{{resourcesSection}}\n\nAVAILABLE TEMPLATE CANVASES:{{canvasSection}}\n\nTASK: Select the best template canvas for this work order, or decline if none fit. Consider:\n1. How well the canvas name matches the work order type/purpose\n2. Whether the available resources can fulfill the template's requirements\n3. The overall fit between the work order context and the template's expected resources\n\nIf none of the templates are a good fit for this work order, respond with NONE. A generic all-resources layout will be used instead.\n\nRespond with ONLY the canvas ID (external_id) of your selection, or NONE, nothing else."}
+      ui: {"workOrderStatusOptions":["Active","Planned","In Progress","On Hold","Completed","Cancelled"],"workOrderPriorityOptions":["Critical","High","Medium","Low"],"templateInstructionExamples":{"workOrderId":"WorkOrder - 4672741","functionalLocationId":"CXR-PTU-17X829"},"terms":{"workOrder":"Work Order","workPackage":"Work Package","functionalLocation":"Functional Location"},"stepperLabels":["Work Order","Template","Resources","Selections","Create"]}

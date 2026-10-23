@@ -1,0 +1,13 @@
+# Local credentials — never commit
+.env
+
+# Toolkit build output
+build/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Toolkit caches / logs
+.cognite-toolkit/
+*.log
