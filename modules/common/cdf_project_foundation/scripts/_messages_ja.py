@@ -177,6 +177,6 @@ MESSAGES_JA: dict[str, str] = {
     "  These contacts will not be notified on pipeline failure. Run: python scripts/setup_project.py -y": "  これらの連絡先にはパイプライン失敗時の通知が送信されません。実行: python scripts/setup_project.py -y",
     "ERROR: CDM instance space file missing for variant '{variant}':": "エラー: データモデル '{variant}' の CDM インスタンス用 space定義ファイルが見つかりません:",
     "ERROR: Redundant diagram-annotation file(s) still present (superseded by cdf_file_annotation):": "エラー: 不要な diagram-annotation ファイルが残っています（cdf_file_annotation に置き換えられています）:",
-    "Could not locate template.instanceId.space in {module}/upload_data/{name}": "{module}/upload_data/{name} に template.instanceId.space が見つかりません",
+    "Could not locate template.space in {module}/upload_data/{name}": "{module}/upload_data/{name} に template.space が見つかりません",
     "{n} upload_data file(s) patched with the current instance space (edited in place — re-run the wizard after updating a module).": "{n} 件の upload_data ファイルを現在のインスタンス space で修正しました（直接編集 — モジュール更新後はウィザードを再実行してください）。",
 }

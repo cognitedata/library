@@ -238,9 +238,9 @@ modules
    ```
    then:
    ```bash
-   cdf data upload dir modules/sourcesystem/cdf_sharepoint_data_dump/upload_data
-   cdf data upload dir modules/sourcesystem/cdf_sap_data_dump/upload_data
-   cdf data upload dir modules/sourcesystem/cdf_pi_data_dump/upload_data
+   cdf data upload dir modules/sourcesystem/cdf_sharepoint_data_dump/upload_data --cdf-project <cdf-project>
+   cdf data upload dir modules/sourcesystem/cdf_sap_data_dump/upload_data --cdf-project <cdf-project>
+   cdf data upload dir modules/sourcesystem/cdf_pi_data_dump/upload_data --cdf-project <cdf-project>
    ```
    Prepend your organization directory name if `modules/` sits under one.
 3. Trigger `ingestion` workflow through CDF UI

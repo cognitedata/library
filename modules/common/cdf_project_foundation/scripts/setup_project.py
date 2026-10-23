@@ -53,6 +53,7 @@ from _prompts import prompt, prompt_choice, prompt_env_var, prompt_yes_no
 from _style import _banner, _hint, _ok, _section, _warn
 from _yaml_patch import delete_key as _yaml_delete_key
 from _yaml_patch import find_line as _yaml_find_line
+from _yaml_patch import get_value as _yaml_get_value
 from _yaml_patch import insert_key as _yaml_insert_key
 from _yaml_patch import set_value as _yaml_set_value
 
@@ -898,13 +899,16 @@ def patch_data_dump_upload_data_spaces(variant: str, site: str, repo_root: Path 
     ``cdf data upload`` — they are never passed through ``cdf build``, so Toolkit
     ``{{ variable }}`` substitution never applies to them. The space has to be a
     literal value, kept in sync with ``instance_space`` by this wizard instead (see
-    ``_cfihos_instance_space``). Patches ``template.instanceId.space`` in
-    ``FileContent`` manifests and the space columns of RAW CSVs; a ``FileContent``
-    manifest whose space cannot be located is reported with a warning.
+    ``_cfihos_instance_space``). Patches ``template.space`` in ``CogniteFileContent``
+    manifests and the space columns of RAW CSVs. ``fileDirectory`` is resolved from the
+    directory ``cdf data upload`` runs in, so it is prefixed with the organization
+    directory from ``cdf.toml`` when one is set. A ``CogniteFileContent`` manifest whose
+    space cannot be located is reported with a warning.
     """
     if variant != "cfihos_oil_and_gas_extension":
         return []
     instance_space = _cfihos_instance_space(site)
+    org_dir = get_org_dir_name(repo_root)
     sourcesystem_dir = get_sourcesystem_dir(repo_root)
     patched: list[Path] = []
     for module in list_installed_demo_source_system_modules(repo_root):
@@ -913,12 +917,17 @@ def patch_data_dump_upload_data_spaces(variant: str, site: str, repo_root: Path 
             continue
         for manifest in sorted(upload_dir.glob("*.Manifest.yaml")):
             lines = manifest.read_text().splitlines(keepends=True)
-            if not any(line.strip() == "kind: FileContent" for line in lines):
+            if not any(line.strip() == "kind: CogniteFileContent" for line in lines):
                 continue
-            old, changed = _yaml_set_value(lines, "template.instanceId.space", instance_space)
+            old, changed = _yaml_set_value(lines, "template.space", instance_space)
+            if org_dir:
+                directory = _yaml_get_value(lines, "fileDirectory")
+                if directory and not directory.startswith(f"{org_dir}/"):
+                    _, dir_changed = _yaml_set_value(lines, "fileDirectory", f"{org_dir}/{directory}")
+                    changed = changed or dir_changed
             if old is None:
                 _warn(
-                    t("Could not locate template.instanceId.space in {module}/upload_data/{name}").format(
+                    t("Could not locate template.space in {module}/upload_data/{name}").format(
                         module=module, name=manifest.name
                     )
                 )

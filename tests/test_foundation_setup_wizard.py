@@ -1531,22 +1531,18 @@ class TestPatchDataDumpUploadDataSpaces:
     placeholders are never substituted and the space has to be a literal value
     the wizard keeps in sync with the site."""
 
-    def _manifest(self, tmp_path: Path, module: str, name: str, space: str) -> Path:
-        upload_dir = tmp_path / "modules" / "sourcesystem" / module / "upload_data"
+    def _manifest(self, tmp_path: Path, module: str, name: str, space: str, org_dir: str = "") -> Path:
+        upload_dir = tmp_path / org_dir / "modules" / "sourcesystem" / module / "upload_data"
         upload_dir.mkdir(parents=True)
         manifest = upload_dir / name
         manifest.write_text(
-            "kind: FileContent\n"
-            "type: fileDataModelingTemplate\n"
-            "fileDirectory: ./data\n"
-            "viewId:\n"
-            "  space: dm_dom_oil_and_gas\n"
-            "  externalId: Files\n"
-            "  version: v1\n"
+            "kind: CogniteFileContent\n"
+            "type: CogniteFileTemplate\n"
+            f"fileDirectory: modules/sourcesystem/{module}/upload_data/data\n"
+            "guessMimeType: false\n"
             "template:\n"
-            "  instanceId:\n"
-            f"    space: {space}\n"
-            "    externalId: file_$FILENAME\n"
+            f"  space: {space}\n"
+            "  externalId: file_$FILENAME\n"
             "  name: $FILENAME\n"
             "  mimeType: application/pdf\n"
         )
@@ -1562,14 +1558,35 @@ class TestPatchDataDumpUploadDataSpaces:
         assert patched == [manifest]
         assert "space: inst_oslo_cfihos_oil_and_gas" in manifest.read_text()
 
-    def test_warns_when_filecontent_manifest_space_not_found(
+    def test_prefixes_file_directory_with_org_dir(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        (tmp_path / "cdf.toml").write_text('[cdf]\ndefault_organization_dir = "my_org"\n')
+        manifest = self._manifest(
+            tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_oslo_cfihos_oil_and_gas", "my_org"
+        )
+        expected = "fileDirectory: my_org/modules/sourcesystem/cdf_sharepoint_data_dump/upload_data/data"
+        assert patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path) == [manifest]
+        assert expected in manifest.read_text()
+        assert patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path) == []
+
+    def test_leaves_file_directory_without_org_dir(self, tmp_path: Path) -> None:
+        from setup_project import patch_data_dump_upload_data_spaces
+
+        manifest = self._manifest(
+            tmp_path, "cdf_sharepoint_data_dump", "myFileMedata.Manifest.yaml", "inst_cfihos_oil_and_gas"
+        )
+        patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
+        assert "fileDirectory: modules/sourcesystem/cdf_sharepoint_data_dump/upload_data/data\n" in manifest.read_text()
+
+    def test_warns_when_cognitefilecontent_manifest_space_not_found(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         from setup_project import patch_data_dump_upload_data_spaces
 
         upload_dir = tmp_path / "modules" / "sourcesystem" / "cdf_sharepoint_data_dump" / "upload_data"
         upload_dir.mkdir(parents=True)
-        (upload_dir / "a.Manifest.yaml").write_text("kind: FileContent\ntemplate:\n  instanceId: {space: x}\n")
+        (upload_dir / "a.Manifest.yaml").write_text("kind: CogniteFileContent\ntemplate:\n  name: x\n")
         (upload_dir / "b.Manifest.yaml").write_text("kind: RawRows\ntable:\n  dbName: db\n")
         patched = patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
         out = capsys.readouterr().out
@@ -1577,7 +1594,7 @@ class TestPatchDataDumpUploadDataSpaces:
         assert "a.Manifest.yaml" in out
         assert "b.Manifest.yaml" not in out
 
-    def test_warns_in_japanese_when_filecontent_manifest_space_not_found(
+    def test_warns_in_japanese_when_cognitefilecontent_manifest_space_not_found(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
     ) -> None:
         import _i18n
@@ -1586,9 +1603,9 @@ class TestPatchDataDumpUploadDataSpaces:
         monkeypatch.setattr(_i18n, "_locale", "ja")
         upload_dir = tmp_path / "modules" / "sourcesystem" / "cdf_sharepoint_data_dump" / "upload_data"
         upload_dir.mkdir(parents=True)
-        (upload_dir / "a.Manifest.yaml").write_text("kind: FileContent\ntemplate:\n  instanceId: {space: x}\n")
+        (upload_dir / "a.Manifest.yaml").write_text("kind: CogniteFileContent\ntemplate:\n  name: x\n")
         patch_data_dump_upload_data_spaces("cfihos_oil_and_gas_extension", "oslo", tmp_path)
-        assert "a.Manifest.yaml に template.instanceId.space が見つかりません" in capsys.readouterr().out
+        assert "a.Manifest.yaml に template.space が見つかりません" in capsys.readouterr().out
 
     def test_done_summary_in_japanese_when_upload_data_patched(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
