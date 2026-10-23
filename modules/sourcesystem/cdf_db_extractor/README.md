@@ -124,7 +124,8 @@ authoring the downstream transformation from RAW into a data model.
 ### Deploy
 
 ```bash
-cdf deploy modules/sourcesystem/cdf_db_extractor --env your-environment
+cdf build -c config.your-environment.yaml
+cdf deploy
 ```
 
 ### Configure and run the extractor
@@ -171,3 +172,7 @@ removed capabilities.
 ### Verify
 
 Check that the configured RAW table(s) under `raw_asset_{{location}}_{{sourceSystem}}` are populated in CDF Data Explorer.
+
+## Changelog
+
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.

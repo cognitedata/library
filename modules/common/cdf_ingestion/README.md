@@ -208,7 +208,8 @@ variables:
 
 ```bash
 # Deploy using CDF Toolkit
-cdf deploy --env your-environment
+cdf build -c config.your-environment.yaml
+cdf deploy
 
 # Or deploy individual components
 cdf auth deploy
@@ -326,3 +327,7 @@ The workflow references transformations by external ID - ensure they exist befor
 ## 📄 License
 
 This module is part of the [Cognite library](https://github.com/cognitedata/library) repository and follows the same licensing terms.
+
+## Changelog
+
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.

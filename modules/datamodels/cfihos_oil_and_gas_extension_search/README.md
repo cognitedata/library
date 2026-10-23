@@ -87,8 +87,12 @@ The 18 CFIHOS class containers in the enterprise module also have **no btree ind
 ## Deployment
 
 ```bash
-cdf build
-cdf deploy --env dev
+cdf build -c config.dev.yaml
+cdf deploy
 ```
 
 Deploy the enterprise module **first**, then this module. The search module depends on enterprise containers existing.
+
+## Changelog
+
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.

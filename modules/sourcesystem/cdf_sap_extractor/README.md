@@ -136,7 +136,8 @@ authoring the downstream transformations into ISA Manufacturing Extension.
 ### Deploy
 
 ```bash
-cdf deploy modules/sourcesystem/cdf_sap_extractor --env your-environment
+cdf build -c config.your-environment.yaml
+cdf deploy
 ```
 
 ### Configure and run the extractor
@@ -179,3 +180,7 @@ removed capabilities.
 ### Verify
 
 Check that all seven RAW tables under `raw_asset_{{location}}_{{sourceSystem}}` are populated in CDF Data Explorer (the master tables — `functional_location`, `equipment` — populate weekly; the order/notification tables populate daily).
+
+## Changelog
+
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.

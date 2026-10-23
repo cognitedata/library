@@ -99,7 +99,7 @@ When deprecating a `Search*` view, mark it in the view `description` with `[DEPR
 All 26 ISA Manufacturing enterprise views have search-side `Search*` mirrors in v1. Unlike the CFIHOS search model (which defers equipment-class views to phase 2), this module ships with full ISA-95/ISA-88 entity coverage. Remaining follow-ups:
 
 - **Consumer onboarding:** Pin apps in the Consumers table above as they adopt `dm_isa_manufacturing_domain_model_search`.
-- **`ISAAsset.asset_specific` connection typing:** Neat reports a missing end node type on this polymorphic relation; define the value type when consumers need typed traversal beyond the enterprise container mapping.
+- **`ISAAsset.asset_specific` connection typing:** the polymorphic relation has no end node type defined; define the value type when consumers need typed traversal beyond the enterprise container mapping.
 - **Enterprise index baseline:** Btree indexes on direct-relation properties (including list relations with `maxListSize`) are maintained in `isa_manufacturing_extension`; search views inherit storage via container mapping.
 
 ## Deployment
@@ -107,15 +107,20 @@ All 26 ISA Manufacturing enterprise views have search-side `Search*` mirrors in 
 Deploy the enterprise module **first**, then this module. The search module depends on enterprise containers existing in CDF.
 
 ```bash
-# 1. Build and deploy enterprise containers/views (required before search Neat validation passes)
+# 1. Build and deploy enterprise containers/views (required before the search build validates cleanly)
 cdf build -c config.dev.yaml
-cdf deploy --env dev   # with only isa_manufacturing_extension selected, or deploy enterprise resources first
+cdf deploy   # with only isa_manufacturing_extension selected, or deploy enterprise resources first
 
 # 2. Build and deploy search (requires dm_dom_isa_manufacturing:* containers in CDF)
 cdf build -c config.dev.yaml
-cdf deploy --env dev
+cdf deploy
 ```
 
-### Neat build validation
+### Build validation
 
-`cdf build` runs Neat on each data model. The search model maps to enterprise containers in `dm_dom_isa_manufacturing`, which Neat resolves from CDF in rebuild mode — not from the local build output. If you see `EnumerationMissingName: Container dm_dom_isa_manufacturing:Area not found`, the enterprise containers are not in your CDF project yet (common after a space rename). Deploy `isa_manufacturing_extension` first, then rebuild with both modules selected.
+From Toolkit 0.9, `cdf build` validates with its built-in rules instead of Neat; configure them in [the `[rules]` section and insight codes](https://docs.cognite.com/cdf/deploy/cdf_toolkit/api/cdf_toml#the-rules-section). The search model maps to enterprise containers in `dm_dom_isa_manufacturing`, which the build resolves from CDF — not from the local build output. If you see a `MISSING-REFERENCED-RESOURCE` insight for a container such as `dm_dom_isa_manufacturing:Area`, the enterprise containers are not in your CDF project yet (common after a space rename). Deploy `isa_manufacturing_extension` first, then rebuild with both modules selected.
+
+## Changelog
+
+- Toolkit 0.9: Neat references replaced by the built-in `cdf build` rules (`MISSING-REFERENCED-RESOURCE` for missing enterprise containers); Toolkit >= 0.9 required.
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.

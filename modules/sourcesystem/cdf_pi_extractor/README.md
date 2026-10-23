@@ -113,7 +113,8 @@ Confirm the following before running the extractor in production:
 ### Deploy
 
 ```bash
-cdf deploy modules/sourcesystem/cdf_pi_extractor --env your-environment
+cdf build -c config.your-environment.yaml
+cdf deploy
 ```
 
 ### Configure and run the extractor
@@ -155,3 +156,7 @@ The PI extractor writes timeseries directly to the **Core Data Model `ExtractorT
 ## Dependencies
 
 **Depends on**: DM space (`{{instanceSpace}}`) with the Core Data Model `ExtractorTimeSeries` view available — created by this module's `data_modeling/` resources.
+
+## Changelog
+
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.
