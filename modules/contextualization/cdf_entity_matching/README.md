@@ -428,6 +428,7 @@ DEBUG_MODE=false
 ### 1. Prerequisites
 
 - CDF project with appropriate permissions
+- Cognite Toolkit >= 0.9 (the sample-data upload uses `cdf data upload dir --cdf-project`)
 - CogniteAsset/CogniteTimeSeries-implementing data model deployed
 - Timeseries and asset data available
 - Authentication credentials configured
@@ -477,10 +478,11 @@ variables:
 
 ```bash
 # Deploy module
-cdf deploy --env your-environment
+cdf build -c config.your-environment.yaml
+cdf deploy
 
 # Upload sample data to RAW
-cdf data upload dir modules/contextualization/cdf_entity_matching/upload_data
+cdf data upload dir modules/contextualization/cdf_entity_matching/upload_data --cdf-project <project>
 
 # Or deploy individual components
 cdf functions deploy
@@ -682,3 +684,8 @@ Use `dmUpdate: false` in the extraction pipeline config to skip data-model write
 ## 📄 License
 
 This module is part of the [Cognite library](https://github.com/cognitedata/library) repository and follows the same licensing terms. 
+
+## Changelog
+
+- Toolkit 0.9: `cdf data upload dir` example now passes `--cdf-project <project>`; Toolkit >= 0.9 listed as a prerequisite.
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.

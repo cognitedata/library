@@ -107,9 +107,9 @@ The `Files` view combines what would traditionally be three separate entities �
 
 The default IDM defines `CogniteEquipment` and `CogniteEquipmentType` as separate entities linked by a direct relation. In this model, the EquipmentType properties (`code`, `equipmentClass`, `standard`, `standardReference`) are denormalized directly into the `Equipment` container and view. This means equipment class, type, and standard information is available in a single query without joining through the EquipmentType relationship. The inherited `equipmentType` relation from `CogniteEquipment` still exists (it comes from the CDM) but is not actively used — all type information lives directly on the equipment node.
 
-### AI readiness and NEAT compliance
+### AI readiness and build rules
 
-All views and view properties carry human-readable `name` fields to satisfy NEAT-DMS-AI-READINESS checks. CDM-inherited properties (`name`, `description`, `tags`, `aliases`, and the CogniteSourceable/CogniteSchedulable families) are explicitly defined in each view rather than left as implicit inherits — this gives every property a display name and description that AI tools, search engines, and the CDF UI can surface.
+All views and view properties carry human-readable `name` fields so the data-modeling checks in the built-in `cdf build` rules pass (see [the `[rules]` section and insight codes](https://docs.cognite.com/cdf/deploy/cdf_toolkit/api/cdf_toml#the-rules-section)). CDM-inherited properties (`name`, `description`, `tags`, `aliases`, and the CogniteSourceable/CogniteSchedulable families) are explicitly defined in each view rather than left as implicit inherits — this gives every property a display name and description that AI tools, search engines, and the CDF UI can surface.
 
 Work-management connection logic is also resilient to sparse source data: `WorkOrderOperation.mainAsset/assets` are backfilled from `maintenanceOrder -> WorkOrder.mainAsset` when operation-level asset references are missing. This improves `Tag <-> WorkOrderOperation` reverse relation coverage.
 
@@ -231,16 +231,16 @@ modules
    cdf modules add -d cdf_sharepoint_data_dump
    cdf modules add -d cdf_pi_data_dump
    ```
-2. Upload the sample files — add to `cdf.toml` once:
+2. Upload the sample files (requires Cognite Toolkit >= 0.9) — add to `cdf.toml` once:
    ```toml
    [plugins]
    data = true
    ```
    then:
    ```bash
-   cdf data upload dir modules/sourcesystem/cdf_sharepoint_data_dump/upload_data --cdf-project <cdf-project>
-   cdf data upload dir modules/sourcesystem/cdf_sap_data_dump/upload_data --cdf-project <cdf-project>
-   cdf data upload dir modules/sourcesystem/cdf_pi_data_dump/upload_data --cdf-project <cdf-project>
+   cdf data upload dir modules/sourcesystem/cdf_sharepoint_data_dump/upload_data --cdf-project <project>
+   cdf data upload dir modules/sourcesystem/cdf_sap_data_dump/upload_data --cdf-project <project>
+   cdf data upload dir modules/sourcesystem/cdf_pi_data_dump/upload_data --cdf-project <project>
    ```
    Prepend your organization directory name if `modules/` sits under one.
 3. Trigger `ingestion` workflow through CDF UI
@@ -262,8 +262,8 @@ cdf data purge space dm_dom_oil_and_gas
 Deploy using Cognite Toolkit:
 
 ```bash
-cdf build
-cdf deploy --env dev
+cdf build -c config.dev.yaml
+cdf deploy
 ```
 
 Configuration variables are defined in `default.config.yaml` and can be overridden per environment in `config.<env>.yaml` at the project root.
@@ -286,3 +286,8 @@ Maintain this list. Update in the same PR that bumps `dm_version`. Until CDF exp
 | _(add other consumers)_ | — | — | Atlas AI, IndustryCanvas, custom apps, etc. |
 
 When deprecating an enterprise view, mark it in the view `description` with `[DEPRECATED — replaced by …]` and keep it deployed for a minimum 90-day window.
+
+## Changelog
+
+- Toolkit 0.9: `cdf data upload dir` examples pass `--cdf-project <project>`; the Neat reference is replaced by the built-in `cdf build` rules; Toolkit >= 0.9 required for the sample-data upload.
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.

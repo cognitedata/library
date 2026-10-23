@@ -135,7 +135,8 @@ authoring the downstream transformations into ISA Manufacturing Extension.
 ### Deploy
 
 ```bash
-cdf deploy modules/sourcesystem/cdf_opcua_extractor --env your-environment
+cdf build -c config.your-environment.yaml
+cdf deploy
 ```
 
 ### Configure and run the extractor
@@ -176,3 +177,7 @@ Verify the new instances, then delete the old space. To keep the old space inste
 The producer group's capabilities were also narrowed (see [Resources Created](#resources-created)).
 If anything else uses this group's service principal, check that it does not rely on the
 removed capabilities.
+
+## Changelog
+
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.

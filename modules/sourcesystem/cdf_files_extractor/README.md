@@ -141,7 +141,8 @@ The shipped config uses a local JSON file. To keep the state in CDF RAW instead:
 ### Deploy
 
 ```bash
-cdf deploy modules/sourcesystem/cdf_files_extractor --env your-environment
+cdf build -c config.your-environment.yaml
+cdf deploy
 ```
 
 ### Configure and run the extractor
@@ -184,3 +185,7 @@ Check that uploaded documents appear under the `{{dataset}}` data set in CDF Dat
 * Files Extractor docs: <https://docs.cognite.com/cdf/integration/guides/extraction/file>
 * Files Extractor configuration reference: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/file-extractor>
 * SharePoint setup guide: <https://docs.cognite.com/cdf/integration/guides/extraction/file/file_sharepoint_setup>
+
+## Changelog
+
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.

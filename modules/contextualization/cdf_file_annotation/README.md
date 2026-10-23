@@ -800,6 +800,7 @@ Log level is passed as a function argument (`logLevel`), not an environment vari
 ### 1. Prerequisites
 
 - CDF project with appropriate permissions
+- Cognite Toolkit >= 0.9 (the sample-data upload uses `cdf data upload dir --cdf-project`)
 - Data models deployed with file and entity views
 - **`aliases`** populated on assets and files (from your own transformation or entity matching)
 - Pipeline tags applied — use the helper transformations or equivalent (`ToAnnotate` on files, `DetectInDiagrams` on assets and files)
@@ -881,10 +882,11 @@ fileNormalizationPatterns: []
 
 ```bash
 # Deploy module
-cdf deploy --env your-environment
+cdf build -c config.your-environment.yaml
+cdf deploy
 
 # Upload sample data to RAW
-cdf data upload dir modules/contextualization/cdf_file_annotation/upload_data
+cdf data upload dir modules/contextualization/cdf_file_annotation/upload_data --cdf-project <project>
 
 # Or deploy individual components
 cdf data-models deploy
@@ -1153,3 +1155,8 @@ The module is built around abstract interfaces for customization:
 ## 📄 License
 
 This module is part of the [Cognite library](https://github.com/cognitedata/library) repository and follows the same licensing terms.
+
+## Changelog
+
+- Toolkit 0.9: `cdf data upload dir` example now passes `--cdf-project <project>`; Toolkit >= 0.9 listed as a prerequisite.
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.
