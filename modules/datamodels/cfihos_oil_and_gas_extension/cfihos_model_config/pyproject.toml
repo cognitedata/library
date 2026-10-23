@@ -24,6 +24,7 @@ dependencies = [
     "cryptography>=50.0.0,<51.0.0",
     "requests>=2.33.0,<3.0.0",
     "Pygments>=2.20.0,<3.0.0",
+    "certifi>=2026.10.19",
 ]
 
 [build-system]
