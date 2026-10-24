@@ -1,11 +1,16 @@
 # Aliases Update
 
-This function writes normalized `aliases` on timeseries, assets and files in Cognite Data Fusion (CDF) ahead of entity matching, with paged reads, batch writes, and retry handling.
+This function writes normalized `aliases` on timeseries, assets and files in Cognite Data Fusion (CDF) ahead of entity matching, with incremental sync reads, batch writes, and retry handling.
 
 ## 🚀 Features
 
 - **35-55% faster execution** compared to legacy implementation
-- **Paged reads** of only the properties aliases need, written page by page
+- **Incremental sync reads** — each run reads only the instances created or changed since
+  the previous one, from a cursor kept in the state store
+- **Bounded memory** — one page of 1000 instances is held at a time, and each type is
+  released before the next is read
+- **Property filter** per view (`filterProperty` / `filterValues`) to read and process only
+  part of a view
 - **Batch processing** with retry logic for robust API interactions
 - **Enhanced error handling** with comprehensive logging
 - **Caching mechanisms** for improved performance
@@ -17,6 +22,7 @@ This function writes normalized `aliases` on timeseries, assets and files in Cog
 fn_dm_context_aliases_update/
 ├── handler.py                    # Main function handler with optimizations
 ├── pipeline.py                   # Core pipeline logic with batch processing
+├── alias_sync.py                 # Sync reads and the per-view cursor in the state store
 ├── alias_optimizations.py        # Optimization utilities and classes
 ├── config.py                     # Configuration management
 ├── logger.py                     # Enhanced logging functionality
@@ -56,7 +62,6 @@ parameters:
   run_all: false
   update_all: false
   remove_old_aliases: false
-  batch_size: 1000
   raw_db: "contextualization_state"
   raw_table_state: "state_store"
 data:
@@ -69,6 +74,9 @@ data:
       aliasPattern:
         - '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
       aliasSelection: all
+      # Optional: read only instances whose tags hold one of these values
+      filterProperty: tags
+      filterValues: ["site_a"]
     asset_view:
       space: "your_space"
       external_id: "Asset"
@@ -90,19 +98,54 @@ data:
 
 | Parameter | Purpose |
 |-----------|---------|
-| `runAll` | Fetch all instances (not only those missing `aliases`) |
+| `runAll` | Read every instance, ignoring the stored sync cursor |
 | `updateAll` | Rebuild generated aliases on every fetched instance (implies `runAll`). A DM write — and the “updated” count — happens only when the rebuilt list differs from what is already stored |
 | `removeOldAliases` | Discard every existing alias and write only what this run produces (implies `runAll`) |
+| `rawDb` / `rawTableState` | RAW table the per-view sync cursors are stored in |
 
-Every view is fetched on the presence of `aliases` alone, so `runAll`, `updateAll` and
-`removeOldAliases` are the settings that change what gets processed. Time series have no
-separate single-instance filter.
+### Incremental reads
+
+Instances are read with the data modeling **sync** endpoint, one view at a time —
+timeseries, then assets, then files. Only `name` and `aliases` are selected, 1000
+instances per page. Each page has its aliases created and written before the next page is
+read, so only one page is held in memory. A page that times out is read again 20%
+smaller, down to 100, and the size that worked is kept for the next run.
+
+After each page is written, the view's sync cursor is stored in `rawDb.rawTableState`
+under `state_alias_sync_<type>_<fingerprint>`. When a view is done, the alias caches are
+cleared and memory is released before the next view is read. The next run continues from
+the stored cursor and reads only instances created or changed since. The fingerprint
+covers the view, instance spaces and filter, so changing any of them starts a fresh read.
+
+- The **first run** has no cursor and reads every instance in scope.
+- `runAll`, `updateAll` and `removeOldAliases` read every instance and then replace the cursor.
+- A run stopped part way — by the function time limit or a failure — leaves the cursor of
+  the last written page, so the next run continues from there instead of starting at 0.
+  This holds for full reads too: the stored state marks a full read as in progress
+  (`fullReadInProgress`) until its last page, and the next run continues it rather than
+  starting it again. A large view therefore completes over several runs.
+- A cursor the API rejects (for example expired) makes that view read every instance again.
+- Instances this function writes are reported as changed on the next run; they produce
+  no further update.
+
+Changing `aliasPattern` does not change what an incremental run reads. Run once with
+`updateAll` to apply a new pattern to instances that have not changed.
+
+### Property filter
+
+Each view can set `filterProperty` and `filterValues` to read and process only instances
+whose property holds one of the values. The module wires them to the same variables entity
+matching uses: `viewFilterProperty` for the property, `entityViewFilterValues` for time
+series, `targetViewFilterValues` for assets, and `fileViewFilterValues` for files. An empty
+value list, or no `filterProperty`, reads the whole view.
 
 `instanceSpace` on each view takes either a single space or a list of spaces. Instances
 are read from every listed space and updated in the space they were read from.
 
-`fileView` is optional. Leave it out and files are skipped — a configuration written
-before file support existed keeps working untouched.
+`timeseriesView`, `assetView` and `fileView` are each optional. Leave one out and that
+type is skipped with a log line — a configuration written before file support existed
+keeps working untouched. With no view configured the run succeeds, reads nothing, and
+reports that on the extraction pipeline.
 
 ### Alias pattern
 
@@ -120,7 +163,8 @@ When no pattern extracts anything from a name, **no alias is produced**. The `al
 property is then written as null, which clears whatever was stored — an empty list would
 leave the old values in place, so `removeOldAliases` would not remove anything. Instances
 that had no aliases to begin with are left untouched. The run logs `No alias extracted based on configured <view> regular expression for name: …` for
-the first ten such names, then counts the rest and reports the total once at the end. A run
+the first ten such names as warnings, logs the rest only at `logLevel: DEBUG`, and reports
+the total once at the end. A run
 full of those warnings means the pattern does not match your names, not that the data is
 wrong.
 
@@ -303,10 +347,11 @@ alias as the match string; targets keep **all** aliases. See
 1. **Initialization**: Set up logging
 2. **Configuration**: Load parameters from extraction pipeline
 3. **Timeseries Processing**:
-   - Read the timeseries in scope 1000 at a time, with only `name` and `aliases`, and
-     retry a page that fails on a transient error
+   - Sync the timeseries changed since the stored cursor 1000 at a time, with only
+     `name` and `aliases`, and retry a page that fails on a transient error
    - Add normalized aliases when tag patterns match
-   - Write each page's updates before reading the next
+   - Write each page's updates and store the cursor before reading the next page
+   - Clear the alias caches and release memory
 4. **Asset Processing**: as for timeseries
 5. **File Processing** (only when `fileView` is configured): as for timeseries, adding
    the file name without its extension as well
@@ -380,8 +425,9 @@ tenacity>=8.0.0
 
 ### Common Issues
 
-1. **Memory Issues**
-   - Reduce batch size in configuration
+1. **Memory or time limits**
+   - Set `filterProperty` / `filterValues` on a view to read only part of it
+   - A first run, or one with `runAll`, reads every instance; later runs read only changes
 
 2. **API Rate Limits**
    - Retry logic handles temporary failures

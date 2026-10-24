@@ -5,51 +5,35 @@ This module provides optimized metadata update functionality for timeseries, ass
 files with improved performance, caching, batch processing, and error handling.
 """
 
+import gc
 import sys
-import time
 import traceback
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from cognite.client import CogniteClient
-from cognite.client import data_modeling as dm
 from cognite.client.data_classes import ExtractionPipelineRun
-from cognite.client.data_classes.data_modeling import Node, NodeApply
-from cognite.client.data_classes.data_modeling.query import (
-    NodeResultSetExpression,
-    Query,
-    QueryResult,
-    Select,
-    SourceSelector,
-)
-from cognite.client.data_classes.filters import HasData
+from cognite.client.data_classes.data_modeling import NodeApply
 from cognite.client.utils._text import shorten
 
 from alias_optimizations import (  # isort: skip
     AliasRule,
     BatchProcessor,
     OptimizedMetadataProcessor,
-    is_retryable,
     time_operation,
 )
+from alias_sync import SyncState, iter_synced_pages, read_sync_state, sync_state_key, write_sync_state  # isort: skip
 from config import Config, ViewPropertyConfig  # isort: skip
-from constants import (  # isort: skip
-    ALIAS_PAGE_SIZE,
-    ALIAS_SOURCE_PROPERTIES,
-    ASSET_NODE,
-    DEFAULT_ALIAS_PATTERN,
-    FILE_NODE,
-    ITEMS_QUERY_NAME,
-    TS_NODE,
-)
+from constants import ASSET_NODE, DEFAULT_ALIAS_PATTERN, FILE_NODE, TS_NODE  # isort: skip
 from logger import CogniteFunctionLogger  # isort: skip
 
 sys.path.append(str(Path(__file__).parent))
 
 
 def effective_run_all(config: Config) -> bool:
-    """Return whether to fetch all instances (not only those missing aliases)."""
+    """Return whether to read every instance rather than only those changed since the last run."""
     return config.parameters.run_all or config.parameters.update_all or config.parameters.remove_old_aliases
 
 
@@ -76,7 +60,7 @@ def describe_processing_mode(config: Config) -> str:
         return "removeOldAliases — all instances, existing aliases cleared before recompute"
     if config.parameters.run_all:
         return "runAll — all instances, merge with existing metadata"
-    return "incremental — instances without aliases only"
+    return "incremental — instances changed since the last run"
 
 
 def metadata_update(client: CogniteClient, logger: CogniteFunctionLogger, data: dict[str, Any], config: Config) -> None:
@@ -94,62 +78,45 @@ def metadata_update(client: CogniteClient, logger: CogniteFunctionLogger, data: 
                 "every alias with freshly produced values"
             )
 
+        job = config.data.job
         # Process configuration
         with time_operation("Configuration processing", logger):
             # Initialize processors. BatchProcessor keeps its own write batch size,
             # independent of the read page size.
-            file_view = config.data.job.file_view
             metadata_processor = OptimizedMetadataProcessor(
                 logger,
-                alias_rule(config.data.job.timeseries_view),
-                alias_rule(config.data.job.asset_view),
-                alias_rule(file_view),
+                alias_rule(job.timeseries_view),
+                alias_rule(job.asset_view),
+                alias_rule(job.file_view),
             )
             batch_processor = BatchProcessor()
 
-        # Process timeseries
-        with time_operation("Timeseries processing", logger):
-            ts_updates = _process_timeseries_optimized(client, logger, config, metadata_processor, batch_processor)
-
-            if ts_updates > 0:
-                msg = (
-                    f"Timeseries metadata finished — {ts_updates} instance(s) updated "
-                    f"({describe_processing_mode(config)})"
-                )
-                update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-            else:
-                msg = f"Timeseries metadata finished — no updates required ({describe_processing_mode(config)})"
-                update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-
-        # Process assets
-        with time_operation("Asset processing", logger):
-            asset_updates = _process_assets_optimized(client, logger, config, metadata_processor, batch_processor)
-
-            if asset_updates > 0:
-                msg = (
-                    f"Asset metadata finished — {asset_updates} instance(s) updated "
-                    f"({describe_processing_mode(config)})"
-                )
-                update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-            else:
-                msg = f"Asset metadata finished — no updates required ({describe_processing_mode(config)})"
-                update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-
-        # Process files, when a fileView is configured
-        if file_view:
-            with time_operation("File processing", logger):
-                file_updates = _process_files_optimized(client, logger, config, metadata_processor, batch_processor)
-
-                if file_updates > 0:
-                    msg = (
-                        f"File metadata finished — {file_updates} instance(s) updated "
-                        f"({describe_processing_mode(config)})"
-                    )
+        mode = describe_processing_mode(config)
+        passes = (
+            ("Timeseries", "timeseriesView", job.timeseries_view, _process_timeseries_optimized),
+            ("Asset", "assetView", job.asset_view, _process_assets_optimized),
+            ("File", "fileView", job.file_view, _process_files_optimized),
+        )
+        for label, config_key, view, process in passes:
+            if view is None:
+                logger.info(f"{label} metadata skipped — no {config_key} configured")
+                continue
+            with time_operation(f"{label} processing", logger):
+                updates = process(client, logger, config, metadata_processor, batch_processor)
+                if updates > 0:
+                    msg = f"{label} metadata finished — {updates} instance(s) updated ({mode})"
                 else:
-                    msg = f"File metadata finished — no updates required ({describe_processing_mode(config)})"
+                    msg = f"{label} metadata finished — no updates required ({mode})"
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-        else:
-            logger.info("File metadata skipped — no fileView configured")
+
+        if all(view is None for _, _, view, _ in passes):
+            update_pipeline_run(
+                client,
+                logger,
+                pipeline_ext_id,
+                "success",
+                "Aliases Update finished — no views configured, nothing processed",
+            )
 
         # Log performance statistics
         processor_stats = metadata_processor.get_stats()
@@ -175,12 +142,17 @@ def _process_timeseries_optimized(
     metadata_processor: OptimizedMetadataProcessor,
     batch_processor: BatchProcessor,
 ) -> int:
-    """Process timeseries metadata"""
+    """Process timeseries metadata, when a timeseriesView is configured"""
+    timeseries_view = config.data.job.timeseries_view
+    if timeseries_view is None:
+        logger.info("Timeseries skipped — no timeseriesView configured")
+        return 0
+
     return _process_view(
         client,
         logger,
         config,
-        config.data.job.timeseries_view,
+        timeseries_view,
         TS_NODE,
         metadata_processor.process_timeseries_metadata,
         batch_processor,
@@ -194,12 +166,17 @@ def _process_assets_optimized(
     metadata_processor: OptimizedMetadataProcessor,
     batch_processor: BatchProcessor,
 ) -> int:
-    """Process asset metadata"""
+    """Process asset metadata, when an assetView is configured"""
+    asset_view = config.data.job.asset_view
+    if asset_view is None:
+        logger.info("Assets skipped — no assetView configured")
+        return 0
+
     return _process_view(
         client,
         logger,
         config,
-        config.data.job.asset_view,
+        asset_view,
         ASSET_NODE,
         metadata_processor.process_asset_metadata,
         batch_processor,
@@ -241,17 +218,41 @@ def _process_view(
 ) -> int:
     """Generate aliases for the instances of one view, writing each page before reading the next.
 
+    The sync cursor is stored after each page is written, so a run stopped part way - by
+    the function time limit or a failure - leaves the next run to continue from the last
+    written page. A full read (`runAll`, `updateAll`, `removeOldAliases`) is marked in
+    progress until its last page, so an interrupted one is continued rather than started
+    again. The memory the view used is released before the next view is read.
+
     Returns:
         The number of instances updated.
     """
     mode = describe_processing_mode(config)
     run_all = effective_run_all(config)
     logger.info(f"Starting {label} metadata — mode: {mode}")
+    if view_config.filter_property and view_config.filter_values:
+        logger.info(f"{label} filtered on {view_config.filter_property} in {view_config.filter_values}")
+
+    state_key = sync_state_key(view_config, label)
+    stored = read_sync_state(client, config.parameters, logger, state_key)
+    if stored.full_read_in_progress and stored.cursor:
+        logger.info(f"{label}: continuing the interrupted full read from the stored cursor")
+        start_cursor = stored.cursor
+    elif run_all:
+        if stored.cursor:
+            logger.info(f"{label}: reading every instance instead of syncing changes from the stored cursor")
+        start_cursor = None
+    else:
+        start_cursor = stored.cursor
+    start = SyncState(start_cursor, stored.batch_size)
 
     view_id = view_config.as_view_id()
     examined = 0
     total_updates = 0
-    for page in iter_new_items(client, logger, view_config, run_all, label):
+    state = start
+    in_progress = run_all or bool(stored.full_read_in_progress and stored.cursor)
+    for page, page_state in iter_synced_pages(client, logger, view_config, start, label):
+        state = replace(page_state, full_read_in_progress=in_progress)
         examined += len(page)
         updates = [
             update
@@ -268,8 +269,18 @@ def _process_view(
         ]
         if updates:
             total_updates += batch_processor.apply_updates_in_batches(client, updates, logger)
+        del page, updates
+        write_sync_state(client, config.parameters, logger, state_key, view_config, state)
 
-    fetch_scope = "all instances in scope" if run_all else "instances missing aliases"
+    if state.full_read_in_progress:
+        write_sync_state(
+            client, config.parameters, logger, state_key, view_config, replace(state, full_read_in_progress=False)
+        )
+    logger.info(f"{label}: stored sync cursor in {config.parameters.raw_db}.{config.parameters.raw_table_state}")
+    OptimizedMetadataProcessor.clear_alias_caches()
+    gc.collect()
+
+    fetch_scope = "all instances in scope" if run_all else "instances changed since the last run"
     logger.info(f"{label} complete — {mode}: {examined} examined ({fetch_scope}), {total_updates} updated")
     return total_updates
 
@@ -298,111 +309,11 @@ def update_pipeline_run(
         logger.warning(f"Failed to update pipeline run: {e}")
 
 
-def iter_new_items(
-    client: CogniteClient,
-    logger: CogniteFunctionLogger,
-    view_config: ViewPropertyConfig,
-    run_all: bool,
-    label: str,
-) -> Iterator[list[Node]]:
-    """The instances to generate aliases for, one page at a time.
-
-    Only the properties alias generation reads are selected. The caller writes a page
-    before the next is read. In incremental mode that write takes instances out of the
-    missing-aliases filter, so the next read starts at the head of the filter rather than
-    continuing an opaque cursor over a smaller set.
-
-    Raises:
-        Exception: A read that fails for good - not transient, or out of retries - so the
-            run fails instead of reporting that there was nothing to update.
-    """
-    expression = NodeResultSetExpression(
-        filter=dm.filters.And(
-            dm.filters.In(["node", "space"], view_config.instance_spaces),
-            get_alias_filter(view_config, logger, run_all),
-        ),
-        limit=ALIAS_PAGE_SIZE,
-    )
-    query = Query(
-        with_={ITEMS_QUERY_NAME: expression},
-        select={ITEMS_QUERY_NAME: Select([SourceSelector(view_config.as_view_id(), ALIAS_SOURCE_PROPERTIES)])},
-    )
-    last_ids: set[tuple[str, str]] | None = None
-    while True:
-        result = _query_with_retries(client, logger, query)
-        page = list(result[ITEMS_QUERY_NAME])
-        logger.debug(f"Read a page of {len(page)} {label} instances")
-        if not page:
-            return
-        if run_all:
-            yield page
-            cursor = result.cursors.get(ITEMS_QUERY_NAME)
-            if not cursor or len(page) < ALIAS_PAGE_SIZE:
-                return
-            query.cursors = {ITEMS_QUERY_NAME: cursor}
-            continue
-
-        ids = {(node.space, node.external_id) for node in page}
-        if ids == last_ids:
-            logger.info(
-                f"Still {len(page)} {label} instance(s) missing aliases after a write; "
-                "leaving them for the next run so paging does not stall"
-            )
-            return
-        last_ids = ids
-        yield page
-        query.cursors = None
-
-
-def _query_with_retries(client: CogniteClient, logger: CogniteFunctionLogger, query: Query) -> QueryResult:
-    """One query call, retried with an exponential backoff while the failure is transient."""
-    max_attempts = 3
-    retry_backoff_seconds = 2
-    attempt = 0
-    while True:
-        try:
-            return client.data_modeling.instances.query(query)
-        # Deliberately broad: `is_retryable` decides what is worth another attempt, and
-        # everything else is re-raised unchanged.
-        except Exception as e:
-            attempt += 1
-            if attempt >= max_attempts or not is_retryable(e):
-                raise
-            sleep_seconds = retry_backoff_seconds * (2 ** (attempt - 1))
-            logger.warning(f"Transient error (attempt {attempt}), sleeping {sleep_seconds}s before retry: {e}")
-            time.sleep(sleep_seconds)
-
-
-def get_alias_filter(
-    view_config: ViewPropertyConfig,
-    logger: CogniteFunctionLogger,
-    run_all: bool,
-) -> dm.filters.Filter:
-    """Select instances of a view, or only those still missing aliases.
-
-    Used for time series, assets and files alike, which are all fetched on nothing but
-    the presence of aliases.
-    """
-
-    logger.debug(f"Creating alias filter for {view_config.external_id}")
-
-    filters: list[dm.filters.Filter] = [HasData(views=[view_config.as_view_id()])]
-
-    if not run_all:
-        has_alias = dm.filters.Exists(view_config.as_property_ref("aliases"))
-        not_alias = dm.filters.Not(has_alias)
-        filters.append(not_alias)
-
-    return dm.filters.And(*filters) if len(filters) > 1 else filters[0]
-
-
 # Export all functions for backward compatibility
 __all__ = [
     "alias_rule",
     "describe_processing_mode",
     "effective_run_all",
-    "get_alias_filter",
-    "iter_new_items",
     "metadata_update",
     "update_pipeline_run",
 ]

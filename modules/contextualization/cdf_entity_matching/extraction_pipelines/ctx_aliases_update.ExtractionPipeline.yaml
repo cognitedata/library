@@ -6,7 +6,10 @@ source: entity_matching
 documentation: >
   # Create aliases for timeseries, assets and files
 
-  Pages through the timeseries, assets and files with the DM query api and creates aliases for each object.
+  Syncs the timeseries, assets and files with the DM sync api, 1000 at a time, and creates aliases for each object.
+  Each type keeps its own sync cursor in the state store, written after every page, so a normal run
+  only reads instances created or changed since the previous one, and a run stopped by the time limit
+  continues from the last written page. The first run reads everything.
   A failed read or write fails the function call, which stops the workflow before entity matching.
   The aliases are used in the entity matching process to link matched timeseries to assets.
   The alias process is used to make it possible to generalize the entity matching process. So that the same process can be used for different sites/assets/facilities.
@@ -16,7 +19,7 @@ documentation: >
 
 
   ```
-   runAll - if True run on all found instances, if False only run on instances without aliases
+   runAll - if True read all instances, if False only instances changed since the last run
    updateAll - if True rebuild the generated aliases on all instances (implies runAll).
                  A DM write and the updated count happen only when the rebuilt list
                  differs from what is already stored
@@ -24,11 +27,12 @@ documentation: >
                         produces (implies runAll). Unlike updateAll, hand-curated aliases
                         are not preserved.
    rawDb - Raw database where status Information is stored
-   rawTableState - Raw table to store state related to process
+   rawTableState - Raw table to store state related to process, including the sync cursor of each view
 
-   timeseriesView - View to to access time series
-   assetView - View to to access assets
+   timeseriesView - View to to access time series. Optional: remove it to leave time series untouched
+   assetView - View to to access assets. Optional: remove it to leave assets untouched
    fileView - View to to access files. Optional: remove it to leave files untouched
+   With no view configured the run succeeds and processes nothing.
 
    Each view takes:
 
@@ -41,5 +45,8 @@ documentation: >
                   The alias is the capture groups of a matching pattern joined by "_"
    aliasSelection - What to keep when several patterns match one name: 'all' for one alias
                     per matching pattern, or 'longest' for only the longest
+   filterProperty - Optional property to filter on, e.g. tags
+   filterValues - Optional list; only instances whose filterProperty holds one of the values
+                  are read. Empty reads the whole view
 
   ```

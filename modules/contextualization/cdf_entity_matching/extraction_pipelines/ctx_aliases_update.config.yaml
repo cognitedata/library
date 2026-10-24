@@ -11,6 +11,9 @@ config:
       # aliasPattern takes one regex or a list of them, and aliasSelection decides what
       # to keep when several of them match one name - 'all' for one alias each,
       # 'longest' for only the longest. Both are configured per view.
+      # filterProperty and filterValues narrow what is read: only instances whose
+      # filterProperty holds one of the values. An empty list reads the whole view.
+      # Optional. Remove this section to leave time series metadata untouched.
       timeseriesView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ timeseriesInstanceSpace }}
@@ -18,6 +21,9 @@ config:
         version: {{ viewVersion }}
         aliasPattern: {{ timeseriesAliasPattern }}
         aliasSelection: {{ timeseriesAliasSelection }}
+        filterProperty: {{ viewFilterProperty }}
+        filterValues: {{ entityViewFilterValues }}
+      # Optional. Remove this section to leave asset metadata untouched.
       assetView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ assetInstanceSpace }}
@@ -25,6 +31,8 @@ config:
         version: {{ viewVersion }}
         aliasPattern: {{ assetAliasPattern }}
         aliasSelection: {{ assetAliasSelection }}
+        filterProperty: {{ viewFilterProperty }}
+        filterValues: {{ targetViewFilterValues }}
       # Optional. Remove this section to leave file metadata untouched.
       fileView:
         schemaSpace: {{ fileSchemaSpace }}
@@ -33,3 +41,5 @@ config:
         version: v1
         aliasPattern: {{ fileAliasPattern }}
         aliasSelection: {{ fileAliasSelection }}
+        filterProperty: {{ viewFilterProperty }}
+        filterValues: {{ fileViewFilterValues }}
