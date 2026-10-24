@@ -1,0 +1,10 @@
+space: dm_sol_wpg_app
+externalId: WPGConfig_SOL
+name: WPG config SOL
+description: Solution data model that exposes the Work Package Generator config view.
+version: "{{ wpg_config_version }}"
+views:
+  - space: dm_sol_wpg_app
+    externalId: WPGConfig
+    version: "{{ wpg_config_version }}"
+    type: view
