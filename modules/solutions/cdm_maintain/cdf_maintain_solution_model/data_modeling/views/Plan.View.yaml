@@ -1,0 +1,171 @@
+space: {{schemaSpace}}
+externalId: Plan
+version: v1
+name: Plan
+filter:
+  hasData:
+    - type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+properties:
+  title:
+    description: Human readable title of the plan
+    container:
+      type: container
+      space: cdf_core
+      externalId: Describable
+    containerPropertyIdentifier: title
+  description:
+    description: Human readable description of the plan
+    container:
+      type: container
+      space: cdf_core
+      externalId: Describable
+    containerPropertyIdentifier: description
+  maintenanceOrders:
+    type:
+      space: {{schemaSpace}}
+      externalId: plans.MaintenanceOrdersLink
+    source:
+      type: view
+      space: {{sourceDataSpace}}
+      externalId: SourceMaintenanceOrder
+      version: v1
+    connectionType: multi_edge_connection
+    direction: outwards
+  owner:
+    description: User who owns the plan, null if system created
+    source:
+      type: view
+      space: cdf_apps_shared
+      externalId: CDF_User
+      version: v1
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: owner
+  sharedWith:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: sharedWith
+    name: sharedWith
+  defaultPermission:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: defaultPermission
+    name: defaultPermission
+  locations:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: locations
+    name: locations
+  startTime:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: startTime
+    name: startTime
+  endTime:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: endTime
+    name: endTime
+  duration:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: duration
+    name: duration
+  regenerationInterval:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: regenerationInterval
+    name: regenerationInterval
+  isStatic:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: isStatic
+    name: isStatic
+  activityIds:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: activityIds
+    name: activityIds
+  fixedList:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: fixedList
+    name: fixedList
+  filters:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: filters
+    name: filters
+  tags:
+    description: Tags to group the plan by in the plan page
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: tags
+  subTag:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: subTag
+    name: subTag
+  imageUrl:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: imageUrl
+    name: imageUrl
+  isArchived:
+    description: Flag to indicate if the plan is archived and should not be shown in the UI
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: isArchived
+  canvases:
+    source:
+      type: view
+      space: {{schemaSpace}}
+      externalId: MaintainCanvas
+      version: v1
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: canvases
+    name: canvases
+  focusPeriod:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: Plan
+    containerPropertyIdentifier: focusPeriod
+    name: focusPeriod

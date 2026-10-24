@@ -1,0 +1,4 @@
+# Space where the Maintain solution data model (containers, views, data model) is deployed
+schemaSpace: maintain_solution_model
+# Space where source data instances are stored (must match schemaSpace in cdf_maintain_source_data_model)
+sourceDataSpace: maintain_source_data

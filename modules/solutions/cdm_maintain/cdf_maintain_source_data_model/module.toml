@@ -1,0 +1,5 @@
+[module]
+title = "Maintain Source Data Model"
+is_selected_by_default = true
+id = "dp:cdm_maintain:cdf_maintain_source_data_model"
+package_id = "dp:cdm_maintain"
