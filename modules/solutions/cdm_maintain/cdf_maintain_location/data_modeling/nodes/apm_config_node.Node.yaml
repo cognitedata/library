@@ -59,15 +59,9 @@
           mainAsset:
             alias: Primary Asset
             uiIcon: Asset
-            isExternalId: true
-          asset:
-            alias: Asset
-            uiIcon: Asset
-            isExternalId: true
           assets:
             alias: Assets
             uiIcon: Asset
-            isExternalId: true
         featureConfiguration:
           enableCustomLayouts: true
           canvasConfiguration:
