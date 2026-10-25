@@ -111,7 +111,21 @@ export function SdkManagerProvider({
 
   useEffect(() => {
     if (isStandalone) return;
+
+    const parentOrigin = (() => {
+      try {
+        if (!document.referrer) return null;
+        return new URL(document.referrer).origin;
+      } catch {
+        return null;
+      }
+    })();
+
     const handleMessage = (event: MessageEvent) => {
+      if (!window.parent || window.parent === window) return;
+      if (event.source !== window.parent) return;
+      if (parentOrigin && event.origin !== parentOrigin) return;
+
       if (event.data?.type === "PROVIDE_CREDENTIALS" && event.data?.credentials) {
         const creds = event.data.credentials;
         if (creds.token && creds.baseUrl) {
@@ -119,9 +133,10 @@ export function SdkManagerProvider({
         }
       }
     };
+
     window.addEventListener("message", handleMessage);
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: "REQUEST_CREDENTIALS" }, "*");
+      window.parent.postMessage({ type: "REQUEST_CREDENTIALS" }, parentOrigin ?? "*");
     }
     return () => window.removeEventListener("message", handleMessage);
   }, [isStandalone]);
