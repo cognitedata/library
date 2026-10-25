@@ -1411,21 +1411,6 @@ function getDataFilterInstanceSpaceEntries(
     .sort((a, b) => a.space.localeCompare(b.space));
 }
 
-function getSpacesForMapping(location: LocationConfigNode, mappingKey: string): string[] {
-  const dataFilters = location.properties.dataFilters;
-  if (!hasRecordShape(dataFilters)) return [location.space];
-
-  const filterKey = MAPPING_TO_DATA_FILTER_KEY[mappingKey] ?? mappingKey;
-  const targetFilter = dataFilters[filterKey];
-  if (!hasRecordShape(targetFilter)) return [location.space];
-
-  const instanceSpaces = targetFilter.instanceSpaces;
-  if (!Array.isArray(instanceSpaces)) return [location.space];
-
-  const spaces = instanceSpaces.filter((value): value is string => typeof value === "string" && value.length > 0);
-  return spaces.length > 0 ? spaces : [location.space];
-}
-
 function hasTimeseriesDataFilter(location: LocationConfigNode): boolean {
   const dataFilters = location.properties.dataFilters;
   if (!hasRecordShape(dataFilters)) return false;
