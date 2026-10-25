@@ -1,0 +1,75 @@
+space: {{schemaSpace}}
+externalId: ManualMappings3D
+name: ManualMappings3D
+version: v1
+properties:
+  activityId:
+    container:
+      space: {{schemaSpace}}
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: activityId
+    name: activityId
+  nodeId:
+    container:
+      space: {{schemaSpace}}
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: nodeId
+    name: nodeId
+  cameraX:
+    container:
+      space: {{schemaSpace}}
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: cameraX
+    name: cameraX
+  cameraY:
+    container:
+      space: {{schemaSpace}}
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: cameraY
+    name: cameraY
+  cameraZ:
+    container:
+      space: {{schemaSpace}}
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: cameraZ
+    name: cameraZ
+  targetX:
+    container:
+      space: {{schemaSpace}}
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: targetX
+    name: targetX
+  targetY:
+    container:
+      space: {{schemaSpace}}
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: targetY
+    name: targetY
+  targetZ:
+    container:
+      space: {{schemaSpace}}
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: targetZ
+    name: targetZ
+  modelId:
+    container:
+      space: {{schemaSpace}}
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: modelId
+    name: modelId
+  revisionId:
+    container:
+      space: {{schemaSpace}}
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: revisionId
+    name: revisionId

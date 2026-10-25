@@ -1,0 +1,76 @@
+# Grid Zone Annotations for DEMO-FILE.pdf
+# Nodes live in {{appDataSpace}} (appDataInstanceSpace)
+# rootLocation must match the rootLocation set on activity nodes ({{location_name}})
+# zone values must match the gridReference set on activity nodes
+
+# Zone 1 — upper-left quadrant
+- space: {{appDataSpace}}
+  externalId: "{{location}}_gridzone_demo_grid1"
+  sources:
+    - source:
+        type: view
+        space: {{appDataSpace}}
+        externalId: FileGridZoneAnnotation
+        version: v1
+      properties:
+        fileReference: "DEMO-FILE"
+        rootLocation: "{{location_name}}"
+        zone: "DEMO Grid-1"
+        x1: 0.0
+        x2: 0.5
+        y1: 0.0
+        y2: 0.5
+
+# Zone 2 — upper-right quadrant
+- space: {{appDataSpace}}
+  externalId: "{{location}}_gridzone_demo_grid2"
+  sources:
+    - source:
+        type: view
+        space: {{appDataSpace}}
+        externalId: FileGridZoneAnnotation
+        version: v1
+      properties:
+        fileReference: "DEMO-FILE"
+        rootLocation: "{{location_name}}"
+        zone: "DEMO Grid-2"
+        x1: 0.5
+        x2: 1.0
+        y1: 0.0
+        y2: 0.5
+
+# Zone 3 — lower-left quadrant
+- space: {{appDataSpace}}
+  externalId: "{{location}}_gridzone_demo_grid3"
+  sources:
+    - source:
+        type: view
+        space: {{appDataSpace}}
+        externalId: FileGridZoneAnnotation
+        version: v1
+      properties:
+        fileReference: "DEMO-FILE"
+        rootLocation: "{{location_name}}"
+        zone: "DEMO Grid-3"
+        x1: 0.0
+        x2: 0.5
+        y1: 0.5
+        y2: 1.0
+
+# Zone 4 — lower-right quadrant
+- space: {{appDataSpace}}
+  externalId: "{{location}}_gridzone_demo_grid4"
+  sources:
+    - source:
+        type: view
+        space: {{appDataSpace}}
+        externalId: FileGridZoneAnnotation
+        version: v1
+      properties:
+        fileReference: "DEMO-FILE"
+        rootLocation: "{{location_name}}"
+        zone: "DEMO Grid-4"
+        x1: 0.5
+        x2: 1.0
+        y1: 0.5
+        y2: 1.0
