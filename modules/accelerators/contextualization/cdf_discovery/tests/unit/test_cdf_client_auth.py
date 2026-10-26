@@ -76,6 +76,30 @@ def test_create_client_uses_interactive_when_no_secret(monkeypatch: pytest.Monke
     assert cfg.project == "my-project"
 
 
+def test_client_credentials_derives_entra_token_url_from_tenant(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LOGIN_FLOW", "client_credentials")
+    monkeypatch.setenv("PROVIDER", "azure")
+    monkeypatch.setenv("CDF_PROJECT", "hess-dev")
+    monkeypatch.setenv("CDF_CLUSTER", "az-eastus-1")
+    monkeypatch.setenv("IDP_TENANT_ID", "tenant-id")
+    monkeypatch.setenv("IDP_CLIENT_ID", "client-id")
+    monkeypatch.setenv("IDP_CLIENT_SECRET", "secret")
+
+    mock_client = MagicMock()
+    with (
+        patch("cognite.client.credentials.OAuthClientCredentials", return_value=MagicMock()) as oauth,
+        patch("cognite.client.CogniteClient", return_value=mock_client),
+    ):
+        from cdf_client_auth import create_cognite_client
+
+        create_cognite_client(client_name="test")
+
+    assert oauth.call_args.kwargs["token_url"] == (
+        "https://login.microsoftonline.com/tenant-id/oauth2/v2.0/token"
+    )
+    assert oauth.call_args.kwargs["scopes"] == ["https://az-eastus-1.cognitedata.com/.default"]
+
+
 def test_missing_credentials_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     from cdf_client_auth import create_cognite_client
 

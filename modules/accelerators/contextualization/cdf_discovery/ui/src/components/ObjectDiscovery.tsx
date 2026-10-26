@@ -339,21 +339,24 @@ export function ObjectDiscovery({
       currentParentId,
       childrenByParent,
       loadedIds,
-      t("tree.loading")
+      t("tree.loading"),
+      loading.has(currentParentId) ? null : errors.get(currentParentId)
     ).map((node) => ({ node, parentId: currentParentId }));
   }, [
     childrenByParent,
     currentParentId,
+    errors,
     filter,
     isFiltering,
     loadedIds,
+    loading,
     nodeLabel,
     rootNode,
     t,
   ]);
 
   const navigableRows = useMemo(
-    () => currentRows.filter((row) => !isLoadingPlaceholder(row.node)),
+    () => currentRows.filter((row) => !isLoadingPlaceholder(row.node) && row.node.kind !== "error"),
     [currentRows]
   );
 
@@ -800,7 +803,7 @@ export function ObjectDiscovery({
             onKeyDown={handleTreeKeyDown}
           >
             {currentRows.map(({ node, pathLabel }) => {
-              const isPlaceholder = isLoadingPlaceholder(node);
+              const isPlaceholder = isLoadingPlaceholder(node) || node.kind === "error";
               const isSel = !isPlaceholder && selectedId === node.id;
               const err = errors.get(node.id);
               const isLoading = loading.has(node.id);
