@@ -191,9 +191,21 @@ export function getDrillDownChildren(
   parentId: string,
   childrenByParent: Map<string, TreeNode[]>,
   loadedIds: Set<string>,
-  loadingLabel: string
+  loadingLabel: string,
+  error?: string | null
 ): TreeNode[] {
   if (!loadedIds.has(parentId)) {
+    const message = error?.replace(/^Error:\s*/, "").trim();
+    if (message) {
+      return [
+        {
+          id: `${parentId}:__error__`,
+          label: message,
+          kind: "error",
+          has_children: false,
+        },
+      ];
+    }
     return [loadingPlaceholder(parentId, loadingLabel)];
   }
   return childrenByParent.get(parentId) ?? [];

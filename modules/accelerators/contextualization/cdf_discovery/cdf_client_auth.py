@@ -38,8 +38,32 @@ def _cluster_from_base_url(base_url: str) -> str | None:
     return None
 
 
+_AZURE_PROVIDERS = {"azure", "entra", "entra_id", "aad"}
+
+
 def _resolve_login_flow() -> str:
     return (_env("LOGIN_FLOW") or "").lower()
+
+
+def _normalize_provider(value: str | None) -> str:
+    return (value or "").strip().lower().replace("-", "_")
+
+
+def _resolve_token_url(tenant_id: str | None) -> str | None:
+    """Token endpoint from env, or the Entra v2 URL derived from the tenant id.
+
+    This repo's ``.env`` uses toolkit client-credentials (``IDP_TENANT_ID`` plus
+    ``IDP_CLIENT_ID`` / ``IDP_CLIENT_SECRET``) and does not set ``IDP_TOKEN_URL``.
+    """
+    explicit = _env("COGNITE_TOKEN_URL", "TOKEN_URL", "IDP_TOKEN_URL")
+    if explicit:
+        return explicit
+    provider = _normalize_provider(_env("PROVIDER"))
+    if provider in {"auth0", "cdf"} or not tenant_id:
+        return None
+    if provider in _AZURE_PROVIDERS or (not provider and _resolve_login_flow() == "client_credentials"):
+        return f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+    return None
 
 
 def _resolve_scopes(base_url: str) -> list[str]:
@@ -64,7 +88,7 @@ def _interactive_oauth_available() -> bool:
     if not all([tenant_id, client_id, project, base_url]):
         return False
     client_secret = _env("COGNITE_CLIENT_SECRET", "CLIENT_SECRET", "IDP_CLIENT_SECRET")
-    token_url = _env("COGNITE_TOKEN_URL", "TOKEN_URL", "IDP_TOKEN_URL")
+    token_url = _resolve_token_url(tenant_id)
     flow = _resolve_login_flow()
     if flow == "interactive":
         return True
@@ -191,7 +215,7 @@ def create_cognite_client(*, client_name: str = "cdf-discovery") -> Any:
     tenant_id = _env("COGNITE_TENANT_ID", "TENANT_ID", "IDP_TENANT_ID")
     client_id = _env("COGNITE_CLIENT_ID", "CLIENT_ID", "IDP_CLIENT_ID")
     client_secret = _env("COGNITE_CLIENT_SECRET", "CLIENT_SECRET", "IDP_CLIENT_SECRET")
-    token_url = _env("COGNITE_TOKEN_URL", "TOKEN_URL", "IDP_TOKEN_URL")
+    token_url = _resolve_token_url(tenant_id)
     scopes = _resolve_scopes(base_url) if base_url else []
 
     if not (tenant_id and client_id and client_secret and token_url and scopes and project and base_url):

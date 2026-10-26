@@ -19,8 +19,8 @@ workflowClientSecret: ""
 index_storage_backend: raw
 index_raw_database: db_contextualization_idx
 index_schema_space: contextualization_idx
-source_metadata_batch_size: 50
+source_metadata_batch_size: 100
 source_metadata_batch_timeout: 60
-subscription_batch_size: 50
+subscription_batch_size: 100
 subscription_batch_timeout: 60
 source_index_watermark_cron: "0 * * * *"
