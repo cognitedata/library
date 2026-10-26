@@ -151,13 +151,13 @@ class RunConfig(TypedDict):
     minFacilityEntities: int
     tieringEnabled: bool
     tierByTypeCode: dict[str, int]
-    disciplineByTypeCode: dict[str, str]
-    assetTypeByEquipmentTypeCode: dict[str, str]
     divisionTagPrefix: str
     retiredTag: str
     ownerPrefixRules: list[dict[str, str]]
     defaultOwners: dict[str, str]
     exclusions: dict[str, list[str]]
+    maxShards: int
+    shardTargetEntities: int
     freshnessDays: int
     maxDepth: int
     lowConfidence: float

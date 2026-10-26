@@ -596,6 +596,73 @@
           }
         }
       ]
+    },
+    "extraLinkGap": {
+      "container": "ContextQualityRelationship",
+      "appRequired": [
+        "metricId",
+        "dimensionId",
+        "entityId"
+      ],
+      "examples": [
+        {
+          "name": "golden",
+          "properties": {
+            "rowKind": "extraLinkGap",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "type",
+            "dimensionId": "cdf_cdm:CogniteCore:v1/CogniteAsset",
+            "reportingUnitId": "unit-north",
+            "facilityId": "north",
+            "entityId": "asset-0042",
+            "entityLabel": "Pump P-101",
+            "detail": "link not set"
+          },
+          "parsed": {
+            "model": "cdf_cdm:CogniteCore:v1",
+            "modelLabel": "CogniteCore",
+            "view": "CogniteAsset",
+            "property": "type",
+            "facilityId": "north",
+            "entityId": "asset-0042",
+            "entityLabel": "Pump P-101",
+            "detail": "link not set"
+          }
+        }
+      ],
+      "invalid": [
+        {
+          "reason": "entityId is missing",
+          "properties": {
+            "rowKind": "extraLinkGap",
+            "runId": "r",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "metricId": "type",
+            "dimensionId": "cdf_cdm:CogniteCore:v1/CogniteAsset",
+            "reportingUnitId": "u"
+          }
+        }
+      ]
+    },
+    "runPart": {
+      "container": "ContextQualityRelationship",
+      "appRequired": [],
+      "dashboardParser": null,
+      "examples": [
+        {
+          "name": "a shard that counted the built-in metrics",
+          "properties": {
+            "rowKind": "runPart",
+            "runId": "run-20261013T053425-c2326a",
+            "runTimestamp": "2026-10-13T05:34:25.000Z",
+            "entityId": "shard-0",
+            "detail": "metrics",
+            "rowsWritten": 120
+          }
+        }
+      ],
+      "invalid": []
     }
   }
 }

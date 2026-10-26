@@ -46,7 +46,7 @@ sums the rows for the scope the user picked and divides. Nothing is ever updated
 | Metrics stream | `streams/context_quality_metrics.Streams.yaml` | Immutable. Variables `metricsStreamExternalId` and `metricsStreamTemplate` |
 | Data set | `data_sets/context_quality.DataSet.yaml` | Holds the function's code. Variable `metricsDatasetExternalId` |
 | Metrics function | `functions/context_quality.Function.yaml`, `functions/fn_context_quality_metrics/` | Variable `metricsFunctionExternalId`. The folder is named after the external id |
-| Workflow | `workflows/context_quality.Workflow.yaml`, `…WorkflowVersion.yaml` | `wf_context_quality_metrics`, version `v1`. One task: the metrics function |
+| Workflow | `workflows/context_quality.Workflow.yaml`, `…WorkflowVersion.yaml` | `wf_context_quality_metrics`, version `v1`. Three steps: plan, a dynamic task that runs the shards in parallel, finalize |
 | Schedule trigger | `workflows/context_quality.WorkflowTrigger.yaml` | `wf_context_quality_metrics_schedule`. Runs the workflow on a cron schedule as the function identity |
 | Function group | `auth/context_quality_function.Group.yaml` | `gp_context_quality_function` |
 | Dashboard users group | `auth/context_quality_dashboard_users.Group.yaml` | `gp_context_quality_dashboard_users` |
@@ -74,6 +74,7 @@ The two container external ids are part of the contract and are **not** variable
 | `metricsFacilityNames`, `metricsTierByTypeCode`, `metricsDisciplineByTypeCode`, `metricsAssetTypeByEquipmentTypeCode`, `metricsDefaultOwners`, `metricsOwnerPrefixRules`, `metricsExclusions` | empty | the project's rules, as JSON text (Toolkit reads a mapping-valued variable as a namespace, so a mapping or list is written as a string such as `'{"pump": 1}'`) |
 | `metricsTieringEnabled` | `false` | tiering is off by default; set `true` together with `metricsTierByTypeCode` to turn it on |
 | `metricsDivisionTagPrefix`, `metricsRetiredTag`, `metricsFreshnessDays`, `metricsMaxDepth` | `""`, `""`, `30`, `8` | the project's settings |
+| `metricsMaxShards`, `metricsShardTargetEntities` | `150`, `250000` | how a run is divided into parallel function calls (see "Running in parallel shards") |
 
 The legacy at-dev names are supplied by a deployment-specific `config.<env>.yaml` that sets `metricsSchemaSpace`,
 `metricsInstanceSpace`, `metricsStreamExternalId` and `metricsStreamTemplate` to the values above. Nothing in the
@@ -98,7 +99,7 @@ Anything under the payload's `config` overrides `cq/config.py`'s `DEFAULT_CONFIG
 names, whatever its type, and is never merged into it: `"tierByTypeCode": {}` clears the tier rules, and a mapping
 that is not empty is the whole mapping. Keys the payload does not name keep their defaults. `exclusions` is a mapping
 of four lists, so a supplied `exclusions` replaces all of them and any list it does not name is empty. The defaults
-carry no project-specific rule: `tierByTypeCode`, `disciplineByTypeCode`, `assetTypeByEquipmentTypeCode`,
+carry no project-specific rule: `tierByTypeCode`,
 `defaultOwners`, `ownerPrefixRules`, `divisionTagPrefix`, `retiredTag` and `exclusions.decommissionedTags` are all
 empty, and an empty rule is not applied (an empty required mapping makes the metrics that need it not applicable, with
 a `mapping-empty` warning; with no `divisionTagPrefix` no asset gets a division, and rows carry none). The division
@@ -231,16 +232,63 @@ containers, views and stream must show as unchanged. Do not delete or recreate t
 
 ### The production workflow
 
-`wf_context_quality_metrics` (version `v1`, one execution at a time) has one task, `compute_metrics`, which calls
-`fn_context_quality_metrics` with `action: compute_metrics` and `dry_run: false`. The task's `config` carries the three
-resource names (`stream`, `schemaSpace`, `instanceSpace`, from the module variables) and the project's rules (from the
-`metrics*` variables, empty by default). It is never given demo rules, and no seed or demo task is in it.
+`wf_context_quality_metrics` (version `v1`, one execution at a time) has three steps, all calling
+`fn_context_quality_metrics`: `plan`, a dynamic task `shards`, and `finalize` (see "Running in parallel shards"). The
+`plan` task's `config` carries the three resource names (`stream`, `schemaSpace`, `instanceSpace`, from the module
+variables) and the project's rules (from the `metrics*` variables, empty by default), and hands them to every shard. It
+is never given demo rules, and no seed or demo task is in it.
 
 Execution path: the schedule trigger (or an operator) starts the workflow, which runs the function as the identity in
-the trigger's `authentication`. The function checks its resource settings, reads the facility entities, computes, and
-appends the run: a `started` marker, the rows, and the `complete` marker last. Any error fails the task
-(`onFailure: abortWorkflow`, one retry), which fails the execution, so a failed computation is never recorded as a
-success; a run that fails before the end has no `complete` marker and is never shown.
+the trigger's `authentication`. The plan finds the facilities and appends the `started` marker, the shards append the
+rows, and `finalize` appends the `complete` marker last. Any error fails its task (`onFailure: abortWorkflow`), which
+fails the execution, so a failed computation is never recorded as a success; a run that fails before the end has no
+`complete` marker and is never shown.
+
+### Running in parallel shards
+
+A project with millions of instances cannot be counted by one function call: it has ten minutes and limited memory.
+The workflow therefore uses the *dynamic task* of Cognite Workflows, which runs tasks that a previous task returns, in
+parallel:
+
+1. **`plan`** (function action `plan`) counts the entities per instance space with aggregate queries, so nothing is
+   loaded, applies the same facility rule as a single call, divides the facility spaces into shards, writes
+   `run:started`, and returns the run id and one task definition per shard.
+2. **`shards`** (dynamic task, `tasks: ${plan.output.response.tasks}`) runs those tasks: one `compute_shard` call per
+   shard. A shard loads only its own spaces, counts them with the same code as a single call, and appends its rows and
+   one `runPart` record.
+3. **`finalize`** (function action `finalize`) runs after every shard has finished. It reads the `runPart` records
+   (this is why the function group has `streamRecordsAcl` READ), checks that every shard reported, and appends
+   `run:complete` last with the summed row count and the shards' warnings merged. If a shard is missing it writes
+   nothing, so the run is never shown.
+
+**How the run is divided.** A facility space is never split: a shard holds one or more whole spaces, so every counted
+row (its reporting unit is its instance space) comes from exactly one shard and shards never write the same record.
+The number of shards is the entities that were counted divided by `metricsShardTargetEntities` (default 250,000),
+at most `metricsMaxShards` (default 150) and at most one per space. A workflow execution may hold 200 tasks, generated
+ones included, and the plan, the dynamic task and `finalize` are three of them, so keep `metricsMaxShards` below 197.
+At most 50 tasks run at the same time in a project; the rest wait. Spaces are placed largest first into the lightest
+shard. The tasks carry the configuration, and a task's input and output may not exceed 0.2 MB, so the plan uses fewer
+shards when a large config file would not fit; it rejects a configuration too large for even one.
+
+**What differs from one call (`compute_metrics`)**, because a shard sees only its own spaces:
+
+- An entity that links to one in another space has no such entity loaded: its tier, division and discipline are
+  unknown (whether the link is set is not affected), a parent in another space counts as not loaded
+  (`parents-not-loaded`), and a work order is matched only with notifications of its own space. A facility is an
+  instance space, so these are the exception; where they are common, call `compute_metrics`, which counts them
+  exactly.
+- A shard that fails fails the run. A shard writes immutable records, so it is not retried (`retries: 0`) and the run
+  is started again.
+- **A space is the smallest unit.** A single space holding millions of instances in one shard is as heavy as the old
+  single call for that space, and a function call has ten minutes. Splitting one space further (by entity kind) would
+  need the cross-kind lookups of the metrics (assets for the grain, time series for the monitoring coverage) to be
+  read separately; it is not done.
+
+`compute_metrics` still exists for small projects, dry runs and comparison. `validate` is unchanged.
+
+**To confirm after the first deployment**: that the dynamic task accepts the generated tasks and that
+`${plan.output.response.…}` resolves (the Cognite documentation and examples use `output.response`), by starting the
+workflow once and reading the execution's tasks.
 
 **Operator run.** Start the workflow from Fusion (Data management, Workflows), or with the Toolkit's `run` plugin
 (`run = true` under `[plugins]` in `cdf.toml`; it is deprecated in favour of the `dev` plugin):

@@ -45,9 +45,13 @@ def workflow_version(variables: dict[str, str] | None = None) -> dict[str, Any]:
     return rendered("context_quality.WorkflowVersion.yaml", variables=variables)
 
 
+def tasks_by_id(variables: dict[str, str] | None = None) -> dict[str, dict[str, Any]]:
+    return {task["externalId"]: task for task in workflow_version(variables)["workflowDefinition"]["tasks"]}
+
+
 def function_task(variables: dict[str, str] | None = None) -> dict[str, Any]:
-    (task,) = workflow_version(variables)["workflowDefinition"]["tasks"]
-    return task
+    """The plan task: it carries the configuration every shard receives."""
+    return tasks_by_id(variables)["plan"]
 
 
 def capabilities(group: str, variables: dict[str, str] | None = None) -> dict[str, list[dict[str, Any]]]:
@@ -76,20 +80,53 @@ def test_the_workflow_version_belongs_to_the_workflow() -> None:
     assert version["version"] == DEFAULTS["metricsWorkflowVersion"]
 
 
-def test_the_workflow_has_exactly_one_task_and_it_calls_only_the_production_function() -> None:
-    tasks = workflow_version()["workflowDefinition"]["tasks"]
+def test_the_workflow_plans_runs_the_shards_in_parallel_and_finalizes_calling_only_the_production_function() -> None:
+    tasks = tasks_by_id()
 
-    assert len(tasks) == 1
-    assert tasks[0]["type"] == "function"
-    assert tasks[0]["parameters"]["function"]["externalId"] == "fn_context_quality_metrics"
-    assert tasks[0]["parameters"]["function"]["data"]["action"] == "compute_metrics"
+    assert list(tasks) == ["plan", "shards", "finalize"]
+    for name, action in (("plan", "plan"), ("finalize", "finalize")):
+        assert tasks[name]["type"] == "function"
+        assert tasks[name]["parameters"]["function"]["externalId"] == "fn_context_quality_metrics"
+        assert tasks[name]["parameters"]["function"]["data"]["action"] == action
+    # the dynamic task runs what the plan returned, and the shards call this same function
+    assert tasks["shards"]["type"] == "dynamic"
+    assert tasks["shards"]["parameters"]["dynamic"]["tasks"] == "${plan.output.response.tasks}"
+    assert tasks["plan"]["parameters"]["function"]["data"]["functionExternalId"] == "fn_context_quality_metrics"
+    assert [dep["externalId"] for dep in tasks["shards"]["dependsOn"]] == ["plan"]
+    assert [dep["externalId"] for dep in tasks["finalize"]["dependsOn"]] == ["shards"]
+    assert "dependsOn" not in tasks["plan"]
+
+
+def test_finalize_is_given_the_run_the_plan_started_and_the_resources_it_writes_to() -> None:
+    data = tasks_by_id()["finalize"]["parameters"]["function"]["data"]
+
+    assert data["runId"] == "${plan.output.response.runId}"
+    assert data["runTimestamp"] == "${plan.output.response.runTimestamp}"
+    assert data["shardCount"] == "${plan.output.response.shardCount}"
+    assert data["config"] == {
+        "stream": DEFAULTS["metricsStreamExternalId"],
+        "schemaSpace": DEFAULTS["metricsSchemaSpace"],
+        "instanceSpace": DEFAULTS["metricsInstanceSpace"],
+    }
+    require_resources(build_config(data["config"]), writes=True)
+
+
+def test_a_failed_step_fails_the_execution_so_the_run_is_never_completed() -> None:
+    for task in tasks_by_id().values():
+        assert task["onFailure"] == "abortWorkflow"
+    assert tasks_by_id()["shards"]["dependsOn"] and tasks_by_id()["finalize"]["dependsOn"]
+
+
+def test_the_workflow_stays_within_the_limits_of_a_workflow_execution() -> None:
+    """200 tasks per execution, generated ones included: the plan, the dynamic task and finalize are three of them."""
+    assert DEFAULT_CONFIG["maxShards"] + len(tasks_by_id()) <= 200
 
 
 def test_the_workflow_runs_no_seed_demo_or_transformation_task() -> None:
     text = (WORKFLOWS / "context_quality.WorkflowVersion.yaml").read_text()
 
     assert not [word for word in (*SEED_WORDS, "transformation") if word in text]
-    assert {task["type"] for task in workflow_version()["workflowDefinition"]["tasks"]} == {"function"}
+    assert {task["type"] for task in workflow_version()["workflowDefinition"]["tasks"]} == {"function", "dynamic"}
 
 
 def test_the_workflow_descriptions_are_short_enough_for_the_api() -> None:
@@ -100,12 +137,10 @@ def test_the_workflow_descriptions_are_short_enough_for_the_api() -> None:
     assert all(len(task.get("description", "")) <= 100 for task in definition["tasks"])
 
 
-def test_the_task_does_a_real_run_and_a_failure_fails_the_execution() -> None:
-    task = function_task()
-
-    assert task["parameters"]["function"]["data"]["dry_run"] is False
-    assert task["onFailure"] == "abortWorkflow"
-    assert task["timeout"] <= 600  # the function runtime limit
+def test_the_function_steps_stay_within_the_function_runtime_limit() -> None:
+    for name in ("plan", "finalize"):
+        assert tasks_by_id()[name]["timeout"] <= 600
+    assert "dry_run" not in function_task()["parameters"]["function"]["data"]  # a run is real
 
 
 def test_the_task_gives_the_function_the_resources_it_requires() -> None:
@@ -142,8 +177,6 @@ def test_the_task_config_is_empty_by_default_so_no_demo_rule_is_passed() -> None
         for key in (
             "facilityNames",
             "tierByTypeCode",
-            "disciplineByTypeCode",
-            "assetTypeByEquipmentTypeCode",
             "defaultOwners",
             "ownerPrefixRules",
             "divisionTagPrefix",
@@ -256,8 +289,6 @@ def test_the_mapping_variables_are_json_text_because_toolkit_reads_a_mapping_as_
     for key in (
         "metricsFacilityNames",
         "metricsTierByTypeCode",
-        "metricsDisciplineByTypeCode",
-        "metricsAssetTypeByEquipmentTypeCode",
         "metricsDefaultOwners",
         "metricsOwnerPrefixRules",
         "metricsExclusions",
@@ -270,7 +301,12 @@ def test_the_mapping_variables_are_json_text_because_toolkit_reads_a_mapping_as_
 def test_the_function_task_variables_match_the_functions_own_scalar_defaults() -> None:
     cfg = build_config(function_task()["parameters"]["function"]["data"]["config"])
 
-    assert (cfg["freshnessDays"], cfg["maxDepth"]) == (DEFAULT_CONFIG["freshnessDays"], DEFAULT_CONFIG["maxDepth"])
+    assert (cfg["freshnessDays"], cfg["maxDepth"], cfg["maxShards"], cfg["shardTargetEntities"]) == (
+        DEFAULT_CONFIG["freshnessDays"],
+        DEFAULT_CONFIG["maxDepth"],
+        DEFAULT_CONFIG["maxShards"],
+        DEFAULT_CONFIG["shardTargetEntities"],
+    )
 
 
 # ---------------------------------------------------------------- unique identifiers
@@ -354,7 +390,7 @@ def test_the_function_group_reads_entities_and_writes_only_records() -> None:
     assert instances["actions"] == ["READ"]
     assert scope_spaces(instances) == ["cdf_cdm", "cdf_idm"]  # the default; a deployment adds its facility spaces
     (records,) = group["streamRecordsAcl"]
-    assert records["actions"] == ["WRITE"]
+    assert records["actions"] == ["READ", "WRITE"]  # READ: finalize finds the records the shards wrote
     assert scope_spaces(records) == [DEFAULTS["metricsInstanceSpace"]]
     assert "streamsAcl" not in group  # it never reads or creates a stream
     assert "workflowOrchestrationAcl" not in group

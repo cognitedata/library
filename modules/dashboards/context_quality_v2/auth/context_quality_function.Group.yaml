@@ -52,9 +52,11 @@ capabilities:
         - READ
       scope:
         all: {}
-  # append records to the stream. The scope is the space the records are written to.
+  # append records to the stream. The scope is the space the records are written to. READ lets `finalize` find the
+  # records the shards of a run wrote, to know that every shard finished.
   - streamRecordsAcl:
       actions:
+        - READ
         - WRITE
       scope:
         spaceIdScope:

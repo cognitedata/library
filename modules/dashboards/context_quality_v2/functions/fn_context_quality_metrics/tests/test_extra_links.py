@@ -3,9 +3,10 @@
 from typing import Any
 
 import pytest
+from cq.availability import extra_link_truncation_warnings
 from cq.config import build_config
-from cq.extra_links import ExtraLink, count_links, extra_facility_spaces, parse_extra_links
-from cq.writer import extra_link_rows
+from cq.extra_links import ExtraLink, count_links, extra_facility_spaces, find_gaps, parse_extra_links
+from cq.writer import extra_link_gap_rows, extra_link_rows
 
 CORE = "cdf_cdm:CogniteCore:v1"
 
@@ -64,10 +65,10 @@ FACILITIES = {"plant_a": "Plant A", "plant_b": "Plant B"}
 def test_a_link_counts_the_instances_where_it_is_set_per_facility() -> None:
     nodes = {
         (CORE, "CogniteAsset"): [
-            ("plant_a", {"type": ref("t1")}),
-            ("plant_a", {"type": None}),
-            ("plant_a", {}),
-            ("plant_b", {"type": ref("t2")}),
+            ("plant_a", "node", {"type": ref("t1")}),
+            ("plant_a", "node", {"type": None}),
+            ("plant_a", "node", {}),
+            ("plant_b", "node", {"type": ref("t2")}),
         ]
     }
 
@@ -82,10 +83,10 @@ def test_a_link_counts_the_instances_where_it_is_set_per_facility() -> None:
 def test_a_list_property_is_set_only_when_it_holds_a_reference() -> None:
     nodes = {
         (CORE, "CogniteTimeSeries"): [
-            ("plant_a", {"assets": [ref("a1"), ref("a2")]}),
-            ("plant_a", {"assets": []}),
-            ("plant_a", {"assets": None}),
-            ("plant_a", {"assets": [{"space": "ref"}]}),
+            ("plant_a", "node", {"assets": [ref("a1"), ref("a2")]}),
+            ("plant_a", "node", {"assets": []}),
+            ("plant_a", "node", {"assets": None}),
+            ("plant_a", "node", {"assets": [{"space": "ref"}]}),
         ]
     }
 
@@ -95,7 +96,7 @@ def test_a_list_property_is_set_only_when_it_holds_a_reference() -> None:
 
 
 def test_instances_outside_the_facilities_are_not_counted() -> None:
-    nodes = {(CORE, "CogniteAsset"): [("somewhere_else", {}), ("plant_a", {"type": ref("t1")})]}
+    nodes = {(CORE, "CogniteAsset"): [("somewhere_else", "node", {}), ("plant_a", "node", {"type": ref("t1")})]}
 
     counts = count_links([link("CogniteAsset", "type")], nodes, FACILITIES)
 
@@ -104,7 +105,7 @@ def test_instances_outside_the_facilities_are_not_counted() -> None:
 
 
 def test_a_facility_with_no_instances_of_the_view_gets_no_row_for_it() -> None:
-    nodes = {(CORE, "CogniteAsset"): [("plant_a", {"type": ref("t")})]}
+    nodes = {(CORE, "CogniteAsset"): [("plant_a", "node", {"type": ref("t")})]}
 
     counts = count_links([link("CogniteAsset", "type")], nodes, FACILITIES)
 
@@ -121,7 +122,7 @@ def test_a_view_with_no_instances_anywhere_still_shows_up_with_nothing_to_count(
 
 
 def test_two_links_of_the_same_view_are_counted_from_the_same_instances() -> None:
-    nodes = {(CORE, "CogniteAsset"): [("plant_a", {"type": ref("t"), "assetClass": None})]}
+    nodes = {(CORE, "CogniteAsset"): [("plant_a", "node", {"type": ref("t"), "assetClass": None})]}
 
     counts = count_links([link("CogniteAsset", "type"), link("CogniteAsset", "assetClass")], nodes, FACILITIES)
 
@@ -132,8 +133,8 @@ def test_two_links_of_the_same_view_are_counted_from_the_same_instances() -> Non
 def test_the_same_view_name_in_two_models_is_counted_separately() -> None:
     other = "other:Model:v1"
     nodes = {
-        (CORE, "Asset"): [("plant_a", {"type": ref("t")})],
-        (other, "Asset"): [("plant_a", {})],
+        (CORE, "Asset"): [("plant_a", "node", {"type": ref("t")})],
+        (other, "Asset"): [("plant_a", "node", {})],
     }
 
     counts = count_links([link("Asset", "type"), link("Asset", "type", other)], nodes, {"plant_a": "A"})
@@ -180,7 +181,7 @@ def test_row_keys_are_unique_per_model_view_property_and_facility() -> None:
 
 
 def many(space: str, count: int) -> list[tuple[str, dict[str, Any]]]:
-    return [(space, {}) for _ in range(count)]
+    return [(space, "node", {}) for _ in range(count)]
 
 
 CFG = build_config({"schemaSpace": "metrics_schema", "instanceSpace": "metrics_data"})
@@ -240,3 +241,78 @@ def test_an_explicit_facility_list_is_the_only_set_of_facilities() -> None:
 
 def test_the_core_facilities_are_never_dropped_or_renamed() -> None:
     assert extra_facility_spaces({}, FACILITIES, CFG) == FACILITIES
+
+
+def test_the_instances_without_the_link_are_listed_with_their_name_or_external_id() -> None:
+    nodes = {
+        (CORE, "CogniteAsset"): [
+            ("plant_a", "a1", {"type": ref("t1"), "name": "Set"}),
+            ("plant_a", "a2", {"type": None, "name": "Pump P-101"}),
+            ("plant_a", "a3", {}),
+            ("plant_b", "a4", {"name": 7}),
+            ("elsewhere", "a5", {}),
+        ]
+    }
+
+    gaps = find_gaps([link("CogniteAsset", "type")], nodes, FACILITIES)
+
+    assert [(gap["space"], gap["external_id"], gap["label"]) for gap in gaps] == [
+        ("plant_a", "a2", "Pump P-101"),
+        ("plant_a", "a3", "a3"),
+        ("plant_b", "a4", "a4"),
+    ]
+    assert {(gap["model"], gap["view"], gap["property"]) for gap in gaps} == {(CORE, "CogniteAsset", "type")}
+
+
+def test_a_list_link_with_no_reference_is_a_gap() -> None:
+    nodes = {
+        (CORE, "CogniteTimeSeries"): [("plant_a", "t1", {"assets": []}), ("plant_a", "t2", {"assets": [ref("x")]})]
+    }
+
+    gaps = find_gaps([link("CogniteTimeSeries", "assets")], nodes, FACILITIES)
+
+    assert [gap["external_id"] for gap in gaps] == ["t1"]
+
+
+def gap_rows_for(count: int, cap: int) -> list[Any]:
+    nodes = {(CORE, "CogniteAsset"): [("plant_a", f"a{i}", {}) for i in range(count)]}
+    return extra_link_gap_rows(find_gaps([link("CogniteAsset", "type")], nodes, FACILITIES), FACILITIES, cap)
+
+
+def test_a_gap_row_names_the_instance_the_view_the_property_and_the_facility() -> None:
+    (key, props), *_ = gap_rows_for(1, 500)
+
+    assert key.startswith("xgap:")
+    assert props == {
+        "rowKind": "extraLinkGap",
+        "metricId": "type",
+        "dimensionId": f"{CORE}/CogniteAsset",
+        "reportingUnitId": "plant_a",
+        "facilityId": "Plant A",
+        "entityId": "a0",
+        "entityLabel": "a0",
+        "detail": "link not set",
+    }
+
+
+def test_the_gap_rows_are_cut_at_the_cap_per_link_and_facility_and_have_distinct_keys() -> None:
+    rows = gap_rows_for(7, 5)
+
+    assert len(rows) == 5
+    assert len({key for key, _ in rows}) == 5
+
+
+def test_a_list_cut_at_the_cap_is_reported_with_what_was_dropped() -> None:
+    nodes = {(CORE, "CogniteAsset"): [("plant_a", f"a{i}", {}) for i in range(7)] + [("plant_b", "b0", {})]}
+    gaps = find_gaps([link("CogniteAsset", "type")], nodes, FACILITIES)
+
+    (warning,) = extra_link_truncation_warnings(gaps, 5)
+
+    assert warning["code"] == "drilldown-truncated"
+    assert (warning["subject"], warning["limit"], warning["dropped"], warning["units"]) == (
+        "CogniteAsset.type",
+        5,
+        2,
+        1,
+    )
+    assert extra_link_truncation_warnings(gaps, 500) == []

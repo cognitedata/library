@@ -128,8 +128,8 @@ def test_records_are_written_in_batches_of_the_configured_size(monkeypatch: pyte
     assert len(client.calls) > 3
 
 
-def test_the_handler_runs_only_the_two_production_actions() -> None:
-    assert sorted(handler.ACTIONS) == ["compute_metrics", "validate"]
+def test_the_handler_runs_only_the_production_actions() -> None:
+    assert sorted(handler.ACTIONS) == ["compute_metrics", "compute_shard", "finalize", "plan", "validate"]
 
 
 @pytest.mark.parametrize("action", ["seed_datapoints", "seed_history", "nope", None])

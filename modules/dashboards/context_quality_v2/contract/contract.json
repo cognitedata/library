@@ -156,6 +156,37 @@
         "issueCount",
         "notApplicable"
       ]
+    },
+    "extraLinkGap": {
+      "container": "relationship",
+      "required": [
+        "rowKind",
+        "runId",
+        "runTimestamp",
+        "metricId",
+        "dimensionId",
+        "reportingUnitId",
+        "entityId"
+      ],
+      "optional": [
+        "facilityId",
+        "entityLabel",
+        "detail"
+      ]
+    },
+    "runPart": {
+      "container": "relationship",
+      "required": [
+        "rowKind",
+        "runId",
+        "runTimestamp",
+        "entityId"
+      ],
+      "optional": [
+        "detail",
+        "warnings",
+        "rowsWritten"
+      ]
     }
   },
   "runStatuses": {
@@ -171,7 +202,9 @@
     "drill:",
     "cls:",
     "anno:",
-    "xlink:"
+    "xlink:",
+    "xgap:",
+    "part:"
   ],
   "tiers": [
     {
@@ -287,15 +320,6 @@
       "emitted": true
     },
     {
-      "id": "assetEquipmentCoverage",
-      "dimension": "equipment-asset",
-      "kind": "aggregate",
-      "direction": "critical",
-      "issueKind": null,
-      "lifecycle": false,
-      "emitted": true
-    },
-    {
       "id": "serialMfrCompleteness",
       "dimension": "equipment-asset",
       "kind": "aggregate",
@@ -314,6 +338,24 @@
       "emitted": true
     },
     {
+      "id": "equipmentMissingSerial",
+      "dimension": "equipment-asset",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "equipmentMissingManufacturer",
+      "dimension": "equipment-asset",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
       "id": "completenessByManufacturer",
       "dimension": "equipment-asset",
       "kind": "drilldown",
@@ -321,15 +363,6 @@
       "issueKind": null,
       "lifecycle": false,
       "emitted": false
-    },
-    {
-      "id": "typeInconsistencies",
-      "dimension": "equipment-asset",
-      "kind": "drilldown",
-      "direction": "informational",
-      "issueKind": "type-inconsistency",
-      "lifecycle": false,
-      "emitted": true
     },
     {
       "id": "tsToAssetRate",
@@ -483,6 +516,15 @@
       "issueKind": null,
       "lifecycle": false,
       "emitted": false
+    },
+    {
+      "id": "incompleteWorkOrders",
+      "dimension": "maintenance",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
     },
     {
       "id": "woWithoutNotification",
@@ -674,8 +716,17 @@
       "emitted": true
     },
     {
-      "id": "assetsWithoutEquipment",
-      "dimension": "equipment-asset",
+      "id": "unlinkedByCategory",
+      "dimension": "files",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": "unlinked-file",
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "filesMissingCategory",
+      "dimension": "files",
       "kind": "drilldown",
       "direction": "informational",
       "issueKind": null,
@@ -683,11 +734,20 @@
       "emitted": true
     },
     {
-      "id": "unlinkedByCategory",
+      "id": "filesMissingDescription",
       "dimension": "files",
       "kind": "drilldown",
       "direction": "informational",
-      "issueKind": "unlinked-file",
+      "issueKind": null,
+      "lifecycle": false,
+      "emitted": true
+    },
+    {
+      "id": "filesMissingSourceId",
+      "dimension": "files",
+      "kind": "drilldown",
+      "direction": "informational",
+      "issueKind": null,
       "lifecycle": false,
       "emitted": true
     },
@@ -809,10 +869,6 @@
     },
     {
       "id": "parents-not-loaded",
-      "subject": null
-    },
-    {
-      "id": "unmapped-equipment-types",
       "subject": null
     },
     {

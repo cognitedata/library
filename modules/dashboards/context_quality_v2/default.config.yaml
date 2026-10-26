@@ -33,8 +33,6 @@ metricsWorkflowScheduleTimezone: UTC
 metricsFacilityNames: '{}'                  # {"instance space": "display id"}
 metricsTieringEnabled: false                # tiering is off by default; true also needs metricsTierByTypeCode
 metricsTierByTypeCode: '{}'                 # {"asset type code": 1, 2 or 3}, used only while tiering is on
-metricsDisciplineByTypeCode: '{}'           # {"asset type code": "discipline id"}
-metricsAssetTypeByEquipmentTypeCode: '{}'   # {"equipment type code": "asset type code"}
 metricsDivisionTagPrefix: ""                # a tag with this prefix names an asset's division; empty derives none
 metricsRetiredTag: ""                       # assets with this tag are retired; empty switches the check off
 metricsDefaultOwners: '{}'                  # {"dimension id": "owner id"}
@@ -43,6 +41,11 @@ metricsOwnerPrefixRules: '[]'               # [{"prefix": "...", "ownerId": "...
 metricsExclusions: '{"syntheticTsPrefixes": [], "locationCentricFileCategories": [], "excludedFileExtensions": [], "decommissionedTags": []}'
 metricsFreshnessDays: 30
 metricsMaxDepth: 8
+# How a run is divided into parallel function calls. A facility space is never split: a shard holds whole spaces.
+# maxShards stays below the 200 tasks a workflow execution may hold (plan, dynamic task and finalize count too);
+# small spaces share a shard until it holds shardTargetEntities entities.
+metricsMaxShards: 150
+metricsShardTargetEntities: 250000
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Access. REQUIRED before deployment: the identity-provider values below come from your environment (.env) and are

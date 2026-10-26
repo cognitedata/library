@@ -45,20 +45,25 @@ def test_a_notification_with_no_work_order_is_listed() -> None:
     assert listed(result, "notificationsWithoutWorkOrder") == {"n2": "notification without work order"}
 
 
-def test_an_asset_with_no_equipment_is_listed_and_a_root_is_not() -> None:
-    loaded = data(assets=hierarchy(), equipment_=[equipment(SP, "e1", (SP, "pump"))])
+def test_equipment_missing_a_field_is_listed_per_field() -> None:
+    bare = equipment(SP, "bare", (SP, "pump"))
+    bare["serial"], bare["manufacturer"] = None, None
+    serial_only = equipment(SP, "no-serial", (SP, "pump"))
+    serial_only["serial"], serial_only["manufacturer"] = None, "Acme"
 
-    result = run(loaded)
+    result = run(data(assets=hierarchy(), equipment_=[bare, serial_only]))
 
-    assert listed(result, "assetsWithoutEquipment") == {"valve": "asset without equipment"}
-
-
-def test_with_tiering_on_only_the_tier_1_and_2_assets_without_equipment_are_listed() -> None:
-    loaded = data(assets=[*hierarchy(), asset(SP, "widget", parent=(SP, "site"), type_code="widget")])
-
-    result = run(loaded, {"tieringEnabled": True, "tierByTypeCode": {"pump": 1, "valve": 2}})
-
-    assert listed(result, "assetsWithoutEquipment") == {
-        "pump": "tier 1 asset without equipment",
-        "valve": "tier 2 asset without equipment",
+    assert listed(result, "equipmentMissingSerial") == {
+        "bare": "equipment without serial number",
+        "no-serial": "equipment without serial number",
     }
+    assert listed(result, "equipmentMissingManufacturer") == {"bare": "equipment without manufacturer"}
+
+
+def test_work_orders_that_are_not_completed_are_listed() -> None:
+    done, open_ = work_order(SP, "done"), work_order(SP, "open")
+    done["completed"], open_["completed"] = True, False
+
+    result = run(data(assets=hierarchy(), work_orders=[done, open_]))
+
+    assert listed(result, "incompleteWorkOrders") == {"open": "work order not completed"}

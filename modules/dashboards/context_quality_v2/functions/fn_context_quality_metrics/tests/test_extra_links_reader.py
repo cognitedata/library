@@ -80,7 +80,9 @@ def test_the_nodes_of_each_view_are_read_once_from_every_space() -> None:
 
     nodes = load_extra_links(client, links("type", "assets"))  # type: ignore[arg-type]
 
-    assert nodes == {(CORE, "CogniteAsset"): [("plant", {"type": {"space": "r", "externalId": "t"}}), ("plant", {})]}
+    assert nodes == {
+        (CORE, "CogniteAsset"): [("plant", "a1", {"type": {"space": "r", "externalId": "t"}}), ("plant", "a2", {})]
+    }
     assert client.data_modeling.instances.calls == [
         {"instance_type": "node", "sources": ASSET, "space": None, "limit": -1}
     ]
@@ -129,7 +131,7 @@ def test_a_list_of_direct_relations_is_a_link() -> None:
 
     nodes = load_extra_links(client, links("assets"))  # type: ignore[arg-type]
 
-    assert nodes[(CORE, "CogniteAsset")] == [("plant", {"assets": [{"space": "r", "externalId": "x"}]})]
+    assert nodes[(CORE, "CogniteAsset")] == [("plant", "a1", {"assets": [{"space": "r", "externalId": "x"}]})]
 
 
 def test_no_links_reads_nothing() -> None:

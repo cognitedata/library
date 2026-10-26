@@ -73,7 +73,6 @@ def test_while_off_the_coverage_metrics_measure_every_asset_that_is_not_a_root()
     result = run(loaded_assets())
 
     assert totals(result, "monitoringCoverage") == [3, 1]
-    assert totals(result, "assetEquipmentCoverage") == [3, 1]
     assert totals(result, "asset3dCoverage") == [3, 0]
     assert {
         item["detail"] for item in result["drilldown"] if item["metric"] in ("tier1CoverageGaps", "unlinkedTier1")

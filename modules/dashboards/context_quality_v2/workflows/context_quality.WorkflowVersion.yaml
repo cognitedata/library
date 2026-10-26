@@ -2,23 +2,27 @@ workflowExternalId: "{{ metricsWorkflowExternalId }}"
 version: "{{ metricsWorkflowVersion }}"
 workflowDefinition:
   # kept short: the workflows API rejected a 211-character description at deploy time, although it documents 500
-  description: Computes the Context Quality metrics. Runs no seed or demo task.
+  description: Computes the Context Quality metrics in parallel shards, one run. Runs no seed or demo task.
   tasks:
-    - externalId: compute_metrics
+    # 1. Finds the facility spaces from aggregate counts (nothing is loaded), starts the run and divides it into shards.
+    #    It returns one task definition per shard, and the run id the last task completes.
+    - externalId: plan
       type: function
-      name: Compute Context Quality metrics
-      description: Appends one run to the metrics stream. A failed run leaves no complete marker, so it is never shown.
+      name: Plan the Context Quality run
+      description: Finds the facility spaces, starts the run and divides it into shards.
       parameters:
         function:
           externalId: "{{ metricsFunctionExternalId }}"
           data:
-            action: compute_metrics
-            dry_run: false
+            action: plan
+            # the function the shards call, which is this one
+            functionExternalId: "{{ metricsFunctionExternalId }}"
             # The links of the config file a person ran the workflow with (dashboard: Configuration page). A scheduled
             # run supplies an empty list, so it measures the built-in metrics only. See README, "Running with a config file".
             extraLinks: ${workflow.input.extraLinks}
             # The function has no default for these three: the deployment names them (module variables).
             # Everything below is project-specific and empty by default; nothing here is demo configuration.
+            # The plan hands this configuration on to every shard.
             config:
               stream: "{{ metricsStreamExternalId }}"
               schemaSpace: "{{ metricsSchemaSpace }}"
@@ -26,8 +30,6 @@ workflowDefinition:
               facilityNames: {{ metricsFacilityNames }}
               tieringEnabled: {{ metricsTieringEnabled }}
               tierByTypeCode: {{ metricsTierByTypeCode }}
-              disciplineByTypeCode: {{ metricsDisciplineByTypeCode }}
-              assetTypeByEquipmentTypeCode: {{ metricsAssetTypeByEquipmentTypeCode }}
               divisionTagPrefix: "{{ metricsDivisionTagPrefix }}"
               retiredTag: "{{ metricsRetiredTag }}"
               defaultOwners: {{ metricsDefaultOwners }}
@@ -35,7 +37,46 @@ workflowDefinition:
               exclusions: {{ metricsExclusions }}
               freshnessDays: {{ metricsFreshnessDays }}
               maxDepth: {{ metricsMaxDepth }}
+              maxShards: {{ metricsMaxShards }}
+              shardTargetEntities: {{ metricsShardTargetEntities }}
       retries: 1
       timeout: 600
-      # a failed computation fails the task and with it the workflow execution; nothing hides it
+      onFailure: abortWorkflow
+
+    # 2. One function call per shard, in parallel: the tasks the plan returned. A shard counts whole facility spaces and
+    #    appends their rows to the run. Generated tasks are not retried: a shard writes immutable records.
+    - externalId: shards
+      type: dynamic
+      name: Count the shards in parallel
+      description: Runs the shard tasks the plan returned.
+      parameters:
+        dynamic:
+          tasks: ${plan.output.response.tasks}
+      dependsOn:
+        - externalId: plan
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    # 3. When every shard has finished, completes the run: the marker is written last, with the merged warnings. If a
+    #    shard failed this task does not run, and the run is never shown.
+    - externalId: finalize
+      type: function
+      name: Complete the Context Quality run
+      description: Writes the complete marker once every shard has reported.
+      parameters:
+        function:
+          externalId: "{{ metricsFunctionExternalId }}"
+          data:
+            action: finalize
+            runId: ${plan.output.response.runId}
+            runTimestamp: ${plan.output.response.runTimestamp}
+            shardCount: ${plan.output.response.shardCount}
+            config:
+              stream: "{{ metricsStreamExternalId }}"
+              schemaSpace: "{{ metricsSchemaSpace }}"
+              instanceSpace: "{{ metricsInstanceSpace }}"
+      dependsOn:
+        - externalId: shards
+      retries: 1
+      timeout: 600
       onFailure: abortWorkflow

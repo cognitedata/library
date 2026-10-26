@@ -18,7 +18,20 @@ class ExtraLink(TypedDict):
 
 
 type LinkKey = tuple[str, str, str, str]  # model, view, property, facility space
-type ViewNodes = dict[tuple[str, str], list[tuple[str, dict[str, Any]]]]  # (model, view) -> [(space, properties)]
+type ViewNodes = dict[
+    tuple[str, str], list[tuple[str, str, dict[str, Any]]]
+]  # (model, view) -> [(space, id, properties)]
+
+
+class LinkGap(TypedDict):
+    """An instance of a configured view whose link is not set."""
+
+    model: str
+    view: str
+    property: str
+    space: str
+    external_id: str
+    label: str
 
 
 def _entries(raw: Any) -> list[Any]:
@@ -74,29 +87,61 @@ def is_set(value: Any) -> bool:
     return _is_ref(value)
 
 
-def count_links(links: list[ExtraLink], nodes: ViewNodes, facility_spaces: dict[str, str]) -> dict[LinkKey, list[int]]:
+def count_links(
+    links: list[ExtraLink],
+    nodes: ViewNodes,
+    facility_spaces: dict[str, str],
+    empty_views: set[tuple[str, str]] | None = None,
+) -> dict[LinkKey, list[int]]:
     """-> {(model, view, property, facility space): [eligible, passing, issue]}.
 
     A link has a count for each facility that holds instances of its view. A link whose view has none in any facility
     still gets a count of zero in every facility, so the person who named it sees that there was nothing to count.
+
+    A shard sees only some of the facilities, so it cannot tell by itself that a view is empty everywhere: the plan
+    does, and passes those (model, view) pairs as `empty_views`. Without it the view is judged from `nodes`.
     """
     counts: dict[LinkKey, list[int]] = defaultdict(lambda: [0, 0, 0])
     for link in links:
         found = False
-        for space, props in nodes.get((link["model"], link["view"]), []):
+        for space, _external_id, props in nodes.get((link["model"], link["view"]), []):
             if space not in facility_spaces:
                 continue
             found = True
             row = counts[(link["model"], link["view"], link["property"], space)]
             row[0] += 1
             row[1 if is_set(props.get(link["property"])) else 2] += 1
-        if not found:
+        empty = (link["model"], link["view"]) in empty_views if empty_views is not None else not found
+        if empty:
             for space in facility_spaces:
                 counts[(link["model"], link["view"], link["property"], space)]
     return dict(counts)
 
 
+def find_gaps(links: list[ExtraLink], nodes: ViewNodes, facility_spaces: dict[str, str]) -> list[LinkGap]:
+    """The instances, in the facilities, whose link is not set. An instance is labelled with its name when its view has one."""
+    gaps: list[LinkGap] = []
+    for link in links:
+        for space, external_id, props in nodes.get((link["model"], link["view"]), []):
+            if space in facility_spaces and not is_set(props.get(link["property"])):
+                name = props.get("name")
+                label = name if isinstance(name, str) and name else external_id
+                gaps.append({**link, "space": space, "external_id": external_id, "label": label})
+    return gaps
+
+
 def extra_facility_spaces(nodes: ViewNodes, facility_spaces: dict[str, str], cfg: RunConfig) -> dict[str, str]:
+    """`extra_facility_spaces_from_counts` for instances that were read."""
+    counts: dict[str, int] = defaultdict(int)
+    for entries in nodes.values():
+        for space, _external_id, _props in entries:
+            counts[space] += 1
+    return extra_facility_spaces_from_counts(dict(counts), facility_spaces, cfg)
+
+
+def extra_facility_spaces_from_counts(
+    counts: dict[str, int], facility_spaces: dict[str, str], cfg: RunConfig
+) -> dict[str, str]:
     """The facilities the extra links are counted in: the Core facilities, plus the spaces of the configured views.
 
     A space joins when it holds at least `minFacilityEntities` instances of the configured views and is not an excluded
@@ -105,9 +150,5 @@ def extra_facility_spaces(nodes: ViewNodes, facility_spaces: dict[str, str], cfg
     """
     if cfg["facilitySpaces"]:
         return dict(facility_spaces)
-    counts: dict[str, int] = defaultdict(int)
-    for entries in nodes.values():
-        for space, _ in entries:
-            counts[space] += 1
-    found = discover_facility_spaces(dict(counts), cfg)
+    found = discover_facility_spaces(counts, cfg)
     return {**facility_spaces, **{space: name for space, name in found.items() if space not in facility_spaces}}

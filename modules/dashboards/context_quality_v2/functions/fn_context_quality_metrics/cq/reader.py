@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from cognite.client import CogniteClient
+from cognite.client.data_classes.aggregations import Count
 from cognite.client.data_classes.data_modeling import DirectRelation, MappedProperty, Node, ViewId
 from cognite.client.exceptions import CogniteAPIError
 
@@ -40,7 +41,7 @@ _MISSING_VIEW = re.compile(r"views? do(?:es)? not exist", re.IGNORECASE)
 
 
 def _optional_nodes(
-    client: CogniteClient, space: str, xid: str, unavailable: list[str]
+    client: CogniteClient, space: str, xid: str, unavailable: list[str], spaces: list[str] | None = None
 ) -> list[tuple[Node, dict[str, Any]]]:
     """Nodes of a view the project may not have. Only "the view does not exist" counts as unavailable.
 
@@ -48,7 +49,7 @@ def _optional_nodes(
     source as absent when it simply could not be read.
     """
     try:
-        return _nodes(client, space, xid)
+        return _nodes(client, space, xid, spaces)
     except CogniteAPIError as error:
         if error.code == 400 and _MISSING_VIEW.search(str(error.message)):
             unavailable.append(f"{space}.{xid}")
@@ -86,7 +87,8 @@ def _only[T: dict[str, Any]](entities: list[T], facility_spaces: dict[str, str])
     return [e for e in entities if e["space"] in facility_spaces]
 
 
-def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
+def _load(client: CogniteClient, spaces: list[str] | None) -> dict[str, Any]:
+    """The reference nodes, and the entities of `spaces` (every space when None), as plain dicts."""
     d: dict[str, Any] = {}
     unavailable: list[str] = []
     # reference nodes are found wherever they live; entities reference them by (space, externalId)
@@ -114,7 +116,7 @@ def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
             "aclass": _ref(p.get("assetClass")),
             "object3d": _ref(p.get("object3D")),
         }
-        for n, p in _nodes(client, CDM, "CogniteAsset")
+        for n, p in _nodes(client, CDM, "CogniteAsset", spaces)
     ]
     d["equipment"] = [
         {
@@ -127,7 +129,7 @@ def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
             "serial": p.get("serialNumber"),
             "manufacturer": p.get("manufacturer"),
         }
-        for n, p in _nodes(client, CDM, "CogniteEquipment")
+        for n, p in _nodes(client, CDM, "CogniteEquipment", spaces)
     ]
     d["timeseries"] = [
         {
@@ -138,7 +140,7 @@ def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
             "assets": _refs(p.get("assets")),
             "unit": p.get("sourceUnit"),
         }
-        for n, p in _nodes(client, CDM, "CogniteTimeSeries")
+        for n, p in _nodes(client, CDM, "CogniteTimeSeries", spaces)
     ]
     d["files"] = [
         {
@@ -150,7 +152,7 @@ def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
             "category": _ref(p.get("category")),
             "assets": _refs(p.get("assets")),
         }
-        for n, p in _nodes(client, CDM, "CogniteFile")
+        for n, p in _nodes(client, CDM, "CogniteFile", spaces)
     ]
     d["objects3d"] = [
         {
@@ -159,7 +161,7 @@ def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
             "name": p.get("name"),
             "bbox": all(p.get(k) is not None for k in ("xMin", "xMax", "yMin", "yMax", "zMin", "zMax")),
         }
-        for n, p in _nodes(client, CDM, "Cognite3DObject")
+        for n, p in _nodes(client, CDM, "Cognite3DObject", spaces)
     ]
     d["work_orders"] = [
         {
@@ -169,7 +171,7 @@ def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
             "main_asset": _ref(p.get("mainAsset")),
             "completed": p.get("endTime") is not None,
         }
-        for n, p in _optional_nodes(client, IDM, "CogniteMaintenanceOrder", unavailable)
+        for n, p in _optional_nodes(client, IDM, "CogniteMaintenanceOrder", unavailable, spaces)
     ]
     d["notifications"] = [
         {
@@ -179,11 +181,11 @@ def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
             "asset": _ref(p.get("asset")),
             "work_order": _ref(p.get("maintenanceOrder")),
         }
-        for n, p in _optional_nodes(client, IDM, "CogniteNotification", unavailable)
+        for n, p in _optional_nodes(client, IDM, "CogniteNotification", unavailable, spaces)
     ]
     av = _view(CDM, "CogniteDiagramAnnotation")
     d["annotations"] = []
-    for e in client.data_modeling.instances.list(instance_type="edge", sources=av, limit=-1):
+    for e in client.data_modeling.instances.list(instance_type="edge", sources=av, space=spaces, limit=-1):
         p = e.properties.get(av)
         if p is None:
             continue
@@ -198,20 +200,73 @@ def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
                 "created": _ts(p.get("sourceCreatedTime")),
             }
         )
-    # facilities come from where the entities are; everything outside them is dropped from scoring
     d["unavailable_sources"] = unavailable
     d["entity_counts_by_space"] = count_entities_by_space(d)
+    return d
+
+
+def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
+    """Every entity of the project, with the facilities discovered from where they live. One call reads everything."""
+    d = _load(client, None)
+    # facilities come from where the entities are; everything outside them is dropped from scoring
     d["facility_spaces"] = discover_facility_spaces(d["entity_counts_by_space"], cfg)
     for key in ENTITY_KEYS:
         d[key] = _only(d[key], d["facility_spaces"])
     return d  # type: ignore[return-value]
 
 
-def load_extra_links(client: CogniteClient, links: list[ExtraLink]) -> ViewNodes:
-    """The nodes of every view the extra links name, read from every space.
+def load_shard(client: CogniteClient, facility_spaces: dict[str, str]) -> LoadedData:
+    """The entities of the given facility spaces only: what one shard of a run counts. The facilities were found by the
+    plan, so nothing is discovered here. An entity that links to one outside these spaces has no such entity loaded."""
+    d = _load(client, list(facility_spaces))
+    d["facility_spaces"] = dict(facility_spaces)
+    return d  # type: ignore[return-value]
 
-    Every space is read, not only the Core facilities, because the models in the config can hold their instances in
-    spaces that have no Core entity (see extra_links.extra_facility_spaces, which decides which become facilities).
+
+# (view space, view, optional, edge): the views whose instances count towards a space being a facility
+_COUNTED_VIEWS = (
+    (CDM, "CogniteAsset", False, False),
+    (CDM, "CogniteEquipment", False, False),
+    (CDM, "CogniteTimeSeries", False, False),
+    (CDM, "CogniteFile", False, False),
+    (CDM, "Cognite3DObject", False, False),
+    (IDM, "CogniteMaintenanceOrder", True, False),
+    (IDM, "CogniteNotification", True, False),
+    (CDM, "CogniteDiagramAnnotation", False, True),
+)
+
+
+def _counts_by_space(client: CogniteClient, view: ViewId, *, edge: bool = False) -> dict[str, int]:
+    """Instances of a view per instance space, counted by the data modeling service without reading any instance."""
+    result = client.data_modeling.instances.aggregate(
+        view, Count("externalId"), group_by="space", instance_type="edge" if edge else "node", limit=1000
+    )
+    return {str(item.group["space"]): int(item.aggregates[0].value) for item in result}
+
+
+def count_entities_by_space_remote(client: CogniteClient) -> tuple[dict[str, int], list[str]]:
+    """-> ({space: entity nodes and annotation edges}, optional views the project does not have).
+
+    The same figures `load_all` derives from reading everything (`count_entities_by_space`), at the cost of a few
+    aggregate calls, so a run can be planned without loading the project.
+    """
+    counts: dict[str, int] = {}
+    unavailable: list[str] = []
+    for space, xid, optional, edge in _COUNTED_VIEWS:
+        try:
+            per_space = _counts_by_space(client, _view(space, xid), edge=edge)
+        except CogniteAPIError as error:
+            if optional and error.code == 400 and _MISSING_VIEW.search(str(error.message)):
+                unavailable.append(f"{space}.{xid}")
+                continue
+            raise
+        for name, count in per_space.items():
+            counts[name] = counts.get(name, 0) + count
+    return counts, unavailable
+
+
+def validate_extra_links(client: CogniteClient, links: list[ExtraLink]) -> dict[tuple[str, str], ViewId]:
+    """(model, view) -> the view, for every view the extra links name.
 
     Each model is looked up once with its views inlined, and every link is checked against it first: the view must be in
     the model and the property must be a direct relation (or a list of them). A wrong name fails the run before any
@@ -237,10 +292,30 @@ def load_extra_links(client: CogniteClient, links: list[ExtraLink]) -> ViewNodes
             if not (isinstance(definition, MappedProperty) and isinstance(definition.type, DirectRelation)):
                 raise ValueError(f"{name} is not a direct relation, so it is not a link")
             view_ids[(model, link["view"])] = view.as_id()
+    return view_ids
+
+
+def count_extra_link_instances(
+    client: CogniteClient, view_ids: dict[tuple[str, str], ViewId]
+) -> dict[tuple[str, str], dict[str, int]]:
+    """(model, view) -> {space: instances}, without reading the instances."""
+    return {key: _counts_by_space(client, view_id) for key, view_id in view_ids.items()}
+
+
+def load_extra_links(client: CogniteClient, links: list[ExtraLink], spaces: list[str] | None = None) -> ViewNodes:
+    """The nodes of every view the extra links name, from `spaces` (every space when None).
+
+    Every space is readable, not only the Core facilities, because the models in the config can hold their instances in
+    spaces that have no Core entity (see extra_links.extra_facility_spaces, which decides which become facilities).
+    The links are validated first (`validate_extra_links`).
+    """
+    view_ids = validate_extra_links(client, links)
     return {
         key: [
-            (node.space, dict(props))
-            for node in client.data_modeling.instances.list(instance_type="node", sources=view_id, space=None, limit=-1)
+            (node.space, node.external_id, dict(props))
+            for node in client.data_modeling.instances.list(
+                instance_type="node", sources=view_id, space=spaces, limit=-1
+            )
             if (props := node.properties.get(view_id)) is not None
         ]
         for key, view_id in view_ids.items()

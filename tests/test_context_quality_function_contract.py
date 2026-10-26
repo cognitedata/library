@@ -54,7 +54,9 @@ def write_a_run(
 
     def load_extra_links(_client: Any, _links: Any) -> dict[tuple[str, str], list[Any]]:
         return {
-            ("cdf_cdm:CogniteCore:v1", "CogniteAsset"): [(space, {}) for space in build_dataset()[0]["facility_spaces"]]
+            ("cdf_cdm:CogniteCore:v1", "CogniteAsset"): [
+                (space, "a1", {}) for space in build_dataset()[0]["facility_spaces"]
+            ]
         }
 
     monkeypatch.setattr(runner, "compute_run", compute_run)
@@ -74,6 +76,111 @@ def write_a_run(
         {"extraLinks": [{"model": "cdf_cdm:CogniteCore:v1", "links": ["CogniteAsset.type"]}]},
     )
     return [item for _, body in client.calls for item in body["items"]], {"urls": {url for url, _ in client.calls}}
+
+
+class ReadingClient(RecordingClient):
+    """Answers the Records filter with the `runPart` records written so far, as the stream does."""
+
+    def post(self, url: str, json: dict[str, Any]) -> Any:  # type: ignore[override]
+        if not url.endswith("/records/filter"):
+            return super().post(url, json)
+        schema, container = DEFAULTS["metricsSchemaSpace"], CONTAINERS["relationship"]
+        items = [
+            {"properties": {schema: {container: item["sources"][0]["properties"]}}}
+            for _, body in self.calls
+            for item in body["items"]
+            if item["sources"][0]["properties"]["rowKind"] == "runPart"
+        ]
+        return type("Response", (), {"json": lambda _self: {"items": items}})()
+
+
+def write_a_fanned_out_run(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    """One shard per facility space of the parity dataset, then finalize, as the workflow's dynamic task does."""
+    facilities = dict(build_dataset()[0]["facility_spaces"])
+
+    def load_shard(_client: Any, spaces: dict[str, str]) -> dict[str, Any]:
+        data = build_dataset()[0]
+        for key in (
+            "assets",
+            "equipment",
+            "timeseries",
+            "files",
+            "objects3d",
+            "work_orders",
+            "notifications",
+            "annotations",
+        ):
+            data[key] = [entity for entity in data[key] if entity["space"] in spaces]
+        data["facility_spaces"] = dict(spaces)
+        return data
+
+    def load_extra_links(_client: Any, _links: Any, spaces: list[str]) -> dict[tuple[str, str], list[Any]]:
+        return {("cdf_cdm:CogniteCore:v1", "CogniteAsset"): [(space, "a1", {}) for space in spaces]}
+
+    monkeypatch.setattr(runner, "load_shard", load_shard)
+    monkeypatch.setattr(runner, "load_extra_links", load_extra_links)
+    monkeypatch.setattr(runner, "latest_datapoints", lambda _client, _data: build_dataset()[1])
+    client = ReadingClient()
+    cfg = build_config(
+        {
+            "stream": DEFAULTS["metricsStreamExternalId"],
+            "schemaSpace": DEFAULTS["metricsSchemaSpace"],
+            "instanceSpace": DEFAULTS["metricsInstanceSpace"],
+        }
+    )
+    run = {"runId": "run-20261013T053425-c2326a", "runTimestamp": "2026-10-13T05:34:25.000Z"}
+    runner.writer.ingest(
+        client,
+        cfg,
+        "relationshipContainer",
+        run["runId"],
+        runner._parse_iso(run["runTimestamp"]),
+        [("run:started", {"rowKind": "run", "status": "started"})],
+    )  # type: ignore[arg-type]
+    for shard, (space, name) in enumerate(facilities.items()):
+        payload = {
+            **run,
+            "shard": shard,
+            "shardCount": len(facilities),
+            "spaces": {space: name},
+            "extraSpaces": {space: name},
+            "extraLinks": [{"model": "cdf_cdm:CogniteCore:v1", "links": ["CogniteAsset.type"]}],
+        }
+        runner.compute_shard(client, cfg, payload)  # type: ignore[arg-type]
+    runner.finalize(client, cfg, {**run, "shardCount": len(facilities)})  # type: ignore[arg-type]
+    return [item for _, body in client.calls for item in body["items"]]
+
+
+def test_a_fanned_out_run_writes_records_that_fit_the_containers_and_the_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    items = write_a_fanned_out_run(monkeypatch)
+
+    for item in items:
+        source = item["sources"][0]
+        properties = source["properties"]
+        spec = CONTRACT.rowKinds[properties["rowKind"]]
+        assert properties_fit_container(properties, CONTAINER_KEY_BY_NAME[source["source"]["externalId"]]) == []
+        assert set(spec.required) <= set(properties) or properties["rowKind"] == "run", item["externalId"]
+        assert set(properties) <= set(spec.required + spec.optional), item["externalId"]
+        assert item["externalId"].split(":", 1)[1].startswith(tuple(CONTRACT.recordKeyPrefixes))
+
+
+def test_a_fanned_out_run_writes_every_row_kind_and_completes_last(monkeypatch: pytest.MonkeyPatch) -> None:
+    items = write_a_fanned_out_run(monkeypatch)
+    kinds = [item["sources"][0]["properties"]["rowKind"] for item in items]
+
+    assert set(kinds) == set(CONTRACT.rowKinds)
+    assert kinds.count("runPart") == 2
+    assert items[-1]["externalId"].endswith(":run:complete")
+    assert items[-1]["sources"][0]["properties"]["rowsWritten"] == len(items) - 4  # started, complete and two parts
+
+
+def test_the_function_writes_every_row_kind_in_the_contract(monkeypatch: pytest.MonkeyPatch) -> None:
+    items, _ = write_a_run(monkeypatch)
+
+    # `runPart` records exist only in a fanned-out run (see below)
+    assert {item["sources"][0]["properties"]["rowKind"] for item in items} == set(CONTRACT.rowKinds) - {"runPart"}
 
 
 def test_the_function_has_no_default_resource_and_the_legacy_identifiers_work_when_passed_explicitly() -> None:
@@ -119,12 +226,6 @@ def test_every_record_has_the_required_properties_of_its_row_kind(monkeypatch: p
         assert CONTAINERS[spec.container] == item["sources"][0]["source"]["externalId"]
 
 
-def test_the_function_writes_every_row_kind_in_the_contract(monkeypatch: pytest.MonkeyPatch) -> None:
-    items, _ = write_a_run(monkeypatch)
-
-    assert {item["sources"][0]["properties"]["rowKind"] for item in items} == set(CONTRACT.rowKinds)
-
-
 def test_the_run_is_only_readable_once_the_complete_marker_exists(monkeypatch: pytest.MonkeyPatch) -> None:
     items, _ = write_a_run(monkeypatch)
     statuses = [
@@ -148,7 +249,10 @@ def test_the_function_only_writes_metrics_dimensions_and_categories_of_the_contr
 
     for item in items:
         properties = item["sources"][0]["properties"]
-        if properties["rowKind"] == "extraLink":  # named by the user's config file, not by the contract
+        if properties["rowKind"] in (
+            "extraLink",
+            "extraLinkGap",
+        ):  # named by the user's config file, not by the contract
             continue
         assert properties.get("metricId", next(iter(metrics))) in metrics
         assert properties.get("dimensionId", next(iter(dimensions))) in dimensions
@@ -167,7 +271,7 @@ def test_record_keys_start_with_the_prefixes_the_contract_lists(monkeypatch: pyt
 def test_not_applicable_rows_and_run_warnings_fit_the_existing_container_without_a_schema_change(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    items, _ = write_a_run(monkeypatch, {"tierByTypeCode": {}})
+    items, _ = write_a_run(monkeypatch, {"tieringEnabled": True, "tierByTypeCode": {}})
 
     not_applicable = [i for i in items if i["sources"][0]["properties"].get("notApplicable") is True]
     marker = items[-1]["sources"][0]["properties"]

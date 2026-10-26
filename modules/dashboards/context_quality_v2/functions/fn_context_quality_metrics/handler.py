@@ -1,9 +1,14 @@
 """Context Quality metrics function.
 
-One function, two actions. The payload decides what runs:
+One function, several actions. The payload decides what runs:
 
-    {"action": "compute_metrics", "dry_run": false}
+    {"action": "compute_metrics", "dry_run": false}   the whole run in one call: for small projects and dry runs
+    {"action": "plan", "functionExternalId": "..."}    step one of a fanned-out run: finds the shards, starts the run
+    {"action": "compute_shard", ...}                   step two, once per shard and in parallel (made by plan)
+    {"action": "finalize", ...}                        step three: completes the run when every shard has reported
     {"action": "validate"}
+
+The workflow runs plan, then a dynamic task that calls compute_shard once per shard, then finalize (cq.fanout).
 
 Any key in payload["config"] overrides the matching key in cq.config.DEFAULT_CONFIG.
 
@@ -16,11 +21,14 @@ from typing import Any
 
 from cognite.client import CogniteClient
 from cq.config import build_config
-from cq.runner import compute_metrics, validate
+from cq.runner import compute_metrics, compute_shard, finalize, plan, validate
 from cq.types import RunConfig
 
 ACTIONS: dict[str, Callable[[CogniteClient, RunConfig, dict[str, Any]], dict[str, Any]]] = {
     "compute_metrics": compute_metrics,
+    "plan": plan,
+    "compute_shard": compute_shard,
+    "finalize": finalize,
     "validate": validate,
 }
 

@@ -16,13 +16,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from cq.extra_links import LinkGap
 from cq.types import LoadedData, RunConfig
 
 MAX_LISTED_CODES = 10
 MAX_WARNINGS_LENGTH = 4000
 
 TIER_MAPPING = "tier-mapping"
-EQUIPMENT_TYPE_MAPPING = "equipment-type-mapping"
 
 # The populations a metric is computed from: the loaded entity list that must contain something in the unit.
 POPULATIONS = {
@@ -58,8 +58,6 @@ METRIC_SPECS: tuple[MetricSpec, ...] = (
     MetricSpec("associationRate", "equipment-asset", "equipment"),
     MetricSpec("serialMfrCompleteness", "equipment-asset", "equipment", "serialNumber"),
     MetricSpec("serialMfrCompleteness", "equipment-asset", "equipment", "manufacturer"),
-    MetricSpec("typeInconsistencies", "equipment-asset", "equipment", requires=EQUIPMENT_TYPE_MAPPING),
-    MetricSpec("assetEquipmentCoverage", "equipment-asset", "assets", requires=TIER_MAPPING),
     MetricSpec("tsToAssetRate", "time-series", "timeseries"),
     MetricSpec("freshness", "time-series", "timeseries"),
     MetricSpec("monitoringCoverage", "time-series", "assets", requires=TIER_MAPPING),
@@ -116,8 +114,6 @@ def _reason(
 ) -> str:
     if spec.requires == TIER_MAPPING and cfg["tieringEnabled"] and not cfg["tierByTypeCode"]:
         return "mapping-empty:tierByTypeCode"
-    if spec.requires == EQUIPMENT_TYPE_MAPPING and not cfg["assetTypeByEquipmentTypeCode"]:
-        return "mapping-empty:assetTypeByEquipmentTypeCode"
     dimension = EXCLUSION_DIMENSION.get(spec.population)
     if dimension and excluded.get((dimension, unit), 0) >= populations[spec.population][unit]:
         return "all-excluded"
@@ -166,6 +162,29 @@ def _warning(code: str, message: str, subject: str | None = None, **details: Any
     return out
 
 
+def extra_link_truncation_warnings(gaps: list[LinkGap], cap: int) -> list[dict[str, Any]]:
+    """One warning per configured link whose list of instances was cut at `cap` in at least one facility."""
+    per: dict[tuple[str, str, str, str], int] = defaultdict(int)
+    for gap in gaps:
+        per[(gap["model"], gap["view"], gap["property"], gap["space"])] += 1
+    cut: dict[str, list[int]] = defaultdict(lambda: [0, 0])  # View.property -> [dropped, facilities]
+    for (_model, view, prop, _space), count in per.items():
+        if count > cap:
+            cut[f"{view}.{prop}"][0] += count - cap
+            cut[f"{view}.{prop}"][1] += 1
+    return [
+        _warning(
+            "drilldown-truncated",
+            "The drill-down list was cut at the configured limit; the aggregate counts are complete.",
+            subject,
+            limit=cap,
+            dropped=dropped,
+            units=units,
+        )
+        for subject, (dropped, units) in sorted(cut.items())
+    ]
+
+
 def _sample(codes: set[str]) -> list[str]:
     return sorted(codes)[:MAX_LISTED_CODES]
 
@@ -181,19 +200,15 @@ def build_warnings(
     warnings: list[dict[str, Any]] = []
     total = {name: sum(units.values()) for name, units in populations.items()}
 
-    for key, population, effect in (
-        (
-            "tierByTypeCode",
-            "assets",
-            "no asset gets a tier, so tier slices are empty and the tier 1 and 2 coverage metrics cannot be measured",
-        ),
-        ("disciplineByTypeCode", "assets", "no asset gets a discipline, so discipline slices are empty"),
-        ("assetTypeByEquipmentTypeCode", "equipment", "equipment types cannot be checked against asset types"),
-    ):
-        if key == "tierByTypeCode" and not cfg["tieringEnabled"]:
-            continue
-        if total[population] and not cfg[key]:  # type: ignore[literal-required]
-            warnings.append(_warning("mapping-empty", f"{key} is empty: {effect}.", key))
+    if cfg["tieringEnabled"] and total["assets"] and not cfg["tierByTypeCode"]:
+        warnings.append(
+            _warning(
+                "mapping-empty",
+                "tierByTypeCode is empty: no asset gets a tier, so tier slices are empty and the tier 1 and 2 coverage "
+                "metrics cannot be measured.",
+                "tierByTypeCode",
+            )
+        )
 
     if cfg["tierByTypeCode"] and not cfg["tieringEnabled"]:
         warnings.append(
@@ -234,22 +249,6 @@ def build_warnings(
                 assets=not_loaded,
             )
         )
-    if cfg["assetTypeByEquipmentTypeCode"]:
-        unmapped, codes = 0, set()
-        for equipment in data["equipment"]:
-            code = data["equipment_types"].get(equipment["etype"]) if equipment["etype"] else None
-            if code is not None and code not in cfg["assetTypeByEquipmentTypeCode"]:
-                unmapped += 1
-                codes.add(code)
-        if unmapped:
-            warnings.append(
-                _warning(
-                    "unmapped-equipment-types",
-                    "Some equipment has a type that assetTypeByEquipmentTypeCode does not map; it is left out of the type check.",
-                    unmapped=unmapped,
-                    codes=_sample(codes),
-                )
-            )
 
     unavailable = data.get("unavailable_sources", [])
     for source in sorted(unavailable):

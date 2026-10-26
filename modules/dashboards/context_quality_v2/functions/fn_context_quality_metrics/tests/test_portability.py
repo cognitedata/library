@@ -11,7 +11,7 @@ from sample_rules import SAMPLE_RULES
 from tiny_data import NOW, asset, data, equipment
 
 HERE = Path(__file__).resolve().parent.parent
-PROJECT_MAPPINGS = ("tierByTypeCode", "disciplineByTypeCode", "assetTypeByEquipmentTypeCode", "defaultOwners")
+PROJECT_MAPPINGS = ("tierByTypeCode", "defaultOwners")
 PROJECT_RULES = (*PROJECT_MAPPINGS, "ownerPrefixRules")
 DEMO_WORDS = (
     "sap-steward",
@@ -57,9 +57,6 @@ def test_a_default_run_assigns_no_discipline_and_no_owner() -> None:
 def test_the_sample_rules_carries_the_sample_rules() -> None:
     cfg = build_config(SAMPLE_RULES)
 
-    assert cfg["disciplineByTypeCode"]["pump"] == "mechanical"
-    assert cfg["disciplineByTypeCode"]["sensor"] == "instrumentation"
-    assert cfg["assetTypeByEquipmentTypeCode"]["centrifugal_pump"] == "pump"
     assert cfg["defaultOwners"]["asset-hierarchy"] == "sap-steward"
     assert cfg["ownerPrefixRules"] == [{"prefix": "PI-COMP3-", "ownerId": "instrumentation-lead"}]
 
@@ -78,14 +75,14 @@ def test_the_sample_rules_apply_when_the_sample_rules_is_supplied() -> None:
 
     result = compute(loaded, build_config(SAMPLE_RULES), {}, now=NOW)  # type: ignore[arg-type]
 
-    assert {a["disc"] for a in loaded["assets"]} == {None, "mechanical"}
+    assert {a["disc"] for a in loaded["assets"]} == {None}
     assert {key[6] for key in result["agg"] if key[1] == "asset-hierarchy"} == {"sap-steward"}
 
 
 def test_an_unrelated_task_override_does_not_change_the_sample_rules() -> None:
     cfg = build_config({**SAMPLE_RULES, "batchSize": 10})
 
-    assert cfg["disciplineByTypeCode"] == SAMPLE_RULES["disciplineByTypeCode"]
+    assert cfg["tierByTypeCode"] == SAMPLE_RULES["tierByTypeCode"]
     assert cfg["batchSize"] == 10
 
 

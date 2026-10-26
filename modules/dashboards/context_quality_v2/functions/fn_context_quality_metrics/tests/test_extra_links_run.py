@@ -23,13 +23,17 @@ def fake_loader(monkeypatch: pytest.MonkeyPatch) -> list[list[ExtraLink]]:
         asked.append(links)
         ref = {"space": "r", "externalId": "t"}
         return {
-            (CORE, "CogniteAsset"): [(facility, {"type": ref}), (facility, {})],
-            (CORE, "CogniteEquipment"): [(facility, {})],
-            ("o:Other:v1", "Ucp"): [("sp_ucp", {}) for _ in range(10)],
+            (CORE, "CogniteAsset"): [(facility, "a1", {"type": ref}), (facility, "a2", {})],
+            (CORE, "CogniteEquipment"): [(facility, "e1", {})],
+            ("o:Other:v1", "Ucp"): [("sp_ucp", "node", {}) for _ in range(10)],
         }
 
     monkeypatch.setattr(runner, "load_extra_links", load)
     return asked
+
+
+def gap_rows(client: RecordingClient) -> list[dict[str, Any]]:
+    return [props(item) for item in records(client) if props(item)["rowKind"] == "extraLinkGap"]
 
 
 def extra_rows(client: RecordingClient) -> list[dict[str, Any]]:
@@ -130,3 +134,29 @@ def test_a_space_that_holds_only_the_configured_views_instances_becomes_a_facili
     ucp = [row for row in extra_rows(client) if row["reportingUnitId"] == "sp_ucp"]
     assert [(row["metricId"], row["eligibleCount"]) for row in ucp] == [("link", 10)]
     assert ucp[0]["facilityId"] == "sp_ucp"
+
+
+def test_the_instances_without_a_link_are_written_as_gap_rows_before_the_complete_marker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    canned_run(monkeypatch)
+    fake_loader(monkeypatch)
+    client = RecordingClient()
+
+    summary = runner.compute_metrics(client, build_config(SAMPLE_RESOURCES), PAYLOAD)  # type: ignore[arg-type]
+
+    gaps = {(row["dimensionId"], row["metricId"], row["entityId"]) for row in gap_rows(client)}
+    assert gaps == {(f"{CORE}/CogniteAsset", "type", "a2"), (f"{CORE}/CogniteEquipment", "equipmentType", "e1")}
+    assert summary["extraLinkGapRows"] == 2
+    items = records(client)
+    assert props(items[-1])["rowKind"] == "run"
+    assert props(items[-1])["rowsWritten"] == len(items) - 2
+
+
+def test_a_run_without_extra_links_writes_no_gap_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    canned_run(monkeypatch)
+    client = RecordingClient()
+
+    runner.compute_metrics(client, build_config(SAMPLE_RESOURCES), {})  # type: ignore[arg-type]
+
+    assert gap_rows(client) == []

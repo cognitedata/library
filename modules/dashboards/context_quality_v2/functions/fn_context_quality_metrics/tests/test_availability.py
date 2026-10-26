@@ -169,30 +169,12 @@ def test_the_registry_covers_every_aggregate_metric_the_sample_dataset_writes_ex
 def test_an_empty_tier_mapping_makes_the_tier_coverage_metrics_not_applicable_and_warns() -> None:
     _, result = run({"tierByTypeCode": {}})
 
-    for metric, sub in (("assetEquipmentCoverage", None), ("monitoringCoverage", None), ("asset3dCoverage", None)):
+    for metric, sub in (("monitoringCoverage", None), ("asset3dCoverage", None)):
         assert (metric, sub, A) in not_applicable_keys(result)
         assert {w["reason"] for w in warning(result, "metric-not-applicable", metric)} == {
             "mapping-empty:tierByTypeCode"
         }
     assert [w["subject"] for w in warning(result, "mapping-empty")] == ["tierByTypeCode"]
-
-
-def test_an_empty_equipment_type_mapping_makes_type_consistency_not_applicable_and_warns() -> None:
-    _, result = run({"assetTypeByEquipmentTypeCode": {}})
-
-    assert ("typeInconsistencies", None, A) in not_applicable_keys(result)
-    assert ("typeInconsistencies", None, B) in not_applicable_keys(result)
-    assert {w["reason"] for w in warning(result, "metric-not-applicable", "typeInconsistencies")} == {
-        "mapping-empty:assetTypeByEquipmentTypeCode"
-    }
-    assert "assetTypeByEquipmentTypeCode" in [w["subject"] for w in warning(result, "mapping-empty")]
-
-
-def test_an_empty_discipline_mapping_is_reported_but_blocks_no_metric() -> None:
-    _, result = run({"disciplineByTypeCode": {}})
-
-    assert [w["subject"] for w in warning(result, "mapping-empty")] == ["disciplineByTypeCode"]
-    assert not warning(result, "metric-not-applicable")
 
 
 def test_mappings_that_are_present_raise_no_mapping_warning() -> None:
@@ -225,17 +207,6 @@ def test_the_unmapped_code_list_is_bounded_and_sorted() -> None:
     (w,) = warning(result, "unmapped-asset-types")
     assert len(w["codes"]) == availability.MAX_LISTED_CODES
     assert w["codes"] == sorted(w["codes"])
-
-
-def test_equipment_types_that_cannot_be_mapped_are_reported() -> None:
-    def unknown_equipment_type(data: dict[str, Any]) -> None:
-        data["equipment_types"][("sp_ref", "et-pump")] = "something_new"
-
-    _, result = run(mutate=unknown_equipment_type)
-
-    (w,) = warning(result, "unmapped-equipment-types")
-    assert w["codes"] == ["something_new"]
-    assert w["unmapped"] >= 1
 
 
 # ---------------------------------------------------------------- warnings: shape, determinism, truncation
@@ -272,7 +243,7 @@ def test_nothing_is_reported_as_truncated_when_the_cap_is_not_reached() -> None:
 
 
 def test_warnings_are_plain_serialisable_values_sorted_by_code_and_subject() -> None:
-    _, result = run({"tierByTypeCode": {}, "assetTypeByEquipmentTypeCode": {}})
+    _, result = run({"tierByTypeCode": {}})
 
     encoded = json.dumps(result["warnings"])
     assert json.loads(encoded) == result["warnings"]

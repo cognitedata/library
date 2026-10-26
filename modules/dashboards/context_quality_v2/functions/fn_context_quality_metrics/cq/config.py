@@ -30,11 +30,6 @@ DEFAULT_CONFIG: RunConfig = {
     # tiers are project-specific, an asset whose type is not listed has no tier, and with tiering on but no mapping the
     # tier coverage metrics are not measured.
     "tierByTypeCode": {},
-    # The mappings below are project-specific and empty by default; an empty one means the rule is not applied.
-    # discipline from the CogniteAssetType code ({code: discipline id}); without it no asset has a discipline
-    "disciplineByTypeCode": {},
-    # equipment type code -> asset type code it should sit under (type consistency)
-    "assetTypeByEquipmentTypeCode": {},
     # a tag with this prefix gives an asset its division (the rest of the tag); empty means no division is derived
     "divisionTagPrefix": "",
     # assets carrying this tag are retired (children still active under one are reported); empty switches it off
@@ -49,6 +44,11 @@ DEFAULT_CONFIG: RunConfig = {
         # equipment carrying any of these tags is decommissioned and excluded from the equipment metrics
         "decommissionedTags": [],
     },
+    # How a run is split into parallel function calls (plan, compute_shard, finalize). A facility space is never split:
+    # a shard holds one or more whole spaces. maxShards stays below the 200 tasks a workflow execution may hold, because
+    # the plan, the dynamic task and the finalize task count too. Small spaces share a shard up to shardTargetEntities.
+    "maxShards": 150,
+    "shardTargetEntities": 250000,
     "freshnessDays": 30,
     "maxDepth": 8,
     "lowConfidence": 0.5,
@@ -119,6 +119,10 @@ def build_config(overrides: dict[str, Any] | None) -> RunConfig:
     switch = (overrides or {}).get("tieringEnabled", False)
     if not isinstance(switch, bool):
         raise ValueError(f"tieringEnabled must be true or false, not {switch!r}")
+    for name in ("maxShards", "shardTargetEntities"):
+        value = (overrides or {}).get(name, DEFAULT_CONFIG[name])  # type: ignore[literal-required]
+        if type(value) is not int or value < 1:
+            raise ValueError(f"{name} must be a whole number of at least 1, not {value!r}")
     prefix = (overrides or {}).get("divisionTagPrefix", "")
     if not isinstance(prefix, str):
         raise ValueError(f"divisionTagPrefix must be text, not {prefix!r}")

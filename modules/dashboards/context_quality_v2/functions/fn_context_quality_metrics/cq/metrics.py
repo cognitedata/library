@@ -12,6 +12,8 @@ from cq.availability import build_warnings, population_counts, register_not_appl
 from cq.classification import compute_classifications, entity_classes
 from cq.types import AssetRow, DrillItem, EntityKey, Grain, LoadedData, Ref, RunConfig
 
+_FILE_FIELD_LABEL = {"category": "category", "description": "description", "sourceId": "source ID"}
+
 
 def _owner(cfg: RunConfig, dimension: str, *names: str | None) -> str | None:
     for name in names:
@@ -53,7 +55,6 @@ def compute(
     fac = data["facility_spaces"]
     ex = cfg["exclusions"]
     atype_code = data["asset_types"]
-    etype_code = data["equipment_types"]
     fcat_code = data["file_categories"]
     tiering = cfg["tieringEnabled"]
 
@@ -71,7 +72,7 @@ def compute(
         code = atype_code.get(a["type"]) if a["type"] else None
         a["code"] = code
         a["tier"] = cfg["tierByTypeCode"].get(code) if tiering and code is not None else None
-        a["disc"] = cfg["disciplineByTypeCode"].get(code)
+        a["disc"] = None
         prefix = cfg["divisionTagPrefix"]
         a["div"] = next((t[len(prefix) :] for t in a["tags"] if prefix and t.startswith(prefix)), None)
         a["root"] = a["parent"] is None and children[k] > 0
@@ -152,7 +153,6 @@ def compute(
             )
 
     # ---- equipment
-    assets_with_equipment = {e["asset"] for e in data["equipment"] if e["asset"]}
     for e in data["equipment"]:
         g = ctx(e["space"], e["asset"])
         dim = "equipment-asset"
@@ -164,32 +164,10 @@ def compute(
             drilldown("unmatchedWithCandidates", dim, g, e["id"], e["name"], "no linked asset")
         acc.add(key("serialMfrCompleteness", dim, g, "serialNumber"), True, bool(e["serial"]))
         acc.add(key("serialMfrCompleteness", dim, g, "manufacturer"), True, bool(e["manufacturer"]))
-        if e["asset"] and e["etype"]:
-            want = A[e["asset"]]["code"] if e["asset"] in A else None
-            have = cfg["assetTypeByEquipmentTypeCode"].get(etype_code.get(e["etype"]))
-            if want and have:
-                ok = want == have
-                acc.add(key("typeInconsistencies", dim, g), True, ok)
-                if not ok:
-                    drilldown(
-                        "typeInconsistencies", dim, g, e["id"], e["name"], f"{etype_code.get(e['etype'])} under {want}"
-                    )
-    for k, a in A.items():
-        if a["root"] or (tiering and a["tier"] not in (1, 2)):
-            continue
-        g = {"unit": a["space"], "facility": fac.get(a["space"]), "div": a["div"], "disc": a["disc"], "tier": a["tier"]}
-        covered = k in assets_with_equipment
-        acc.add(key("assetEquipmentCoverage", "equipment-asset", g), True, covered)
-        if not covered:
-            drilldown(
-                "assetsWithoutEquipment",
-                "equipment-asset",
-                g,
-                a["id"],
-                a["name"],
-                labelled(a["tier"], "asset without equipment"),
-            )
-
+        if not e["serial"]:
+            drilldown("equipmentMissingSerial", dim, g, e["id"], e["name"], "equipment without serial number")
+        if not e["manufacturer"]:
+            drilldown("equipmentMissingManufacturer", dim, g, e["id"], e["name"], "equipment without manufacturer")
     # ---- time series
     ts_assets = {r for t in data["timeseries"] for r in t["assets"]}
     for t in data["timeseries"]:
@@ -235,6 +213,8 @@ def compute(
         has_n = (w["space"], w["id"]) in wo_with_notif
         acc.add(key("woToNotificationRate", dim, g), True, has_n)
         acc.add(key("woCompletionRate", dim, g), True, w["completed"])
+        if not w["completed"]:
+            drilldown("incompleteWorkOrders", dim, g, w["id"], w["name"], "work order not completed")
         if w["main_asset"] is None:
             drilldown("unlinkedMaintenance", dim, g, w["id"], w["name"], "work order without asset")
         if not has_n and (g["tier"] in (1, 2) or not tiering):
@@ -274,12 +254,14 @@ def compute(
             continue
         f["excluded"] = False
         acc.add(key("fileToAssetRate", dim, g), True, link is not None)
-        for sub, present in (
-            ("category", f["category"] is not None),
-            ("description", bool(f["description"])),
-            ("sourceId", bool(f["source_id"])),
+        for sub, present, listing in (
+            ("category", f["category"] is not None, "filesMissingCategory"),
+            ("description", bool(f["description"]), "filesMissingDescription"),
+            ("sourceId", bool(f["source_id"]), "filesMissingSourceId"),
         ):
             acc.add(key("metadataCompleteness", dim, g, sub), True, present)
+            if not present:
+                drilldown(listing, dim, g, f["id"], f["name"], f"file without {_FILE_FIELD_LABEL[sub]}")
         if link is None:
             drilldown("unlinkedByCategory", dim, g, f["id"], f["name"], f"category {code or 'none'}")
 

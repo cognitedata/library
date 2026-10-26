@@ -3,11 +3,13 @@
 import hashlib
 import json
 import uuid
+from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
 
 from cognite.client import CogniteClient
 
+from cq.extra_links import LinkGap
 from cq.types import DrillItem, Row, RowProps, RunConfig
 
 NO_DIM = "unknown"
@@ -47,6 +49,23 @@ def run_row(
         "run",
         status,
         _clean({"rowKind": "run", "status": status, "scope": scope, "warnings": warnings, "rowsWritten": rows_written}),
+    )
+
+
+def run_part_row(shard: int, built_in: bool, warnings: str | None, rows_written: int) -> tuple[str, RowProps]:
+    """What one shard of a run reports to `finalize`. `detail` is `metrics` when the shard counted the built-in metrics and
+    `links` when it only counted configured links; `rowsWritten` counts the shard's rows, not this record."""
+    return (
+        f"part:{shard:04d}",
+        _clean(
+            {
+                "rowKind": "runPart",
+                "entityId": f"shard-{shard}",
+                "detail": "metrics" if built_in else "links",
+                "warnings": warnings,
+                "rowsWritten": rows_written,
+            }
+        ),
     )
 
 
@@ -188,6 +207,35 @@ def extra_link_rows(counts: dict[tuple[str, str, str, str], list[int]], facility
                         "passingCount": passing,
                         "issueCount": issue,
                         "notApplicable": True if elig == 0 else None,
+                    }
+                ),
+            )
+        )
+    return out
+
+
+def extra_link_gap_rows(gaps: list[LinkGap], facility_spaces: dict[str, str], cap: int) -> list[Row]:
+    """One row per instance whose link is not set, cut at `cap` per (model, view, property, facility)."""
+    out: list[Row] = []
+    per: dict[tuple[str, str, str, str], int] = defaultdict(int)
+    for gap in gaps:
+        link = (gap["model"], gap["view"], gap["property"], gap["space"])
+        per[link] += 1
+        if per[link] > cap:
+            continue
+        out.append(
+            (
+                f"xgap:{_digest('extraLinkGap', *link, gap['external_id'])}",
+                _clean(
+                    {
+                        "rowKind": "extraLinkGap",
+                        "metricId": gap["property"],
+                        "dimensionId": f"{gap['model']}/{gap['view']}",
+                        "reportingUnitId": gap["space"],
+                        "facilityId": facility_spaces.get(gap["space"]),
+                        "entityId": gap["external_id"],
+                        "entityLabel": gap["label"],
+                        "detail": "link not set",
                     }
                 ),
             )

@@ -14,8 +14,6 @@ from sample_rules import SAMPLE_RULES
 
 MAPPINGS = [
     "tierByTypeCode",
-    "disciplineByTypeCode",
-    "assetTypeByEquipmentTypeCode",
     "defaultOwners",
     "facilityNames",
     "facilitySpaces",
@@ -100,7 +98,6 @@ def test_the_sample_rules_are_available_by_passing_them_explicitly() -> None:
     assert cfg["tierByTypeCode"]["pump"] == 1
     assert cfg["exclusions"]["decommissionedTags"] == ["lifecycle:decommissioned"]
     assert cfg["retiredTag"] == "lifecycle:retired"
-    assert cfg["disciplineByTypeCode"] == SAMPLE_RULES["disciplineByTypeCode"]
 
 
 def test_the_overrides_are_not_changed_or_shared_with_the_result() -> None:
@@ -168,7 +165,6 @@ def test_cleared_demo_rules_do_not_come_back_in_the_metrics() -> None:
     data, latest, now = build_dataset()
     cleared = {
         "tierByTypeCode": {},
-        "disciplineByTypeCode": {},
         "exclusions": {},
         "ownerPrefixRules": [],
         "defaultOwners": {},
