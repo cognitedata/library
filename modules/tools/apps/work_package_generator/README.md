@@ -87,7 +87,7 @@ A React 19 / TypeScript / Vite app built on `@cognite/app-sdk`, `@cognite/sdk`, 
 
 - `cdf_project` – CDF project name, used in the agent external id
 - `wpg_config_version` – view and data model version
-- `wpg_cdm_view_version`, `wpg_canvas_view_version`, `wpg_solution_tag_view_version`
+- `wpg_cdm_view_version`, `wpg_canvas_view_version` (`Canvas`, default `v7`), `wpg_canvas_child_view_version` (`FdmInstanceContainerReference` and `CanvasAnnotation`, default `v1`), `wpg_solution_tag_view_version`
 - `wpg_canvas_instance_space`, `wpg_solution_tag_instance_space`
 - `wpg_agent_model`, `wpg_agent_runtime_version`, `wpg_agent_external_id_suffix`, `wpg_agent_name`, `wpg_agent_description` – also used by `agents/agent_work_package_generator.Agent.yaml`
 - `wpg_limits_*` – page, batch, search, and scan caps
@@ -294,7 +294,7 @@ Edit the config node (`data_modeling/wpg_config.Node.yaml`, with values from you
 | `dataModel.activityContainer` | If the model differs | Container used to traverse from an activity (`cdf_cdm` / `CogniteActivity`) |
 | `canvas.schemaSpace` | If the model differs | `cdf_industrial_canvas` |
 | `canvas.instanceSpace` | If the space differs | `IndustrialCanvasInstanceSpace` |
-| `canvas.canvasView` | If the model differs | `Canvas` / `v1` |
+| `canvas.canvasView` | If the model differs | `Canvas` / `v7` |
 | `canvas.instanceView` | If the model differs | `FdmInstanceContainerReference` / `v1` |
 | `canvas.annotationView` | If the model differs | `CanvasAnnotation` / `v1` |
 | `canvas.dimensions` | Rarely | Default item box: x 0, y 0, width 600, height 400, max 1200 |

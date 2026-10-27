@@ -34,7 +34,7 @@ const ASSET_VIEW_KEY = "cdf_cdm";
 const ASSET_PROP_KEY = "CogniteAsset/v1";
 const EQUIPMENT_PROP_KEY = "CogniteEquipment/v1";
 const CANVAS_VIEW_KEY = "cdf_industrial_canvas";
-const CANVAS_PROP_KEY = "Canvas/v1";
+const CANVAS_PROP_KEY = "Canvas/v7";
 
 function makeNode(
 	externalId: string,

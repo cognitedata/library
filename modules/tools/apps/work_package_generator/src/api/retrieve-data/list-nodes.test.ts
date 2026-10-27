@@ -18,7 +18,7 @@ const canvasSource = {
 		type: "view" as const,
 		space: "cdf_industrial_canvas",
 		externalId: "Canvas",
-		version: "v1",
+		version: "v7",
 	},
 };
 

@@ -160,7 +160,7 @@ Shipped identifiers:
 
 - Activity view — `cdf_cdm` / `CogniteActivity` / `v1`
 - Asset view — `cdf_cdm` / `CogniteAsset` / `v1`
-- Canvas view — `cdf_industrial_canvas` / `Canvas` / `v1`
+- Canvas view — `cdf_industrial_canvas` / `Canvas` / `v7`
 - Canvas instance space — `IndustrialCanvasInstanceSpace`
 
 ---

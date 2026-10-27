@@ -49,11 +49,11 @@ sources:
         instanceView:
           space: cdf_industrial_canvas
           externalId: FdmInstanceContainerReference
-          version: "{{ wpg_canvas_view_version }}"
+          version: "{{ wpg_canvas_child_view_version }}"
         annotationView:
           space: cdf_industrial_canvas
           externalId: CanvasAnnotation
-          version: "{{ wpg_canvas_view_version }}"
+          version: "{{ wpg_canvas_child_view_version }}"
         dimensions:
           x: 0
           y: 0

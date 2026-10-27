@@ -58,7 +58,7 @@ As a planner, I want a recommended Industrial Canvas template with the option to
 
 **Acceptance scenarios**:
 
-1. **Given** templates in `cdf_industrial_canvas` / `Canvas` / `v1`, **When** the Template step loads, **Then** only canvases whose name starts with `template` (case-insensitive) are listed.
+1. **Given** templates in `cdf_industrial_canvas` / `Canvas` / `v7`, **When** the Template step loads, **Then** only canvases whose name starts with `template` (case-insensitive) are listed.
 2. **Given** work order and asset context, **When** the helper agent returns a recommendation, **Then** that template is visually distinguished and I can still select a different one.
 3. **Given** a selected template, **When** I have not confirmed the Template step, **Then** later steps stay gated and template field structure is not treated as committed.
 4. **Given** AI recommendation fails, **When** templates still load, **Then** I can choose a template manually and continue.
@@ -129,7 +129,7 @@ As a user, I want the app to authenticate via Fusion and use the current CDF pro
 - **FR-001**: Authenticate through the Fusion / `@cognite/app-sdk` host; do not require the user to paste CDF tokens in the UI.
 - **FR-002**: Search `CogniteActivity` nodes and display paginated results (limit 20).
 - **FR-003**: Resolve context from the first linked asset (`CogniteAsset`); support `CogniteEquipment` where template slots or config require it.
-- **FR-004**: List Industrial Canvas templates from `cdf_industrial_canvas` / `Canvas` / `v1` with name prefix `template`.
+- **FR-004**: List Industrial Canvas templates from `cdf_industrial_canvas` / `Canvas` / `v7` with name prefix `template`.
 - **FR-005**: Recommend a template via the project helper agent; user selection is authoritative.
 - **FR-006**: Discover resource candidates from `resourceTypes` (files, time series, assets, equipment, activities as configured).
 - **FR-007**: Load template slots from canvas child FDM instance nodes; assign main work-order and main asset slots by heuristics.
@@ -153,7 +153,7 @@ As a user, I want the app to authenticate via Fusion and use the current CDF pro
 | `CogniteEquipment` | `cdf_cdm` | `v1` | Equipment context / slots |
 | `CogniteFile` | `cdf_cdm` | `v1` | File candidates (`assets[]`) |
 | `CogniteTimeSeries` | `cdf_cdm` | `v1` | Time series candidates (`assets[]`; optional activity `timeSeries`) |
-| `Canvas` | `cdf_industrial_canvas` | `v1` | Template list and canvas root |
+| `Canvas` | `cdf_industrial_canvas` | `v7` | Template list and canvas root |
 | `FdmInstanceContainerReference` | `cdf_industrial_canvas` | `v1` | Template slots / canvas items |
 | `CanvasAnnotation` | `cdf_industrial_canvas` | `v1` | Annotations copied onto the new canvas |
 

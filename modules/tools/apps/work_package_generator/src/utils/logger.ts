@@ -29,7 +29,7 @@ function serializeCause(cause: unknown): StructuredErrorLog["error"] {
 			...(cause.stack ? { stack: cause.stack } : {}),
 		};
 	}
-	if (typeof cause === "object" && cause !== null && "message" in cause) {
+	if (typeof cause === "object" && "message" in cause) {
 		const m = (cause as { message?: unknown }).message;
 		if (typeof m === "string") {
 			return { name: "Error", message: m };
