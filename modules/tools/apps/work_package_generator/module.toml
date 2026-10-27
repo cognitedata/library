@@ -1,0 +1,5 @@
+[module]
+title = "Work Package Generator Application"
+id = "dp:tool:work_package_generator"
+package_id = "tool"
+description = "Flows app that builds Industrial Canvas work packages from work orders with AI-assisted template and resource selection."

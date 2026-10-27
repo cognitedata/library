@@ -1,0 +1,134 @@
+space: dm_sol_wpg_app
+externalId: WPGConfig
+name: WPG config
+description: Read model for the Work Package Generator config node. One node per CDF project.
+version: "{{ wpg_config_version }}"
+properties:
+  schemaVersion:
+    name: Schema version
+    description: Content shape version of this config node. Starts at 1. The app rejects a version it does not support.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: schemaVersion
+  name:
+    name: Name
+    description: Human-readable label for this config node, shown in Fusion.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: name
+  description:
+    name: Description
+    description: Short explanation of this config node, shown in Fusion.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: description
+  dataModel:
+    name: Data model
+    description: View and container references used to read work orders, assets, equipment, files, time series, and solution tags.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: dataModel
+  canvas:
+    name: Canvas
+    description: Industrial Canvas schema space, instance space, views, dimensions, visibility, and sticky style.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: canvas
+  resourceTypes:
+    name: Resource types
+    description: Resource types the wizard can place on a canvas, including the view and asset relation for each type.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: resourceTypes
+  context:
+    name: Context
+    description: Property names sent to the helper agent as work-order and asset context.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: context
+  agent:
+    name: Agent
+    description: Model, runtime, external id suffix, name, description, instructions, and tools for the helper agent.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: agent
+  templates:
+    name: Templates
+    description: Template name prefix and the built-in All Resources template identity.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: templates
+  solutionTag:
+    name: Solution tag
+    description: Instance space, external id, and name of the Work Package solution tag attached to new canvases.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: solutionTag
+  limits:
+    name: Limits
+    description: Page, batch, search, and scan caps. The three DMS batch sizes must be integers from 1 to 1000.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: limits
+  cluster:
+    name: Cluster
+    description: API host suffix and host aliases used to derive the cluster id from the session base URL.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: cluster
+  fusion:
+    name: Fusion
+    description: Fusion host suffix, canvas workspace, and optional fallback organization when the host frame is not Fusion.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: fusion
+  workOrderProperties:
+    name: Work order properties
+    description: Activity property names the app reads, filters, and sorts as work-order fields.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: workOrderProperties
+  prompts:
+    name: Prompts
+    description: Agent prompt templates. Placeholders such as work-order and asset tokens are filled at runtime.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: prompts
+  ui:
+    name: UI
+    description: Status and priority options, example ids, terms, and the five stepper labels.
+    container:
+      space: dm_sol_wpg_app
+      externalId: WPGConfig
+      type: container
+    containerPropertyIdentifier: ui
