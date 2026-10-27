@@ -687,6 +687,19 @@ def test_function_secrets_from_toml(cli: types.ModuleType, tmp_path: Path) -> No
     assert cli.function_secrets_from_toml(tmp_path / "missing.toml") is None
 
 
+def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> None:
+    bootstrap = _MODULE / "functions" / "dq_infrastructure_bootstrap"
+    assert (bootstrap / "handler.py").is_file()
+    assert (bootstrap / "requirements.txt").is_file()
+    assert (bootstrap / "config" / "settings.yaml").is_file()
+    assert (_MODULE / "functions" / "dq_infrastructure_bootstrap.Function.yaml").is_file()
+    assert (_MODULE / "workflows" / "dq_infrastructure_bootstrap.Workflow.yaml").is_file()
+    assert (_MODULE / "workflows" / "dq_infrastructure_bootstrap.WorkflowVersion.yaml").is_file()
+    assert (_MODULE / "workflows" / "dq_infrastructure_bootstrap.WorkflowTrigger.yaml").is_file()
+    assert not (_MODULE / "data_modeling" / "views" / "DataQualityValidationRecord.View.yaml").exists()
+    assert "cognite-data-quality==" in (bootstrap / "requirements.txt").read_text(encoding="utf-8")
+
+
 def _install_fake_data_quality(monkeypatch: pytest.MonkeyPatch, *, pipeline_impl: object, settings: object) -> None:
     fake_cdq = types.ModuleType("cognite_data_quality")
     fake_cdq.deploy_validation_pipeline = pipeline_impl

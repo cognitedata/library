@@ -1,0 +1,7 @@
+name: Data Quality infrastructure bootstrap
+externalId: dq-infrastructure-bootstrap
+owner: Anonymous
+description: Bootstraps Data Quality Validation infrastructure from the pinned PyPI package.
+functionPath: dq_infrastructure_bootstrap/handler.py
+runtime: py312
+space: dataQuality

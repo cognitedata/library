@@ -1,0 +1,18 @@
+workflowExternalId: dq-infrastructure-bootstrap
+version: "1"
+workflowDefinition:
+  description: Bootstrap Data Quality Validation infrastructure.
+  tasks:
+    - externalId: dq-infrastructure-bootstrap-task
+      type: function
+      parameters:
+        function:
+          externalId: dq-infrastructure-bootstrap
+          data:
+            force: false
+        isAsyncComplete: false
+      name: Data Quality infrastructure bootstrap
+      description: Deploy Data Quality Validation infrastructure from the pinned package.
+      retries: 1
+      timeout: 540
+      onFailure: abortWorkflow
