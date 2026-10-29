@@ -129,7 +129,15 @@ def test_records_are_written_in_batches_of_the_configured_size(monkeypatch: pyte
 
 
 def test_the_handler_runs_only_the_production_actions() -> None:
-    assert sorted(handler.ACTIONS) == ["compute_metrics", "compute_shard", "finalize", "plan", "validate"]
+    assert sorted(handler.ACTIONS) == [
+        "compute_batch",
+        "compute_metrics",
+        "compute_shard",
+        "export",
+        "finalize",
+        "plan",
+        "validate",
+    ]
 
 
 @pytest.mark.parametrize("action", ["seed_datapoints", "seed_history", "nope", None])
@@ -165,7 +173,7 @@ def test_dict_overrides_replace_the_defaults_instead_of_merging_into_them() -> N
     assert cfg["excludeSpaces"] == ["only_this"]
 
 
-def test_the_writer_helper_formats_timestamps_the_way_the_contract_requires() -> None:
+def test_the_writer_helper_formats_timestamps_the_way_the_records_need() -> None:
     from datetime import UTC, datetime
 
     assert writer.now_iso(datetime(2026, 10, 13, 5, 34, 25, tzinfo=UTC)) == "2026-10-13T05:34:25.000Z"

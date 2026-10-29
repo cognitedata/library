@@ -46,8 +46,31 @@ capabilities:
         spaceIdScope:
           spaceIds:
             {{ metricsSourceSpaces }}
-  # read the latest datapoint of each time series (freshness). Not yet validated against a deployment: see the README.
+  # read the latest datapoint of each time series (freshness). The scope is not validated against a deployment: see the README.
   - timeSeriesAcl:
+      actions:
+        - READ
+      scope:
+        all: {}
+  # the workbook of unlinked items: the pieces of a run upload their parts and the export step the workbook, to the
+  # module's data set, and the data set is looked up by its external id
+  - filesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - "{{ metricsDatasetExternalId }}"
+  - datasetsAcl:
+      actions:
+        - READ
+      scope:
+        idScope:
+          ids:
+            - "{{ metricsDatasetExternalId }}"
+  # read the project's location filters: a location that lists instance spaces is offered as a scope (README, locations)
+  - locationFiltersAcl:
       actions:
         - READ
       scope:

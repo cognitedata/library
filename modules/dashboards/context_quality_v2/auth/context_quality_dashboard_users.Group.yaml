@@ -15,6 +15,14 @@ capabilities:
         - LIST
       scope:
         all: {}
+  # download the workbook of unlinked items of a run
+  - filesAcl:
+      actions:
+        - READ
+      scope:
+        datasetScope:
+          ids:
+            - "{{ metricsDatasetExternalId }}"
   # read the run log
   - streamRecordsAcl:
       actions:

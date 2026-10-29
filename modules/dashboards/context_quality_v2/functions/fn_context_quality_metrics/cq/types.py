@@ -157,6 +157,9 @@ class RunConfig(TypedDict):
     defaultOwners: dict[str, str]
     exclusions: dict[str, list[str]]
     maxShards: int
+    maxConcurrentShards: int
+    exportDataSet: str
+    exportRetentionDays: int
     shardTargetEntities: int
     freshnessDays: int
     maxDepth: int

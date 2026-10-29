@@ -7,8 +7,10 @@ from typing import Any
 from cognite.client import CogniteClient
 from cognite.client.data_classes.aggregations import Count
 from cognite.client.data_classes.data_modeling import DirectRelation, MappedProperty, Node, ViewId
+from cognite.client.data_classes.filters import Filter
 from cognite.client.exceptions import CogniteAPIError
 
+from cq.batching import CountLeaves, Leaf, SampleId, counter, leaf_filter
 from cq.discovery import ENTITY_KEYS, count_entities_by_space, discover_facility_spaces
 from cq.extra_links import ExtraLink, ViewNodes
 from cq.types import (
@@ -25,12 +27,12 @@ def _view(space: str, xid: str) -> ViewId:
 
 
 def _nodes(
-    client: CogniteClient, space: str, xid: str, spaces: list[str] | None = None
+    client: CogniteClient, space: str, xid: str, spaces: list[str] | None = None, flt: Filter | None = None
 ) -> list[tuple[Node, dict[str, Any]]]:
-    """Nodes of one view. spaces=None reads every space, which is how discovery finds the data."""
+    """Nodes of one view. spaces=None reads every space, which is how discovery finds the data. `flt` narrows them."""
     v = _view(space, xid)
     out: list[tuple[Node, dict[str, Any]]] = []
-    for n in client.data_modeling.instances.list(instance_type="node", sources=v, space=spaces, limit=-1):
+    for n in client.data_modeling.instances.list(instance_type="node", sources=v, space=spaces, filter=flt, limit=-1):
         props = n.properties.get(v)
         if props is not None:
             out.append((n, props))
@@ -41,7 +43,12 @@ _MISSING_VIEW = re.compile(r"views? do(?:es)? not exist", re.IGNORECASE)
 
 
 def _optional_nodes(
-    client: CogniteClient, space: str, xid: str, unavailable: list[str], spaces: list[str] | None = None
+    client: CogniteClient,
+    space: str,
+    xid: str,
+    unavailable: list[str],
+    spaces: list[str] | None = None,
+    flt: Filter | None = None,
 ) -> list[tuple[Node, dict[str, Any]]]:
     """Nodes of a view the project may not have. Only "the view does not exist" counts as unavailable.
 
@@ -49,7 +56,7 @@ def _optional_nodes(
     source as absent when it simply could not be read.
     """
     try:
-        return _nodes(client, space, xid, spaces)
+        return _nodes(client, space, xid, spaces, flt)
     except CogniteAPIError as error:
         if error.code == 400 and _MISSING_VIEW.search(str(error.message)):
             unavailable.append(f"{space}.{xid}")
@@ -87,8 +94,17 @@ def _only[T: dict[str, Any]](entities: list[T], facility_spaces: dict[str, str])
     return [e for e in entities if e["space"] in facility_spaces]
 
 
-def _load(client: CogniteClient, spaces: list[str] | None) -> dict[str, Any]:
-    """The reference nodes, and the entities of `spaces` (every space when None), as plain dicts."""
+def _load(
+    client: CogniteClient, spaces: list[str] | None, kinds: frozenset[str] | None = None, flt: Filter | None = None
+) -> dict[str, Any]:
+    """The reference nodes, and the entities of `spaces` (every space when None), as plain dicts.
+
+    `kinds` limits which entity lists are read (all when None) and `flt` narrows them to a slice by external id.
+    """
+
+    def want(kind: str) -> bool:
+        return kinds is None or kind in kinds
+
     d: dict[str, Any] = {}
     unavailable: list[str] = []
     # reference nodes are found wherever they live; entities reference them by (space, externalId)
@@ -116,7 +132,7 @@ def _load(client: CogniteClient, spaces: list[str] | None) -> dict[str, Any]:
             "aclass": _ref(p.get("assetClass")),
             "object3d": _ref(p.get("object3D")),
         }
-        for n, p in _nodes(client, CDM, "CogniteAsset", spaces)
+        for n, p in (_nodes(client, CDM, "CogniteAsset", spaces, flt) if want("assets") else [])
     ]
     d["equipment"] = [
         {
@@ -129,7 +145,7 @@ def _load(client: CogniteClient, spaces: list[str] | None) -> dict[str, Any]:
             "serial": p.get("serialNumber"),
             "manufacturer": p.get("manufacturer"),
         }
-        for n, p in _nodes(client, CDM, "CogniteEquipment", spaces)
+        for n, p in (_nodes(client, CDM, "CogniteEquipment", spaces, flt) if want("equipment") else [])
     ]
     d["timeseries"] = [
         {
@@ -140,7 +156,7 @@ def _load(client: CogniteClient, spaces: list[str] | None) -> dict[str, Any]:
             "assets": _refs(p.get("assets")),
             "unit": p.get("sourceUnit"),
         }
-        for n, p in _nodes(client, CDM, "CogniteTimeSeries", spaces)
+        for n, p in (_nodes(client, CDM, "CogniteTimeSeries", spaces, flt) if want("timeseries") else [])
     ]
     d["files"] = [
         {
@@ -152,7 +168,7 @@ def _load(client: CogniteClient, spaces: list[str] | None) -> dict[str, Any]:
             "category": _ref(p.get("category")),
             "assets": _refs(p.get("assets")),
         }
-        for n, p in _nodes(client, CDM, "CogniteFile", spaces)
+        for n, p in (_nodes(client, CDM, "CogniteFile", spaces, flt) if want("files") else [])
     ]
     d["objects3d"] = [
         {
@@ -161,7 +177,7 @@ def _load(client: CogniteClient, spaces: list[str] | None) -> dict[str, Any]:
             "name": p.get("name"),
             "bbox": all(p.get(k) is not None for k in ("xMin", "xMax", "yMin", "yMax", "zMin", "zMax")),
         }
-        for n, p in _nodes(client, CDM, "Cognite3DObject", spaces)
+        for n, p in (_nodes(client, CDM, "Cognite3DObject", spaces, flt) if want("objects3d") else [])
     ]
     d["work_orders"] = [
         {
@@ -171,7 +187,11 @@ def _load(client: CogniteClient, spaces: list[str] | None) -> dict[str, Any]:
             "main_asset": _ref(p.get("mainAsset")),
             "completed": p.get("endTime") is not None,
         }
-        for n, p in _optional_nodes(client, IDM, "CogniteMaintenanceOrder", unavailable, spaces)
+        for n, p in (
+            _optional_nodes(client, IDM, "CogniteMaintenanceOrder", unavailable, spaces, flt)
+            if want("work_orders")
+            else []
+        )
     ]
     d["notifications"] = [
         {
@@ -181,11 +201,20 @@ def _load(client: CogniteClient, spaces: list[str] | None) -> dict[str, Any]:
             "asset": _ref(p.get("asset")),
             "work_order": _ref(p.get("maintenanceOrder")),
         }
-        for n, p in _optional_nodes(client, IDM, "CogniteNotification", unavailable, spaces)
+        for n, p in (
+            _optional_nodes(client, IDM, "CogniteNotification", unavailable, spaces, flt)
+            if want("notifications")
+            else []
+        )
     ]
     av = _view(CDM, "CogniteDiagramAnnotation")
     d["annotations"] = []
-    for e in client.data_modeling.instances.list(instance_type="edge", sources=av, space=spaces, limit=-1):
+    edges = (
+        client.data_modeling.instances.list(instance_type="edge", sources=av, space=spaces, filter=flt, limit=-1)
+        if want("annotations")
+        else []
+    )
+    for e in edges:
         p = e.properties.get(av)
         if p is None:
             continue
@@ -215,6 +244,19 @@ def load_all(client: CogniteClient, cfg: RunConfig) -> LoadedData:
     return d  # type: ignore[return-value]
 
 
+def load_batch(
+    client: CogniteClient, space: str, facility: str, kinds: frozenset[str], flt: Filter | None = None
+) -> LoadedData:
+    """The entities of some kinds in one space, optionally only those that match `flt`: what one batch counts.
+
+    The kinds not asked for are empty lists. What the batch's entities link to outside it is answered separately
+    (cq.lookups).
+    """
+    d = _load(client, [space], kinds, flt)
+    d["facility_spaces"] = {space: facility}
+    return d  # type: ignore[return-value]
+
+
 def load_shard(client: CogniteClient, facility_spaces: dict[str, str]) -> LoadedData:
     """The entities of the given facility spaces only: what one shard of a run counts. The facilities were found by the
     plan, so nothing is discovered here. An entity that links to one outside these spaces has no such entity loaded."""
@@ -223,17 +265,19 @@ def load_shard(client: CogniteClient, facility_spaces: dict[str, str]) -> Loaded
     return d  # type: ignore[return-value]
 
 
-# (view space, view, optional, edge): the views whose instances count towards a space being a facility
+# (kind, view space, view, optional, edge): the views whose instances count towards a space being a facility
 _COUNTED_VIEWS = (
-    (CDM, "CogniteAsset", False, False),
-    (CDM, "CogniteEquipment", False, False),
-    (CDM, "CogniteTimeSeries", False, False),
-    (CDM, "CogniteFile", False, False),
-    (CDM, "Cognite3DObject", False, False),
-    (IDM, "CogniteMaintenanceOrder", True, False),
-    (IDM, "CogniteNotification", True, False),
-    (CDM, "CogniteDiagramAnnotation", False, True),
+    ("assets", CDM, "CogniteAsset", False, False),
+    ("equipment", CDM, "CogniteEquipment", False, False),
+    ("timeseries", CDM, "CogniteTimeSeries", False, False),
+    ("files", CDM, "CogniteFile", False, False),
+    ("objects3d", CDM, "Cognite3DObject", False, False),
+    ("work_orders", IDM, "CogniteMaintenanceOrder", True, False),
+    ("notifications", IDM, "CogniteNotification", True, False),
+    ("annotations", CDM, "CogniteDiagramAnnotation", False, True),
 )
+# kind -> (view space, view, edge): where a kind's instances live
+KIND_VIEWS = {kind: (space, xid, edge) for kind, space, xid, _optional, edge in _COUNTED_VIEWS}
 
 
 def _counts_by_space(client: CogniteClient, view: ViewId, *, edge: bool = False) -> dict[str, int]:
@@ -244,25 +288,43 @@ def _counts_by_space(client: CogniteClient, view: ViewId, *, edge: bool = False)
     return {str(item.group["space"]): int(item.aggregates[0].value) for item in result}
 
 
-def count_entities_by_space_remote(client: CogniteClient) -> tuple[dict[str, int], list[str]]:
-    """-> ({space: entity nodes and annotation edges}, optional views the project does not have).
+def count_kinds_by_space_remote(client: CogniteClient) -> tuple[dict[str, dict[str, int]], list[str]]:
+    """-> ({kind: {space: instances}}, optional views the project does not have).
 
-    The same figures `load_all` derives from reading everything (`count_entities_by_space`), at the cost of a few
+    The figures `load_all` derives from reading everything (`count_entities_by_space`), kind by kind, at the cost of a few
     aggregate calls, so a run can be planned without loading the project.
     """
-    counts: dict[str, int] = {}
+    by_kind: dict[str, dict[str, int]] = {}
     unavailable: list[str] = []
-    for space, xid, optional, edge in _COUNTED_VIEWS:
+    for kind, space, xid, optional, edge in _COUNTED_VIEWS:
         try:
-            per_space = _counts_by_space(client, _view(space, xid), edge=edge)
+            by_kind[kind] = _counts_by_space(client, _view(space, xid), edge=edge)
         except CogniteAPIError as error:
             if optional and error.code == 400 and _MISSING_VIEW.search(str(error.message)):
                 unavailable.append(f"{space}.{xid}")
+                by_kind[kind] = {}
                 continue
             raise
-        for name, count in per_space.items():
-            counts[name] = counts.get(name, 0) + count
-    return counts, unavailable
+    return by_kind, unavailable
+
+
+def leaf_tools(client: CogniteClient, view: ViewId, space: str, *, edge: bool = False) -> tuple[CountLeaves, SampleId]:
+    """How `cq.batching.split_leaves` looks at one kind of one space: counting a leaf, and naming one instance of it."""
+    instance_type = "edge" if edge else "node"
+
+    def count_one(leaf: Leaf) -> int:
+        result = client.data_modeling.instances.aggregate(
+            view, Count("externalId"), filter=leaf_filter(leaf, edge), space=[space], instance_type=instance_type
+        )
+        return int(result.value or 0)
+
+    def sample_id(leaf: Leaf) -> str | None:
+        found = client.data_modeling.instances.list(
+            instance_type=instance_type, sources=view, space=[space], filter=leaf_filter(leaf, edge), limit=1
+        )
+        return found[0].external_id if found else None
+
+    return counter(count_one), sample_id
 
 
 def validate_extra_links(client: CogniteClient, links: list[ExtraLink]) -> dict[tuple[str, str], ViewId]:
@@ -302,8 +364,10 @@ def count_extra_link_instances(
     return {key: _counts_by_space(client, view_id) for key, view_id in view_ids.items()}
 
 
-def load_extra_links(client: CogniteClient, links: list[ExtraLink], spaces: list[str] | None = None) -> ViewNodes:
-    """The nodes of every view the extra links name, from `spaces` (every space when None).
+def load_extra_links(
+    client: CogniteClient, links: list[ExtraLink], spaces: list[str] | None = None, flt: Filter | None = None
+) -> ViewNodes:
+    """The nodes of every view the extra links name, from `spaces` (every space when None), narrowed by `flt`.
 
     Every space is readable, not only the Core facilities, because the models in the config can hold their instances in
     spaces that have no Core entity (see extra_links.extra_facility_spaces, which decides which become facilities).
@@ -314,7 +378,7 @@ def load_extra_links(client: CogniteClient, links: list[ExtraLink], spaces: list
         key: [
             (node.space, node.external_id, dict(props))
             for node in client.data_modeling.instances.list(
-                instance_type="node", sources=view_id, space=spaces, limit=-1
+                instance_type="node", sources=view_id, space=spaces, filter=flt, limit=-1
             )
             if (props := node.properties.get(view_id)) is not None
         ]

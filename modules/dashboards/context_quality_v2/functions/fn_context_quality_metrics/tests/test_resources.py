@@ -34,7 +34,7 @@ def test_the_defaults_name_no_legacy_or_demo_resource() -> None:
     assert not [word for word in ("cq_demo", "db_cq", "cq_ts_datapoints", "sp_cq_demo") if word in text]
 
 
-def test_the_contract_container_names_remain_defaults_because_they_are_not_environment_settings() -> None:
+def test_the_container_names_remain_defaults_because_they_are_not_environment_settings() -> None:
     cfg = build_config(NEW_PROJECT)
 
     assert (cfg["relationshipContainer"], cfg["fileAnnotationContainer"]) == (

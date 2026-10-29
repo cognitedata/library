@@ -39,6 +39,9 @@ workflowDefinition:
               maxDepth: {{ metricsMaxDepth }}
               maxShards: {{ metricsMaxShards }}
               shardTargetEntities: {{ metricsShardTargetEntities }}
+              maxConcurrentShards: {{ metricsMaxConcurrentShards }}
+              exportDataSet: "{{ metricsDatasetExternalId }}"
+              exportRetentionDays: {{ metricsExportRetentionDays }}
       retries: 1
       timeout: 600
       onFailure: abortWorkflow
@@ -80,3 +83,29 @@ workflowDefinition:
       retries: 1
       timeout: 600
       onFailure: abortWorkflow
+
+    # 4. The workbook of every unlinked item of the run, for download. Separate from finalize so that a slow or failed
+    #    export never keeps a run from completing; if it fails the run is still complete and its numbers are intact.
+    - externalId: export
+      type: function
+      name: Export the unlinked items
+      description: Builds the Excel workbook of every unlinked item of the run.
+      parameters:
+        function:
+          externalId: "{{ metricsFunctionExternalId }}"
+          data:
+            action: export
+            runId: ${plan.output.response.runId}
+            runTimestamp: ${plan.output.response.runTimestamp}
+            shardCount: ${plan.output.response.shardCount}
+            config:
+              stream: "{{ metricsStreamExternalId }}"
+              schemaSpace: "{{ metricsSchemaSpace }}"
+              instanceSpace: "{{ metricsInstanceSpace }}"
+              exportDataSet: "{{ metricsDatasetExternalId }}"
+              exportRetentionDays: {{ metricsExportRetentionDays }}
+      dependsOn:
+        - externalId: finalize
+      retries: 1
+      timeout: 600
+      onFailure: skipTask

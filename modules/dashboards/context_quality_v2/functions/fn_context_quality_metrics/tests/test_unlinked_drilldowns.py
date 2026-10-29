@@ -67,3 +67,21 @@ def test_work_orders_that_are_not_completed_are_listed() -> None:
     result = run(data(assets=hierarchy(), work_orders=[done, open_]))
 
     assert listed(result, "incompleteWorkOrders") == {"open": "work order not completed"}
+
+
+def test_annotations_that_are_not_approved_are_listed_with_their_status() -> None:
+    from tiny_data import annotation
+
+    def with_status(xid: str, status: str | None) -> dict[str, Any]:
+        return {**annotation(SP, xid, (SP, "pump")), "status": status}
+
+    annotations = [with_status("a1", "Approved"), with_status("a2", "Suggested"), with_status("a3", "Rejected")]
+    annotations.append(with_status("a4", None))
+
+    result = run(data(assets=hierarchy(), annotations=annotations))
+
+    assert listed(result, "unapprovedAnnotations") == {
+        "a2": "Suggested, confidence 0.9",
+        "a3": "Rejected, confidence 0.9",
+        "a4": "no status, confidence 0.9",
+    }

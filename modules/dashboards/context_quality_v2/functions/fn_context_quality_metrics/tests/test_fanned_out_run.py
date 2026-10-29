@@ -10,6 +10,7 @@ from cq.availability import encode_warnings
 from cq.config import build_config
 from cq.discovery import ENTITY_KEYS
 from cq.metrics import compute
+from cq.reader import KIND_VIEWS
 from parity_dataset import FACILITIES, A, B, build_dataset
 from sample_rules import SAMPLE_RESOURCES
 from test_runner import RecordingClient, props, records
@@ -74,7 +75,7 @@ def test_a_shard_writes_the_rows_of_its_own_spaces_and_a_part_record_last() -> N
     units = {props(item).get("reportingUnitId") for item in items[:-1]} - {None}
     assert units == {A}
     part = props(items[-1])
-    assert part["detail"] == "metrics"
+    assert part["detail"] == "shard"
     assert part["entityId"] == "shard-0"
     assert part["rowsWritten"] == len(items) - 1 == summary["rowsWritten"]
     assert items[-1]["externalId"] == f"{RUN_ID}:part:0000"
@@ -114,30 +115,10 @@ def test_a_shard_with_only_configured_links_counts_those_and_is_marked_so(monkey
     kinds = [props(item)["rowKind"] for item in items]
     assert kinds == ["extraLink", "extraLinkGap", "runPart"]
     assert props(items[0])["issueCount"] == 1
-    assert props(items[-1])["detail"] == "links"
+    assert props(items[-1])["detail"] == "shard"
 
 
-def test_a_view_the_plan_found_empty_everywhere_is_marked_not_applicable_in_every_facility_of_the_shard(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(runner, "load_extra_links", lambda _client, _links, spaces: {(CORE, "CogniteAsset"): []})
-    client = RecordingClient()
-
-    shard_run(
-        client,
-        {},
-        0,
-        extraSpaces={"sp_a": "a", "sp_b": "b"},
-        extraLinks=[{"model": CORE, "links": ["CogniteAsset.type"]}],
-        emptyLinkViews=[[CORE, "CogniteAsset"]],
-    )
-
-    rows = [props(item) for item in records(client) if props(item)["rowKind"] == "extraLink"]
-    assert sorted(row["reportingUnitId"] for row in rows) == ["sp_a", "sp_b"]
-    assert all(row["notApplicable"] is True for row in rows)
-
-
-def test_a_view_that_is_empty_here_but_not_elsewhere_gets_no_row_in_this_shard(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_shard_never_fills_in_a_view_with_no_instances_because_the_plan_does(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(runner, "load_extra_links", lambda _client, _links, spaces: {(CORE, "CogniteAsset"): []})
     client = RecordingClient()
 
@@ -154,9 +135,11 @@ def plan_world(
     entity_counts: dict[str, int] | None = None,
     views: dict[tuple[str, str], Any] | None = None,
     link_counts: dict[tuple[str, str], dict[str, int]] | None = None,
+    by_kind: dict[str, dict[str, int]] | None = None,
 ) -> None:
     counts = entity_counts if entity_counts is not None else {A: 40, B: 30, "sp_ref": 3}
-    monkeypatch.setattr(runner, "count_entities_by_space_remote", lambda _client: (counts, []))
+    by_kind = by_kind or {**{kind: {} for kind in KIND_VIEWS}, "assets": counts}
+    monkeypatch.setattr(runner, "count_kinds_by_space_remote", lambda _client: (by_kind, []))
     monkeypatch.setattr(runner, "validate_extra_links", lambda _client, _links: views or {})
     monkeypatch.setattr(runner, "count_extra_link_instances", lambda _client, _views: link_counts or {})
 
@@ -170,11 +153,11 @@ def test_the_plan_starts_the_run_and_returns_one_task_per_shard(monkeypatch: pyt
     plan_world(monkeypatch)
     client = RecordingClient()
 
-    out = plan(client, shardTargetEntities=30)
+    out = plan(client, shardTargetEntities=45)
 
     items = records(client)
-    assert [props(item)["status"] for item in items] == ["started"]
-    assert props(items[0])["runId"] == out["runId"]
+    assert [props(item)["status"] for item in items if props(item)["rowKind"] == "run"] == ["started"]
+    assert {props(item)["runId"] for item in items} == {out["runId"]}
     assert out["shardCount"] == len(out["tasks"]) == 2
     assert out["facilities"] == 2
     spaces = [sorted(task["parameters"]["function"]["data"]["spaces"]) for task in out["tasks"]]
@@ -186,20 +169,41 @@ def test_the_plan_starts_the_run_and_returns_one_task_per_shard(monkeypatch: pyt
         assert (data["runId"], data["runTimestamp"]) == (out["runId"], out["runTimestamp"])
 
 
+def test_the_plan_writes_the_locations_that_cover_the_facilities(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cq import locations
+
+    plan_world(monkeypatch)
+    monkeypatch.setattr(
+        locations,
+        "list_locations",
+        lambda _client: [{"id": 1, "externalId": "site", "name": "Site", "instanceSpaces": [A]}],
+    )
+    client = RecordingClient()
+
+    out = plan(client)
+
+    rows = [props(item) for item in records(client) if props(item)["rowKind"] == "location"]
+    assert [row["entityId"] for row in rows] == ["site"]
+    assert out["locations"] == 1
+
+
 def test_small_spaces_share_a_shard(monkeypatch: pytest.MonkeyPatch) -> None:
     plan_world(monkeypatch)
 
     out = plan(RecordingClient())
 
     assert out["shardCount"] == 1
-    assert sorted(out["tasks"][0]["parameters"]["function"]["data"]["spaces"]) == [A, B]
+    (task,) = out["tasks"]
+    assert sorted(task["parameters"]["function"]["data"]["spaces"]) == [A, B]
+    assert task["name"] == "Context Quality shard 1 of 1"  # not "of 2": there are two spaces but one shard
+    assert task["parameters"]["function"]["data"]["shardCount"] == 1
 
 
 def test_every_shard_carries_the_configuration_and_the_extra_links(monkeypatch: pytest.MonkeyPatch) -> None:
     plan_world(monkeypatch)
     links = [{"model": CORE, "links": ["CogniteAsset.type"]}]
 
-    out = plan(RecordingClient(), {"config": {"freshnessDays": 7}, "extraLinks": links}, shardTargetEntities=1)
+    out = plan(RecordingClient(), {"config": {"freshnessDays": 7}, "extraLinks": links}, shardTargetEntities=45)
 
     for task in out["tasks"]:
         data = task["parameters"]["function"]["data"]
@@ -217,7 +221,7 @@ def test_a_space_that_only_holds_configured_views_becomes_a_facility_of_its_own_
     )
     links = [{"model": "o:M:v1", "links": ["Ucp.owner"]}]
 
-    out = plan(RecordingClient(), {"extraLinks": links}, shardTargetEntities=30)
+    out = plan(RecordingClient(), {"extraLinks": links}, shardTargetEntities=45)
 
     by_space = {
         space: task["parameters"]["function"]["data"]
@@ -229,7 +233,7 @@ def test_a_space_that_only_holds_configured_views_becomes_a_facility_of_its_own_
     assert out["facilities"] == 3
 
 
-def test_a_configured_view_with_no_instances_in_any_facility_is_passed_on_as_empty(
+def test_the_plan_writes_the_rows_of_a_configured_view_with_no_instances_in_any_facility(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     plan_world(
@@ -238,10 +242,31 @@ def test_a_configured_view_with_no_instances_in_any_facility_is_passed_on_as_emp
         link_counts={("o:M:v1", "Ucp"): {}, ("o:M:v1", "Full"): {A: 20}},
     )
     links = [{"model": "o:M:v1", "links": ["Ucp.owner", "Full.owner"]}]
+    client = RecordingClient()
 
-    out = plan(RecordingClient(), {"extraLinks": links})
+    plan(client, {"extraLinks": links})
 
-    assert out["tasks"][0]["parameters"]["function"]["data"]["emptyLinkViews"] == [["o:M:v1", "Ucp"]]
+    rows = [props(item) for item in records(client) if props(item)["rowKind"] == "extraLink"]
+    assert sorted((row["dimensionId"], row["reportingUnitId"], row["notApplicable"]) for row in rows) == [
+        ("o:M:v1/Ucp", A, True),
+        ("o:M:v1/Ucp", B, True),
+    ]
+
+
+def test_the_plan_reports_a_kind_that_no_facility_holds_and_the_part_counts_its_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan_world(monkeypatch)
+    client = RecordingClient()
+
+    plan(client)
+
+    (part_record,) = [props(i) for i in records(client) if props(i)["rowKind"] == "runPart"]
+    assert part_record["entityId"] == "plan"
+    assert part_record["detail"] == "plan"
+    names = {w["subject"] for w in json.loads(part_record["warnings"]) if w["code"] == "no-source-entities"}
+    assert "equipment" in names
+    assert "assets" not in names
 
 
 def test_the_plan_needs_to_know_which_function_runs_the_shards(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -277,6 +302,278 @@ def test_a_wrong_link_fails_the_plan_before_the_run_is_started(monkeypatch: pyte
         plan(client, {"extraLinks": [{"model": "o:M:v1", "links": ["Nope.owner"]}]})
 
     assert client.calls == []
+
+
+# ---------------------------------------------------------------- batches of a big space
+
+
+def universe_tools(monkeypatch: pytest.MonkeyPatch, ids_by_view: dict[tuple[str, str], list[str]]) -> None:
+    """The plan looks at a big kind only by counting and sampling; here the instances are a list of ids."""
+    from test_batching import Universe
+
+    universes = {key: Universe(ids) for key, ids in ids_by_view.items()}
+
+    def leaf_tools(_client: Any, view: Any, space: str, *, edge: bool = False) -> Any:
+        universe = universes[(space, view.external_id)]
+        return universe.count_leaves, universe.sample_id
+
+    monkeypatch.setattr(runner, "leaf_tools", leaf_tools)
+
+
+def test_a_space_over_the_target_is_cut_into_batches_that_cover_every_instance_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from test_batching import matches
+
+    ids = [f"asset-{n:04d}" for n in range(600)]
+    plan_world(
+        monkeypatch,
+        by_kind={**{kind: {} for kind in KIND_VIEWS}, "assets": {A: 600, B: 30}, "equipment": {A: 50}},
+    )
+    universe_tools(monkeypatch, {(A, "CogniteAsset"): ids})
+    client = RecordingClient()
+
+    out = plan(client, shardTargetEntities=200)
+
+    tasks = [t["parameters"]["function"]["data"] for t in out["tasks"]]
+    batches = [d for d in tasks if d["action"] == "compute_batch"]
+    asset_slices = [d for d in batches if d["kinds"] == ["assets"]]
+    assert len(asset_slices) >= 3
+    assert out["batches"] == len(batches)
+    assert all(leaf_set["space"] == A for leaf_set in batches)
+    # every asset is in exactly one slice
+    for xid in ids:
+        assert sum(matches((kind, text), xid) for d in asset_slices for kind, text in d["leaves"]) == 1
+    assert {d["groupBatches"] for d in asset_slices} == {len(asset_slices)}
+    # the small kind of the big space is counted whole, and the small space stays a shard
+    assert any(d["kinds"] == ["equipment"] and d["leaves"] is None for d in batches)
+    (shard,) = [d for d in tasks if d["action"] == "compute_shard"]
+    assert list(shard["spaces"]) == [B]
+    assert {d["shardCount"] for d in tasks} == {len(tasks)}
+
+
+def test_the_tasks_can_be_chained_so_that_the_batches_run_one_by_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    plan_world(monkeypatch, by_kind={**{kind: {} for kind in KIND_VIEWS}, "assets": {A: 600}})
+    universe_tools(monkeypatch, {(A, "CogniteAsset"): [f"asset-{n:04d}" for n in range(600)]})
+
+    sequential = plan(RecordingClient(), shardTargetEntities=200, maxConcurrentShards=1)
+    two = plan(RecordingClient(), shardTargetEntities=200, maxConcurrentShards=2)
+    free = plan(RecordingClient(), shardTargetEntities=200)
+
+    chain = [[dep["externalId"] for dep in t["dependsOn"]] for t in sequential["tasks"]]
+    assert chain[0] == []
+    assert chain[1:] == [[t["externalId"]] for t in sequential["tasks"][:-1]]
+    assert [t["dependsOn"] for t in two["tasks"][:2]] == [[], []]
+    assert two["tasks"][2]["dependsOn"] == [{"externalId": two["tasks"][0]["externalId"]}]
+    assert all(t["dependsOn"] == [] for t in free["tasks"])
+
+
+def test_the_plan_cuts_a_big_space_only_when_it_has_to(monkeypatch: pytest.MonkeyPatch) -> None:
+    plan_world(monkeypatch, by_kind={**{kind: {} for kind in KIND_VIEWS}, "assets": {A: 600}})
+
+    out = plan(RecordingClient(), shardTargetEntities=1000)
+
+    assert out["batches"] == 0
+    assert [t["parameters"]["function"]["data"]["action"] for t in out["tasks"]] == ["compute_shard"]
+
+
+def batch_run(client: RecordingClient, cfg: Any = CFG, **payload: Any) -> dict[str, Any]:
+    base = {"runId": RUN_ID, "runTimestamp": RUN_TS, "shard": 3, "shardCount": 5, "space": A, "facility": FACILITIES[A]}
+    return runner.compute_batch(client, cfg, {**base, **payload})  # type: ignore[arg-type]
+
+
+@pytest.fixture(autouse=True)
+def batch_reads(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cq.cross import full_cross
+
+    def load_batch(_client: Any, space: str, facility: str, kinds: frozenset[str], flt: Any = None) -> dict[str, Any]:
+        data = data_of({space: facility})
+        for kind in ENTITY_KEYS:
+            if kind not in kinds:
+                data[kind] = []
+        return data
+
+    monkeypatch.setattr(runner, "load_batch", load_batch)
+    monkeypatch.setattr(runner, "fetch_cross", lambda *_a, **_k: full_cross(build_dataset()[0]))
+
+
+def test_a_batch_writes_the_rows_of_its_kinds_with_keys_of_its_own_and_a_part_record_last() -> None:
+    client = RecordingClient()
+
+    summary = batch_run(client, kinds=["equipment"])
+
+    items = records(client)
+    rows = [props(item) for item in items[:-1]]
+    assert {row["reportingUnitId"] for row in rows} == {A}
+    assert {row.get("dimensionId") for row in rows} - {None} == {"equipment-asset"}
+    assert all(item["externalId"].endswith("|p3") for item in items[:-1])
+    part = props(items[-1])
+    assert (part["rowKind"], part["detail"], part["entityId"]) == ("runPart", "batch", "shard-3")
+    assert part["rowsWritten"] == len(items) - 1 == summary["rowsWritten"]
+
+
+def test_two_batches_of_one_kind_never_write_the_same_record() -> None:
+    first, second = RecordingClient(), RecordingClient()
+
+    batch_run(first, kinds=["equipment"], shard=1)
+    batch_run(second, kinds=["equipment"], shard=2)
+
+    assert not {i["externalId"] for i in records(first)} & {i["externalId"] for i in records(second)}
+
+
+def test_the_drill_down_cap_of_a_space_is_shared_by_the_batches_of_a_kind(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[int] = []
+    build = runner.build_rows
+
+    def spy(result: Any, cfg: Any) -> Any:
+        seen.append(cfg["drilldownCap"])
+        return build(result, cfg)
+
+    monkeypatch.setattr(runner, "build_rows", spy)
+
+    batch_run(RecordingClient(), kinds=["files"], groupBatches=4)
+    batch_run(RecordingClient(), kinds=["files"])
+
+    assert seen == [125, 500]
+
+
+def test_a_batch_leaves_to_the_plan_what_it_cannot_know_about_the_whole_run() -> None:
+    cfg = build_config({**SAMPLE_RESOURCES, "tieringEnabled": True, "tierByTypeCode": {}})
+    client = RecordingClient()
+
+    batch_run(client, cfg, kinds=["assets", "work_orders"])
+
+    (part_record,) = [props(i) for i in records(client) if props(i)["rowKind"] == "runPart"]
+    codes = {w["code"] for w in json.loads(part_record["warnings"])}
+    assert "mapping-empty" in codes
+    assert not codes & {"no-source-entities", "metric-not-applicable"}
+
+
+def test_a_batch_of_a_big_configured_view_counts_the_slice_it_is_given(monkeypatch: pytest.MonkeyPatch) -> None:
+    ref = {"space": "r", "externalId": "t"}
+    asked: dict[str, Any] = {}
+
+    def load_extra_links(_client: Any, links: Any, spaces: Any, flt: Any = None) -> Any:
+        asked.update(links=links, spaces=spaces, flt=flt)
+        return {(CORE, "CogniteAsset"): [(A, "a1", {"type": ref}), (A, "a2", {})]}
+
+    monkeypatch.setattr(runner, "load_extra_links", load_extra_links)
+    client = RecordingClient()
+
+    batch_run(
+        client,
+        views=[[CORE, "CogniteAsset"]],
+        leaves=[["prefix", "a"]],
+        extraLinks=[{"model": CORE, "links": ["CogniteAsset.type", "CogniteEquipment.equipmentType"]}],
+    )
+
+    assert asked["spaces"] == [A]
+    assert asked["flt"] is not None
+    assert [(link["view"], link["property"]) for link in asked["links"]] == [("CogniteAsset", "type")]
+    kinds = [props(item)["rowKind"] for item in records(client)]
+    assert kinds == ["extraLink", "extraLinkGap", "runPart"]
+    assert props(records(client)[0])["issueCount"] == 1
+
+
+# ---------------------------------------------------------------- the export of unlinked items
+
+
+def with_export(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, int, list[tuple[str, ...]]]]:
+    """Stands in for Cognite Files: records what each piece uploads."""
+    uploaded: list[tuple[str, int, list[tuple[str, ...]]]] = []
+    monkeypatch.setattr(runner.export, "data_set_id", lambda _client, cfg: 77 if cfg["exportDataSet"] else None)
+    monkeypatch.setattr(
+        runner.export,
+        "write_part",
+        lambda _client, _ds, run_id, piece, rows: uploaded.append((run_id, piece, rows)) or len(rows),
+    )
+    return uploaded
+
+
+def test_a_shard_uploads_its_unlinked_items_and_summary_for_the_workbook(monkeypatch: pytest.MonkeyPatch) -> None:
+    uploaded = with_export(monkeypatch)
+    cfg = build_config({**SAMPLE_RESOURCES, "exportDataSet": "ds_cq"})
+    payload = {
+        "runId": RUN_ID,
+        "runTimestamp": RUN_TS,
+        "shard": 4,
+        "shardCount": 6,
+        "spaces": {A: "alpha"},
+        "extraSpaces": {A: "alpha"},
+    }
+
+    runner.compute_shard(RecordingClient(), cfg, payload)  # type: ignore[arg-type]
+
+    ((run_id, piece, rows),) = uploaded
+    assert (run_id, piece) == (RUN_ID, 4)
+    assert {row[0] for row in rows} == {"item", "summary"}
+    assert {row[4] for row in rows if row[0] == "item"} == {A}  # only the items of this shard's space
+
+
+def test_a_batch_uploads_its_items_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    uploaded = with_export(monkeypatch)
+    cfg = build_config({**SAMPLE_RESOURCES, "exportDataSet": "ds_cq"})
+
+    batch_run(RecordingClient(), cfg, kinds=["equipment"])
+
+    ((_, piece, rows),) = uploaded
+    assert piece == 3
+    assert {row[1] for row in rows if row[0] == "item"} <= {
+        "Equipment without asset",
+        "Equipment no serial number",
+        "Equipment no manufacturer",
+    }
+
+
+def test_nothing_is_uploaded_when_the_export_is_not_switched_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    uploaded = with_export(monkeypatch)
+
+    shard_run(RecordingClient(), {A: FACILITIES[A]}, 0)
+
+    assert uploaded == []
+
+
+def test_a_failed_upload_is_a_warning_and_never_fails_the_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+
+    def refuse(*_a: Any, **_k: Any) -> Any:
+        raise CogniteAPIError("Insufficient access rights", 403)
+
+    monkeypatch.setattr(runner.export, "data_set_id", lambda _client, _cfg: 77)
+    monkeypatch.setattr(runner.export, "write_part", refuse)
+    client = RecordingClient()
+
+    runner.compute_shard(
+        client,
+        build_config({**SAMPLE_RESOURCES, "exportDataSet": "ds_cq"}),
+        {
+            "runId": RUN_ID,
+            "runTimestamp": RUN_TS,
+            "shard": 0,
+            "shardCount": 1,
+            "spaces": {A: "alpha"},
+            "extraSpaces": {A: "alpha"},
+        },
+    )  # type: ignore[arg-type]
+
+    (part_record,) = [props(i) for i in records(client) if props(i)["rowKind"] == "runPart"]
+    (warning_,) = [w for w in json.loads(part_record["warnings"]) if w["code"] == "export-failed"]
+    assert warning_["code"] == "export-failed"
+    assert "Insufficient access rights" in warning_["message"]
+
+
+def test_the_export_step_builds_the_workbook_of_the_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[tuple[str, int]] = []
+    monkeypatch.setattr(
+        runner.export,
+        "build_workbook",
+        lambda _c, _cfg, run_id, pieces: seen.append((run_id, pieces)) or {"exported": True},
+    )
+
+    out = runner.export_workbook(RecordingClient(), CFG, {"runId": RUN_ID, "shardCount": "5"})  # type: ignore[arg-type]
+
+    assert seen == [(RUN_ID, 5)]
+    assert out == {"action": "export", "exported": True}
 
 
 # ---------------------------------------------------------------- finalize
@@ -374,7 +671,7 @@ def test_a_run_with_a_shard_missing_is_not_completed(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(runner, "PART_WAIT_SECONDS", 0)
     client = ReadingClient([part(0, 12)])
 
-    with pytest.raises(runner.MissingInputError, match=r"1 of 2 shards.*\[1\]"):
+    with pytest.raises(runner.MissingInputError, match=r"1 of 2 calls.*\[1\]"):
         finalize(client)
 
     assert records(client) == []
@@ -396,14 +693,17 @@ def test_finalize_waits_for_a_shard_whose_record_is_not_searchable_yet(monkeypat
     assert out["rowsWritten"] == 15
 
 
-def test_nothing_found_is_not_reported_by_a_run_where_a_shard_found_something() -> None:
+def test_the_plans_own_warnings_are_part_of_the_runs() -> None:
     nothing = {"code": "no-source-entities", "message": "m", "subject": "work_orders"}
-    client = ReadingClient([part(0, 5, [nothing]), part(1, 5)])
+    plan_part = {"rowKind": "runPart", "runId": RUN_ID, "entityId": "plan", "detail": "plan", "rowsWritten": 3}
+    plan_part["warnings"] = encode_warnings([nothing])
+    client = ReadingClient([plan_part, part(0, 5), part(1, 5)])
 
-    finalize(client)
+    out = finalize(client)
 
     (item,) = records(client)
-    assert "warnings" not in props(item)
+    assert [w["code"] for w in json.loads(props(item)["warnings"])] == ["no-source-entities"]
+    assert props(item)["rowsWritten"] == 13 == out["rowsWritten"]
 
 
 def test_the_time_of_the_run_is_the_time_of_the_plan() -> None:

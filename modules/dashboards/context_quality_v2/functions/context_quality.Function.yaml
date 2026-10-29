@@ -4,8 +4,8 @@
   description: >
     Reads the project's contextualization (assets, equipment, time series, files, 3D, maintenance, annotations),
     counts it at the lowest reporting level and appends the result to the Context Quality metrics stream as one
-    run, with a complete marker written last. Actions: plan, compute_shard and finalize (the workflow's three steps, the
-    shards running in parallel), compute_metrics (the whole run in one call) and validate.
+    run, with a complete marker written last. Actions: plan, compute_shard/compute_batch and finalize (the workflow's three steps,
+    the calls running in parallel), compute_metrics (the whole run in one call), export (the workbook of unlinked items) and validate.
   dataSetExternalId: "{{ metricsDatasetExternalId }}"
   runtime: py312
   functionPath: handler.py

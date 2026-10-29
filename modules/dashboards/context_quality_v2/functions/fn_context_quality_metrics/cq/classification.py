@@ -21,8 +21,13 @@ SPECS = (
 )
 
 
-def discover(data: LoadedData) -> list[str]:
-    """Kinds that are populated: some entity references a classification node that exists."""
+def discover(data: LoadedData, populated: set[str] | None = None) -> list[str]:
+    """Kinds that are populated: some entity references a classification node that exists.
+
+    A batch holds only some of the entities, so which kinds are populated is answered for the whole space (`populated`).
+    """
+    if populated is not None:
+        return [kind for kind, *_ in SPECS if kind in populated]
     found: list[str] = []
     for kind, entities, field, _ in SPECS:
         labels = data["class_labels"].get(kind, {})
@@ -31,14 +36,14 @@ def discover(data: LoadedData) -> list[str]:
     return found
 
 
-def entity_classes(data: LoadedData) -> dict[EntityKey, dict[str, str]]:
+def entity_classes(data: LoadedData, populated: set[str] | None = None) -> dict[EntityKey, dict[str, str]]:
     """{(space, externalId): {kind: label}} for entities that reference a classification node.
 
     Used to tag drilldown rows. Entities with no classification are simply absent, so a row never
     claims a class the entity does not have.
     """
     out: dict[EntityKey, dict[str, str]] = {}
-    for kind in discover(data):
+    for kind in discover(data, populated):
         _, entities, field, _ = next(s for s in SPECS if s[0] == kind)
         labels = data["class_labels"][kind]
         for e in data[entities]:
@@ -67,10 +72,11 @@ def compute_classifications(
     A: dict[EntityKey, Any],
     ctx: Callable[[str, Ref | None], Grain],
     owner_for: Callable[[str], str | None],
+    populated: set[str] | None = None,
 ) -> dict[tuple, list[int]]:
     """-> {(kind, classId, className, dim, unit, facility, div, disc, owner, tier): [eligible, passing]}"""
     out: dict[tuple, list[int]] = defaultdict(lambda: [0, 0])
-    for kind in discover(data):
+    for kind in discover(data, populated):
         _, entities, field, dim = next(s for s in SPECS if s[0] == kind)
         labels = data["class_labels"][kind]
         for e in data[entities]:

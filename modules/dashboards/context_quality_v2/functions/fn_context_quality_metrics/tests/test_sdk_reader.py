@@ -42,8 +42,12 @@ class FakeInstances:
         self.errors = errors or {}
         self.calls: list[dict[str, Any]] = []
 
-    def list(self, instance_type: str, sources: ViewId, space: Any = None, limit: int = 25) -> list[Node | Edge]:
-        self.calls.append({"instance_type": instance_type, "sources": sources, "space": space, "limit": limit})
+    def list(
+        self, instance_type: str, sources: ViewId, space: Any = None, filter: Any = None, limit: int = 25
+    ) -> list[Node | Edge]:
+        self.calls.append(
+            {"instance_type": instance_type, "sources": sources, "space": space, "filter": filter, "limit": limit}
+        )
         if sources.external_id in self.errors:
             raise self.errors[sources.external_id]
         kind = Edge if instance_type == "edge" else Node

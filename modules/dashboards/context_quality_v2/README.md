@@ -11,12 +11,29 @@ The module owns two things:
 
 - **The deployment**: the schema space, the instance space, two record containers, two views, the Records stream and
   the metrics function with its data set, all with configurable names.
-- **The data contract**: a versioned description of what is written to the log and how it is read. It lives in
-  [`contract/`](contract/) and is the source of truth. Producers and consumers, including the dashboard, depend on it
-  and do not define it themselves. Start with [`contract/CONTRACT.md`](contract/CONTRACT.md).
+- **The run log**: what the function writes to the stream and the dashboard reads (see "The run log" below). The two
+  container definitions in `data_modeling/` are the source of truth for its properties.
 
-The log design is exactly the one that is already deployed and in use in the first (legacy) deployment of this
-backend, so that deployment's resources and its history stay valid. Version 1 of the contract is that design.
+### The run log
+
+Every record is a row of the container `ContextQualityRelationship` (or, for `annotationBucket`, of
+`ContextQualityFileAnnotation`). Its `externalId` is `{runId}:{rowKey}` in the instance space, and `rowKind` says what it
+is:
+
+| `rowKind` | What it holds | Row key |
+|---|---|---|
+| `run` | The run's `started` marker and, last, its `complete` marker (with `rowsWritten` and `warnings`) | `run:started`, `run:complete` |
+| `aggregate` | Counts of one metric for one facility, tier, division, discipline, owner and sub-key | `agg:` |
+| `exclusion` | How many entities were excluded, per category | `excl:` |
+| `drilldown` | One entity that has a gap, capped per metric and space | `drill:` |
+| `classification` | Counts per type, class or category | `cls:` |
+| `annotationBucket` | File annotation counts by status and confidence | `anno:` |
+| `extraLink`, `extraLinkGap` | Counts for the links of a configuration file, and the instances without the link | `xlink:`, `xgap:` |
+| `location` | A location filter that can be used as a scope: its name, parent and the facilities it covers | `loc:` |
+| `runPart` | What one parallel piece of a run reports to `finalize`; read only by the function | `part:` |
+
+Rows are raw counts, never percentages. Nothing is ever updated or deleted by the backend, and new properties are only
+ever added as optional ones, so an older run stays readable.
 
 ### Design in one paragraph
 
@@ -29,71 +46,56 @@ sums the rows for the scope the user picked and divides. Nothing is ever updated
 
 | Part | Status |
 |---|---|
-| Schema, views, stream and the contract (this module) | Done |
-| Metrics function (`fn_context_quality_metrics`) | Ported from the baseline implementation with identical behaviour. Known defects are listed below and are not fixed yet |
-| Workflow, schedule trigger and the two access groups | Done in source and validated by `cdf build`; **not deployed**. Needs identity-provider inputs (see "Deployment inputs") |
-| Demo data and synthetic history | None. There is no demo module; the function and the workflow carry no demo rules |
+| Schema, views and stream (this module) | Done; deployed and run on a test deployment |
+| Metrics function (`fn_context_quality_metrics`) | Done: plan, parallel shards and batches, finalize, the workbook of unlinked items and location filters, run end to end on a test deployment |
+| Workflow | Done; run on a test deployment |
+| Schedule trigger and the two access groups | Done in source and validated by `cdf build`; **not yet deployed**. They need identity-provider inputs (see "Deployment inputs") |
 
-## Module Components
-
-| Resource | Where | Notes |
-|---|---|---|
-| Schema space | `data_modeling/context_quality_metrics.Space.yaml` | Holds only containers and views. Variable `metricsSchemaSpace` |
-| Instance space | `data_modeling/context_quality_instances.Space.yaml` | The `space` of every record. Variable `metricsInstanceSpace` |
-| `ContextQualityRelationship` container | `data_modeling/containers/` | Record container for the `run`, `aggregate`, `exclusion`, `drilldown` and `classification` rows |
-| `ContextQualityFileAnnotation` container | `data_modeling/containers/` | Record container for the `annotationBucket` rows |
-| Views of both containers | `data_modeling/views/` | Same external id as the container, bound to the stream. Version `metricsVersion` |
-| Metrics stream | `streams/context_quality_metrics.Streams.yaml` | Immutable. Variables `metricsStreamExternalId` and `metricsStreamTemplate` |
-| Data set | `data_sets/context_quality.DataSet.yaml` | Holds the function's code. Variable `metricsDatasetExternalId` |
-| Metrics function | `functions/context_quality.Function.yaml`, `functions/fn_context_quality_metrics/` | Variable `metricsFunctionExternalId`. The folder is named after the external id |
-| Workflow | `workflows/context_quality.Workflow.yaml`, `…WorkflowVersion.yaml` | `wf_context_quality_metrics`, version `v1`. Three steps: plan, a dynamic task that runs the shards in parallel, finalize |
-| Schedule trigger | `workflows/context_quality.WorkflowTrigger.yaml` | `wf_context_quality_metrics_schedule`. Runs the workflow on a cron schedule as the function identity |
-| Function group | `auth/context_quality_function.Group.yaml` | `gp_context_quality_function` |
-| Dashboard users group | `auth/context_quality_dashboard_users.Group.yaml` | `gp_context_quality_dashboard_users` |
-| Contract | `contract/` | `CONTRACT.md`, `contract.json` and the golden `samples.json` |
-
-The two container external ids are part of the contract and are **not** variables.
+The two container external ids are fixed by the run log and are **not** variables.
 
 ### Variables
 
-| Variable | Default | Legacy deployment value |
+| Variable | Default | What |
 |---|---|---|
-| `metricsSchemaSpace` | `sp_context_quality_metrics` | `sp_cq_demo_metrics` |
-| `metricsInstanceSpace` | `sp_dat_context_quality_metrics` | `sp_cq_demo_metrics_data` |
-| `metricsVersion` | `v1` | `v1` |
-| `metricsStreamExternalId` | `context_quality_metrics` | `cq_demo_metrics` |
-| `metricsStreamTemplate` | `BasicArchive` | `ImmutableTestStream` |
-| `metricsFunctionExternalId` | `fn_context_quality_metrics` | not deployed there yet |
-| `metricsDatasetExternalId` | `ds_context_quality` | not deployed there yet |
-| `metricsWorkflowExternalId`, `metricsWorkflowVersion` | `wf_context_quality_metrics`, `v1` | not deployed there yet (the legacy `cq_demo` workflow is a different, demo workflow and stays as it is) |
-| `metricsTriggerExternalId` | `wf_context_quality_metrics_schedule` | not deployed there yet |
-| `metricsWorkflowSchedule`, `metricsWorkflowScheduleTimezone` | `0 4 * * *`, `UTC` | choose per deployment |
-| `metricsFunctionGroupName`, `metricsDashboardGroupName` | `gp_context_quality_function`, `gp_context_quality_dashboard_users` | not deployed there yet |
-| `metricsSourceSpaces` | `cdf_cdm`, `cdf_idm` | the facility instance spaces, added to those two |
+| `metricsSchemaSpace` | `sp_context_quality_metrics` | the space of the run-log containers and views |
+| `metricsInstanceSpace` | `sp_dat_context_quality_metrics` | the space the run records are written to |
+| `metricsVersion` | `v1` | the view version |
+| `metricsStreamExternalId` | `context_quality_metrics` | the Records stream |
+| `metricsStreamTemplate` | `BasicArchive` | the stream template; it cannot be changed after the stream is created |
+| `metricsFunctionExternalId` | `fn_context_quality_metrics` | the function; its folder under `functions/` is named after it |
+| `metricsDatasetExternalId` | `ds_context_quality` | the data set of the function's code and of the workbook files |
+| `metricsWorkflowExternalId`, `metricsWorkflowVersion` | `wf_context_quality_metrics`, `v1` | the workflow |
+| `metricsTriggerExternalId` | `wf_context_quality_metrics_schedule` | the schedule trigger |
+| `metricsWorkflowSchedule`, `metricsWorkflowScheduleTimezone` | `0 4 * * *`, `UTC` | when the trigger starts a run |
+| `metricsFunctionGroupName`, `metricsDashboardGroupName` | `gp_context_quality_function`, `gp_context_quality_dashboard_users` | the access groups |
+| `metricsSourceSpaces` | `cdf_cdm`, `cdf_idm` | the spaces the function may read; add the facility instance spaces |
 | `metricsFunctionGroupSourceId`, `metricsDashboardGroupSourceId`, `metricsFunctionClientId`, `metricsFunctionClientSecret` | `${CQ_FUNCTION_GROUP_SOURCE_ID}`, `${CQ_DASHBOARD_GROUP_SOURCE_ID}`, `${CQ_FUNCTION_CLIENT_ID}`, `${CQ_FUNCTION_CLIENT_SECRET}` | environment values; **required**, see "Deployment inputs" |
-| `metricsFacilityNames`, `metricsTierByTypeCode`, `metricsDisciplineByTypeCode`, `metricsAssetTypeByEquipmentTypeCode`, `metricsDefaultOwners`, `metricsOwnerPrefixRules`, `metricsExclusions` | empty | the project's rules, as JSON text (Toolkit reads a mapping-valued variable as a namespace, so a mapping or list is written as a string such as `'{"pump": 1}'`) |
+| `metricsFacilityNames`, `metricsTierByTypeCode`, `metricsDefaultOwners`, `metricsOwnerPrefixRules`, `metricsExclusions` | empty | the project's rules, as JSON text (Toolkit reads a mapping-valued variable as a namespace, so a mapping or list is written as a string such as `'{"pump": 1}'`) |
 | `metricsTieringEnabled` | `false` | tiering is off by default; set `true` together with `metricsTierByTypeCode` to turn it on |
 | `metricsDivisionTagPrefix`, `metricsRetiredTag`, `metricsFreshnessDays`, `metricsMaxDepth` | `""`, `""`, `30`, `8` | the project's settings |
-| `metricsMaxShards`, `metricsShardTargetEntities` | `150`, `250000` | how a run is divided into parallel function calls (see "Running in parallel shards") |
+| `metricsExportRetentionDays` | `30` | how many days the workbook of unlinked items of a run stays in Files |
+| `metricsMaxShards`, `metricsShardTargetEntities`, `metricsMaxConcurrentShards` | `150`, `250000`, `0` | how a run is divided into parallel function calls, and how many run at once (see "Running in parallel shards") |
 
-The legacy at-dev names are supplied by a deployment-specific `config.<env>.yaml` that sets `metricsSchemaSpace`,
-`metricsInstanceSpace`, `metricsStreamExternalId` and `metricsStreamTemplate` to the values above. Nothing in the
-function or the workflow falls back to them.
+A deployment that needs other names sets them in its own `config.<env>.yaml`. Nothing in the function or the workflow
+falls back to a name that is not passed to it.
+
 ### The metrics function
 
 `functions/fn_context_quality_metrics/` reads the contextualization data (Core and maintenance views, diagram
-annotations), counts it at the lowest reporting level and appends one run to the stream. Two actions:
+annotations), counts it at the lowest reporting level and appends one run to the stream. Its actions:
 
 | Action | What it does |
 |---|---|
-| `compute_metrics` | Computes and writes a run: a `started` marker, the rows, then the `complete` marker last. With `"dry_run": true` it computes and returns counts, and writes nothing; add `"return_rows": true` to get the aggregate, exclusion and classification rows back |
+| `plan`, `compute_shard`, `compute_batch`, `finalize` | A run in parallel pieces, as the workflow runs it (see "Running in parallel shards") |
+| `export` | Builds the Excel workbook of every unlinked item of a run (see "The workbook of unlinked items") |
+| `compute_metrics` | Computes and writes a whole run in one call, for small projects and comparison: a `started` marker, the rows, then the `complete` marker last. With `"dry_run": true` it computes and returns counts, and writes nothing; add `"return_rows": true` to get the aggregate, exclusion and classification rows back |
 | `validate` | Computes and returns totals per metric. Never writes |
 
 `compute_metrics` also takes `extraLinks` in the payload: a list of `{"model": "space:externalId:version", "links":
 ["View.property", ...]}`. Each link must be a direct relation of a view in that model. The run counts, per facility, the
-instances of the view that have it set and writes them as `extraLink` rows (contract section 2.8), next to the built-in
+instances of the view that have it set and writes them as `extraLink` rows, next to the built-in
 metrics, which do not change. The spaces of the models named in the file are added to the Core facilities, so a model whose instances
-live in spaces with no Core entity is still counted (contract section 2.8). A name the model does not have fails the run before anything is written.
+live in spaces with no Core entity is still counted. A name the model does not have fails the run before anything is written.
 
 Anything under the payload's `config` overrides `cq/config.py`'s `DEFAULT_CONFIG`. An override replaces the default it
 names, whatever its type, and is never merged into it: `"tierByTypeCode": {}` clears the tier rules, and a mapping
@@ -118,9 +120,8 @@ the function: a project supplies its own in the task's `config` (the workflow's 
 | `stream` | a real `compute_metrics` run | the Records stream that is written. `validate` and `dry_run` never write it, so they do not need it |
 
 A missing or blank one is a `ValueError` naming it, raised before the client is used, so nothing is read or written.
-The two container names (`relationshipContainer`, `fileAnnotationContainer`) are part of the run log contract rather
-than of an environment, so they keep their defaults. The legacy at-dev deployment passes its own names explicitly
-(`cq_demo_metrics`, `sp_cq_demo_metrics`, `sp_cq_demo_metrics_data`). The function reads no RAW table.
+The two container names (`relationshipContainer`, `fileAnnotationContainer`) are part of the run log rather
+than of an environment, so they keep their defaults. The function reads no RAW table.
 
 **What is deployed.** Toolkit zips the whole function folder, so the deployed package also contains the tests, their
 fixtures (`parity_dataset.py`, `tiny_data.py`, `sample_rules.py`, all in the function's `tests/` folder, and `conftest.py`). This matches
@@ -136,8 +137,7 @@ folder); that changes how the repository lays out functions, so it is deliberate
 looked at" (no row). Rows are registered per metric and unit only where the entities the metric is computed from
 exist, and only when the unit has no row for that metric. The `complete` marker carries `warnings` (compact JSON, codes
 and counts only) for empty required mappings, unmapped asset and equipment types, unavailable optional source views
-(the `cdf_idm` maintenance views), populations with no entities, not-applicable metrics and truncated drill-downs. The
-rules and codes are in `contract/CONTRACT.md` (sections 3.3 and 6.2). A run whose required source views cannot be read,
+(the `cdf_idm` maintenance views), populations with no entities, not-applicable metrics and truncated drill-downs. A run whose required source views cannot be read,
 or that finds no facility space, writes nothing at all, so the previous run stays current.
 
 **This is a port of the baseline implementation with three deliberate fixes.** It is typed and linted, and the
@@ -147,9 +147,9 @@ implementation's, row for row, except for the changes below, before that compari
 - **Tiers.** Tiering is off by default (`tieringEnabled`): no asset has a tier and the coverage metrics measure every
   asset. When it is on, an asset's tier comes only from its own type code in `tierByTypeCode`, which is empty by default. An entity
   that is not an asset inherits the tier of the asset it links to. Everything else has no tier; nothing is tier 3 unless
-  a project maps a type to 3 (contract section 6.1).
+  a project maps a type to 3.
 - **Roots.** A root is a parentless asset that has children; a standalone asset is an orphan; an asset whose parent was
-  not loaded is a child (contract section 6.6). It no longer depends on how facilities are discovered.
+  not loaded is a child. It no longer depends on how facilities are discovered.
 - **Decommissioned equipment** is excluded by `exclusions.decommissionedTags` (a list, empty by default). The old scalar
   `decommissionedTag` is rejected, and `retiredTag` is empty by default.
 
@@ -166,32 +166,14 @@ uv run pytest modules/dashboards/context_quality_v2/functions/fn_context_quality
 ```
 
 They cover the discovery rules, the output against the baseline, the reader and the latest-datapoints lookup using
-real Cognite SDK data classes, and the write order. `tests/test_context_quality_function_contract.py` checks that
-what the function writes fits the containers in this module and the contract.
+real Cognite SDK data classes, and the write order. `tests/test_context_quality_function_records.py` checks that
+what the function writes fits the containers in this module.
 
-### How this reconciles the earlier scaffold with the deployed design
+### Compatibility
 
-The module first held a different design: four containers (three mutable "current state" node containers and one
-immutable snapshot container) and a `BasicArchive` stream named `context_quality_metric_snapshots`. That design was
-unmerged and never part of a release, and it is not compatible with the deployed run log, so it is replaced.
-
-| Earlier scaffold resource | Legacy deployment resource | Resource in this module |
-|---|---|---|
-| `ContextQualityCurrentMetric` (node container) | none | Replaced by `aggregate` rows, read from the latest complete run |
-| `ContextQualityCurrentExclusion` (node container) | none | Replaced by `exclusion` rows |
-| `ContextQualityDrilldownRow` (node container) | none | Replaced by `drilldown` rows |
-| `ContextQualityMetricSnapshot` (record container) | `ContextQualityRelationship` | `ContextQualityRelationship`, one container for every row kind except `annotationBucket` |
-| none | `ContextQualityFileAnnotation` | `ContextQualityFileAnnotation` |
-| Views of the four containers | Views of the two containers (`v1`) | Views of the two containers |
-| `context_quality_metric_snapshots` stream (`BasicArchive`) | `cq_demo_metrics` stream (`ImmutableTestStream`) | One stream, `metricsStreamExternalId`, template `metricsStreamTemplate` |
-| Schema space `sp_context_quality_metrics` | `sp_cq_demo_metrics` | `metricsSchemaSpace` |
-| Instance space `sp_dat_context_quality_metrics` | `sp_cq_demo_metrics_data` | `metricsInstanceSpace` |
-
-The container and view definitions are the ones deployed in the legacy deployment, with its space, stream and view
-version replaced by variables. Building the module with the legacy variable values gives resource definitions
-identical to the deployed ones (containers, views and the stream; the two spaces differ only in their descriptions).
-`tests/test_context_quality_contract.py` and the fixtures in `tests/fixtures/context_quality/legacy_deployment/`
-keep it that way.
+The container and view definitions are those of the first deployment of this backend, with its space, stream and view
+version replaced by variables, so a deployment that already holds runs keeps reading them. Change them only
+additively: a property that is deployed keeps its definition, and a new one is optional.
 
 ## Deployment
 
@@ -207,7 +189,7 @@ keep it that way.
   ```
 
 - A deploying principal that may create spaces, containers and views (`dataModelsAcl`) and streams (`streamsAcl`).
-  Writing and reading records is done by other identities and is described in the contract, not granted here.
+  Writing and reading records is done by other identities and is not granted here.
 
 ### Adding the module to an existing Toolkit project
 
@@ -227,7 +209,7 @@ cdf deploy
 
 A stream's template cannot be changed after the stream is created, and existing records must stay readable. When
 the project already has this backend, set the variables in `config.<env>.yaml` to the **existing** names and the
-template the stream was created with (see the legacy deployment column above), build, and read the dry run: the
+template the stream was created with, build, and read the dry run: the
 containers, views and stream must show as unchanged. Do not delete or recreate the stream to obtain different names.
 
 ### The production workflow
@@ -246,59 +228,84 @@ fails the execution, so a failed computation is never recorded as a success; a r
 
 ### Running in parallel shards
 
-A project with millions of instances cannot be counted by one function call: it has ten minutes and limited memory.
-The workflow therefore uses the *dynamic task* of Cognite Workflows, which runs tasks that a previous task returns, in
+A project with millions of instances cannot be counted by one function call: it has ten minutes and limited memory. The
+workflow therefore uses the *dynamic task* of Cognite Workflows, which runs tasks that a previous task returns, in
 parallel:
 
-1. **`plan`** (function action `plan`) counts the entities per instance space with aggregate queries, so nothing is
-   loaded, applies the same facility rule as a single call, divides the facility spaces into shards, writes
-   `run:started`, and returns the run id and one task definition per shard.
-2. **`shards`** (dynamic task, `tasks: ${plan.output.response.tasks}`) runs those tasks: one `compute_shard` call per
-   shard. A shard loads only its own spaces, counts them with the same code as a single call, and appends its rows and
-   one `runPart` record.
-3. **`finalize`** (function action `finalize`) runs after every shard has finished. It reads the `runPart` records
-   (this is why the function group has `streamRecordsAcl` READ), checks that every shard reported, and appends
-   `run:complete` last with the summed row count and the shards' warnings merged. If a shard is missing it writes
-   nothing, so the run is never shown.
+1. **`plan`** (function action `plan`) counts the instances per space and kind with aggregate queries, so nothing is
+   loaded, applies the same facility rule as a single call, decides what each call counts, writes `run:started`, and
+   returns the run id and one task definition per call.
+2. **`shards`** (dynamic task, `tasks: ${plan.output.response.tasks}`) runs those tasks, each a call of this function.
+3. **`finalize`** (function action `finalize`) runs after every call has finished. It reads the `runPart` records
+   (this is why the function group has `streamRecordsAcl` READ), checks that every call reported, and appends
+   `run:complete` last with the summed row count and the calls' warnings merged. If one is missing it writes nothing,
+   so the run is never shown.
 
-**How the run is divided.** A facility space is never split: a shard holds one or more whole spaces, so every counted
-row (its reporting unit is its instance space) comes from exactly one shard and shards never write the same record.
-The number of shards is the entities that were counted divided by `metricsShardTargetEntities` (default 250,000),
-at most `metricsMaxShards` (default 150) and at most one per space. A workflow execution may hold 200 tasks, generated
-ones included, and the plan, the dynamic task and `finalize` are three of them, so keep `metricsMaxShards` below 197.
-At most 50 tasks run at the same time in a project; the rest wait. Spaces are placed largest first into the lightest
-shard. The tasks carry the configuration, and a task's input and output may not exceed 0.2 MB, so the plan uses fewer
-shards when a large config file would not fit; it rejects a configuration too large for even one.
+**How the work is divided.** Each call counts one of two things:
 
-**What differs from one call (`compute_metrics`)**, because a shard sees only its own spaces:
+- **Whole spaces** (`compute_shard`). A space with no more than `metricsShardTargetEntities` entities (default 250,000,
+  configured views included) is counted whole, and small spaces share a call.
+- **Part of a space** (`compute_batch`). A bigger space is split by kind (assets, equipment, time series, files, 3D
+  objects, work orders, notifications, annotations, and each configured view). Kinds that are small enough share a
+  batch. A kind that is still bigger than the target is cut into slices by the start of its instances' external ids:
+  the plan counts how many instances start with each character, cuts further where a slice is still too big, and
+  packs the slices into batches of about the target size. It only counts; it does not read the instances. A batch
+  looks up what its entities link to outside it (the assets up a parent chain, whether a parentless asset has a child,
+  whether an asset has a time series, and so on) with targeted queries, so a space's batches add up to the numbers of
+  counting the space whole.
 
-- An entity that links to one in another space has no such entity loaded: its tier, division and discipline are
-  unknown (whether the link is set is not affected), a parent in another space counts as not loaded
+The number of calls follows the size of the project, at most `metricsMaxShards` (default 150). A workflow execution
+may hold 200 tasks, generated ones included, and the plan, the dynamic task and `finalize` are three of them, so keep
+it below 197; when the calls would be more, the target is made larger. At most 50 tasks run at the same time in a
+project; the rest wait. The tasks carry the configuration, and a task's input and output may not exceed 0.2 MB, so the
+plan also makes the target larger when a large config file would not fit, and rejects a configuration too large for
+even one call.
+
+**Running the calls one after the other.** `metricsMaxConcurrentShards` sets how many calls run at once: `0` (the
+default) all at once, `1` one after the other, `N` in N lanes. The calls are listed heaviest first and a call waits for
+the one N places before it (`dependsOn`), so with `1` a run is a chain; a call that fails stops the ones after it. Use
+it to go easy on the project's data modeling and time series services, or to follow one run in order.
+
+**What differs from one call (`compute_metrics`)**, because a call sees only part of the project:
+
+- *Several spaces.* An entity that links to one in another space has no such entity loaded: its tier, division and
+  discipline are unknown (whether the link is set is not affected), a parent in another space counts as not loaded
   (`parents-not-loaded`), and a work order is matched only with notifications of its own space. A facility is an
-  instance space, so these are the exception; where they are common, call `compute_metrics`, which counts them
-  exactly.
-- A shard that fails fails the run. A shard writes immutable records, so it is not retried (`retries: 0`) and the run
-  is started again.
-- **A space is the smallest unit.** A single space holding millions of instances in one shard is as heavy as the old
-  single call for that space, and a function call has ten minutes. Splitting one space further (by entity kind) would
-  need the cross-kind lookups of the metrics (assets for the grain, time series for the monitoring coverage) to be
-  read separately; it is not done.
+  instance space, so these are the exception; where they are common, call `compute_metrics`, which counts them exactly.
+- *Batches.* A space may have several rows of one grain instead of one; the dashboard sums rows, so the totals are
+  the same. The cap on a drill-down list is per space and kind, so the batches of a kind share it. A metric with
+  nothing to measure in a batched kind is still shown as not applicable, but without the reason. The depth of an asset
+  beyond `maxDepth` levels is a lower bound.
+- *No retry.* A call writes immutable records, so it is not retried (`retries: 0`): a call that fails fails the run,
+  and the run is started again.
+- *Limits that remain.* Slices are cut by the start of the external ids: instances whose ids cannot be told apart by
+  their first characters stay together in one slice, bigger than the target. A call has ten minutes, so a slice of
+  millions of such instances can still be too much. Lookups for an asset batch ask about its ancestors level by level
+  and about every asset, in chunks, so an asset batch is slower than a batch of another kind of the same size.
 
 `compute_metrics` still exists for small projects, dry runs and comparison. `validate` is unchanged.
 
-**To confirm after the first deployment**: that the dynamic task accepts the generated tasks and that
-`${plan.output.response.…}` resolves (the Cognite documentation and examples use `output.response`), by starting the
-workflow once and reading the execution's tasks.
+**Confirmed on a test deployment**: the dynamic task accepts the generated tasks and `${plan.output.response.…}`
+resolves. **Still to confirm**: that `dependsOn` between the generated tasks makes them wait (start a run with
+`metricsMaxConcurrentShards: 1` and read the tasks' start and end times).
 
-**Operator run.** Start the workflow from Fusion (Data management, Workflows), or with the Toolkit's `run` plugin
-(`run = true` under `[plugins]` in `cdf.toml`; it is deprecated in favour of the `dev` plugin):
+### The workbook of unlinked items
 
-```bash
-cdf run workflow -x wf_context_quality_metrics -n v1 --env <env>
-```
+The drill-down lists in the stream are capped (500 rows per list, space and kind), so the dashboard can show only a
+preview. The full lists are an **Excel workbook in Cognite Files**, one per run, so that the append-only stream does not
+grow with them (records cannot be deleted; files can).
 
-The operator needs `workflowOrchestrationAcl` on the module's data set; this module grants it to nobody. To check the
-function's configuration without writing, start the function directly with `{"action": "validate"}`.
+- While a run is counted, each piece of it (a shard or a batch) uploads its items as a small CSV part,
+  `cq-unlinked-part-{runId}-{piece}.csv`, into the module's data set (`metricsDatasetExternalId`).
+- After the run is complete, a fourth workflow task, `export`, reads the parts one at a time, writes
+  `cq-unlinked-{runId}.xlsx` in streaming mode (a `Summary` sheet with the numbers of the metric cards, and a sheet for
+  every list that has items; a configured link has a sheet named `View.property`), uploads it, deletes the parts and the
+  workbooks older than `metricsExportRetentionDays` (30). A sheet holds at most 1,048,575 items.
+- The task is separate from `finalize` and set to `skipTask` on failure, so a slow or failed export never keeps a run
+  from completing. A part that cannot be uploaded adds an `export-failed` warning to the run.
+- **Access.** The function group has `filesAcl` READ and WRITE and `datasetsAcl` READ on the data set, and the dashboard
+  users group `filesAcl` READ on it. Without them the export is skipped with the warning above.
+- The function needs the `xlsxwriter` package (its `requirements.txt`).
 
 ### Running with a config file
 
@@ -312,14 +319,25 @@ needs, in addition to the read-only dashboard group: `workflowOrchestrationAcl` 
 the function group (`auth/context_quality_function`) holds, because the run does what that group does. This module does
 not create such a group: grant the capabilities to the people who may run it.
 
-**Not yet verified against a deployed project:** that a `${workflow.input.extraLinks}` reference in the function task's
-`data` resolves, and that the scheduled trigger's `input` supplies it. Check both on a scratch workflow before deploying.
+A `${workflow.input.extraLinks}` reference in the function task's `data` resolves for a run started with an input
+(confirmed on a test deployment). **Not yet verified:** that the scheduled trigger's `input` supplies it.
+
+### Location filters as a scope
+
+The project's location filters (Locations in Fusion, `locations/*.LocationFilter.yaml` in Toolkit) can be used as a scope next
+to facilities. The `plan` step (or the single-call run) reads them from the Locations API and writes one `location` row for
+each one that lists instance spaces and is defined by nothing else: the row names the facilities those spaces are, so the
+dashboard offers "Location" next to "Facility" and sums the rows of those facilities. Locations defined by a data set, an
+asset sub-tree or an external id prefix, without instance spaces, or whose spaces are no facility of the run cannot be told
+from rows that are counted per space; they are left out and a `location-unsupported` warning counts them by reason.
+Locations never fail a run: if they cannot be read, none are offered and `locations-unavailable` is warned. The function's
+group needs `locationFiltersAcl` read. 
 
 ### Access
 
 | Group | Capabilities | Why |
 |---|---|---|
-| `gp_context_quality_function` (the identity the workflow runs as) | `projectsAcl` read and list, `groupsAcl` list, `sessionsAcl` create, `functionsAcl` read and write (library convention for a workflow identity); `dataModelsAcl` read on `cdf_cdm`, `cdf_idm` and the schema space; `dataModelInstancesAcl` **read** on `metricsSourceSpaces`; `timeSeriesAcl` read; `streamRecordsAcl` **write** on the instance space | read the entities and datapoints, append records |
+| `gp_context_quality_function` (the identity the workflow runs as) | `projectsAcl` read and list, `groupsAcl` list, `sessionsAcl` create, `functionsAcl` read and write (library convention for a workflow identity); `dataModelsAcl` read on `cdf_cdm`, `cdf_idm` and the schema space; `dataModelInstancesAcl` **read** on `metricsSourceSpaces`; `timeSeriesAcl` read; `locationFiltersAcl` read; `streamRecordsAcl` **write** on the instance space | read the entities, datapoints and location filters, append records |
 | `gp_context_quality_dashboard_users` | `projectsAcl` read and list, `groupsAcl` list, `streamRecordsAcl` **read** on the instance space, `dataModelsAcl` read on the schema space, `streamsAcl` read | read the run log; the stream settings read is optional (the dashboard works without it) |
 
 Neither group can write instances or deploy anything, and the dashboard group cannot write at all. The scopes come from
@@ -349,16 +367,13 @@ The dashboard app. Check your project's stream quota before adding a stream.
 
 ### Open decisions
 
-- **Contract version on the run marker.** The contract lets the `run` marker declare `contractVersion`, and the
-  dashboard reads it when present. The deployed `ContextQualityRelationship` container has no such property.
+- **Version on the run marker.** The `run` marker may declare a `contractVersion`, and the dashboard reads it when
+  present. The deployed `ContextQualityRelationship` container has no such property.
   Adding an optional property is additive, but whether Toolkit may add a property to a record container that
-  already holds data has to be confirmed with `cdf deploy --dry-run` against the legacy deployment before the
-  property is added.
+  already holds data has to be confirmed with `cdf deploy --dry-run` against a deployment that holds data before
+  the property is added.
 - **Default stream template.** The default is `BasicArchive`. Confirm that it is the right production default and
   size it for the run frequency (the retention and the filter window both come from the template).
-- **Mutable current-state containers.** The earlier scaffold had them for a "current value" read. The run log does
-  that by reading the latest complete run, so they are not carried over. If persisted configuration is needed later,
-  it needs its own container.
 
 ### Function dependencies
 
@@ -375,10 +390,6 @@ runtime. See [`scripts/README.md`](../../../scripts/README.md).
 
 ```
 context_quality_v2/
-├── contract/
-│   ├── CONTRACT.md          # the contract: rules and semantics
-│   ├── contract.json        # identifiers, row kinds and properties, machine-readable
-│   └── samples.json         # golden records, one set per row kind
 ├── data_sets/
 │   └── context_quality.DataSet.yaml
 ├── functions/
@@ -407,13 +418,12 @@ context_quality_v2/
 └── README.md
 ```
 
-Tests: `tests/test_context_quality_contract.py`, with the legacy definitions in
-`tests/fixtures/context_quality/legacy_deployment/`; `tests/test_context_quality_deployment.py` for the workflow, trigger,
-groups and variables.
+Tests: `tests/test_context_quality_module.py` for the containers, views, stream and variables,
+`tests/test_context_quality_deployment.py` for the workflow, trigger, groups and variables, and
+`tests/test_context_quality_function_records.py` for what the function writes.
 
 ## Support
 
-- The contract is in [`contract/CONTRACT.md`](contract/CONTRACT.md). Change it, `contract.json` and `samples.json`
-  together, and run `uv run pytest tests/test_context_quality_contract.py`.
+- Change the containers and views only additively, and run `uv run pytest tests/test_context_quality_module.py`.
 - For troubleshooting Toolkit deployment, see [docs.cognite.com](https://docs.cognite.com) or
   `#topic-deployment-packs` on Slack.

@@ -52,21 +52,45 @@ def run_row(
     )
 
 
-def run_part_row(shard: int, built_in: bool, warnings: str | None, rows_written: int) -> tuple[str, RowProps]:
-    """What one shard of a run reports to `finalize`. `detail` is `metrics` when the shard counted the built-in metrics and
-    `links` when it only counted configured links; `rowsWritten` counts the shard's rows, not this record."""
+def run_part_row(shard: int | None, detail: str, warnings: str | None, rows_written: int) -> tuple[str, RowProps]:
+    """What one piece of a run reports to `finalize`: `shard` is its number, or None for the plan's own record.
+
+    `detail` is `shard` for whole spaces, `batch` for a slice of one space and `plan` for the plan; `rowsWritten`
+    counts the piece's rows, not this record."""
     return (
-        f"part:{shard:04d}",
+        "part:plan" if shard is None else f"part:{shard:04d}",
         _clean(
             {
                 "rowKind": "runPart",
-                "entityId": f"shard-{shard}",
-                "detail": "metrics" if built_in else "links",
+                "entityId": "plan" if shard is None else f"shard-{shard}",
+                "detail": detail,
                 "warnings": warnings,
                 "rowsWritten": rows_written,
             }
         ),
     )
+
+
+def location_rows(locations: list[dict[str, Any]]) -> list[Row]:
+    """One row per location that can be used as a scope: `entityId` is its external id, `entityLabel` its name, `detail`
+    the external id of its parent, and `cellsJson` the instance spaces and facility ids it covers."""
+    return [
+        (
+            f"loc:{_digest('location', location['id'])}",
+            _clean(
+                {
+                    "rowKind": "location",
+                    "entityId": location["id"],
+                    "entityLabel": location["name"],
+                    "detail": location["parent"],
+                    "cellsJson": json.dumps(
+                        {"spaces": location["spaces"], "facilityIds": location["facilityIds"]}, sort_keys=True
+                    ),
+                }
+            ),
+        )
+        for location in locations
+    ]
 
 
 def aggregate_rows(agg: dict[tuple, list[Any]]) -> list[Row]:

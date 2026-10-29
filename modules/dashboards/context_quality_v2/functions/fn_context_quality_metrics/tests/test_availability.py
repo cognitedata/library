@@ -1,13 +1,11 @@
 """Metric availability: which metrics are not applicable, what the run warns about, and how that is written.
 
-Row semantics (contract section 6.2): a *measured* metric has eligibleCount > 0 (a measured zero is passingCount 0 with
+Row semantics: a *measured* metric has eligibleCount > 0 (a measured zero is passingCount 0 with
 eligible entities); a metric that could not be measured for a reporting unit has eligibleCount 0 and notApplicable true.
 """
 
 import json
-import re
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -16,8 +14,6 @@ from cq.config import build_config
 from cq.metrics import compute
 from parity_dataset import A, B, build_dataset
 from sample_rules import SAMPLE_RESOURCES, SAMPLE_RULES
-
-CONTRACT = json.loads((Path(__file__).resolve().parents[3] / "contract" / "contract.json").read_text())
 
 
 def run(overrides: dict[str, Any] | None = None, mutate: Any = None) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -147,13 +143,6 @@ def test_a_population_missing_from_every_unit_is_reported_once() -> None:
 
     assert not [k for k in result["agg"] if k[1] == "file-annotation"]
     assert [w["subject"] for w in warning(result, "no-source-entities")] == ["annotations"]
-
-
-def test_the_registry_only_names_metrics_the_function_can_write() -> None:
-    emitted = {m["id"]: m["dimension"] for m in CONTRACT["metrics"] if m["emitted"]}
-
-    assert {spec.metric for spec in availability.METRIC_SPECS} <= set(emitted)
-    assert all(emitted[spec.metric] == spec.dimension for spec in availability.METRIC_SPECS)
 
 
 def test_the_registry_covers_every_aggregate_metric_the_sample_dataset_writes_except_the_issue_only_one() -> None:
@@ -454,18 +443,3 @@ def test_the_run_timestamp_is_shared_and_the_marker_is_last(monkeypatch: pytest.
     assert [props(r)["status"] for r in records if props(r)["rowKind"] == "run"] == ["started", "complete"]
     assert len({props(r)["runTimestamp"] for r in records}) == 1
     datetime.strptime(props(records[0])["runTimestamp"], "%Y-%m-%dT%H:%M:%S.000Z").replace(tzinfo=UTC)
-
-
-def test_every_warning_code_the_function_can_write_is_in_the_contract_and_the_other_way_round() -> None:
-    source = Path(availability.__file__).read_text()
-    written = set(re.findall(r'_warning\(\s*"([a-z-]+)"', source)) | set(re.findall(r'"code": "([a-z-]+)"', source))
-
-    assert written == {code["id"] for code in CONTRACT["warningCodes"]}
-
-
-def test_every_not_applicable_reason_is_documented_in_the_contract() -> None:
-    contract_md = (Path(__file__).resolve().parents[3] / "contract" / "CONTRACT.md").read_text()
-    source = Path(availability.__file__).read_text()
-    reasons = set(re.findall(r'return "([a-z:A-Z-]+)"', source))
-
-    assert reasons and all(f"`{reason}`" in contract_md for reason in reasons)

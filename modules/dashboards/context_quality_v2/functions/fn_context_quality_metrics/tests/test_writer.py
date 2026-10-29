@@ -237,13 +237,10 @@ def test_the_classification_payload_is_unchanged() -> None:
 # ---------------------------------------------------------------- every kind, and repeated writes
 
 
-def test_the_id_prefixes_are_the_ones_the_contract_lists() -> None:
-    contract = json.loads(
-        (__import__("pathlib").Path(__file__).resolve().parents[3] / "contract" / "contract.json").read_text()
-    )
+def test_the_id_prefixes_are_the_known_ones() -> None:
     rows = writer.drilldown_rows([item("sp_a", "a-1")], cap=5) + writer.classification_rows(classification())
 
-    assert all(key.startswith(tuple(contract["recordKeyPrefixes"])) for key in keys(rows))
+    assert all(key.startswith(("drill:", "cls:")) for key in keys(rows))
 
 
 def test_the_other_row_kinds_keep_their_existing_ids() -> None:

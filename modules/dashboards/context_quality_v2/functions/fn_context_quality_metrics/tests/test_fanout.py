@@ -1,10 +1,8 @@
 """Splitting a run into shards, and putting the shards' warnings back together."""
 
-import json
 from typing import Any
 
-import pytest
-from cq.fanout import MAX_TASKS_BYTES, build_tasks, merge_warnings, pack_spaces, shard_task
+from cq.fanout import MAX_TASKS_BYTES, finish_tasks, merge_warnings, pack_spaces, shard_task, tasks_fit
 
 
 def test_every_space_is_in_exactly_one_shard() -> None:
@@ -51,19 +49,40 @@ def test_a_shard_task_is_a_function_task_that_is_not_retried() -> None:
     assert task["dependsOn"] == []
 
 
-def test_fewer_shards_are_used_when_the_tasks_would_not_fit_the_output_limit() -> None:
-    packings = {3: [["a"], ["b"], ["c"]], 2: [["a", "b"], ["c"]], 1: [["a", "b", "c"]]}
-    padding = "x" * (MAX_TASKS_BYTES // 2 - 500)
+def test_a_batch_task_is_named_after_the_space_and_what_it_counts() -> None:
+    data = {"action": "compute_batch", "space": "sp_big", "kinds": ["assets"], "views": [["m:M:v1", "Widget"]]}
 
-    tasks = build_tasks(packings, "fn", lambda index, count, spaces: {"pad": padding, "spaces": spaces})
+    task = shard_task(1, 4, "fn_x", data)
 
-    assert len(tasks) == 2
-    assert len(json.dumps(tasks)) <= MAX_TASKS_BYTES
+    assert task["name"] == "Context Quality batch 2 of 4: sp_big (assets, Widget)"
+    assert task["retries"] == 0
 
 
-def test_a_configuration_too_large_for_even_one_shard_is_rejected() -> None:
-    with pytest.raises(ValueError, match="too large"):
-        build_tasks({1: [["a"]]}, "fn", lambda *_: {"pad": "x" * MAX_TASKS_BYTES})
+def items(count: int) -> list[dict[str, Any]]:
+    return [{"weight": 10, "data": {"action": "compute_shard", "spaces": {f"s{i}": f"s{i}"}}} for i in range(count)]
+
+
+def test_finished_tasks_are_numbered_in_order_and_carry_what_every_task_needs() -> None:
+    tasks = finish_tasks(items(3), "fn_x", {"runId": "r1", "config": {"a": 1}}, lanes=0)
+
+    assert [t["externalId"] for t in tasks] == ["shard_000", "shard_001", "shard_002"]
+    for index, task in enumerate(tasks):
+        data = task["parameters"]["function"]["data"]
+        assert (data["shard"], data["shardCount"], data["runId"], data["config"]) == (index, 3, "r1", {"a": 1})
+        assert task["dependsOn"] == []
+
+
+def test_the_tasks_can_be_made_to_run_one_after_the_other_or_a_few_at_a_time() -> None:
+    one = finish_tasks(items(3), "fn_x", {}, lanes=1)
+    two = finish_tasks(items(4), "fn_x", {}, lanes=2)
+
+    assert [t["dependsOn"] for t in one] == [[], [{"externalId": "shard_000"}], [{"externalId": "shard_001"}]]
+    assert [t["dependsOn"] for t in two] == [[], [], [{"externalId": "shard_000"}], [{"externalId": "shard_001"}]]
+
+
+def test_tasks_fit_while_their_data_is_within_the_limit_on_a_task_output() -> None:
+    assert tasks_fit(finish_tasks(items(5), "fn_x", {}, 0))
+    assert not tasks_fit(finish_tasks(items(3), "fn_x", {"pad": "x" * MAX_TASKS_BYTES}, 0))
 
 
 def warning(code: str, subject: str | None = None, reason: str | None = None, **details: Any) -> dict[str, Any]:
@@ -78,8 +97,8 @@ def warning(code: str, subject: str | None = None, reason: str | None = None, **
 def test_warnings_that_name_the_same_thing_are_one_warning() -> None:
     merged = merge_warnings(
         [
-            (True, [warning("mapping-empty", "tierByTypeCode"), warning("optional-source-unavailable", "cdf_idm.X")]),
-            (True, [warning("mapping-empty", "tierByTypeCode"), warning("optional-source-unavailable", "cdf_idm.X")]),
+            [warning("mapping-empty", "tierByTypeCode"), warning("optional-source-unavailable", "cdf_idm.X")],
+            [warning("mapping-empty", "tierByTypeCode"), warning("optional-source-unavailable", "cdf_idm.X")],
         ]
     )
 
@@ -92,10 +111,10 @@ def test_warnings_that_name_the_same_thing_are_one_warning() -> None:
 def test_the_counts_of_the_shards_add_up_and_the_type_codes_are_pooled_and_bounded() -> None:
     merged = merge_warnings(
         [
-            (True, [warning("unmapped-asset-types", untyped=2, unmapped=3, codes=["b", "a"])]),
-            (True, [warning("unmapped-asset-types", untyped=5, unmapped=1, codes=[f"c{i}" for i in range(12)])]),
-            (True, [warning("parents-not-loaded", assets=4)]),
-            (True, [warning("parents-not-loaded", assets=6)]),
+            [warning("unmapped-asset-types", untyped=2, unmapped=3, codes=["b", "a"])],
+            [warning("unmapped-asset-types", untyped=5, unmapped=1, codes=[f"c{i}" for i in range(12)])],
+            [warning("parents-not-loaded", assets=4)],
+            [warning("parents-not-loaded", assets=6)],
         ]
     )
 
@@ -108,11 +127,11 @@ def test_the_counts_of_the_shards_add_up_and_the_type_codes_are_pooled_and_bound
 def test_not_applicable_and_truncation_warnings_add_up_per_metric_and_keep_one_limit() -> None:
     merged = merge_warnings(
         [
-            (True, [warning("metric-not-applicable", "freshness", "all-excluded", units=1)]),
-            (True, [warning("metric-not-applicable", "freshness", "all-excluded", units=2)]),
-            (True, [warning("metric-not-applicable", "freshness", "no-eligible-entities", units=1)]),
-            (True, [warning("drilldown-truncated", "orphansByTier", limit=500, dropped=10, units=1)]),
-            (False, [warning("drilldown-truncated", "orphansByTier", limit=500, dropped=5, units=2)]),
+            [warning("metric-not-applicable", "freshness", "all-excluded", units=1)],
+            [warning("metric-not-applicable", "freshness", "all-excluded", units=2)],
+            [warning("metric-not-applicable", "freshness", "no-eligible-entities", units=1)],
+            [warning("drilldown-truncated", "orphansByTier", limit=500, dropped=10, units=1)],
+            [warning("drilldown-truncated", "orphansByTier", limit=500, dropped=5, units=2)],
         ]
     )
 
@@ -122,12 +141,5 @@ def test_not_applicable_and_truncation_warnings_add_up_per_metric_and_keep_one_l
     assert (cut["limit"], cut["dropped"], cut["units"]) == (500, 15, 3)
 
 
-def test_nothing_was_found_is_only_reported_when_no_shard_found_any() -> None:
-    nothing = warning("no-source-entities", "work_orders")
-
-    assert merge_warnings([(True, [nothing]), (True, [])]) == []
-    assert merge_warnings([(True, [nothing]), (True, [nothing]), (False, [])]) == [nothing]
-
-
 def test_a_shards_own_truncation_note_is_not_carried_over() -> None:
-    assert merge_warnings([(True, [warning("warnings-truncated", dropped=3)])]) == []
+    assert merge_warnings([[warning("warnings-truncated", dropped=3)]]) == []

@@ -230,9 +230,11 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "requires_python": ">=3.11,<3.14",
         "dependencies": [
             "cognite-sdk>=7.89.0,<8",
+            "xlsxwriter>=3.1,<4",
         ],
         "deploy_dependencies": [
             "cognite-sdk>=7.89.0,<8",
+            "xlsxwriter>=3.1,<4",
         ],
         "dev_dependencies": ["pytest>=7.0.0"],
         "pytest": True,

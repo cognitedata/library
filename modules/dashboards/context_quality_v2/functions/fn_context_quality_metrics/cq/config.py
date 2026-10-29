@@ -11,7 +11,7 @@ DEFAULT_CONFIG: RunConfig = {
     "stream": "",
     "schemaSpace": "",
     "instanceSpace": "",
-    # The container names are part of the run log contract, not of an environment, so they keep their defaults.
+    # The container names are part of the run log, not of an environment, so they keep their defaults.
     "relationshipContainer": "ContextQualityRelationship",
     "fileAnnotationContainer": "ContextQualityFileAnnotation",
     # A facility is an instance space. By default they are discovered from where the entity nodes live.
@@ -48,7 +48,14 @@ DEFAULT_CONFIG: RunConfig = {
     # a shard holds one or more whole spaces. maxShards stays below the 200 tasks a workflow execution may hold, because
     # the plan, the dynamic task and the finalize task count too. Small spaces share a shard up to shardTargetEntities.
     "maxShards": 150,
+    # How many of those calls run at the same time: 0 is all at once, 1 is one after the other (each call waits for
+    # the one before it). A call that fails stops the ones after it.
+    "maxConcurrentShards": 0,
     "shardTargetEntities": 250000,
+    # The workbook of every unlinked item of a run (cq.export) goes to Cognite Files, into this data set (its external id).
+    # Empty switches the export off. The workbooks of runs older than exportRetentionDays are deleted.
+    "exportDataSet": "",
+    "exportRetentionDays": 30,
     "freshnessDays": 30,
     "maxDepth": 8,
     "lowConfidence": 0.5,
@@ -119,10 +126,17 @@ def build_config(overrides: dict[str, Any] | None) -> RunConfig:
     switch = (overrides or {}).get("tieringEnabled", False)
     if not isinstance(switch, bool):
         raise ValueError(f"tieringEnabled must be true or false, not {switch!r}")
-    for name in ("maxShards", "shardTargetEntities"):
+    if not isinstance((overrides or {}).get("exportDataSet", ""), str):
+        raise ValueError(f"exportDataSet must be text, not {(overrides or {})['exportDataSet']!r}")
+    for name, lowest in (
+        ("maxShards", 1),
+        ("shardTargetEntities", 1),
+        ("maxConcurrentShards", 0),
+        ("exportRetentionDays", 1),
+    ):
         value = (overrides or {}).get(name, DEFAULT_CONFIG[name])  # type: ignore[literal-required]
-        if type(value) is not int or value < 1:
-            raise ValueError(f"{name} must be a whole number of at least 1, not {value!r}")
+        if type(value) is not int or value < lowest:
+            raise ValueError(f"{name} must be a whole number of at least {lowest}, not {value!r}")
     prefix = (overrides or {}).get("divisionTagPrefix", "")
     if not isinstance(prefix, str):
         raise ValueError(f"divisionTagPrefix must be text, not {prefix!r}")

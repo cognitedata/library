@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 import yaml
 
-from tests.test_context_quality_contract import MODULE, VARIABLE, read_variables, render
+from tests.context_quality_module import MODULE, VARIABLE, read_variables, render
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FUNCTION_DIR = MODULE / "functions" / "fn_context_quality_metrics"
@@ -83,8 +83,8 @@ def test_the_workflow_version_belongs_to_the_workflow() -> None:
 def test_the_workflow_plans_runs_the_shards_in_parallel_and_finalizes_calling_only_the_production_function() -> None:
     tasks = tasks_by_id()
 
-    assert list(tasks) == ["plan", "shards", "finalize"]
-    for name, action in (("plan", "plan"), ("finalize", "finalize")):
+    assert list(tasks) == ["plan", "shards", "finalize", "export"]
+    for name, action in (("plan", "plan"), ("finalize", "finalize"), ("export", "export")):
         assert tasks[name]["type"] == "function"
         assert tasks[name]["parameters"]["function"]["externalId"] == "fn_context_quality_metrics"
         assert tasks[name]["parameters"]["function"]["data"]["action"] == action
@@ -94,6 +94,7 @@ def test_the_workflow_plans_runs_the_shards_in_parallel_and_finalizes_calling_on
     assert tasks["plan"]["parameters"]["function"]["data"]["functionExternalId"] == "fn_context_quality_metrics"
     assert [dep["externalId"] for dep in tasks["shards"]["dependsOn"]] == ["plan"]
     assert [dep["externalId"] for dep in tasks["finalize"]["dependsOn"]] == ["shards"]
+    assert [dep["externalId"] for dep in tasks["export"]["dependsOn"]] == ["finalize"]
     assert "dependsOn" not in tasks["plan"]
 
 
@@ -112,8 +113,10 @@ def test_finalize_is_given_the_run_the_plan_started_and_the_resources_it_writes_
 
 
 def test_a_failed_step_fails_the_execution_so_the_run_is_never_completed() -> None:
-    for task in tasks_by_id().values():
-        assert task["onFailure"] == "abortWorkflow"
+    for name in ("plan", "shards", "finalize"):
+        assert tasks_by_id()[name]["onFailure"] == "abortWorkflow"
+    # the workbook is a side product of a run that is already complete: its failure leaves the run as it is
+    assert tasks_by_id()["export"]["onFailure"] == "skipTask"
     assert tasks_by_id()["shards"]["dependsOn"] and tasks_by_id()["finalize"]["dependsOn"]
 
 
@@ -301,12 +304,8 @@ def test_the_mapping_variables_are_json_text_because_toolkit_reads_a_mapping_as_
 def test_the_function_task_variables_match_the_functions_own_scalar_defaults() -> None:
     cfg = build_config(function_task()["parameters"]["function"]["data"]["config"])
 
-    assert (cfg["freshnessDays"], cfg["maxDepth"], cfg["maxShards"], cfg["shardTargetEntities"]) == (
-        DEFAULT_CONFIG["freshnessDays"],
-        DEFAULT_CONFIG["maxDepth"],
-        DEFAULT_CONFIG["maxShards"],
-        DEFAULT_CONFIG["shardTargetEntities"],
-    )
+    names = ("freshnessDays", "maxDepth", "maxShards", "shardTargetEntities", "maxConcurrentShards")
+    assert [cfg[name] for name in names] == [DEFAULT_CONFIG[name] for name in names]  # type: ignore[literal-required]
 
 
 # ---------------------------------------------------------------- unique identifiers
@@ -403,6 +402,7 @@ def test_the_function_group_has_no_instance_write_and_no_infrastructure_deployme
         "sessionsAcl": {"CREATE"},
         "functionsAcl": {"WRITE"},
         "streamRecordsAcl": {"WRITE"},
+        "filesAcl": {"WRITE"},
     }
     deploy = {"dataModelsAcl", "dataModelInstancesAcl", "rawAcl", "transformationsAcl", "streamsAcl", "groupsAcl"}
     assert not {name for name, actions in writes.items() if actions} & deploy
@@ -437,7 +437,10 @@ def test_the_dashboard_group_is_read_only_and_scoped_to_the_run_log() -> None:
     assert scope_spaces(records) == [DEFAULTS["metricsInstanceSpace"]]
     (models,) = group["dataModelsAcl"]
     assert scope_spaces(models) == [DEFAULTS["metricsSchemaSpace"]]
-    assert set(group) == {"projectsAcl", "groupsAcl", "streamRecordsAcl", "dataModelsAcl", "streamsAcl"}
+    assert set(group) == {"projectsAcl", "groupsAcl", "streamRecordsAcl", "dataModelsAcl", "streamsAcl", "filesAcl"}
+    (files,) = group["filesAcl"]
+    assert files["actions"] == ["READ"]
+    assert files["scope"]["datasetScope"]["ids"] == [DEFAULTS["metricsDatasetExternalId"]]
 
 
 def test_both_groups_follow_the_stream_spaces_when_they_are_renamed() -> None:

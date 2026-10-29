@@ -1,1 +1,2 @@
 cognite-sdk>=7.89.0,<8
+xlsxwriter>=3.1,<4

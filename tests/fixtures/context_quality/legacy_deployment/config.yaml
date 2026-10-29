@@ -1,7 +1,0 @@
-# Variable values that reproduce the identifiers of the first (legacy) deployment of the Context Quality
-# backend. The other files in this folder are the definitions deployed there.
-metricsSchemaSpace: sp_cq_demo_metrics
-metricsInstanceSpace: sp_cq_demo_metrics_data
-metricsVersion: v1
-metricsStreamExternalId: cq_demo_metrics
-metricsStreamTemplate: ImmutableTestStream

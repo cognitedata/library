@@ -189,6 +189,19 @@ def _sample(codes: set[str]) -> list[str]:
     return sorted(codes)[:MAX_LISTED_CODES]
 
 
+def no_source_warnings(total: dict[str, int], unavailable: list[str]) -> list[dict[str, Any]]:
+    """A warning for each kind of entity that no facility space holds, unless its whole view is missing (that has its own)."""
+    return [
+        _warning(
+            "no-source-entities",
+            f"No {name} were found in any facility space; their metrics are not measured.",
+            name,
+        )
+        for name, count in sorted(total.items())
+        if count == 0 and OPTIONAL_SOURCE_OF.get(name) not in unavailable
+    ]
+
+
 def build_warnings(
     data: LoadedData,
     cfg: RunConfig,
@@ -259,15 +272,7 @@ def build_warnings(
                 source,
             )
         )
-    for name, count in sorted(total.items()):
-        if count == 0 and OPTIONAL_SOURCE_OF.get(name) not in unavailable:
-            warnings.append(
-                _warning(
-                    "no-source-entities",
-                    f"No {name} were found in any facility space; their metrics are not measured.",
-                    name,
-                )
-            )
+    warnings += no_source_warnings(total, unavailable)
 
     grouped: dict[tuple[str, str], int] = defaultdict(int)
     for item in not_applicable:

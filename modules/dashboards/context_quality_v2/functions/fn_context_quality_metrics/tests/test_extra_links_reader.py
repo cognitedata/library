@@ -49,8 +49,12 @@ class FakeInstances:
     def __init__(self, nodes: list[Node]) -> None:
         self.nodes, self.calls = nodes, []  # type: ignore[var-annotated]
 
-    def list(self, instance_type: str, sources: ViewId, space: Any = None, limit: int = 25) -> list[Node]:
-        self.calls.append({"instance_type": instance_type, "sources": sources, "space": space, "limit": limit})
+    def list(
+        self, instance_type: str, sources: ViewId, space: Any = None, filter: Any = None, limit: int = 25
+    ) -> list[Node]:
+        self.calls.append(
+            {"instance_type": instance_type, "sources": sources, "space": space, "filter": filter, "limit": limit}
+        )
         return [n for n in self.nodes if sources in (n.properties or {})]
 
 
@@ -84,7 +88,7 @@ def test_the_nodes_of_each_view_are_read_once_from_every_space() -> None:
         (CORE, "CogniteAsset"): [("plant", "a1", {"type": {"space": "r", "externalId": "t"}}), ("plant", "a2", {})]
     }
     assert client.data_modeling.instances.calls == [
-        {"instance_type": "node", "sources": ASSET, "space": None, "limit": -1}
+        {"instance_type": "node", "sources": ASSET, "space": None, "filter": None, "limit": -1}
     ]
 
 

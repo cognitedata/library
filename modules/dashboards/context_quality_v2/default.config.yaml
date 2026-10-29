@@ -1,7 +1,7 @@
 creator_email: name@company.com
 
 # Used in /data_modeling and /streams. The Context Quality metrics backend writes an immutable run log
-# (see contract/CONTRACT.md). Container and view external ids are part of that contract and are not variables.
+# (see README, "The run log"). Container and view external ids are fixed by it and are not variables.
 metricsSchemaSpace: sp_context_quality_metrics
 metricsInstanceSpace: sp_dat_context_quality_metrics
 metricsVersion: v1
@@ -46,6 +46,12 @@ metricsMaxDepth: 8
 # small spaces share a shard until it holds shardTargetEntities entities.
 metricsMaxShards: 150
 metricsShardTargetEntities: 250000
+# How many of those calls run at the same time: 0 is all at once (up to the 50 tasks a project runs concurrently),
+# 1 is one after the other. A call that fails stops the ones after it.
+metricsMaxConcurrentShards: 0
+# The Excel workbook of every unlinked item of a run is kept in Cognite Files, in the module's data set, for this many
+# days. See README, "The workbook of unlinked items".
+metricsExportRetentionDays: 30
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Access. REQUIRED before deployment: the identity-provider values below come from your environment (.env) and are
