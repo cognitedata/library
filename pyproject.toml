@@ -12,6 +12,7 @@ dev = [
     "python-dotenv>=1",
     "pyyaml>=6",
     "tenacity>=8",
+    "xlsxwriter>=3.1,<4",
 ]
 
 [tool.uv]

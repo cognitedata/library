@@ -295,6 +295,7 @@ dev = [
     { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "tenacity" },
+    { name = "xlsxwriter" },
 ]
 
 [package.metadata]
@@ -308,6 +309,7 @@ dev = [
     { name = "python-dotenv", specifier = ">=1" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "tenacity", specifier = ">=8" },
+    { name = "xlsxwriter", specifier = ">=3.1,<4" },
 ]
 
 [[package]]

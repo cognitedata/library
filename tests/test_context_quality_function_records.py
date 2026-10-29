@@ -20,7 +20,9 @@ FUNCTION_DIR = (
     / "functions"
     / "fn_context_quality_metrics"
 )
+# the function's code, and the sample dataset its own tests use (`parity_dataset`)
 sys.path.insert(0, str(FUNCTION_DIR))
+sys.path.insert(0, str(FUNCTION_DIR / "tests"))
 
 from cq import locations, runner
 from cq.config import DEFAULT_CONFIG, build_config, require_resources
