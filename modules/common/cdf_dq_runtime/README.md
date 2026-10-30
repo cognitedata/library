@@ -14,7 +14,7 @@ By default the module validates the **Cognite Core** (`cdf_cdm`) and **Cognite P
 | Layer | Toolkit (`cdf deploy`) | Module script (`deploy_infrastructure.py`) |
 | --- | --- | --- |
 | RuleSets / DataProducts | Yes | Consumes via `external_dataproducts` |
-| Record view (`DataQualityValidationRecord`) | Yes (`data_modeling/views/` — `streamId` only) | — (`usedFor: record` is on the container from Python deploy) |
+| Record view (`DataQualityValidationRecord`) | — | Yes (owned and versioned by the Python package) |
 | Function + record containers | — | Yes |
 | Instance workflows | — | Yes (external DataProduct + `views/` overrides) |
 | Time-series workflows | — | Yes (`timeseries_config/` configs) |
@@ -287,13 +287,13 @@ The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space
 
 ## Operator flow
 
-### Draft bootstrap flow
+### Bootstrap flow
 
-`cdf deploy` publishes `dq-infrastructure-bootstrap` and its five-minute
-bootstrap workflow. The workflow calls the package deploy entrypoint and is
-intended to be made idempotent and asynchronous in the corresponding
-`cognite-data-quality` release. It must not contain Data Quality record views;
-those remain owned by the package.
+`cdf deploy` publishes `dq-infrastructure-bootstrap` and a five-minute
+Function Schedule. The function calls the package deploy entrypoint, which is
+idempotent. After it returns, the function deletes its own schedule. The
+schedule can therefore be recreated by a later `cdf deploy` without remaining
+active indefinitely. Data Quality record views remain owned by the package.
 
 ### Local
 

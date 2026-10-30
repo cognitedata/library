@@ -1,6 +1,0 @@
-externalId: dq-infrastructure-bootstrap-trigger
-triggerRule:
-  triggerType: schedule
-  cronExpression: "*/5 * * * *"
-workflowExternalId: dq-infrastructure-bootstrap
-workflowVersion: "1"

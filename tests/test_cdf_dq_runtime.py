@@ -693,9 +693,14 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     assert (bootstrap / "requirements.txt").is_file()
     assert (bootstrap / "config" / "settings.yaml").is_file()
     assert (_MODULE / "functions" / "dq_infrastructure_bootstrap.Function.yaml").is_file()
-    assert (_MODULE / "workflows" / "dq_infrastructure_bootstrap.Workflow.yaml").is_file()
-    assert (_MODULE / "workflows" / "dq_infrastructure_bootstrap.WorkflowVersion.yaml").is_file()
-    assert (_MODULE / "workflows" / "dq_infrastructure_bootstrap.WorkflowTrigger.yaml").is_file()
+    schedule = _MODULE / "functions" / "dq_infrastructure_bootstrap.Schedule.yaml"
+    assert schedule.is_file()
+    schedule_text = schedule.read_text(encoding="utf-8")
+    assert "functionExternalId: dq-infrastructure-bootstrap" in schedule_text
+    assert 'cronExpression: "*/5 * * * *"' in schedule_text
+    assert not (_MODULE / "workflows" / "dq_infrastructure_bootstrap.Workflow.yaml").exists()
+    assert not (_MODULE / "workflows" / "dq_infrastructure_bootstrap.WorkflowVersion.yaml").exists()
+    assert not (_MODULE / "workflows" / "dq_infrastructure_bootstrap.WorkflowTrigger.yaml").exists()
     assert not (_MODULE / "data_modeling" / "views" / "DataQualityValidationRecord.View.yaml").exists()
     assert "cognite-data-quality==" in (bootstrap / "requirements.txt").read_text(encoding="utf-8")
 
