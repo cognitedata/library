@@ -4,12 +4,17 @@
 
 Publishes SHACL **RuleSets** and **DataProducts** with Cognite Toolkit (`cdf deploy`), then runs the same Python deploy path as [data-quality-validation-deploy](https://github.com/cognitedata/data-quality-validation-deploy) (`scripts/deploy_infrastructure.py`).
 
+> Draft: the bootstrap resources below depend on a released
+> `cognite-data-quality` version with the bootstrap-safe deployment entrypoint.
+> The current `requirements.txt` pin is intentionally a placeholder until that
+> package release is available.
+
 By default the module validates the **Cognite Core** (`cdf_cdm`) and **Cognite Process Industries** (`cdf_idm`) views — asset, equipment, time series, maintenance order, operation and notification — with instances in `inst_location`. All customer-specific identifiers (spaces, views, data product, rule set versions) are variables in `default.config.yaml`; see [Configuration](#configuration).
 
 | Layer | Toolkit (`cdf deploy`) | Module script (`deploy_infrastructure.py`) |
 | --- | --- | --- |
 | RuleSets / DataProducts | Yes | Consumes via `external_dataproducts` |
-| Record view (`DataQualityValidationRecord`) | Yes (`data_modeling/views/` — `streamId` only) | — (`usedFor: record` is on the container from Python deploy) |
+| Record view (`DataQualityValidationRecord`) | — | Yes (owned and versioned by the Python package) |
 | Function + record containers | — | Yes |
 | Instance workflows | — | Yes (external DataProduct + `views/` overrides) |
 | Time-series workflows | — | Yes (`timeseries_config/` configs) |
@@ -281,6 +286,14 @@ Per-view tuning (partitioning, batch sizes, `uniqueness_cron`) is in `views/*.ya
 The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space>/<view>/` (class `<namespace><view>`, properties `<namespace><property>`) and instances as `http://purl.org/cognite/<instanceSpace>/<externalId>`. These IRIs are built from the variables above, so the rules follow your configured views. Shape logic (allowed status values, order type patterns, value bounds, the two concrete `pi:` series in the time series examples) is sample content: review it against your data. The defaults are verified against Cognite Core and Process Industries view definitions; priority ranges start at `0` because Cognite uses `0` for the highest priority.
 
 ## Operator flow
+
+### Bootstrap flow
+
+`cdf deploy` publishes `dq-infrastructure-bootstrap` and a five-minute
+Function Schedule. The function calls the package deploy entrypoint, which is
+idempotent. After it returns, the function deletes its own schedule. The
+schedule can therefore be recreated by a later `cdf deploy` without remaining
+active indefinitely. Data Quality record views remain owned by the package.
 
 ### Local
 
