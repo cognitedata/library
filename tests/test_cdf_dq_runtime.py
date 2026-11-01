@@ -692,7 +692,9 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     assert (bootstrap / "handler.py").is_file()
     assert (bootstrap / "requirements.txt").is_file()
     assert (bootstrap / "config" / "settings.yaml").is_file()
-    assert (_MODULE / "functions" / "dq_infrastructure_bootstrap.Function.yaml").is_file()
+    function_yaml = _MODULE / "functions" / "dq_infrastructure_bootstrap.Function.yaml"
+    assert function_yaml.is_file()
+    assert "space: {{ dataQualitySpace }}" in function_yaml.read_text(encoding="utf-8")
     schedule = _MODULE / "functions" / "dq_infrastructure_bootstrap.Schedule.yaml"
     assert schedule.is_file()
     schedule_text = schedule.read_text(encoding="utf-8")
@@ -703,6 +705,19 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     assert not (_MODULE / "workflows" / "dq_infrastructure_bootstrap.WorkflowTrigger.yaml").exists()
     assert not (_MODULE / "data_modeling" / "views" / "DataQualityValidationRecord.View.yaml").exists()
     assert "cognite-data-quality==" in (bootstrap / "requirements.txt").read_text(encoding="utf-8")
+
+    defaults = _load_yaml(_MODULE / "default.config.yaml")
+    settings = _load_yaml(bootstrap / "config" / "settings.yaml")
+    assert settings["config_space"] == defaults["dataQualitySpace"]
+    assert settings["records"]["space"] == defaults["dataQualitySpace"]
+    assert settings["records"]["stream_id"] == defaults["recordsStreamId"]
+    assert settings["function_code_dataset_external_id"] == defaults["functionCodeDatasetExternalId"]
+    assert settings["external_dataproducts"] == [
+        {"external_id": defaults["dataProductExternalId"], "version": defaults["dataProductVersion"]}
+    ]
+    handler_text = (bootstrap / "handler.py").read_text(encoding="utf-8")
+    assert "_delete_bootstrap_schedule(client)" in handler_text
+    assert "finally:" not in handler_text
 
 
 def _install_fake_data_quality(monkeypatch: pytest.MonkeyPatch, *, pipeline_impl: object, settings: object) -> None:
