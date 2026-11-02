@@ -182,3 +182,19 @@ def test_the_filter_of_an_edge_refers_to_the_external_id_of_an_edge_and_that_of_
     assert leaf_filter(prefix, edge=True).dump() == {"prefix": {"property": ["edge", "externalId"], "value": "ab"}}
     assert leaf_filter(prefix).dump() == {"prefix": {"property": ["node", "externalId"], "value": "ab"}}
     assert "node" not in str(batch_filter([prefix, ("exact", "b")], edge=True).dump())
+
+
+def test_no_filter_compares_an_external_id_with_the_empty_text() -> None:
+    """The service rejects an equals filter on an empty external id, so the first cut of a big kind must not make one."""
+    universe = Universe([f"id{n:04d}" for n in range(300)])
+    leaves = universe.split(target=50)
+    assert covered_exactly_once(universe, leaves)
+    assert ("exact", "") not in [leaf for leaf, _ in leaves]
+    assert "equals" not in str(leaf_filter(("rest", "")).dump())
+
+
+def test_once_the_deadline_has_passed_a_big_leaf_is_kept_whole() -> None:
+    universe = Universe([f"id{n:04d}" for n in range(300)])
+    leaves = split_leaves(len(universe.ids), 50, universe.count_leaves, universe.sample_id, deadline=0.0)
+    assert leaves == [(("prefix", ""), 300)]
+    assert universe.calls == 0

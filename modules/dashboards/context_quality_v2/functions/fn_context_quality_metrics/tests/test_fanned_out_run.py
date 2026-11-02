@@ -567,7 +567,7 @@ def test_the_export_step_builds_the_workbook_of_the_run(monkeypatch: pytest.Monk
     monkeypatch.setattr(
         runner.export,
         "build_workbook",
-        lambda _c, _cfg, run_id, pieces: seen.append((run_id, pieces)) or {"exported": True},
+        lambda _c, _cfg, run_id, pieces, measured=None: seen.append((run_id, pieces)) or {"exported": True},
     )
 
     out = runner.export_workbook(RecordingClient(), CFG, {"runId": RUN_ID, "shardCount": "5"})  # type: ignore[arg-type]

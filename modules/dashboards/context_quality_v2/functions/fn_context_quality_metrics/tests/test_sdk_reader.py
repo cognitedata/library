@@ -43,10 +43,17 @@ class FakeInstances:
         self.calls: list[dict[str, Any]] = []
 
     def list(
-        self, instance_type: str, sources: ViewId, space: Any = None, filter: Any = None, limit: int = 25
+        self, instance_type: str, sources: ViewId, space: Any = None, filter: Any = None, sort: Any = None, limit: int = 25
     ) -> list[Node | Edge]:
         self.calls.append(
-            {"instance_type": instance_type, "sources": sources, "space": space, "filter": filter, "limit": limit}
+            {
+                "instance_type": instance_type,
+                "sources": sources,
+                "space": space,
+                "filter": filter,
+                "sort": sort,
+                "limit": limit,
+            }
         )
         if sources.external_id in self.errors:
             raise self.errors[sources.external_id]
@@ -244,7 +251,7 @@ def test_the_installed_sdk_offers_the_calls_the_function_makes() -> None:
     )
 
     assert "json" in inspect.signature(client.post).parameters
-    assert {"instance_type", "sources", "space", "limit"} <= set(
+    assert {"instance_type", "sources", "space", "sort", "limit"} <= set(
         inspect.signature(client.data_modeling.instances.list).parameters
     )
     assert {"instance_id", "ignore_unknown_ids"} <= set(
@@ -336,3 +343,99 @@ def test_an_unavailable_optional_source_ends_up_in_the_run_warnings() -> None:
     assert ("optional-source-unavailable", "cdf_idm.CogniteNotification") in codes
     assert ("no-source-entities", "work_orders") not in codes  # explained by the unavailable view, not repeated
     assert not [k for k in result["agg"] if k[1] == "maintenance"]  # nothing is reported for maintenance
+
+
+def test_a_timeout_naming_a_sample_id_gives_no_sample_and_the_service_is_not_asked_again() -> None:
+    from unittest.mock import MagicMock
+
+    from cognite.client.data_classes.data_modeling import ViewId
+    from cognite.client.exceptions import CogniteAPIError
+
+    from cq.reader import leaf_tools
+
+    client = MagicMock()
+    client.data_modeling.instances.list.side_effect = CogniteAPIError("Graph query timed out", code=408)
+    _, sample_id = leaf_tools(client, ViewId("cdf_cdm", "CogniteAsset", "v1"), "sp")
+    assert sample_id(("prefix", "A")) is None
+    assert sample_id(("prefix", "AB")) is None
+    assert client.data_modeling.instances.list.call_count == 1
+
+
+def test_a_batch_filter_that_is_an_or_of_slices_is_read_one_slice_at_a_time() -> None:
+    from unittest.mock import MagicMock
+
+    from cognite.client.data_classes.data_modeling import ViewId
+
+    from cq.batching import batch_filter
+    from cq.reader import _list_instances
+
+    client = MagicMock()
+    client.data_modeling.instances.list.side_effect = lambda **kw: [kw["filter"]]
+    view = ViewId("cdf_cdm", "CogniteAsset", "v1")
+    leaves = [("prefix", "a"), ("prefix", "b"), ("exact", "c")]
+    found = _list_instances(client, "node", view, ["sp"], batch_filter(leaves))
+    assert client.data_modeling.instances.list.call_count == 3
+    assert [item["prefix"]["value"] if "prefix" in item else item["equals"]["value"] for item in found] == ["a", "b", "c"]
+    found = _list_instances(client, "node", view, ["sp"], batch_filter(leaves[:1]))
+    assert len(found) == 1 and client.data_modeling.instances.list.call_count == 4
+    _list_instances(client, "node", view, ["sp"], None)
+    assert client.data_modeling.instances.list.call_args.kwargs["filter"] is None
+
+
+def test_a_slice_that_times_out_is_read_by_id_and_a_read_without_a_slice_is_cut_by_first_character() -> None:
+    from unittest.mock import MagicMock
+
+    from cognite.client.data_classes.data_modeling import ViewId
+    from cognite.client.exceptions import CogniteAPIError
+
+    from cq.batching import CHARSET, batch_filter
+    from cq.reader import RETRIEVE_CHUNK, _list_instances
+
+    view = ViewId("cdf_cdm", "CogniteEquipment", "v1")
+    ids = [MagicMock(space="sp", external_id=f"e{n}") for n in range(RETRIEVE_CHUNK + 5)]
+
+    def list_(**kw: Any) -> list[Any]:
+        if kw.get("sources") is not None:
+            raise CogniteAPIError("Graph query timed out", code=408)
+        return ids
+
+    client = MagicMock()
+    client.data_modeling.instances.list.side_effect = list_
+    client.data_modeling.instances.retrieve.side_effect = lambda nodes, sources: MagicMock(nodes=[("n", len(nodes))])
+    found = _list_instances(client, "node", view, ["sp"], batch_filter([("prefix", "a")]))
+    assert found == [("n", RETRIEVE_CHUNK), ("n", 5)]
+
+    client.data_modeling.instances.retrieve.reset_mock()
+    client.data_modeling.instances.list.reset_mock()
+    ids.clear()
+    assert _list_instances(client, "node", view, ["sp"], None) == []
+    filters_used = [call.kwargs["filter"] for call in client.data_modeling.instances.list.call_args_list]
+    assert filters_used[0] is None  # the whole read first, then one slice per first character, each tried and read by id
+    assert len(filters_used) == 1 + 2 * (len(CHARSET) + 1)
+
+
+def test_a_chunk_of_ids_that_times_out_is_read_again_in_halves() -> None:
+    from unittest.mock import MagicMock
+
+    from cognite.client.data_classes.data_modeling import ViewId
+    from cognite.client.exceptions import CogniteAPIError
+
+    from cq.reader import RETRIEVE_MIN_CHUNK, _retrieve
+
+    sizes: list[int] = []
+
+    def retrieve(nodes: list[Any], sources: Any) -> Any:
+        sizes.append(len(nodes))
+        if len(nodes) > 100:
+            raise CogniteAPIError("Graph query timed out", code=408)
+        return MagicMock(nodes=list(nodes))
+
+    client = MagicMock()
+    client.data_modeling.instances.retrieve.side_effect = retrieve
+    pairs = [("sp", f"e{n}") for n in range(400)]
+    assert _retrieve(client, "node", ViewId("cdf_cdm", "CogniteEquipment", "v1"), pairs) == pairs
+    assert sizes == [400, 200, 100, 100, 200, 100, 100]
+
+    client.data_modeling.instances.retrieve.side_effect = CogniteAPIError("Graph query timed out", code=408)
+    with pytest.raises(CogniteAPIError):
+        _retrieve(client, "node", ViewId("cdf_cdm", "CogniteEquipment", "v1"), pairs[:RETRIEVE_MIN_CHUNK])

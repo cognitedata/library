@@ -20,6 +20,9 @@ workflowDefinition:
             # The links of the config file a person ran the workflow with (dashboard: Configuration page). A scheduled
             # run supplies an empty list, so it measures the built-in metrics only. See README, "Running with a config file".
             extraLinks: ${workflow.input.extraLinks}
+            # What the run is for: "all" (every dimension, what the schedule runs), "configured", or
+            # {"dimensions": [...] | "all", "configured": true | false}. See README, "Running some dimensions only".
+            scope: ${workflow.input.scope}
             # The function has no default for these three: the deployment names them (module variables).
             # Everything below is project-specific and empty by default; nothing here is demo configuration.
             # The plan hands this configuration on to every shard.
@@ -74,6 +77,7 @@ workflowDefinition:
             runId: ${plan.output.response.runId}
             runTimestamp: ${plan.output.response.runTimestamp}
             shardCount: ${plan.output.response.shardCount}
+            scope: ${plan.output.response.scope}
             config:
               stream: "{{ metricsStreamExternalId }}"
               schemaSpace: "{{ metricsSchemaSpace }}"
@@ -98,6 +102,7 @@ workflowDefinition:
             runId: ${plan.output.response.runId}
             runTimestamp: ${plan.output.response.runTimestamp}
             shardCount: ${plan.output.response.shardCount}
+            scope: ${plan.output.response.scope}
             config:
               stream: "{{ metricsStreamExternalId }}"
               schemaSpace: "{{ metricsSchemaSpace }}"

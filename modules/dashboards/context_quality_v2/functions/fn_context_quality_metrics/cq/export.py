@@ -7,6 +7,10 @@ The drill-down rows in the stream are capped, so the dashboard can only show a p
 2. After the run is complete, the `export` step reads the parts one at a time, writes the rows into the sheets of one
    workbook in streaming mode, uploads it as `cq-unlinked-{runId}.xlsx`, removes the parts, and removes the workbooks of
    runs older than `exportRetentionDays`.
+3. A run can be for some dimensions only (cq.scope). Its workbook still holds every dimension: the rows of the
+   dimensions it measured come from its own parts, and the others from the *dimension files* of earlier runs. Each
+   export keeps what it measured as one `cq-unlinked-dim-{dimension}-{runId}.csv` per dimension (an empty one for a
+   dimension with nothing to list, so that it replaces the older rows) and removes the dimension files it replaces.
 
 The workbook is a side product: a failure here never fails the run, and the run's numbers do not depend on it.
 """
@@ -24,10 +28,12 @@ from typing import Any
 import xlsxwriter
 from cognite.client import CogniteClient
 
+from cq.scope import CONFIGURED
 from cq.types import DrillItem, RunConfig
 
 WORKBOOK_PREFIX = "cq-unlinked-"
 PART_PREFIX = "cq-unlinked-part-"
+DIMENSION_PREFIX = "cq-unlinked-dim-"
 # An Excel sheet holds at most this many rows, the header included.
 MAX_SHEET_ROWS = 1_048_576
 ITEM, SUMMARY = "item", "summary"
@@ -110,6 +116,41 @@ DIMENSION_NAMES = {
 }
 _BAD_SHEET_CHARS = str.maketrans(dict.fromkeys("[]:*?/\\", "_"))
 
+# The dimension each list belongs to (the sheets of configured links belong to CONFIGURED).
+_LIST_DIMENSION = {
+    "orphansByTier": "asset-hierarchy",
+    "depthOutliers": "asset-hierarchy",
+    "typeCoverageGaps": "asset-hierarchy",
+    "activeChildrenUnderRetiredParents": "asset-hierarchy",
+    "unmatchedWithCandidates": "equipment-asset",
+    "equipmentMissingSerial": "equipment-asset",
+    "equipmentMissingManufacturer": "equipment-asset",
+    "orphansByPrefix": "time-series",
+    "staleTimeSeries": "time-series",
+    "tier1CoverageGaps": "time-series",
+    "unlinkedMaintenance": "maintenance",
+    "incompleteWorkOrders": "maintenance",
+    "woWithoutNotification": "maintenance",
+    "notificationsWithoutWorkOrder": "maintenance",
+    "unlinkedByCategory": "files",
+    "filesMissingCategory": "files",
+    "filesMissingDescription": "files",
+    "filesMissingSourceId": "files",
+    "unlinked3dObjects": "model-3d",
+    "bboxGaps": "model-3d",
+    "unlinkedTier1": "model-3d",
+    "lowConfidenceQueue": "file-annotation",
+    "pendingReview": "file-annotation",
+    "unapprovedAnnotations": "file-annotation",
+}
+SHEET_DIMENSION = {SHEETS[metric][0]: dimension for metric, dimension in _LIST_DIMENSION.items()}
+
+
+def row_dimension(row: Iterable[str]) -> str:
+    """The dimension a row of a part belongs to: a summary line names it, a list item has it by its sheet."""
+    kind, second, *_ = row
+    return second if kind == SUMMARY else SHEET_DIMENSION.get(second, CONFIGURED)
+
 
 def part_external_id(run_id: str, piece: int) -> str:
     return f"{PART_PREFIX}{run_id}-{piece:04d}.csv"
@@ -117,6 +158,10 @@ def part_external_id(run_id: str, piece: int) -> str:
 
 def workbook_external_id(run_id: str) -> str:
     return f"{WORKBOOK_PREFIX}{run_id}.xlsx"
+
+
+def dimension_external_id(dimension: str, run_id: str) -> str:
+    return f"{DIMENSION_PREFIX}{dimension}-{run_id}.csv"
 
 
 def link_sheet(view: str, prop: str) -> str:
@@ -234,23 +279,105 @@ def _read_part(client: CogniteClient, external_id: str) -> Iterator[list[str]]:
     yield from reader
 
 
+class _DimensionFile:
+    """A dimension file of an earlier run: the lists and summary lines of one dimension, as that run measured them."""
+
+    def __init__(self, file: Any) -> None:
+        meta = file.metadata or {}
+        self.external_id: str = file.external_id
+        self.dimension: str = meta.get("dimension", "")
+        self.run_id: str = meta.get("runId", "")
+        self.sheets: dict[str, int] = json.loads(meta.get("sheets", "{}"))
+
+
+def dimension_files(client: CogniteClient, dataset: int) -> list[_DimensionFile]:
+    found = client.files.list(external_id_prefix=DIMENSION_PREFIX, data_set_ids=[dataset], limit=-1)
+    return [_DimensionFile(file) for file in found if file.external_id and (file.metadata or {}).get("dimension")]
+
+
+def newest_by_dimension(files: Iterable[_DimensionFile]) -> dict[str, _DimensionFile]:
+    """The dimension file of the latest run (run ids sort by time) for each dimension."""
+    newest: dict[str, _DimensionFile] = {}
+    for file in files:
+        if file.dimension not in newest or file.run_id > newest[file.dimension].run_id:
+            newest[file.dimension] = file
+    return newest
+
+
+def _read_dimension_file(client: CogniteClient, external_id: str) -> Iterator[list[str]]:
+    """The rows of a dimension file, from disk so that a big one is never held in memory."""
+    folder = tempfile.mkdtemp()
+    path = os.path.join(folder, "dimension.csv")
+    client.files.download_to_path(path, external_id=external_id)
+    try:
+        with open(path, newline="", encoding="utf-8") as handle:
+            reader = csv.reader(handle)
+            next(reader, None)
+            yield from reader
+    finally:
+        os.remove(path)
+        os.rmdir(folder)
+
+
+class _DimensionOut:
+    """What a run measured of one dimension, written as it goes into the workbook: the dimension file it leaves."""
+
+    def __init__(self, folder: str, dimension: str, run_id: str) -> None:
+        self.dimension, self.run_id = dimension, run_id
+        self.path = os.path.join(folder, dimension_external_id(dimension, run_id))
+        self._handle = open(self.path, "w", newline="", encoding="utf-8")  # noqa: SIM115 - closed in close()
+        self._writer = csv.writer(self._handle)
+        self._writer.writerow(PART_HEADER)
+        self.sheets: dict[str, int] = defaultdict(int)
+
+    def add(self, row: list[str]) -> None:
+        self._writer.writerow(row)
+        if row[0] == ITEM:
+            self.sheets[row[1]] += 1
+
+    def close(self) -> None:
+        self._handle.close()
+
+
 def build_workbook(
-    client: CogniteClient, cfg: RunConfig, run_id: str, pieces: int, now: datetime | None = None
+    client: CogniteClient,
+    cfg: RunConfig,
+    run_id: str,
+    pieces: int,
+    now: datetime | None = None,
+    measured: Iterable[str] | None = None,
 ) -> dict[str, Any]:
-    """Assembles the workbook of a run from its parts, uploads it, and tidies up. -> what was done."""
+    """Assembles the workbook of a run from its parts, uploads it, and tidies up. -> what was done.
+
+    `measured` names the dimensions the run measured (CONFIGURED for the configured links); every dimension when None.
+    The workbook holds all dimensions: those the run did not measure come from the dimension files of earlier runs.
+    """
     dataset = data_set_id(client, cfg)
     if dataset is None:
         return {"exported": False, "reason": "exportDataSet is not set"}
+    everything = (*DIMENSION_ORDER, CONFIGURED)
+    this_run = frozenset(everything if measured is None else measured)
     wanted = [part_external_id(run_id, piece) for piece in range(pieces)]
     found = client.files.retrieve_multiple(external_ids=wanted, ignore_unknown_ids=True)
     present = {file.external_id: file for file in found}
     missing = [piece for piece, name in enumerate(wanted) if name not in present]
+    every_dimension_file = dimension_files(client, dataset)
+    earlier = {
+        dimension: file
+        for dimension, file in newest_by_dimension(every_dimension_file).items()
+        if dimension not in this_run and file.run_id != run_id
+    }
     counts: dict[str, int] = defaultdict(int)
     for file in present.values():
         for sheet, count in json.loads((file.metadata or {}).get("sheets", "{}")).items():
+            if SHEET_DIMENSION.get(sheet, CONFIGURED) in this_run:  # a list of a dimension the run left out has no rows
+                counts[sheet] += count
+    for old in earlier.values():
+        for sheet, count in old.sheets.items():
             counts[sheet] += count
     order = _sheet_order(counts)
-    path = os.path.join(tempfile.mkdtemp(), workbook_external_id(run_id))
+    folder = tempfile.mkdtemp()
+    path = os.path.join(folder, workbook_external_id(run_id))
     book = xlsxwriter.Workbook(path, {"constant_memory": True})
     header = book.add_format({"bold": True, "bg_color": "#E4E6E8", "bottom": 1})
     summary = book.add_worksheet("Summary")
@@ -265,22 +392,50 @@ def build_workbook(
         sheet.set_column(4, 5, 36)
         sheet.set_column(6, 7, 16)
     totals: dict[tuple[str, str, str], list[int]] = defaultdict(lambda: [0, 0, 0])
+    outs = {dimension: _DimensionOut(folder, dimension, run_id) for dimension in everything if dimension in this_run}
+
+    def take(row: list[str], out: _DimensionOut | None) -> None:
+        if row[0] == ITEM:
+            title = row[1]
+            if title in sheets and next_row[title] < MAX_SHEET_ROWS:
+                sheets[title].write_row(next_row[title], 0, row[2:10])
+                next_row[title] += 1
+                if out is not None:
+                    out.add(row)
+        elif row[0] == SUMMARY:
+            entry = totals[(row[1], row[2], row[3])]
+            entry[0] += int(row[4])
+            entry[1] += int(row[5])
+            entry[2] += int(row[6])
+            if out is not None:
+                out.add(row)
+
     for name in wanted:
         if name not in present:
             continue
         for row in _read_part(client, name):
-            if row[0] == ITEM:
-                title = row[1]
-                if title in sheets and next_row[title] < MAX_SHEET_ROWS:
-                    sheets[title].write_row(next_row[title], 0, row[2:10])
-                    next_row[title] += 1
-            elif row[0] == SUMMARY:
-                entry = totals[(row[1], row[2], row[3])]
-                entry[0] += int(row[4])
-                entry[1] += int(row[5])
-                entry[2] += int(row[6])
-    _write_summary(summary, header, totals, counts, order, missing, run_id)
+            if row[0] in (ITEM, SUMMARY) and row_dimension(row) in this_run:
+                take(row, outs[row_dimension(row)])
+    for old in earlier.values():
+        for row in _read_dimension_file(client, old.external_id):
+            take(row, None)
+    sources = {dimension: run_id for dimension in everything if dimension in this_run}
+    sources.update({dimension: old.run_id for dimension, old in earlier.items()})
+    _write_summary(summary, header, totals, counts, order, missing, run_id, sources)
     book.close()
+    for out in outs.values():
+        out.close()
+        name = dimension_external_id(out.dimension, run_id)
+        client.files.upload(
+            path=out.path,
+            name=name,
+            external_id=name,
+            mime_type="text/csv",
+            data_set_id=dataset,
+            overwrite=True,
+            metadata={"runId": run_id, "dimension": out.dimension, "sheets": json.dumps(dict(out.sheets))},
+        )
+        os.remove(out.path)
     external_id = workbook_external_id(run_id)
     client.files.upload(
         path=path,
@@ -289,10 +444,18 @@ def build_workbook(
         mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         data_set_id=dataset,
         overwrite=True,
-        metadata={"runId": run_id, "missingPieces": json.dumps(missing)},
+        metadata={"runId": run_id, "missingPieces": json.dumps(missing), "measured": json.dumps(sorted(this_run))},
     )
     os.remove(path)
+    os.rmdir(folder)
     client.files.delete(external_id=list(present), ignore_unknown_ids=True)
+    replaced = [
+        file.external_id
+        for file in every_dimension_file
+        if file.dimension in sources and file.run_id != sources[file.dimension]
+    ]
+    if replaced:
+        client.files.delete(external_id=replaced, ignore_unknown_ids=True)
     removed = remove_old_workbooks(client, cfg, dataset, external_id, now or datetime.now(UTC))
     return {
         "exported": True,
@@ -300,6 +463,8 @@ def build_workbook(
         "sheets": len(order),
         "rows": sum(counts.values()),
         "missingPieces": missing,
+        "measured": sorted(this_run),
+        "keptFrom": {dimension: old.run_id for dimension, old in earlier.items()},
         "removed": removed,
     }
 
@@ -312,6 +477,7 @@ def _write_summary(
     order: list[str],
     missing: list[int],
     run_id: str,
+    sources: dict[str, str],
 ) -> None:
     sheet.write_row(0, 0, ("Dimension", "Metric", "Field", "Eligible", "Passing", "Remaining", "Share passing"), header)
     sheet.set_column(0, 2, 30)
@@ -338,6 +504,12 @@ def _write_summary(
         row += 1
         sheet.write_row(row, 0, (title, counts[title]))
     row += 2
+    sheet.write_row(row, 0, ("Dimension", "Measured in run"), header)
+    for dimension in (*DIMENSION_ORDER, CONFIGURED):
+        if dimension in sources:
+            row += 1
+            sheet.write_row(row, 0, (DIMENSION_NAMES.get(dimension, "Configured metrics"), sources[dimension]))
+    row += 2
     sheet.write(row, 0, f"Run {run_id}")
     if missing:
         sheet.write(
@@ -353,7 +525,7 @@ def remove_old_workbooks(client: CogniteClient, cfg: RunConfig, dataset: int, ke
         for file in client.files.list(external_id_prefix=WORKBOOK_PREFIX, data_set_ids=[dataset], limit=-1)
         if file.external_id
         and file.external_id != keep
-        and not file.external_id.startswith(PART_PREFIX)
+        and not file.external_id.startswith((PART_PREFIX, DIMENSION_PREFIX))
         and (file.created_time or 0) < cutoff
     ]
     if old:

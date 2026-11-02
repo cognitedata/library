@@ -322,6 +322,40 @@ not create such a group: grant the capabilities to the people who may run it.
 A `${workflow.input.extraLinks}` reference in the function task's `data` resolves for a run started with an input
 (confirmed on a test deployment). **Not yet verified:** that the scheduled trigger's `input` supplies it.
 
+### Running some dimensions only
+
+A run measures **dimensions** (the cards of the dashboard: `asset-hierarchy`, `equipment-asset`, `time-series`,
+`maintenance`, `files`, `model-3d`, `file-annotation`) and, when a config file was given, the **configured** links. The
+workflow takes a `scope` in its input to say which of them a run is for:
+
+| `scope` | The run measures |
+|---|---|
+| absent | every dimension, and the configured links when `extraLinks` is not empty (a run before scopes existed) |
+| `"all"` | every dimension, no configured links (what the schedule runs) |
+| `"configured"` | only the configured links (needs `extraLinks`) |
+| `{"dimensions": ["files", ...] \| "all", "configured": true \| false}` | the named dimensions, and the configured links if asked |
+
+A dimension is measured whole. The plan reads and counts only the kinds of data the chosen dimensions need
+(`cq/scope.py`; time series and 3D model also read the assets, for their monitoring and asset coverage), and each piece
+drops the rows of a dimension the scope leaves out, so what a scoped run writes for a dimension is what a full run writes
+for it (a test checks that for every dimension). The facilities are still found from every kind. A scope that names an
+unknown dimension, nothing at all, or the configured links without `extraLinks` fails the plan before anything is written.
+
+**What a consumer sees.** The `complete` marker's `scope` property says which dimensions the run measured: `all`,
+`all+configured`, `files,time-series`, `configured`, ... (a run without the property is `all`). "Current" for a
+dimension is then the latest complete run whose scope covers it; the latest complete run is no longer enough, because
+a run for one dimension holds only that dimension.
+
+**The workbook** of a scoped run still holds every dimension. The rows of the dimensions it measured come from its own
+parts; the others from the **dimension files** the last run that measured them left in the data set
+(`cq-unlinked-dim-{dimension}-{runId}.csv`: the lists and summary lines of that dimension, empty when it had nothing to
+list, which is what lets a run replace older rows). Each export writes the dimension files of what it measured, removes
+the ones they replace, and the Summary sheet names the run each dimension comes from. A dimension no export has left a
+file for yet (everything measured before this) is missing from the workbook of a scoped run until a run measures it.
+
+**One run at a time.** The workflow has `maxConcurrentExecutions: 1`. A consumer that starts runs should check for a run in
+progress first and say so, instead of queueing a second one behind it.
+
 ### Location filters as a scope
 
 The project's location filters (Locations in Fusion, `locations/*.LocationFilter.yaml` in Toolkit) can be used as a scope next

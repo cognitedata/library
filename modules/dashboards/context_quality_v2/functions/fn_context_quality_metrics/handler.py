@@ -14,6 +14,9 @@ The workflow runs plan, then a dynamic task that calls compute_shard once per sh
 
 Any key in payload["config"] overrides the matching key in cq.config.DEFAULT_CONFIG.
 
+plan also takes payload["scope"] (cq.scope): "all", "configured" or {"dimensions": [...], "configured": bool}, so that a run
+measures some dimensions only; the pieces it creates carry it, and finalize writes it into the complete marker.
+
 compute_metrics also takes payload["extraLinks"], a list of {"model": "space:externalId:version", "links":
 ["View.property", ...]}. Each link is measured per facility next to the built-in metrics (cq.extra_links).
 """
@@ -22,6 +25,7 @@ from collections.abc import Callable
 from typing import Any
 
 from cognite.client import CogniteClient
+from cq.resilience import harden
 from cq.config import build_config
 from cq.runner import compute_batch, compute_metrics, compute_shard, export_workbook, finalize, plan, validate
 from cq.types import RunConfig
@@ -42,4 +46,4 @@ def handle(data: dict[str, Any], client: CogniteClient) -> dict[str, Any]:
     if action not in ACTIONS:
         raise ValueError(f"Unknown action {action!r}. Expected one of {sorted(ACTIONS)}")
     cfg = build_config(data.get("config"))
-    return ACTIONS[action](client, cfg, data)
+    return ACTIONS[action](harden(client), cfg, data)

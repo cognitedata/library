@@ -49,6 +49,10 @@ class FakeFiles:
     def download_bytes(self, external_id: str) -> bytes:
         return self.content[external_id]
 
+    def download_to_path(self, path: str, external_id: str) -> None:
+        with open(path, "wb") as handle:
+            handle.write(self.content[external_id])
+
     def delete(self, external_id: list[str], ignore_unknown_ids: bool = False) -> None:
         for x in external_id:
             self.content.pop(x, None)
@@ -244,6 +248,8 @@ def test_the_workbook_has_a_summary_and_a_sheet_for_each_list_with_the_rows_of_a
         "sheets": 2,
         "rows": 3,
         "missingPieces": [],
+        "measured": sorted([*export.DIMENSION_ORDER, "configured"]),
+        "keptFrom": {},
         "removed": 0,
     }
 
@@ -254,7 +260,8 @@ def test_the_parts_are_removed_once_the_workbook_is_uploaded() -> None:
 
     export.build_workbook(client, CFG, RUN, 1)  # type: ignore[arg-type]
 
-    assert list(client.files.content) == [export.workbook_external_id(RUN)]
+    assert not [name for name in client.files.content if name.startswith(export.PART_PREFIX)]
+    assert export.workbook_external_id(RUN) in client.files.content
 
 
 def test_a_part_that_never_arrived_is_named_in_the_workbook_and_does_not_stop_it() -> None:
@@ -290,7 +297,8 @@ def test_workbooks_older_than_the_retention_are_deleted_and_the_new_one_is_kept(
     out = export.build_workbook(client, CFG, RUN, 1, now)  # type: ignore[arg-type]
 
     assert out["removed"] == 1
-    assert sorted(client.files.content) == sorted(["cq-unlinked-run-recent.xlsx", export.workbook_external_id(RUN)])
+    workbooks = [name for name in client.files.content if name.endswith(".xlsx")]
+    assert sorted(workbooks) == sorted(["cq-unlinked-run-recent.xlsx", export.workbook_external_id(RUN)])
 
 
 def test_nothing_is_exported_without_a_data_set() -> None:
@@ -310,3 +318,112 @@ def test_the_data_set_must_exist() -> None:
 def test_the_data_set_setting_must_be_text(bad: Any) -> None:
     with pytest.raises(ValueError, match="exportDataSet"):
         build_config({"exportDataSet": bad})
+
+
+# ---------------------------------------------------------------- a run for some dimensions only
+
+RUN2 = "run-20261014T040000-aaaaaa"
+EQUIPMENT = "equipment-asset"
+
+
+def full_run_then(client: FakeClient, rows: list[tuple[str, ...]], measured: set[str]) -> dict[str, Any]:
+    """The first run measured everything (an equipment and a file item); then a run measured only `measured`."""
+    export.write_part(
+        client,  # type: ignore[arg-type]
+        77,
+        RUN,
+        0,
+        [
+            *export.item_rows([item("unmatchedWithCandidates", "e1", label="old equipment")]),
+            *export.item_rows([item("unlinkedByCategory", "f1", dim="files")]),
+        ],
+    )
+    export.build_workbook(client, CFG, RUN, 1)  # type: ignore[arg-type]
+    export.write_part(client, 77, RUN2, 0, rows)  # type: ignore[arg-type]
+    return export.build_workbook(client, CFG, RUN2, 1, measured=measured)  # type: ignore[arg-type]
+
+
+def test_a_run_leaves_one_file_for_each_dimension_it_measured() -> None:
+    client = FakeClient()
+    export.write_part(client, 77, RUN, 0, export.item_rows([item("unmatchedWithCandidates", "e1")]))  # type: ignore[arg-type]
+
+    export.build_workbook(client, CFG, RUN, 1)  # type: ignore[arg-type]
+
+    files = {name: client.files.meta[name] for name in client.files.content if name.startswith(export.DIMENSION_PREFIX)}
+    assert sorted(meta["dimension"] for meta in files.values()) == sorted([*export.DIMENSION_ORDER, "configured"])
+    equipment = files[export.dimension_external_id(EQUIPMENT, RUN)]
+    assert json.loads(equipment["sheets"]) == {"Equipment without asset": 1}
+    assert equipment["runId"] == RUN
+    assert json.loads(files[export.dimension_external_id("files", RUN)]["sheets"]) == {}  # measured, nothing to list
+
+
+def test_a_run_for_one_dimension_keeps_what_the_others_were_last_measured_as() -> None:
+    client = FakeClient()
+
+    out = full_run_then(
+        client,
+        export.item_rows([item("unmatchedWithCandidates", "e9", label="new equipment")]),
+        {EQUIPMENT},
+    )
+
+    sheets = read_workbook(client.files.content[export.workbook_external_id(RUN2)])
+    assert [row[1] for row in sheets["Equipment without asset"]] == ["External ID", "e9"]  # replaced, not added to
+    assert [row[1] for row in sheets["Files without asset"]] == ["External ID", "f1"]  # kept from the first run
+    assert out["measured"] == [EQUIPMENT]
+    assert set(out["keptFrom"]) == set(export.DIMENSION_ORDER) - {EQUIPMENT} | {"configured"}
+    assert set(out["keptFrom"].values()) == {RUN}
+    summary = {row[0]: row[1] for row in sheets["Summary"] if len(row) > 1 and row[1].startswith("run-")}
+    assert summary["Equipment-Asset"] == RUN2
+    assert summary["Files"] == RUN
+
+
+def test_the_dimension_files_a_run_replaces_are_removed_and_the_others_are_kept() -> None:
+    client = FakeClient()
+
+    full_run_then(client, export.item_rows([item("unmatchedWithCandidates", "e9")]), {EQUIPMENT})
+
+    dimension_files = sorted(name for name in client.files.content if name.startswith(export.DIMENSION_PREFIX))
+    assert export.dimension_external_id(EQUIPMENT, RUN) not in dimension_files
+    assert export.dimension_external_id(EQUIPMENT, RUN2) in dimension_files
+    assert export.dimension_external_id("files", RUN) in dimension_files
+    assert export.dimension_external_id("files", RUN2) not in dimension_files  # not measured, so nothing new
+    assert len(dimension_files) == len(export.DIMENSION_ORDER) + 1  # one per dimension, and the configured links
+    assert not [name for name in client.files.content if name.startswith(export.PART_PREFIX)]
+
+
+def test_a_dimension_that_now_has_nothing_to_list_replaces_what_it_listed_before() -> None:
+    client = FakeClient()
+
+    full_run_then(client, [], {EQUIPMENT})  # the second run's part holds no row at all
+
+    sheets = read_workbook(client.files.content[export.workbook_external_id(RUN2)])
+    assert "Equipment without asset" not in sheets  # the old row of e1 is gone
+    assert "Files without asset" in sheets
+    assert json.loads(client.files.meta[export.dimension_external_id(EQUIPMENT, RUN2)]["sheets"]) == {}
+
+
+def test_the_rows_a_run_did_not_measure_are_dropped_from_its_parts() -> None:
+    client = FakeClient()
+    export.write_part(
+        client,  # type: ignore[arg-type]
+        77,
+        RUN,
+        0,
+        [
+            *export.item_rows([item("unmatchedWithCandidates", "e1")]),
+            *export.item_rows([item("unlinkedByCategory", "f1", dim="files")]),
+        ],
+    )
+
+    export.build_workbook(client, CFG, RUN, 1, measured={EQUIPMENT})  # type: ignore[arg-type]
+
+    sheets = read_workbook(client.files.content[export.workbook_external_id(RUN)])
+    assert "Files without asset" not in sheets
+    assert [row[1] for row in sheets["Equipment without asset"]] == ["External ID", "e1"]
+
+
+def test_every_list_belongs_to_the_dimension_that_measures_it() -> None:
+    assert set(export.SHEET_DIMENSION.values()) <= set(export.DIMENSION_ORDER)
+    assert len(export.SHEET_DIMENSION) == len(export.SHEETS)
+    assert export.row_dimension((export.SUMMARY, "files", "m", "", "1", "1", "0")) == "files"
+    assert export.row_dimension(export.item_rows([], [{"view": "V", "property": "p", "label": "l", "external_id": "x", "space": "s"}])[0]) == "configured"

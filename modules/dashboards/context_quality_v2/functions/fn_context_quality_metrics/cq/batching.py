@@ -14,6 +14,7 @@ instances.
 """
 
 import string
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -24,7 +25,7 @@ from cognite.client.data_classes.data_modeling import filters
 CHARSET = string.digits + string.ascii_letters + "_-.:/ "
 MAX_LEAF_DEPTH = 200
 MAX_LEAVES_PER_BATCH = 12  # a batch's filter is one OR of its leaves
-COUNT_WORKERS = 16
+COUNT_WORKERS = 6  # the project allows 8 concurrent instance reads in all; more only earns 429s and retries
 
 type Leaf = tuple[str, str]  # ("prefix" | "exact" | "rest", text)
 type CountLeaves = Callable[[list[Leaf]], list[int]]
@@ -40,9 +41,9 @@ def leaf_filter(leaf: Leaf, edge: bool = False) -> filters.Filter:
     if kind == "exact":
         return filters.Equals(ref, text)
     others = [filters.Prefix(ref, text + char) for char in CHARSET]
-    return filters.And(
-        filters.Prefix(ref, text), filters.Not(filters.Equals(ref, text)), filters.Not(filters.Or(*others))
-    )
+    # No instance has an empty external id, and the service rejects an equals filter on one.
+    not_the_text = [filters.Not(filters.Equals(ref, text))] if text else []
+    return filters.And(filters.Prefix(ref, text), *not_the_text, filters.Not(filters.Or(*others)))
 
 
 def batch_filter(leaves: list[Leaf], edge: bool = False) -> filters.Filter:
@@ -83,11 +84,16 @@ def _longest_shared_prefix(start: str, count: int, count_leaves: CountLeaves, sa
     return sample[:low]
 
 
-def split_leaves(total: int, target: int, count_leaves: CountLeaves, sample_id: SampleId) -> list[tuple[Leaf, int]]:
+def split_leaves(
+    total: int, target: int, count_leaves: CountLeaves, sample_id: SampleId, deadline: float | None = None
+) -> list[tuple[Leaf, int]]:
     """Every instance of a kind, as leaves of at most `target` instances where the ids allow it. -> (leaf, count).
 
     The leaves cover each instance exactly once: a leaf that is too big is replaced by one leaf per next character,
     one for the text itself and one for whatever continues with a character not looked at.
+
+    `deadline` (a `time.monotonic()` value) bounds the work: once it has passed, leaves that are still too big are kept
+    as they are, so the plan ends in time with some batches bigger than the target instead of not ending.
     """
     work: list[tuple[Leaf, int]] = [(("prefix", ""), total)]
     done: list[tuple[Leaf, int]] = []
@@ -95,11 +101,18 @@ def split_leaves(total: int, target: int, count_leaves: CountLeaves, sample_id: 
         leaf, count = work.pop()
         if count == 0:
             continue
-        if count <= target or leaf[0] != "prefix" or len(leaf[1]) >= MAX_LEAF_DEPTH:
+        if (
+            count <= target
+            or leaf[0] != "prefix"
+            or len(leaf[1]) >= MAX_LEAF_DEPTH
+            or (deadline is not None and time.monotonic() > deadline)
+        ):
             done.append((leaf, count))
             continue
         text = _longest_shared_prefix(leaf[1], count, count_leaves, sample_id)
-        children: list[Leaf] = [("prefix", text + char) for char in CHARSET] + [("exact", text)]
+        children: list[Leaf] = [("prefix", text + char) for char in CHARSET]
+        if text:  # no instance has an empty external id, and the service rejects an equals filter on one
+            children.append(("exact", text))
         counts = count_leaves(children)
         rest = count - sum(counts)
         work.extend(zip(children, counts, strict=True))

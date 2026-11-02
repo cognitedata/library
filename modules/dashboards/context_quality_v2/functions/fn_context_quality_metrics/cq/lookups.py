@@ -23,7 +23,7 @@ from cq.types import AssetRow, LoadedData, Ref
 CHUNK = 500
 TIME_SERIES_CHUNK = 100
 GROUP_LIMIT = 1000
-WORKERS = 8
+WORKERS = 3  # the project allows 8 concurrent instance reads in all; a shard stays well under its share
 
 ASSET = ViewId(CDM, "CogniteAsset", "v1")
 TIME_SERIES = ViewId(CDM, "CogniteTimeSeries", "v1")
@@ -54,6 +54,23 @@ def _in_parallel[T, R](work: Callable[[T], R], items: list[T]) -> list[R]:
         return list(pool.map(work, items))
 
 
+def _halving[T, R: (list, set)](ask: Callable[[list[T]], R]) -> Callable[[list[T]], R]:
+    """`ask` for a chunk; a chunk the service times out on (after the retries of cq.resilience) is asked again as two
+    halves, down to one id, because a smaller question is lighter on a busy project."""
+
+    def run(chunk: list[T]) -> R:
+        try:
+            return ask(chunk)
+        except CogniteAPIError as error:
+            if error.code != 408 or len(chunk) <= 1:
+                raise
+            middle = len(chunk) // 2
+            first, second = run(chunk[:middle]), run(chunk[middle:])
+            return first | second if isinstance(first, set) else first + second  # type: ignore[operator,return-value]
+
+    return run
+
+
 def _present(client: CogniteClient, view: ViewId, prop: str, refs: Iterable[Ref], space: str) -> set[Ref]:
     """Which of `refs` are the value of `prop` in some instance of `view` in `space`: one aggregate per chunk."""
 
@@ -68,7 +85,7 @@ def _present(client: CogniteClient, view: ViewId, prop: str, refs: Iterable[Ref]
         )
         return [ref for group in groups if (ref := _ref(group.group.get(prop))) is not None]
 
-    return {ref for found in _in_parallel(ask, _chunks(refs)) for ref in found}
+    return {ref for found in _in_parallel(_halving(ask), _chunks(refs)) for ref in found}
 
 
 def _asset_row(node: Any, props: dict[str, Any]) -> AssetRow:
@@ -94,7 +111,7 @@ def _assets(client: CogniteClient, refs: Iterable[Ref], space: str) -> dict[Ref,
         return [_asset_row(node, props) for node in nodes if (props := node.properties.get(ASSET)) is not None]
 
     wanted = [ref for ref in refs if ref[0] == space]
-    return {(row["space"], row["id"]): row for rows in _in_parallel(get, _chunks(wanted)) for row in rows}
+    return {(row["space"], row["id"]): row for rows in _in_parallel(_halving(get), _chunks(wanted)) for row in rows}
 
 
 def _ancestors(client: CogniteClient, own: list[AssetRow], space: str, levels: int) -> dict[Ref, AssetRow]:
@@ -147,7 +164,7 @@ def _linked_objects(
         )
         return [_asset_row(node, props) for node in nodes if (props := node.properties.get(ASSET)) is not None]
 
-    rows = [row for found in _in_parallel(ask, _chunks(objects)) for row in found]
+    rows = [row for found in _in_parallel(_halving(ask), _chunks(objects)) for row in found]
     linked = {row["object3d"]: (row["space"], row["id"]) for row in rows if row["object3d"]}
     return linked, {(row["space"], row["id"]): row for row in rows}
 
@@ -183,7 +200,7 @@ def _with_time_series(client: CogniteClient, assets: list[Ref], space: str) -> s
         wanted = set(chunk)
         return {ref for group in groups if (ref := _ref(group.group.get("assets"))) in wanted}
 
-    return {ref for found in _in_parallel(ask, _chunks(assets, TIME_SERIES_CHUNK)) for ref in found}
+    return {ref for found in _in_parallel(_halving(ask), _chunks(assets, TIME_SERIES_CHUNK)) for ref in found}
 
 
 def fetch_cross(client: CogniteClient, data: LoadedData, cfg: Any, kinds: frozenset[str], space: str) -> Cross:

@@ -27,6 +27,7 @@ from cq.fanout import finish_tasks, merge_warnings, tasks_fit
 from cq.lookups import fetch_cross
 from cq.metrics import compute
 from cq.planning import plan_work
+from cq.scope import filter_result, parse_scope
 from cq.reader import (
     KIND_VIEWS,
     count_extra_link_instances,
@@ -39,6 +40,14 @@ from cq.reader import (
     validate_extra_links,
 )
 from cq.types import EntityKey, LoadedData, Row, RowProps, RunConfig
+
+# The plan is one function call, which has ten minutes. Cutting big kinds into slices stops after this long.
+PLAN_SPLIT_SECONDS = 360
+
+
+def _grain_needs_assets(cfg: RunConfig) -> bool:
+    """Whether the grain of an entity comes from the asset it links to (only when tier or division is configured)."""
+    return bool(cfg["tieringEnabled"] or cfg["divisionTagPrefix"])
 
 
 def latest_datapoints(client: CogniteClient, data: LoadedData) -> dict[EntityKey, datetime | None]:
@@ -103,6 +112,8 @@ def build_rows(result: dict[str, Any], cfg: RunConfig) -> tuple[list[Row], list[
 def compute_metrics(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict[str, Any]:
     require_resources(cfg, writes=not payload.get("dry_run"))
     links = parse_extra_links(payload.get("extraLinks"))
+    if parse_scope(payload.get("scope"), links_given=bool(links)).partial:
+        raise ValueError("compute_metrics measures every dimension in one call. Use plan for a run of some of them.")
     data, result = compute_run(client, cfg)
     main_rows, anno_rows = build_rows(result, cfg)
     link_rows, link_warnings = extra_link_rows(client, links, data, cfg)
@@ -191,8 +202,12 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
     function_external_id = payload.get("functionExternalId")
     if not isinstance(function_external_id, str) or not function_external_id:
         raise ValueError("plan needs functionExternalId: the external id of this function, which runs the tasks")
-    links = parse_extra_links(payload.get("extraLinks"))
+    all_links = parse_extra_links(payload.get("extraLinks"))
+    scope = parse_scope(payload.get("scope"), links_given=bool(all_links))
+    links = all_links if scope.configured else []
     by_kind, unavailable = count_kinds_by_space_remote(client)
+    # the facilities are found from every kind; only the kinds of the scope are cut into work
+    scoped_by_kind = by_kind if scope.kinds is None else {kind: v for kind, v in by_kind.items() if kind in scope.kinds}
     totals: dict[str, int] = defaultdict(int)
     for counts in by_kind.values():
         for space, count in counts.items():
@@ -203,6 +218,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
             "No facility spaces were found: no instance space holds enough entities, or facilitySpaces is empty. "
             "Nothing was written, so the previous run stays current."
         )
+    plan_deadline = time.monotonic() + PLAN_SPLIT_SECONDS
     view_ids = validate_extra_links(client, links) if links else {}
     link_counts = count_extra_link_instances(client, view_ids)
     per_space: dict[str, int] = defaultdict(int)
@@ -215,8 +231,9 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
     common = {
         "runId": run_id,
         "runTimestamp": writer.now_iso(run_ts),
-        "extraLinks": payload.get("extraLinks"),
+        "extraLinks": payload.get("extraLinks") if scope.configured else [],
         "config": payload.get("config"),
+        "scope": scope.to_payload(),
     }
 
     def leaves_of(space: str, key: str) -> list[tuple[Leaf, int]]:
@@ -228,7 +245,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
             space_, xid, edge = KIND_VIEWS[key]
             view_id, total = ViewId(space_, xid, "v1"), by_kind[key][space]
         count_leaves, sample_id = leaf_tools(client, view_id, space, edge=edge)
-        return split_leaves(total, cfg["shardTargetEntities"], count_leaves, sample_id)
+        return split_leaves(total, cfg["shardTargetEntities"], count_leaves, sample_id, plan_deadline)
 
     def tasks_for(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return finish_tasks(items, function_external_id, common, cfg["maxConcurrentShards"])
@@ -236,7 +253,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
     items = plan_work(
         core=core,
         facilities=facilities,
-        kind_counts=by_kind,
+        kind_counts=scoped_by_kind,
         link_counts=link_counts,
         target=cfg["shardTargetEntities"],
         max_tasks=cfg["maxShards"],
@@ -249,8 +266,8 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
     nothing = writer.extra_link_rows(count_links(links, {}, facilities, empty_views=empty) if empty else {}, facilities)
     found, location_warnings = locations.read(client, facilities)
     nothing += writer.location_rows(found)
-    warnings = [*no_source_warnings(_facility_totals(by_kind, core), unavailable), *location_warnings]
-    start = [("run:started", writer.run_row(run_id, run_ts, "started")[2])]
+    warnings = [*no_source_warnings(_facility_totals(scoped_by_kind, core), unavailable), *location_warnings]
+    start = [("run:started", writer.run_row(run_id, run_ts, "started", scope.label())[2])]
     writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, start)
     written = writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, nothing)
     part = writer.run_part_row(None, "plan", encode_warnings(warnings), written)
@@ -263,6 +280,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         "facilities": len(facilities),
         "locations": len(found),
         "batches": sum(1 for task in tasks if task["parameters"]["function"]["data"]["action"] == "compute_batch"),
+        "scope": scope.to_payload(),
         "tasks": tasks,
     }
 
@@ -315,15 +333,23 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     anno_rows: list[Row] = []
     warnings: list[dict[str, Any]] = []
     listed: list[tuple[str, ...]] = []
-    if spaces:
-        data = load_shard(client, spaces)
-        result = compute(data, cfg, latest_datapoints(client, data))
+    links = parse_extra_links(payload.get("extraLinks"))
+    scope = parse_scope(payload.get("scope"), links_given=bool(links))
+    if spaces and scope.kinds != frozenset():
+        if scope.kinds is None:
+            data = load_shard(client, spaces)
+            result = compute(data, cfg, latest_datapoints(client, data))
+            left_to_the_plan: tuple[str, ...] = ("no-source-entities",)  # the plan says that, for the run
+        else:
+            # some dimensions only: read their kinds (and the assets the grain of an entity comes from, when it does),
+            # count their kinds, and keep what belongs to the dimensions of the scope
+            needed = scope.kinds | ({"assets"} if _grain_needs_assets(cfg) else frozenset())
+            data = load_shard(client, spaces, needed)
+            result = filter_result(compute(data, cfg, latest_datapoints(client, data), kinds=scope.kinds), scope)
+            left_to_the_plan = _NOT_FROM_A_BATCH
         main_rows, anno_rows = build_rows(result, cfg)
         listed = [*export.item_rows(result["drilldown"]), *export.summary_rows(result["agg"])]
-        warnings = [
-            w for w in result["warnings"] if w["code"] != "no-source-entities"
-        ]  # the plan says that, for the run
-    links = parse_extra_links(payload.get("extraLinks"))
+        warnings = [w for w in result["warnings"] if w["code"] not in left_to_the_plan]
     if links and extra_spaces:
         nodes = load_extra_links(client, links, list(extra_spaces))
         gaps = find_gaps(links, nodes, extra_spaces)
@@ -368,6 +394,7 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         data = load_batch(client, space, facility, kinds, flt)
         cross = fetch_cross(client, data, cfg, kinds, space)
         result = compute(data, cfg, latest_datapoints(client, data), kinds=kinds, cross=cross)
+        result = filter_result(result, parse_scope(payload.get("scope"), links_given=None))
         main_rows, anno_rows = build_rows(result, cfg)
         listed = [*export.item_rows(result["drilldown"]), *export.summary_rows(result["agg"])]
         warnings = [w for w in result["warnings"] if w["code"] not in _NOT_FROM_A_BATCH]
@@ -444,12 +471,16 @@ def finalize(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> 
     parts = read_run_parts(client, cfg, run_id, run_ts, expected)
     warnings = merge_warnings([json.loads(part["warnings"]) if part.get("warnings") else [] for part in parts])
     rows_written = sum(int(part.get("rowsWritten") or 0) for part in parts)
-    marker = writer.run_row(run_id, run_ts, "complete", warnings=encode_warnings(warnings), rows_written=rows_written)
+    scope = parse_scope(payload.get("scope"), links_given=None)
+    marker = writer.run_row(
+        run_id, run_ts, "complete", scope.label(), warnings=encode_warnings(warnings), rows_written=rows_written
+    )
     writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, [("run:complete", marker[2])])
     return {
         "action": "finalize",
         "runId": run_id,
         "pieces": expected,
+        "scope": scope.label(),
         "rowsWritten": rows_written,
         "warnings": warnings,
     }
@@ -460,7 +491,9 @@ def export_workbook(client: CogniteClient, cfg: RunConfig, payload: dict[str, An
 
     It is separate from `finalize` so that a slow or failed export never keeps a run from completing.
     """
-    return {"action": "export", **export.build_workbook(client, cfg, payload["runId"], int(payload["shardCount"]))}
+    scope = parse_scope(payload.get("scope"), links_given=None)
+    built = export.build_workbook(client, cfg, payload["runId"], int(payload["shardCount"]), measured=scope.measured)
+    return {"action": "export", **built}
 
 
 def validate(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict[str, Any]:

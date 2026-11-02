@@ -7,10 +7,11 @@ from typing import Any
 from cognite.client import CogniteClient
 from cognite.client.data_classes.aggregations import Count
 from cognite.client.data_classes.data_modeling import DirectRelation, MappedProperty, Node, ViewId
+from cognite.client.data_classes.data_modeling.instances import InstanceSort
 from cognite.client.data_classes.filters import Filter
 from cognite.client.exceptions import CogniteAPIError
 
-from cq.batching import CountLeaves, Leaf, SampleId, counter, leaf_filter
+from cq.batching import CHARSET, CountLeaves, Leaf, SampleId, counter, leaf_filter
 from cq.discovery import ENTITY_KEYS, count_entities_by_space, discover_facility_spaces
 from cq.extra_links import ExtraLink, ViewNodes
 from cq.types import (
@@ -26,13 +27,103 @@ def _view(space: str, xid: str) -> ViewId:
     return ViewId(space, xid, "v1")
 
 
+RETRIEVE_CHUNK = 500
+RETRIEVE_MIN_CHUNK = 25
+
+
+def _list_slice(
+    client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
+) -> list[Any]:
+    """The instances of a view that match one slice filter, sorted by the whole order of the service's
+    (space, externalId) index, which lets the read page with cursors from that index instead of scanning."""
+    return list(
+        client.data_modeling.instances.list(
+            instance_type=instance_type,
+            sources=view,
+            space=spaces,
+            filter=part,
+            sort=[InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])],
+            limit=-1,
+        )
+    )
+
+
+def _list_slice_by_id(
+    client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
+) -> list[Any]:
+    """The same instances, found another way: list only the ids that match the slice (no "has data" filter, which makes
+    the service scan the view's whole container), then read the properties of those ids in chunks. An instance that has
+    no data in the view comes back without its properties, and the callers skip it."""
+    ids = client.data_modeling.instances.list(
+        instance_type=instance_type,
+        space=spaces,
+        filter=part,
+        sort=[InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])],
+        limit=-1,
+    )
+    pairs = [(item.space, item.external_id) for item in ids]
+    found: list[Any] = []
+    for start in range(0, len(pairs), RETRIEVE_CHUNK):
+        found.extend(_retrieve(client, instance_type, view, pairs[start : start + RETRIEVE_CHUNK]))
+    return found
+
+
+def _retrieve(client: CogniteClient, instance_type: str, view: ViewId, pairs: list[tuple[str, str]]) -> list[Any]:
+    """The properties of some instances in a view. A chunk that times out is read again as two halves, down to
+    `RETRIEVE_MIN_CHUNK`, because a smaller read is lighter on a busy project."""
+    try:
+        if instance_type == "edge":
+            return list(client.data_modeling.instances.retrieve(edges=pairs, sources=view).edges)
+        return list(client.data_modeling.instances.retrieve(nodes=pairs, sources=view).nodes)
+    except CogniteAPIError as error:
+        if error.code != 408 or len(pairs) <= RETRIEVE_MIN_CHUNK:
+            raise
+        half = len(pairs) // 2
+        return _retrieve(client, instance_type, view, pairs[:half]) + _retrieve(client, instance_type, view, pairs[half:])
+
+
+def _read_slice(
+    client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
+) -> list[Any]:
+    """One slice of a view's instances. If the service times out on it (the "has data" filter makes it scan the whole
+    container), a slice is read by id (`_list_slice_by_id`), and a read with no filter, which has no slice to list by id,
+    is cut into one slice per first character of the external id (the same cut as `cq.batching`, which covers every
+    instance exactly once) and each of those is read the same way."""
+    try:
+        return _list_slice(client, instance_type, view, spaces, part)
+    except CogniteAPIError as error:
+        if error.code != 408:
+            raise
+        if part is not None:
+            return _list_slice_by_id(client, instance_type, view, spaces, part)
+    by_first_character: list[Leaf] = [("prefix", char) for char in CHARSET] + [("rest", "")]
+    found: list[Any] = []
+    for leaf in by_first_character:
+        found.extend(_read_slice(client, instance_type, view, spaces, leaf_filter(leaf, instance_type == "edge")))
+    return found
+
+
+def _list_instances(
+    client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, flt: Filter | None
+) -> list[Any]:
+    """Every instance of a view that matches `flt`. A batch's filter is an OR of slices of external ids; the service
+    cannot page through an OR efficiently and times out on a big space, so each slice is read on its own. The slices do
+    not overlap, so nothing is read twice. A slice that times out is read as `_read_slice` says."""
+    body = flt.dump() if flt is not None else None
+    parts: list[Any] = body["or"] if body is not None and "or" in body else [flt]
+    found: list[Any] = []
+    for part in parts:
+        found.extend(_read_slice(client, instance_type, view, spaces, part))
+    return found
+
+
 def _nodes(
     client: CogniteClient, space: str, xid: str, spaces: list[str] | None = None, flt: Filter | None = None
 ) -> list[tuple[Node, dict[str, Any]]]:
     """Nodes of one view. spaces=None reads every space, which is how discovery finds the data. `flt` narrows them."""
     v = _view(space, xid)
     out: list[tuple[Node, dict[str, Any]]] = []
-    for n in client.data_modeling.instances.list(instance_type="node", sources=v, space=spaces, filter=flt, limit=-1):
+    for n in _list_instances(client, "node", v, spaces, flt):
         props = n.properties.get(v)
         if props is not None:
             out.append((n, props))
@@ -210,7 +301,7 @@ def _load(
     av = _view(CDM, "CogniteDiagramAnnotation")
     d["annotations"] = []
     edges = (
-        client.data_modeling.instances.list(instance_type="edge", sources=av, space=spaces, filter=flt, limit=-1)
+        _list_instances(client, "edge", av, spaces, flt)
         if want("annotations")
         else []
     )
@@ -257,10 +348,13 @@ def load_batch(
     return d  # type: ignore[return-value]
 
 
-def load_shard(client: CogniteClient, facility_spaces: dict[str, str]) -> LoadedData:
+def load_shard(
+    client: CogniteClient, facility_spaces: dict[str, str], kinds: frozenset[str] | None = None
+) -> LoadedData:
     """The entities of the given facility spaces only: what one shard of a run counts. The facilities were found by the
-    plan, so nothing is discovered here. An entity that links to one outside these spaces has no such entity loaded."""
-    d = _load(client, list(facility_spaces))
+    plan, so nothing is discovered here. An entity that links to one outside these spaces has no such entity loaded.
+    `kinds` limits which kinds are read (all when None), for a run that is for some dimensions only."""
+    d = _load(client, list(facility_spaces), kinds)
     d["facility_spaces"] = dict(facility_spaces)
     return d  # type: ignore[return-value]
 
@@ -318,10 +412,34 @@ def leaf_tools(client: CogniteClient, view: ViewId, space: str, *, edge: bool = 
         )
         return int(result.value or 0)
 
+    timed_out = False
+
     def sample_id(leaf: Leaf) -> str | None:
-        found = client.data_modeling.instances.list(
-            instance_type=instance_type, sources=view, space=[space], filter=leaf_filter(leaf, edge), limit=1
-        )
+        # The first id in order: on a big space the service answers that from its (space, externalId) index, where an
+        # unordered or unfiltered read of one instance can time out. The sort must be that index's whole order, space
+        # first, or the service sorts at query time. An empty prefix is every instance, so no filter.
+        #
+        # Naming a sample only lets the split skip the characters every id shares. When the service times out on it
+        # (a read that must walk past many instances without data in the view), no sample is given, here and for the
+        # rest of this kind, and the split goes on one character at a time, which counts the same slices.
+        nonlocal timed_out
+        if timed_out:
+            return None
+        everything = leaf == ("prefix", "")
+        try:
+            found = client.data_modeling.instances.list(
+                instance_type=instance_type,
+                sources=view,
+                space=[space],
+                filter=None if everything else leaf_filter(leaf, edge),
+                sort=[InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])],
+                limit=1,
+            )
+        except CogniteAPIError as error:
+            if error.code != 408:
+                raise
+            timed_out = True
+            return None
         return found[0].external_id if found else None
 
     return counter(count_one), sample_id
@@ -377,9 +495,7 @@ def load_extra_links(
     return {
         key: [
             (node.space, node.external_id, dict(props))
-            for node in client.data_modeling.instances.list(
-                instance_type="node", sources=view_id, space=spaces, filter=flt, limit=-1
-            )
+            for node in _list_instances(client, "node", view_id, spaces, flt)
             if (props := node.properties.get(view_id)) is not None
         ]
         for key, view_id in view_ids.items()
