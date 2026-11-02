@@ -717,7 +717,65 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     ]
     handler_text = (bootstrap / "handler.py").read_text(encoding="utf-8")
     assert "_delete_bootstrap_schedule(client)" in handler_text
-    assert "finally:" not in handler_text
+
+
+def _load_bootstrap_handler(monkeypatch: pytest.MonkeyPatch, deploy_impl: object) -> types.ModuleType:
+    fake_cdq = types.ModuleType("cognite_data_quality")
+    fake_cdq.deploy_validation_infrastructure = deploy_impl
+    monkeypatch.setitem(sys.modules, "cognite_data_quality", fake_cdq)
+    name = "cdf_dq_runtime_bootstrap_handler"
+    sys.modules.pop(name, None)
+    handler_path = _MODULE / "functions" / "dq_infrastructure_bootstrap" / "handler.py"
+    spec = importlib.util.spec_from_file_location(name, handler_path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_bootstrap_handler_deletes_only_its_schedule_by_function_external_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+    deleted: list[int] = []
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    schedules = [
+        SimpleNamespace(id=1, name="unrelated"),
+        SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME),
+    ]
+    schedule_api = SimpleNamespace(
+        list=lambda **kwargs: (calls.append(kwargs) or schedules),
+        delete=lambda *, id: deleted.append(id),
+    )
+    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
+
+    assert handler_module.handler({}, client) == {"status": "completed"}
+    assert calls == [{"function_external_id": handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID, "limit": -1}]
+    assert deleted == [2]
+
+
+def test_bootstrap_handler_deletes_schedule_when_deployment_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    deleted: list[int] = []
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        raise RuntimeError("temporary deployment failure")
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    schedule_api = SimpleNamespace(
+        list=lambda **_kwargs: [SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME)],
+        delete=lambda *, id: deleted.append(id),
+    )
+    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
+
+    with pytest.raises(RuntimeError, match="temporary deployment failure"):
+        handler_module.handler({}, client)
+    assert deleted == [2]
 
 
 def _install_fake_data_quality(monkeypatch: pytest.MonkeyPatch, *, pipeline_impl: object, settings: object) -> None:

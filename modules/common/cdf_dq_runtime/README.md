@@ -291,9 +291,9 @@ The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space
 
 `cdf deploy` publishes `dq-infrastructure-bootstrap` and a five-minute
 Function Schedule. The function calls the package deploy entrypoint, which is
-idempotent. After it returns, the function deletes its own schedule. The
-schedule can therefore be recreated by a later `cdf deploy` without remaining
-active indefinitely. Data Quality record views remain owned by the package.
+idempotent. In a `finally` block, the function deletes its own schedule even
+when deployment fails; a later `cdf deploy` can recreate it. Data Quality
+record views remain owned by the package.
 
 ### Local
 
