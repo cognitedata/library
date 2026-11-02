@@ -750,7 +750,7 @@ def test_bootstrap_handler_deletes_only_its_schedule_by_function_external_id(
         SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME),
     ]
     schedule_api = SimpleNamespace(
-        list=lambda **kwargs: (calls.append(kwargs) or schedules),
+        list=lambda **kwargs: calls.append(kwargs) or schedules,
         delete=lambda *, id: deleted.append(id),
     )
     client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
