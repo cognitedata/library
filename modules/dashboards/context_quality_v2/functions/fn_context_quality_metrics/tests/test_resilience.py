@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from cognite.client.exceptions import CogniteAPIError
-
 from cq import resilience
 from cq.resilience import harden
 

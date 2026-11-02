@@ -350,7 +350,6 @@ def test_a_timeout_naming_a_sample_id_gives_no_sample_and_the_service_is_not_ask
 
     from cognite.client.data_classes.data_modeling import ViewId
     from cognite.client.exceptions import CogniteAPIError
-
     from cq.reader import leaf_tools
 
     client = MagicMock()
@@ -365,7 +364,6 @@ def test_a_batch_filter_that_is_an_or_of_slices_is_read_one_slice_at_a_time() ->
     from unittest.mock import MagicMock
 
     from cognite.client.data_classes.data_modeling import ViewId
-
     from cq.batching import batch_filter
     from cq.reader import _list_instances
 
@@ -387,7 +385,6 @@ def test_a_slice_that_times_out_is_read_by_id_and_a_read_without_a_slice_is_cut_
 
     from cognite.client.data_classes.data_modeling import ViewId
     from cognite.client.exceptions import CogniteAPIError
-
     from cq.batching import CHARSET, batch_filter
     from cq.reader import RETRIEVE_CHUNK, _list_instances
 
@@ -419,7 +416,6 @@ def test_a_chunk_of_ids_that_times_out_is_read_again_in_halves() -> None:
 
     from cognite.client.data_classes.data_modeling import ViewId
     from cognite.client.exceptions import CogniteAPIError
-
     from cq.reader import RETRIEVE_MIN_CHUNK, _retrieve
 
     sizes: list[int] = []

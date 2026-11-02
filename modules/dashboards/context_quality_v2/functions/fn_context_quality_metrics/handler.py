@@ -25,8 +25,8 @@ from collections.abc import Callable
 from typing import Any
 
 from cognite.client import CogniteClient
-from cq.resilience import harden
 from cq.config import build_config
+from cq.resilience import harden
 from cq.runner import compute_batch, compute_metrics, compute_shard, export_workbook, finalize, plan, validate
 from cq.types import RunConfig
 

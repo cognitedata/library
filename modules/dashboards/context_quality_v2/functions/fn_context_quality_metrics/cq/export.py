@@ -325,7 +325,7 @@ class _DimensionOut:
     def __init__(self, folder: str, dimension: str, run_id: str) -> None:
         self.dimension, self.run_id = dimension, run_id
         self.path = os.path.join(folder, dimension_external_id(dimension, run_id))
-        self._handle = open(self.path, "w", newline="", encoding="utf-8")  # noqa: SIM115 - closed in close()
+        self._handle = open(self.path, "w", newline="", encoding="utf-8")
         self._writer = csv.writer(self._handle)
         self._writer.writerow(PART_HEADER)
         self.sheets: dict[str, int] = defaultdict(int)

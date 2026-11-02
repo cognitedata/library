@@ -27,7 +27,6 @@ from cq.fanout import finish_tasks, merge_warnings, tasks_fit
 from cq.lookups import fetch_cross
 from cq.metrics import compute
 from cq.planning import plan_work
-from cq.scope import filter_result, parse_scope
 from cq.reader import (
     KIND_VIEWS,
     count_extra_link_instances,
@@ -39,6 +38,7 @@ from cq.reader import (
     load_shard,
     validate_extra_links,
 )
+from cq.scope import filter_result, parse_scope
 from cq.types import EntityKey, LoadedData, Row, RowProps, RunConfig
 
 # The plan is one function call, which has ten minutes. Cutting big kinds into slices stops after this long.
