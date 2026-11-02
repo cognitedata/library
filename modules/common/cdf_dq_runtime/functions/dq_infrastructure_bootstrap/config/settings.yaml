@@ -19,7 +19,7 @@ trigger:
   batch_size: 10
   batch_timeout: 60
 
-# Values must be literals: Toolkit does not substitute {{ variables }} inside
+# Values must be literals: Toolkit does not substitute module variables inside
 # function code bundles (only in *.Function.yaml and other resource files).
 # Keep these aligned with default.config.yaml defaults for cdf_dq_runtime.
 records:
