@@ -58,6 +58,8 @@ def _batch(
             "views": [key.split("|", 1) for key in keys if "|" in key],
             "leaves": [list(leaf) for leaf in leaves] if leaves else None,
             "groupBatches": group_batches,
+            # how many instances the plan counted in it: a batch whose count changed is never reused (cq.incremental)
+            "count": weight,
         },
     }
 

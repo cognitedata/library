@@ -17,6 +17,9 @@ Any key in payload["config"] overrides the matching key in cq.config.DEFAULT_CON
 plan also takes payload["scope"] (cq.scope): "all", "configured" or {"dimensions": [...], "configured": bool}, so that a run
 measures some dimensions only; the pieces it creates carry it, and finalize writes it into the complete marker.
 
+plan also takes payload["mode"] (cq.incremental): "full" (the default) or "incremental", in which a slice of the data that
+nothing changed in since it was counted is not read again; its earlier result is written into the new run.
+
 compute_metrics also takes payload["extraLinks"], a list of {"model": "space:externalId:version", "links":
 ["View.property", ...]}. Each link is measured per facility next to the built-in metrics (cq.extra_links).
 """

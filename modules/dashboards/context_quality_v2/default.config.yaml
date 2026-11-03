@@ -22,9 +22,13 @@ metricsDatasetExternalId: ds_context_quality
 metricsWorkflowExternalId: wf_context_quality_metrics
 metricsWorkflowVersion: v1
 metricsTriggerExternalId: wf_context_quality_metrics_schedule
-# When the trigger starts a run (UNIX cron, evaluated in the time zone below). Deploying the module creates the trigger,
-# so the first scheduled run follows the deployment.
-metricsWorkflowSchedule: "0 4 * * *"
+# Two triggers start runs (UNIX cron, evaluated in the time zone below). Deploying the module creates them, so the first
+# scheduled run follows the deployment. The daily run is incremental (a slice nothing changed in is not read again); the
+# weekly one is full and makes everything exact again. The defaults are Monday to Saturday and Sunday, both at 04:00, so
+# they never meet: the workflow runs one execution at a time.
+metricsWorkflowSchedule: "0 4 * * 1-6"
+metricsFullTriggerExternalId: wf_context_quality_metrics_full_schedule
+metricsFullWorkflowSchedule: "0 4 * * 0"
 metricsWorkflowScheduleTimezone: UTC
 
 # What the function is given in its task `config`. The resource names above are passed as stream, schemaSpace and

@@ -5,14 +5,16 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-from cq import runner
+from cq import incremental, runner
 from cq.availability import encode_warnings
 from cq.config import build_config
+from cq.cross import full_cross
 from cq.discovery import ENTITY_KEYS
 from cq.metrics import compute
 from cq.reader import KIND_VIEWS
 from parity_dataset import FACILITIES, A, B, build_dataset
 from sample_rules import SAMPLE_RESOURCES
+from test_incremental import IncrementalClient, changed_in
 from test_runner import RecordingClient, props, records
 
 FUNCTION = "fn_context_quality_metrics"
@@ -478,8 +480,13 @@ def test_a_batch_of_a_big_configured_view_counts_the_slice_it_is_given(monkeypat
 # ---------------------------------------------------------------- the export of unlinked items
 
 
-def with_export(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, int, list[tuple[str, ...]]]]:
-    """Stands in for Cognite Files: records what each piece uploads."""
+def with_export(
+    monkeypatch: pytest.MonkeyPatch, keep_results: bool = False
+) -> list[tuple[str, int, list[tuple[str, ...]]]]:
+    """Stands in for Cognite Files: records what each piece uploads. A client that has no files cannot keep the stored
+    results of batches (cq.incremental), so they are left out unless `keep_results`."""
+    if not keep_results:
+        monkeypatch.setattr(runner.incremental, "remember", lambda *_args, **_kwargs: None)
     uploaded: list[tuple[str, int, list[tuple[str, ...]]]] = []
     monkeypatch.setattr(runner.export, "data_set_id", lambda _client, cfg: 77 if cfg["exportDataSet"] else None)
     monkeypatch.setattr(
@@ -523,6 +530,75 @@ def test_a_batch_uploads_its_items_too(monkeypatch: pytest.MonkeyPatch) -> None:
         "Equipment no serial number",
         "Equipment no manufacturer",
     }
+
+
+INCREMENTAL_CFG = build_config({**SAMPLE_RESOURCES, "exportDataSet": "ds_cq"})
+
+
+def counting_loads(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """How many times a batch reads its slice of the data model."""
+    loads: list[int] = []
+    original = runner.load_batch
+    monkeypatch.setattr(runner, "load_batch", lambda *args, **kwargs: loads.append(1) or original(*args, **kwargs))
+    populated = sorted(full_cross(build_dataset()[0]).populated)
+    monkeypatch.setattr(incremental, "_populated_now", lambda _client, _payload: populated)
+    return loads
+
+
+def incremental_batch(client: IncrementalClient, shard: int, **payload: Any) -> dict[str, Any]:
+    return batch_run(
+        client, INCREMENTAL_CFG, kinds=["equipment"], mode="incremental", count=100, shard=shard, **payload
+    )
+
+
+def test_an_incremental_batch_with_nothing_changed_writes_its_earlier_rows_without_reading_the_slice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    uploaded = with_export(monkeypatch, keep_results=True)
+    loads = counting_loads(monkeypatch)
+    client = IncrementalClient()
+    incremental_batch(client, 3)
+    first = records(client)
+    client.calls.clear()
+
+    out = incremental_batch(client, 7)
+
+    second = records(client)
+    assert (out["reuse"], len(loads)) == ("reused", 1)
+    assert [props(item) for item in second[:-1]] == [props(item) for item in first[:-1]]
+    assert all(item["externalId"].endswith("|p7") for item in second[:-1])
+    assert (props(second[-1])["detail"], props(second[-1])["entityId"]) == ("batch:reused", "shard-7")
+    assert uploaded[0][2] == uploaded[1][2]  # the workbook gets the same items from the reused batch
+
+
+def test_an_incremental_batch_whose_slice_changed_is_counted_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    with_export(monkeypatch, keep_results=True)
+    loads = counting_loads(monkeypatch)
+    client = IncrementalClient()
+    incremental_batch(client, 3)
+    client.instances.changed = changed_in("CogniteEquipment")
+
+    out = incremental_batch(client, 7)
+
+    assert (out["reuse"], len(loads)) == ("equipment changed", 2)
+
+
+def test_a_full_batch_counts_everything_and_leaves_its_result_for_the_next_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    with_export(monkeypatch, keep_results=True)
+    loads = counting_loads(monkeypatch)
+    client = IncrementalClient()
+
+    batch_run(client, INCREMENTAL_CFG, kinds=["equipment"], count=100)
+    batch_run(client, INCREMENTAL_CFG, kinds=["equipment"], count=100)
+
+    assert len(loads) == 2
+    assert len(client.files.content) == 1
+
+
+def test_the_finalize_step_says_how_many_batches_were_reused() -> None:
+    client = ReadingClient([part(0, 10, detail="batch:reused"), part(1, 20, detail="batch")])
+
+    assert finalize(client)["reused"] == 1
 
 
 def test_nothing_is_uploaded_when_the_export_is_not_switched_on(monkeypatch: pytest.MonkeyPatch) -> None:

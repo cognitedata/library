@@ -112,6 +112,10 @@ def test_finalize_is_given_the_run_the_plan_started_and_the_resources_it_writes_
     require_resources(build_config(data["config"]), writes=True)
 
 
+def test_the_plan_gets_the_mode_of_the_run() -> None:
+    assert tasks_by_id()["plan"]["parameters"]["function"]["data"]["mode"] == "${workflow.input.mode}"
+
+
 def test_a_failed_step_fails_the_execution_so_the_run_is_never_completed() -> None:
     for name in ("plan", "shards", "finalize"):
         assert tasks_by_id()[name]["onFailure"] == "abortWorkflow"
@@ -245,6 +249,26 @@ def test_the_trigger_runs_the_production_workflow_on_the_schedule_variable() -> 
         "cronExpression": DEFAULTS["metricsWorkflowSchedule"],
         "timezone": DEFAULTS["metricsWorkflowScheduleTimezone"],
     }
+
+
+def test_the_schedule_is_a_daily_incremental_run_and_a_weekly_full_run_that_never_meet() -> None:
+    daily = rendered("context_quality.WorkflowTrigger.yaml")
+    weekly = rendered("context_quality_full.WorkflowTrigger.yaml")
+
+    assert (daily["input"]["mode"], weekly["input"]["mode"]) == ("incremental", "full")
+    assert daily["input"]["scope"] == weekly["input"]["scope"] == "all"
+    assert daily["input"]["extraLinks"] == weekly["input"]["extraLinks"] == []
+    assert daily["externalId"] != weekly["externalId"]
+    assert weekly["triggerRule"]["cronExpression"] == DEFAULTS["metricsFullWorkflowSchedule"]
+    assert weekly["triggerRule"]["timezone"] == daily["triggerRule"]["timezone"]
+    assert (weekly["workflowExternalId"], weekly["workflowVersion"]) == (
+        daily["workflowExternalId"],
+        daily["workflowVersion"],
+    )
+    assert weekly["authentication"] == daily["authentication"]
+    # the daily run leaves out the day of the weekly one (day-of-week field of the crons: 0 is Sunday)
+    assert DEFAULTS["metricsWorkflowSchedule"].split()[4] == "1-6"
+    assert DEFAULTS["metricsFullWorkflowSchedule"].split()[4] == "0"
 
 
 def test_the_trigger_credentials_and_group_sources_come_from_the_environment_and_are_never_literal() -> None:

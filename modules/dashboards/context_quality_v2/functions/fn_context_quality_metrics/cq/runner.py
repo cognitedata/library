@@ -10,7 +10,7 @@ from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import NodeId, ViewId
 from cognite.client.exceptions import CogniteAPIError
 
-from cq import export, locations, writer
+from cq import export, incremental, locations, writer
 from cq.availability import encode_warnings, extra_link_truncation_warnings, no_source_warnings
 from cq.batching import Leaf, batch_filter, split_leaves
 from cq.config import require_resources
@@ -205,6 +205,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
     all_links = parse_extra_links(payload.get("extraLinks"))
     scope = parse_scope(payload.get("scope"), links_given=bool(all_links))
     links = all_links if scope.configured else []
+    mode = incremental.parse_mode(payload.get("mode"))
     by_kind, unavailable = count_kinds_by_space_remote(client)
     # the facilities are found from every kind; only the kinds of the scope are cut into work
     scoped_by_kind = by_kind if scope.kinds is None else {kind: v for kind, v in by_kind.items() if kind in scope.kinds}
@@ -234,6 +235,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         "extraLinks": payload.get("extraLinks") if scope.configured else [],
         "config": payload.get("config"),
         "scope": scope.to_payload(),
+        "mode": mode,
     }
 
     def leaves_of(space: str, key: str) -> list[tuple[Leaf, int]]:
@@ -281,6 +283,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         "locations": len(found),
         "batches": sum(1 for task in tasks if task["parameters"]["function"]["data"]["action"] == "compute_batch"),
         "scope": scope.to_payload(),
+        "mode": mode,
         "tasks": tasks,
     }
 
@@ -382,35 +385,54 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     kinds = frozenset(payload.get("kinds") or [])
     views = payload.get("views") or []
     leaves: list[Leaf] = [(kind, text) for kind, text in payload.get("leaves") or []]
-    flt = batch_filter(leaves, edge=kinds == frozenset({"annotations"})) if leaves else None
-    # the cap on a drill-down list is per space; the batches of one kind share it
-    cfg = {**cfg, "drilldownCap": max(1, cfg["drilldownCap"] // max(1, int(payload.get("groupBatches") or 1)))}  # type: ignore[assignment]
     shard = int(payload["shard"])
-    main_rows: list[Row] = []
-    anno_rows: list[Row] = []
-    warnings: list[dict[str, Any]] = []
-    listed: list[tuple[str, ...]] = []
-    if kinds:
-        data = load_batch(client, space, facility, kinds, flt)
-        cross = fetch_cross(client, data, cfg, kinds, space)
-        result = compute(data, cfg, latest_datapoints(client, data), kinds=kinds, cross=cross)
-        result = filter_result(result, parse_scope(payload.get("scope"), links_given=None))
-        main_rows, anno_rows = build_rows(result, cfg)
-        listed = [*export.item_rows(result["drilldown"]), *export.summary_rows(result["agg"])]
-        warnings = [w for w in result["warnings"] if w["code"] not in _NOT_FROM_A_BATCH]
-    links = parse_extra_links(payload.get("extraLinks"))
-    for model, view in views:
-        of_view = [link for link in links if link["model"] == model and link["view"] == view]
-        nodes = load_extra_links(client, of_view, [space], flt)
-        gaps = find_gaps(of_view, nodes, {space: facility})
-        main_rows += writer.extra_link_rows(count_links(of_view, nodes, {space: facility}, set()), {space: facility})
-        main_rows += writer.extra_link_gap_rows(gaps, {space: facility}, cfg["drilldownCap"])
-        warnings = [*warnings, *extra_link_truncation_warnings(gaps, cfg["drilldownCap"])]
-        listed += export.item_rows([], gaps)
+    # in an incremental run a batch whose slice did not change is not read again: its earlier result is written as it is
+    dataset = export.data_set_id(client, cfg)
+    reused, note = incremental.reuse(client, cfg, payload, dataset)
+    if reused is not None:
+        result_of = reused
+    else:
+        flt = batch_filter(leaves, edge=kinds == frozenset({"annotations"})) if leaves else None
+        # the cap on a drill-down list is per space; the batches of one kind share it
+        counted = {**cfg, "drilldownCap": max(1, cfg["drilldownCap"] // max(1, int(payload.get("groupBatches") or 1)))}
+        main_rows: list[Row] = []
+        anno_rows: list[Row] = []
+        warnings: list[dict[str, Any]] = []
+        listed: list[tuple[str, ...]] = []
+        populated: list[str] = []
+        if kinds:
+            data = load_batch(client, space, facility, kinds, flt)
+            cross = fetch_cross(client, data, counted, kinds, space)  # type: ignore[arg-type]
+            result = compute(data, counted, latest_datapoints(client, data), kinds=kinds, cross=cross)  # type: ignore[arg-type]
+            result = filter_result(result, parse_scope(payload.get("scope"), links_given=None))
+            main_rows, anno_rows = build_rows(result, counted)  # type: ignore[arg-type]
+            listed = [*export.item_rows(result["drilldown"]), *export.summary_rows(result["agg"])]
+            warnings = [w for w in result["warnings"] if w["code"] not in _NOT_FROM_A_BATCH]
+            populated = sorted(cross.populated)
+        links = parse_extra_links(payload.get("extraLinks"))
+        for model, view in views:
+            of_view = [link for link in links if link["model"] == model and link["view"] == view]
+            nodes = load_extra_links(client, of_view, [space], flt)
+            gaps = find_gaps(of_view, nodes, {space: facility})
+            main_rows += writer.extra_link_rows(
+                count_links(of_view, nodes, {space: facility}, set()), {space: facility}
+            )
+            main_rows += writer.extra_link_gap_rows(gaps, {space: facility}, counted["drilldownCap"])  # type: ignore[arg-type]
+            warnings = [*warnings, *extra_link_truncation_warnings(gaps, counted["drilldownCap"])]  # type: ignore[arg-type]
+            listed += export.item_rows([], gaps)
+        result_of = incremental.PieceResult(main_rows, anno_rows, warnings, listed, populated)
+        incremental.remember(client, cfg, payload, dataset, result_of, _piece(payload)[1])
     written = _finish_piece(
-        client, cfg, payload, "batch", _rekey(main_rows, shard), _rekey(anno_rows, shard), warnings, listed
+        client,
+        cfg,
+        payload,
+        "batch:reused" if reused is not None else "batch",
+        _rekey(result_of.rows, shard),
+        _rekey(result_of.annotation_rows, shard),
+        result_of.warnings,
+        result_of.listed,
     )
-    return {"action": "compute_batch", "shard": shard, "rowsWritten": written, "space": space}
+    return {"action": "compute_batch", "shard": shard, "rowsWritten": written, "space": space, "reuse": note}
 
 
 PART_WAIT_SECONDS = 120
@@ -480,6 +502,7 @@ def finalize(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> 
         "action": "finalize",
         "runId": run_id,
         "pieces": expected,
+        "reused": sum(1 for part in parts if str(part.get("detail", "")).endswith(":reused")),
         "scope": scope.label(),
         "rowsWritten": rows_written,
         "warnings": warnings,

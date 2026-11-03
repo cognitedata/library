@@ -65,8 +65,8 @@ The two container external ids are fixed by the run log and are **not** variable
 | `metricsFunctionExternalId` | `fn_context_quality_metrics` | the function; its folder under `functions/` is named after it |
 | `metricsDatasetExternalId` | `ds_context_quality` | the data set of the function's code and of the workbook files |
 | `metricsWorkflowExternalId`, `metricsWorkflowVersion` | `wf_context_quality_metrics`, `v1` | the workflow |
-| `metricsTriggerExternalId` | `wf_context_quality_metrics_schedule` | the schedule trigger |
-| `metricsWorkflowSchedule`, `metricsWorkflowScheduleTimezone` | `0 4 * * *`, `UTC` | when the trigger starts a run |
+| `metricsTriggerExternalId`, `metricsFullTriggerExternalId` | `wf_context_quality_metrics_schedule`, `wf_context_quality_metrics_full_schedule` | the daily (incremental) and the weekly (full) trigger |
+| `metricsWorkflowSchedule`, `metricsFullWorkflowSchedule`, `metricsWorkflowScheduleTimezone` | `0 4 * * 1-6`, `0 4 * * 0`, `UTC` | when the daily and the weekly trigger start a run |
 | `metricsFunctionGroupName`, `metricsDashboardGroupName` | `gp_context_quality_function`, `gp_context_quality_dashboard_users` | the access groups |
 | `metricsSourceSpaces` | `cdf_cdm`, `cdf_idm` | the spaces the function may read; add the facility instance spaces |
 | `metricsFunctionGroupSourceId`, `metricsDashboardGroupSourceId`, `metricsFunctionClientId`, `metricsFunctionClientSecret` | `${CQ_FUNCTION_GROUP_SOURCE_ID}`, `${CQ_DASHBOARD_GROUP_SOURCE_ID}`, `${CQ_FUNCTION_CLIENT_ID}`, `${CQ_FUNCTION_CLIENT_SECRET}` | environment values; **required**, see "Deployment inputs" |
@@ -331,7 +331,7 @@ workflow takes a `scope` in its input to say which of them a run is for:
 | `scope` | The run measures |
 |---|---|
 | absent | every dimension, and the configured links when `extraLinks` is not empty (a run before scopes existed) |
-| `"all"` | every dimension, no configured links (what the schedule runs) |
+| `"all"` | every dimension, no configured links (what both schedules run) |
 | `"configured"` | only the configured links (needs `extraLinks`) |
 | `{"dimensions": ["files", ...] \| "all", "configured": true \| false}` | the named dimensions, and the configured links if asked |
 
@@ -355,6 +355,40 @@ file for yet (everything measured before this) is missing from the workbook of a
 
 **One run at a time.** The workflow has `maxConcurrentExecutions: 1`. A consumer that starts runs should check for a run in
 progress first and say so, instead of queueing a second one behind it.
+
+### Running incrementally
+
+A run counts every instance of the kinds it measures, even when a few of them changed since the last run. With `mode:
+"incremental"` in the workflow input (`"full"` is the default) a **batch** (one slice of one kind of
+a space, `cq/incremental.py`) is only read again when something it reads changed:
+
+- Every batch leaves its result in Cognite Files (`cq-piece-<key>.json`, in the module's data set) with the time of the run
+  that counted it. The next incremental run asks, with a `limit 1` query on `lastUpdatedTime`, whether anything the batch
+  reads is newer. If not, the stored rows, warnings and unlinked items are written into the new run unchanged, so
+  the dashboard and the workbook need no other change. A batch that did change is counted whole.
+- What a batch reads: its own slice; the whole space of the kinds it looks up (assets: assets and time series; 3D objects:
+  assets; work orders: notifications), and the assets when tier or division is configured; and the nodes that label the
+  classifications. Whether a classification is in use in the space is asked again. The number of instances the plan
+  counted in the slice must also be the same.
+- Any doubt counts the batch: a query that fails or times out, a file that cannot be read, a different configuration or
+  scope, or new function code (the key holds all of them). The `compute_batch` output says why in `reuse`, a part record
+  is `batch:reused`, and `finalize` returns how many batches were reused.
+
+**The schedule** is two triggers: a daily incremental run (`context_quality.WorkflowTrigger.yaml`, Monday to Saturday) and a
+weekly full run (`context_quality_full.WorkflowTrigger.yaml`, Sunday), which counts every slice again. The weekly run is
+insurance, not a fix for a known fault: it corrects what an incremental run cannot see, and replaces stored results that
+could not be used (a failed check counts the batch, which is safe but slow). Keep the two schedules apart, as the workflow
+runs one execution at a time. To switch the weekly run off, pause or delete its trigger in the CDF UI, or remove its file
+and set `metricsWorkflowSchedule` back to `0 4 * * *`, so that the daily run covers Sunday too.
+
+**What an incremental run cannot see**, so a full run is still what makes everything exact: a deleted instance that leaves
+the slice's count unchanged (a delete alone changes the count, which is seen), and the days an annotation has waited for
+review (written into a detail text). **Time series are always counted**: their result depends on their datapoints and on the
+clock. Asset hierarchy gains little, as an asset's result depends on the other assets and the time series of its space.
+
+A plan still counts the kinds to cut them into slices (its minutes are the same as before); the saving is in the batches.
+Stored results nobody wrote or reused for `exportRetentionDays` are removed by the export step. Without an export data set
+nothing is stored and every run counts everything.
 
 ### Location filters as a scope
 
@@ -434,7 +468,8 @@ context_quality_v2/
 ├── workflows/
 │   ├── context_quality.Workflow.yaml
 │   ├── context_quality.WorkflowVersion.yaml
-│   └── context_quality.WorkflowTrigger.yaml
+│   ├── context_quality.WorkflowTrigger.yaml        # daily, incremental
+│   └── context_quality_full.WorkflowTrigger.yaml   # weekly, full
 ├── auth/
 │   ├── context_quality_function.Group.yaml
 │   └── context_quality_dashboard_users.Group.yaml

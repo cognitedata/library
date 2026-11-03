@@ -6,10 +6,13 @@ triggerRule:
 workflowExternalId: "{{ metricsWorkflowExternalId }}"
 workflowVersion: "{{ metricsWorkflowVersion }}"
 # the workflow reads extraLinks from its input; a scheduled run has no config file, so it passes none
-# and a full run: every dimension, no configured links (see README, "Running some dimensions only")
+# and every dimension, no configured links (see README, "Running some dimensions only"). This trigger is the daily run:
+# incremental, so a slice of the data nothing changed in is not read again (README, "Running incrementally"). The weekly
+# full run, which makes everything exact again, is context_quality_full.WorkflowTrigger.yaml.
 input:
   extraLinks: []
   scope: all
+  mode: incremental
 # The identity the scheduled run executes as. It must be a member of the function group (auth/), whose source id is
 # metricsFunctionGroupSourceId. These come from the environment; nothing is stored in this repository.
 authentication:

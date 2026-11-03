@@ -23,6 +23,9 @@ workflowDefinition:
             # What the run is for: "all" (every dimension, what the schedule runs), "configured", or
             # {"dimensions": [...] | "all", "configured": true | false}. See README, "Running some dimensions only".
             scope: ${workflow.input.scope}
+            # "full" counts every slice of the data; "incremental" reuses the result of a slice that nothing changed in since
+            # it was counted. Absent means full. See README, "Running incrementally".
+            mode: ${workflow.input.mode}
             # The function has no default for these three: the deployment names them (module variables).
             # Everything below is project-specific and empty by default; nothing here is demo configuration.
             # The plan hands this configuration on to every shard.
