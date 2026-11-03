@@ -1,0 +1,22 @@
+@import "@cognite/aura/styles.source.css";
+@plugin "@tailwindcss/typography";
+
+/* Aura ships Tailwind classes inside precompiled dist/*.js only; without this scan,
+   utilities like data-open:block on CollapsibleContent never emit and panels stay hidden. */
+@source "../node_modules/@cognite/aura/dist/**/*.js";
+
+/* Aura registers dark mode from both .dark and prefers-color-scheme; that fights the
+   header toggle and makes primary actions (e.g. Generate) look “flipped”. Class only. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Extra hover depth on Aura/Base UI buttons (token hovers can read flat in some hosts). */
+@layer components {
+  [data-slot="button"]:enabled:hover:not(:disabled) {
+    box-shadow: inset 0 0 0 9999px
+      color-mix(in oklab, var(--foreground) 6%, transparent);
+    transition-property:
+      box-shadow, color, background-color, border-color, opacity, filter;
+    transition-duration: 0.15s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}

@@ -1,0 +1,3 @@
+space: inst_ops_summarizer_app_config
+name: Operations summarizer app config
+description: Instance space for the Operations Summarizer config node. Keep this space out of scoped write grants.

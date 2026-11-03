@@ -1,0 +1,10 @@
+space: dm_sol_ops_summarizer_app
+externalId: OpsSummarizerConfig_SOL
+name: Operations summarizer config SOL
+description: Solution data model that exposes the Operations Summarizer config view.
+version: "{{ ops_config_version }}"
+views:
+  - space: dm_sol_ops_summarizer_app
+    externalId: OpsSummarizerConfig
+    version: "{{ ops_config_version }}"
+    type: view

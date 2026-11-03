@@ -1,0 +1,13 @@
+# Placeholder so Toolkit accepts the module. Replace with a real group before production use.
+name: 'tools.operations-summarizer.Group'
+sourceId: <tools.operations-summarizer_group_source_id>
+metadata:
+  origin: 'cdf-project-templates'
+capabilities:
+  - sessionsAcl:
+      actions:
+        - LIST
+        - CREATE
+        - DELETE
+      scope:
+        all: {}

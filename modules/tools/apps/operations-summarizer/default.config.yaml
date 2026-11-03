@@ -1,0 +1,30 @@
+# Defaults merged into the Toolkit project config for this module.
+# Set ops_data_instances_space to the instance space that holds the source data
+# you want to summarize.
+#
+# Do not rename the fixed identifiers the app and function look up by name:
+# dm_sol_ops_summarizer_app, inst_ops_summarizer_app_config,
+# OpsSummarizerConfig_SOL, OpsSummarizerConfig, ops_summarizer_config,
+# Operations_Summarizer_Function_v2.
+#
+# The helper agent externalId is {{cdf_project}}_operation_summarizer_helper_agent.
+# The app and the function build that same id from the CDF project name, so the
+# prefix stays cdf_project.
+
+ops_config_version: v2
+ops_cdm_view_version: v1
+ops_summaries_space: ops_summaries
+ops_data_instances_space: inst_data
+ops_agent_model: cognite/balanced
+ops_agent_name: Operation Summarizer Agent
+ops_limits_chunk_size: 50
+ops_limits_instance_query_limit: 1000
+ops_limits_max_instances_per_datatype: 15000
+ops_limits_summary_list_page_size: 15
+ops_limits_operation_summary_picker_max: 500
+ops_limits_default_page_size: 5
+ops_limits_retry_base_ms: 1000
+ops_limits_retry_max_delay_ms: 30000
+ops_limits_concurrency_default: 8
+ops_limits_concurrency_delete: 2
+ops_limits_concurrency_agent: 3

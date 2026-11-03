@@ -24,6 +24,7 @@
   "ignore": [
     "modules/dashboards/context_quality/streamlit/**",
     "modules/tools/notebooks/**",
-    "modules/datamodels/**"
+    "modules/datamodels/**",
+    "modules/tools/apps/operations-summarizer/functions/**"
   ]
 }

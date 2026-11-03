@@ -1,0 +1,16 @@
+{
+	"name": "Operations Summarizer",
+	"description": "An application that summarizes and analyzes operations data for quick insights and reporting.",
+	"externalId": "operations-summarizer",
+	"versionTag": "0.0.2",
+	"infra": "appsApi",
+	"deployments": [
+		{
+			"org": "example",
+			"project": "example-project",
+			"baseUrl": "https://example.cognitedata.com",
+			"deployClientId": "{CLIENT_ID}",
+			"deploySecretName": "{SECRET_NAME}"
+		}
+	]
+}

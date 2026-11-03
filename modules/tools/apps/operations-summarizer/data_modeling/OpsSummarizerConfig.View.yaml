@@ -1,0 +1,110 @@
+space: dm_sol_ops_summarizer_app
+externalId: OpsSummarizerConfig
+name: Operations summarizer config
+description: Read model for the Operations Summarizer config node. One node per CDF project.
+version: "{{ ops_config_version }}"
+properties:
+  schemaVersion:
+    name: Schema version
+    description: Content shape version of this config node. Starts at 1. The app and functions reject a version they do not support.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: schemaVersion
+  name:
+    name: Name
+    description: Human-readable label for this config node, shown in Fusion.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: name
+  description:
+    name: Description
+    description: Short explanation of this config node, shown in Fusion.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: description
+  companyName:
+    name: Company name
+    description: Optional company name shown by the app. Empty when unset.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: companyName
+  spaces:
+    name: Spaces
+    description: Instance spaces for saved summaries, podcast files, and the source data the podcast function reads.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: spaces
+  externalIdPrefixes:
+    name: External ID prefixes
+    description: Prefixes for operation-summary and test-report node external IDs.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: externalIdPrefixes
+  functions:
+    name: Functions
+    description: Summarizer function external ID and poll settings. Example pollIntervalMs is 3000.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: functions
+  agent:
+    name: Agent
+    description: Helper agent name, external ID suffix, language model, and max concurrent tasks.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: agent
+  dataModel:
+    name: Data model
+    description: Cognite Core view references, summary list properties, and the cdf-version header sent to AI APIs.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: dataModel
+  limits:
+    name: Limits
+    description: Chunk size, page sizes, and concurrency caps. instanceQueryLimit must be an integer from 1 to 1000.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: limits
+  prompts:
+    name: Prompts
+    description: Header, holistic, per-type, and agent instruction text. Example header starts with "You are an Operations Summarizer".
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: prompts
+  defaults:
+    name: Defaults
+    description: Timezone offset hours, default summary period in days, and persona presets. Example timezoneOffsetHours is -7.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: defaults
+  dataTypes:
+    name: Data types
+    description: Display names, view keys, default selection, and table columns for the five summary data types.
+    container:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      type: container
+    containerPropertyIdentifier: dataTypes

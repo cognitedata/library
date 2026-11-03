@@ -1,0 +1,97 @@
+space: dm_sol_ops_summarizer_app
+externalId: OpsSummarizerConfig
+name: Operations summarizer config
+description: Stores one Operations Summarizer config node per CDF project. Section objects match the former app.json config keys.
+usedFor: node
+properties:
+  schemaVersion:
+    name: Schema version
+    description: Content shape version of this config node. Starts at 1. The app and functions reject a version they do not support.
+    nullable: false
+    type:
+      list: false
+      type: int32
+  name:
+    name: Name
+    description: Human-readable label for this config node, shown in Fusion.
+    nullable: true
+    type:
+      list: false
+      type: text
+  description:
+    name: Description
+    description: Short explanation of this config node, shown in Fusion.
+    nullable: true
+    type:
+      list: false
+      type: text
+  companyName:
+    name: Company name
+    description: Optional company name shown by the app. Empty when unset.
+    nullable: false
+    type:
+      list: false
+      type: text
+  spaces:
+    name: Spaces
+    description: Instance spaces for saved summaries, podcast files, and the source data the podcast function reads.
+    nullable: false
+    type:
+      list: false
+      type: json
+  externalIdPrefixes:
+    name: External ID prefixes
+    description: Prefixes for operation-summary and test-report node external IDs.
+    nullable: false
+    type:
+      list: false
+      type: json
+  functions:
+    name: Functions
+    description: Summarizer function external ID and poll settings. Example pollIntervalMs is 3000.
+    nullable: false
+    type:
+      list: false
+      type: json
+  agent:
+    name: Agent
+    description: Helper agent name, external ID suffix, language model, and max concurrent tasks.
+    nullable: false
+    type:
+      list: false
+      type: json
+  dataModel:
+    name: Data model
+    description: Cognite Core view references, summary list properties, and the cdf-version header sent to AI APIs.
+    nullable: false
+    type:
+      list: false
+      type: json
+  limits:
+    name: Limits
+    description: Chunk size, page sizes, and concurrency caps. instanceQueryLimit must be an integer from 1 to 1000.
+    nullable: false
+    type:
+      list: false
+      type: json
+  prompts:
+    name: Prompts
+    description: Header, holistic, per-type, and agent instruction text. Example header starts with "You are an Operations Summarizer".
+    nullable: true
+    type:
+      list: false
+      type: json
+  defaults:
+    name: Defaults
+    description: Timezone offset hours, default summary period in days, and persona presets. Example timezoneOffsetHours is -7.
+    nullable: true
+    type:
+      list: false
+      type: json
+  dataTypes:
+    name: Data types
+    description: Display names, view keys, default selection, and table columns for the five summary data types.
+    nullable: false
+    type:
+      list: false
+      type: json

@@ -1,0 +1,266 @@
+space: inst_ops_summarizer_app_config
+externalId: ops_summarizer_config
+sources:
+  - source:
+      space: dm_sol_ops_summarizer_app
+      externalId: OpsSummarizerConfig
+      version: "{{ ops_config_version }}"
+      type: view
+    properties:
+      schemaVersion: 1
+      name: Operations Summarizer
+      description: Project settings for the Operations Summarizer app and its functions.
+      companyName: ""
+      spaces:
+        summaries: "{{ ops_summaries_space }}"
+        dataInstances: "{{ ops_data_instances_space }}"
+      externalIdPrefixes:
+        operationSummary: ops_summary_
+        testReport: test_report_
+        podcast: ops_podcast_
+      functions:
+        summarizer:
+          externalId: Operations_Summarizer_Function_v2
+          pollIntervalMs: 3000
+          timeoutMs: 600000
+          maxConsecutivePollErrors: 5
+      prompts:
+        header: |
+          You are an Operations Summarizer summarizing new data added to the data platform from {start_time} to {end_time}. Briefly summarize these {num_instances} {data_type}s with the following data:
+          Data: {table_text}
+          
+          DO NOT USE ANY TOOLS TO ACCESS DATA FROM CDF. ONLY WORK WITH THE DATA PROVIDED.
+          
+          Follow these rules:
+        holistic: |
+          Here are {num_chunks} partial summaries for {total_instances} {data_type} instances that were split into chunks due to large dataset size.
+          
+          Please create a single, comprehensive, holistic summary that follows the structure of the original summaries.
+          - Do not mention the chunks or holistic in the summary
+          - Do not give any evaluative statements about the dataset or an overall conclusion
+          - Stay concise and readable, under 500 words
+          - Do not include any concluding sentences or meta-statements about the summary itself (e.g., "This summary highlights...", "Overall, this data shows...", "In conclusion..."). The summary should end directly after presenting the information.
+          Here are the partial summaries:
+          
+          {combined_summaries}
+          
+          Please provide a comprehensive summary that gives a complete picture of all {total_instances} {data_type} instances:
+        agentInstructions: |
+          You are an Operations Summarizer AI agent that specializes in analyzing and summarizing operational data from industrial data platforms. Your primary role is to create comprehensive, concise summaries of various types of operational data including assets, files, work orders, time series, and equipment.
+          
+          CORE RESPONSIBILITIES:
+          1. Analyze operational data provided in tabular format
+          2. Create structured, informative summaries based on data type
+          3. Identify patterns, trends, and key insights
+          4. Provide actionable information for operations teams
+          
+          GENERAL GUIDELINES:
+          - Always work ONLY with the data provided - do not use tools to access additional data
+          - Be concise and factual in your summaries
+          - Use bullet points when applicable for clarity
+          - Be explicit and use exact numbers when referring to multiple instances
+          - Never include concluding sentences or meta-statements about the summary itself
+          - Focus on operational significance and business value
+          
+          DATA TYPE SPECIFIC INSTRUCTIONS:
+          
+          ASSETS:
+          - Summarize types of assets based on their descriptions
+          - Discuss trends and patterns in asset descriptions
+          - Identify asset hierarchies and relationships where applicable
+          - Highlight critical or high-value assets
+          
+          FILES:
+          - Categorize files by type and purpose based on descriptions
+          - Identify documentation patterns and file organization
+          - Note any critical operational documents or procedures
+          
+          WORK ORDERS:
+          - Distinguish between routine maintenance and critical/emergency work orders
+          - Analyze work patterns and asset maintenance trends
+          - Identify which assets are being worked on most frequently
+          - Highlight any urgent or high-priority work orders
+          
+          TIME SERIES:
+          - Summarize types of time series data and their characteristics
+          - Note any patterns in data collection or monitoring
+          - Identify key operational metrics being tracked
+          
+          EQUIPMENT:
+          - Categorize equipment by type and function
+          - Analyze equipment distribution and patterns
+          - Note any critical or specialized equipment
+          
+          FORMATTING REQUIREMENTS:
+          - Keep summaries under 400 words
+          - Use clear, professional language
+          - Structure information logically
+          - End summaries directly after presenting information (no conclusions)
+          - Use specific numbers and data points when available
+          
+          Remember: Your goal is to provide operations teams with clear, actionable insights that help them understand their operational data landscape and make informed decisions.
+        dataTypes:
+          assets: |
+            - Summarize the types of assets added to CDF based on their descriptions
+            - Discuss trends and patterns in the descriptions. 
+            - Write in a concise paragraph less than 400 words. Use Bullet points when applicable. Be explicit and use exact numbers when referring to multiple instances. 
+            - Do not include any concluding sentences or meta-statements about the summary itself (e.g., "This summary highlights...", "Overall, this data shows...", "In conclusion..."). The summary should end directly after presenting the information.
+          files: |
+            - Summarize the types of files added to CDF based on their descriptions
+            - Discuss trends and patterns in the descriptions. 
+            - Write in a concise paragraph less than 400 words. Use Bullet points when applicable. Be explicit and use exact numbers when referring to multiple instances
+            - Do not include any concluding sentences or meta-statements about the summary itself (e.g., "This summary highlights...", "Overall, this data shows...", "In conclusion..."). The summary should end directly after presenting the information.
+          work_orders: |
+            - Make note of important/critical/emergency work orders if any. Distinguish between routine maintenance and work orders 
+            - Discuss trends and patterns based on the descriptions 
+            - Explain which assets are being worked on
+            - Write in a concise paragraph less than 400 words. Use Bullet points when applicable. Be explicit and use exact numbers when referring to multiple instances
+            - Do not include any concluding sentences or meta-statements about the summary itself (e.g., "This summary highlights...", "Overall, this data shows...", "In conclusion..."). The summary should end directly after presenting the information.
+          time_series: |
+            - Summarize the types of time series added to CDF based on their descriptions
+            - Discuss trends and patterns in the descriptions and any notable data characteristics
+            - Write in a concise paragraph less than 400 words. Use Bullet points when applicable. Be explicit and use exact numbers when referring to multiple instances
+            - Do not include any concluding sentences or meta-statements about the summary itself (e.g., "This summary highlights...", "Overall, this data shows...", "In conclusion..."). The summary should end directly after presenting the information.
+          equipment: |
+            - Summarize the types of equipment added to CDF based on their descriptions
+            - Discuss trends and patterns in the descriptions and equipment types
+            - Write in a concise paragraph less than 400 words. Use Bullet points when applicable. Be explicit and use exact numbers when referring to multiple instances
+            - Do not include any concluding sentences or meta-statements about the summary itself (e.g., "This summary highlights...", "Overall, this data shows...", "In conclusion..."). The summary should end directly after presenting the information.
+      defaults:
+        timezoneOffsetHours: -7
+        summaryPeriodDays: 7
+        personaPresets:
+          engineer:
+            - work_orders
+      agent:
+        name: "{{ ops_agent_name }}"
+        externalIdSuffix: _operation_summarizer_helper_agent
+        defaultLanguageModel: "{{ ops_agent_model }}"
+        maxConcurrentTasks: {{ ops_limits_concurrency_agent }}
+      dataModel:
+        views:
+          summaryOutputFile:
+            space: cdf_cdm
+            externalId: CogniteFile
+            version: "{{ ops_cdm_view_version }}"
+          file:
+            space: cdf_cdm
+            externalId: CogniteFile
+            version: "{{ ops_cdm_view_version }}"
+          asset:
+            space: cdf_cdm
+            externalId: CogniteAsset
+            version: "{{ ops_cdm_view_version }}"
+          timeSeries:
+            space: cdf_cdm
+            externalId: CogniteTimeSeries
+            version: "{{ ops_cdm_view_version }}"
+          activity:
+            space: cdf_cdm
+            externalId: CogniteActivity
+            version: "{{ ops_cdm_view_version }}"
+          equipment:
+            space: cdf_cdm
+            externalId: CogniteEquipment
+            version: "{{ ops_cdm_view_version }}"
+        summaryListViewProperties:
+          - name
+          - description
+          - mimeType
+          - uploadedTime
+        cdfAlphaVersionHeader: "20250919-alpha"
+      limits:
+        chunkSize: {{ ops_limits_chunk_size }}
+        instanceQueryLimit: {{ ops_limits_instance_query_limit }}
+        maxInstancesPerDatatype: {{ ops_limits_max_instances_per_datatype }}
+        summaryListPageSize: {{ ops_limits_summary_list_page_size }}
+        operationSummaryPickerMax: {{ ops_limits_operation_summary_picker_max }}
+        defaultPageSize: {{ ops_limits_default_page_size }}
+        retry:
+          baseMs: {{ ops_limits_retry_base_ms }}
+          maxDelayMs: {{ ops_limits_retry_max_delay_ms }}
+        concurrency:
+          default: {{ ops_limits_concurrency_default }}
+          delete: {{ ops_limits_concurrency_delete }}
+          agent: {{ ops_limits_concurrency_agent }}
+      dataTypes:
+        assets:
+          displayName: Assets
+          view: asset
+          enabledByDefault: true
+          isSpecialCase: false
+          tableColumns:
+            - header: id
+              property: externalId
+            - header: name
+              property: name
+            - header: description
+              property: description
+            - header: parent
+              property: parent
+              default: "None"
+        files:
+          displayName: Files
+          view: file
+          enabledByDefault: true
+          isSpecialCase: false
+          tableColumns:
+            - header: name
+              property: name
+            - header: description
+              property: description
+            - header: asset
+              property: assets
+              formatter: assetsList
+              default: "None"
+        work_orders:
+          displayName: Work Orders
+          view: activity
+          enabledByDefault: true
+          isSpecialCase: true
+          subcategories:
+            - completed_work_orders
+            - ongoing_work_orders
+            - scheduled_work_orders
+          tableColumns:
+            - header: id
+              property: externalId
+            - header: name
+              property: name
+            - header: description
+              property: description
+            - header: start date
+              property: startTime
+              formatter: isoDate
+            - header: end date
+              property: endTime
+              formatter: isoDate
+            - header: assets
+              property: assets
+              formatter: assetsList
+              default: "N/A"
+        time_series:
+          displayName: Time Series
+          view: timeSeries
+          enabledByDefault: true
+          isSpecialCase: false
+          tableColumns:
+            - header: name
+              property: name
+            - header: description
+              property: description
+        equipment:
+          displayName: Equipment
+          view: equipment
+          enabledByDefault: true
+          isSpecialCase: false
+          tableColumns:
+            - header: id
+              property: externalId
+            - header: name
+              property: name
+            - header: description
+              property: description
+            - header: type
+              property: equipmentType
+              default: "N/A"

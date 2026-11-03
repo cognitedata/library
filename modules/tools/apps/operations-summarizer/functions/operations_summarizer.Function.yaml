@@ -1,0 +1,15 @@
+# Cognite Function resource definition.
+# Code directory must match externalId (Toolkit requirement):
+#   ./Operations_Summarizer_Function_v2/
+# Toolkit 0.8+ requires space (CogniteFile) or dataSetExternalId (FileMetadata)
+# so it can upload the function code zip.
+- name: Operations Summarizer Function
+  externalId: Operations_Summarizer_Function_v2
+  owner: Operations Summarizer
+  description: Generates operations summaries, or a podcast when task is podcast, and saves results to CDF.
+  functionPath: ./handler.py
+  runtime: py311
+  # Same space as data_modeling/ops_summaries.Space.yaml. Keep equal to ops_summaries_space.
+  space: ops_summaries
+  metadata:
+    version: "1"

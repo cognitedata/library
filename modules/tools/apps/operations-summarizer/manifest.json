@@ -1,0 +1,19 @@
+{
+	"manifestVersion": 1,
+	"permissions": {
+		"network": [
+			{
+				"sources": ["https://fonts.googleapis.com"],
+				"directives": ["style-src", "connect-src"]
+			},
+			{
+				"sources": ["https://fonts.gstatic.com"],
+				"directives": ["font-src", "connect-src"]
+			},
+			{
+				"sources": ["https://*.cognitedata.com"],
+				"directives": ["media-src"]
+			}
+		]
+	}
+}

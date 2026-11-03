@@ -1,0 +1,5 @@
+[module]
+title = "Operations Summarizer"
+id = "dp:tool:operations-summarizer"
+package_id = "tool"
+description = "Fusion app, config data model, summarizer function, and helper agent for operations summaries."

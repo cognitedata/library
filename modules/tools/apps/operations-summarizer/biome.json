@@ -1,0 +1,67 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended",
+			"suspicious": {
+				"noExplicitAny": "error"
+			},
+			"style": {
+				"noNonNullAssertion": "off"
+			},
+			"complexity": {
+				"noForEach": "off"
+			}
+		}
+	},
+	"formatter": {
+		"enabled": false
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"trailingCommas": "es5",
+			"semicolons": "always"
+		}
+	},
+	"json": {
+		"formatter": {
+			"enabled": true
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.test.ts", "**/*.test.tsx", "src/test-utils/**"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noComponentHookFactories": "off"
+					}
+				}
+			}
+		}
+	],
+	"files": {
+		"includes": [
+			"**",
+			"!**/node_modules",
+			"!**/dist",
+			"!**/build",
+			"!**/.next",
+			"!**/coverage",
+			"!**/*.min.js",
+			"!**/package-lock.json",
+			"!**/skills-lock.json",
+			"!**/tsconfig.node.json",
+			"!**/.claude",
+			"!**/.agents"
+		]
+	}
+}
