@@ -148,9 +148,10 @@ modules = [
 [packages.tools]
 id = "tool"
 title = "Tools and Accelerators"
-description = "Qualitizer and other accelerator tools for CDF projects."
+description = "Qualitizer, Operations Summarizer, and other accelerator tools for CDF projects."
 canCherryPick = true
 modules = [
+    "tools/apps/operations-summarizer",
     "tools/apps/qualitizer",
 ]
 

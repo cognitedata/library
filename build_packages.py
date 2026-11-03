@@ -44,11 +44,26 @@ def create_modules_zip(output_name: str | None = None) -> str:
         with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zipf:
             # Walk through the modules directory
             for root, dirs, files in os.walk(modules_dir):
-                # Skip __pycache__ and other common Python cache directories
-                dirs[:] = [d for d in dirs if d not in ["__pycache__", ".pytest_cache", ".git"]]
+                # Skip caches and app install output so the release zip stays deployable.
+                dirs[:] = [
+                    d
+                    for d in dirs
+                    if d
+                    not in [
+                        "__pycache__",
+                        ".pytest_cache",
+                        ".git",
+                        "node_modules",
+                        "dist",
+                        "coverage",
+                        ".cognite-toolkit",
+                    ]
+                ]
 
                 # Add files to zip
                 for file in files:
+                    if file == ".env" or (file.startswith(".env.") and file != ".env.template"):
+                        continue
                     file_path = Path(root) / file
                     # Calculate relative path for the zip (relative to modules directory)
                     arcname = file_path.relative_to(modules_dir).as_posix()
