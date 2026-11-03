@@ -46,3 +46,10 @@ capabilities:
         - READ
       scope:
         all: {}
+  # a run started from the dashboard executes with the signed-in person's access: without this the run cannot read
+  # the location filters and the dashboard offers no Location scope (the run warns locations-unavailable)
+  - locationFiltersAcl:
+      actions:
+        - READ
+      scope:
+        all: {}

@@ -365,14 +365,16 @@ dashboard offers "Location" next to "Facility" and sums the rows of those facili
 asset sub-tree or an external id prefix, without instance spaces, or whose spaces are no facility of the run cannot be told
 from rows that are counted per space; they are left out and a `location-unsupported` warning counts them by reason.
 Locations never fail a run: if they cannot be read, none are offered and `locations-unavailable` is warned. The function's
-group needs `locationFiltersAcl` read. 
+group needs `locationFiltersAcl` read. A run started from the dashboard executes with the signed-in person's access, so
+whoever starts runs needs `locationFiltersAcl` read too (the dashboard users group has it); without it that run offers no
+locations and warns `locations-unavailable`.
 
 ### Access
 
 | Group | Capabilities | Why |
 |---|---|---|
 | `gp_context_quality_function` (the identity the workflow runs as) | `projectsAcl` read and list, `groupsAcl` list, `sessionsAcl` create, `functionsAcl` read and write (library convention for a workflow identity); `dataModelsAcl` read on `cdf_cdm`, `cdf_idm` and the schema space; `dataModelInstancesAcl` **read** on `metricsSourceSpaces`; `timeSeriesAcl` read; `locationFiltersAcl` read; `streamRecordsAcl` **write** on the instance space | read the entities, datapoints and location filters, append records |
-| `gp_context_quality_dashboard_users` | `projectsAcl` read and list, `groupsAcl` list, `streamRecordsAcl` **read** on the instance space, `dataModelsAcl` read on the schema space, `streamsAcl` read | read the run log; the stream settings read is optional (the dashboard works without it) |
+| `gp_context_quality_dashboard_users` | `projectsAcl` read and list, `groupsAcl` list, `streamRecordsAcl` **read** on the instance space, `dataModelsAcl` read on the schema space, `streamsAcl` read, `locationFiltersAcl` read | read the run log, and let the runs they start read the location filters; the stream settings read is optional (the dashboard works without it) |
 
 Neither group can write instances or deploy anything, and the dashboard group cannot write at all. The scopes come from
 the module variables, never from `all` except where the capability has no narrower scope (`timeSeriesAcl`, `streamsAcl`).

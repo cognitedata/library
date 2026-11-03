@@ -437,7 +437,15 @@ def test_the_dashboard_group_is_read_only_and_scoped_to_the_run_log() -> None:
     assert scope_spaces(records) == [DEFAULTS["metricsInstanceSpace"]]
     (models,) = group["dataModelsAcl"]
     assert scope_spaces(models) == [DEFAULTS["metricsSchemaSpace"]]
-    assert set(group) == {"projectsAcl", "groupsAcl", "streamRecordsAcl", "dataModelsAcl", "streamsAcl", "filesAcl"}
+    assert set(group) == {
+        "projectsAcl",
+        "groupsAcl",
+        "streamRecordsAcl",
+        "dataModelsAcl",
+        "streamsAcl",
+        "filesAcl",
+        "locationFiltersAcl",
+    }
     (files,) = group["filesAcl"]
     assert files["actions"] == ["READ"]
     assert files["scope"]["datasetScope"]["ids"] == [DEFAULTS["metricsDatasetExternalId"]]
