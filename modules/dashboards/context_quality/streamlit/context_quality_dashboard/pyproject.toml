@@ -8,5 +8,5 @@ dependencies = [
     "packaging",
     "plotly",
     "matplotlib",
-    "fpdf2>=2.7.0",
+    "fpdf2>=2.8.8",
 ]
