@@ -114,6 +114,8 @@ export function SdkManagerProvider({
 
     const parentOrigin = (() => {
       try {
+        const paramOrigin = new URLSearchParams(window.location.search).get("parentOrigin");
+        if (paramOrigin) return new URL(paramOrigin).origin;
         if (!document.referrer) return null;
         return new URL(document.referrer).origin;
       } catch {
@@ -124,7 +126,7 @@ export function SdkManagerProvider({
     const handleMessage = (event: MessageEvent) => {
       if (!window.parent || window.parent === window) return;
       if (event.source !== window.parent) return;
-      if (parentOrigin && event.origin !== parentOrigin) return;
+      if (!parentOrigin || event.origin !== parentOrigin) return;
 
       if (event.data?.type === "PROVIDE_CREDENTIALS" && event.data?.credentials) {
         const creds = event.data.credentials;
@@ -135,8 +137,8 @@ export function SdkManagerProvider({
     };
 
     window.addEventListener("message", handleMessage);
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: "REQUEST_CREDENTIALS" }, parentOrigin ?? "*");
+    if (window.parent && window.parent !== window && parentOrigin) {
+      window.parent.postMessage({ type: "REQUEST_CREDENTIALS" }, parentOrigin);
     }
     return () => window.removeEventListener("message", handleMessage);
   }, [isStandalone]);
