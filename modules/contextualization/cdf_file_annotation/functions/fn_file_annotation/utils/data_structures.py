@@ -89,8 +89,9 @@ def annotation_clock(preserved: str | None = None) -> dict[str, str]:
 @dataclass
 class AnnotationState:
     """
-    Data structure holding the mpcAnnotationState view properties.
+    Data structure holding the FileAnnotationState view properties.
     Time will convert to Timestamp when ingested into CDF.
+    linkedFile is an untyped direct relation; the file view comes from data.fileView in the config.
     """
 
     annotationStatus: AnnotationStatus
@@ -106,7 +107,7 @@ class AnnotationState:
 
     def _create_external_id(self) -> str:
         """
-        Create a deterministic external ID so we can replace mpcAnnotationState for
+        Create a deterministic external ID so we can replace FileAnnotationState for
         files that have been updated and aren't new.
         """
         prefix = "an_state"

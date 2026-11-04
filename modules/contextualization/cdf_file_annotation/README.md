@@ -1112,6 +1112,20 @@ Instead of using RAW tables for state tracking, this module uses a dedicated `An
 - **Schema Enforcement**: Strict schema ensures data consistency
 - **Discoverability**: State exposed as first-class entity in CDF catalog
 
+`FileAnnotation_SOL` is a solution model. Its single view maps only the `FileAnnotationState` container — no `implements` of Cognite core views and no joins with `cdf_cdm` containers. The `source*` time and user fields are stored on that container.
+
+`linkedFile` is a direct relation with no `source` view on purpose. The file view is set in the extraction pipeline (`data.fileView`), so changing `fileExternalId` or `fileVersion` does not require a new `annotationStateVersion`.
+
+### Consumers
+
+Keep this list up to date. Update it in the same PR that changes `annotationStateVersion`.
+
+| Consumer | Pinned version | Owner | Notes |
+|----------|---------------|-------|-------|
+| `fn_file_annotation` | `annotationStateVersion` | `cdf_file_annotation` | Reads and writes annotation state in every stage |
+| `file_annotation_dashboard_pipeline_health` | `annotationStateVersion` | `cdf_file_annotation` | Reads annotation state |
+| `file_annotation_dashboard_annotation_quality` | `annotationStateVersion` | `cdf_file_annotation` | Reads the extraction pipeline view config |
+
 ### Optimized Batch Processing & Caching
 
 For projects with tens of thousands of files:
@@ -1157,6 +1171,8 @@ The module is built around abstract interfaces for customization:
 This module is part of the [Cognite library](https://github.com/cognitedata/library) repository and follows the same licensing terms.
 
 ## Changelog
+
+- `FileAnnotationState`: `linkedFile` no longer has a `source` view, the view no longer implements `CogniteDescribable` / `CogniteSourceable`, the unused `name` property is removed, and `sourceCreatedTime`, `sourceUpdatedTime`, `sourceCreatedUser`, `sourceUpdatedUser` are stored on the `FileAnnotationState` container. Existing deployments must delete the view and data model, or bump `annotationStateVersion`, before redeploying.
 
 - Toolkit 0.9: `cdf data upload dir` example now passes `--cdf-project <project>`; Toolkit >= 0.9 listed as a prerequisite.
 - Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.
