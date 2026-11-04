@@ -38,6 +38,7 @@ from cq.reader import (
     load_shard,
     validate_extra_links,
 )
+from cq.resilience import patiently
 from cq.scope import filter_result, parse_scope
 from cq.types import EntityKey, LoadedData, Row, RowProps, RunConfig
 
@@ -332,35 +333,40 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     require_resources(cfg, writes=True)
     spaces: dict[str, str] = payload.get("spaces") or {}
     extra_spaces: dict[str, str] = payload.get("extraSpaces") or {}
-    main_rows: list[Row] = []
-    anno_rows: list[Row] = []
-    warnings: list[dict[str, Any]] = []
-    listed: list[tuple[str, ...]] = []
-    links = parse_extra_links(payload.get("extraLinks"))
-    scope = parse_scope(payload.get("scope"), links_given=bool(links))
-    if spaces and scope.kinds != frozenset():
-        if scope.kinds is None:
-            data = load_shard(client, spaces)
-            result = compute(data, cfg, latest_datapoints(client, data))
-            left_to_the_plan: tuple[str, ...] = ("no-source-entities",)  # the plan says that, for the run
-        else:
-            # some dimensions only: read their kinds (and the assets the grain of an entity comes from, when it does),
-            # count their kinds, and keep what belongs to the dimensions of the scope
-            needed = scope.kinds | ({"assets"} if _grain_needs_assets(cfg) else frozenset())
-            data = load_shard(client, spaces, needed)
-            result = filter_result(compute(data, cfg, latest_datapoints(client, data), kinds=scope.kinds), scope)
-            left_to_the_plan = _NOT_FROM_A_BATCH
-        main_rows, anno_rows = build_rows(result, cfg)
-        listed = [*export.item_rows(result["drilldown"]), *export.summary_rows(result["agg"])]
-        warnings = [w for w in result["warnings"] if w["code"] not in left_to_the_plan]
-    if links and extra_spaces:
-        nodes = load_extra_links(client, links, list(extra_spaces))
-        gaps = find_gaps(links, nodes, extra_spaces)
-        # the plan writes the rows of a view that is empty everywhere, so nothing is filled in here
-        main_rows += writer.extra_link_rows(count_links(links, nodes, extra_spaces, set()), extra_spaces)
-        main_rows += writer.extra_link_gap_rows(gaps, extra_spaces, cfg["drilldownCap"])
-        warnings = [*warnings, *extra_link_truncation_warnings(gaps, cfg["drilldownCap"])]
-        listed += export.item_rows([], gaps)
+
+    def count() -> tuple[list[Row], list[Row], list[dict[str, Any]], list[tuple[str, ...]]]:
+        main_rows: list[Row] = []
+        anno_rows: list[Row] = []
+        warnings: list[dict[str, Any]] = []
+        listed: list[tuple[str, ...]] = []
+        links = parse_extra_links(payload.get("extraLinks"))
+        scope = parse_scope(payload.get("scope"), links_given=bool(links))
+        if spaces and scope.kinds != frozenset():
+            if scope.kinds is None:
+                data = load_shard(client, spaces)
+                result = compute(data, cfg, latest_datapoints(client, data))
+                left_to_the_plan: tuple[str, ...] = ("no-source-entities",)  # the plan says that, for the run
+            else:
+                # some dimensions only: read their kinds (and the assets the grain of an entity comes from, when it does),
+                # count their kinds, and keep what belongs to the dimensions of the scope
+                needed = scope.kinds | ({"assets"} if _grain_needs_assets(cfg) else frozenset())
+                data = load_shard(client, spaces, needed)
+                result = filter_result(compute(data, cfg, latest_datapoints(client, data), kinds=scope.kinds), scope)
+                left_to_the_plan = _NOT_FROM_A_BATCH
+            main_rows, anno_rows = build_rows(result, cfg)
+            listed = [*export.item_rows(result["drilldown"]), *export.summary_rows(result["agg"])]
+            warnings = [w for w in result["warnings"] if w["code"] not in left_to_the_plan]
+        if links and extra_spaces:
+            nodes = load_extra_links(client, links, list(extra_spaces))
+            gaps = find_gaps(links, nodes, extra_spaces)
+            # the plan writes the rows of a view that is empty everywhere, so nothing is filled in here
+            main_rows += writer.extra_link_rows(count_links(links, nodes, extra_spaces, set()), extra_spaces)
+            main_rows += writer.extra_link_gap_rows(gaps, extra_spaces, cfg["drilldownCap"])
+            warnings = [*warnings, *extra_link_truncation_warnings(gaps, cfg["drilldownCap"])]
+            listed += export.item_rows([], gaps)
+        return main_rows, anno_rows, warnings, listed
+
+    main_rows, anno_rows, warnings, listed = patiently(count)
     written = _finish_piece(client, cfg, payload, "shard", main_rows, anno_rows, warnings, listed)
     return {
         "action": "compute_shard",
@@ -389,9 +395,8 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     # in an incremental run a batch whose slice did not change is not read again: its earlier result is written as it is
     dataset = export.data_set_id(client, cfg)
     reused, note = incremental.reuse(client, cfg, payload, dataset)
-    if reused is not None:
-        result_of = reused
-    else:
+
+    def count() -> incremental.PieceResult:
         flt = batch_filter(leaves, edge=kinds == frozenset({"annotations"})) if leaves else None
         # the cap on a drill-down list is per space; the batches of one kind share it
         counted = {**cfg, "drilldownCap": max(1, cfg["drilldownCap"] // max(1, int(payload.get("groupBatches") or 1)))}
@@ -420,7 +425,12 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
             main_rows += writer.extra_link_gap_rows(gaps, {space: facility}, counted["drilldownCap"])  # type: ignore[arg-type]
             warnings = [*warnings, *extra_link_truncation_warnings(gaps, counted["drilldownCap"])]  # type: ignore[arg-type]
             listed += export.item_rows([], gaps)
-        result_of = incremental.PieceResult(main_rows, anno_rows, warnings, listed, populated)
+        return incremental.PieceResult(main_rows, anno_rows, warnings, listed, populated)
+
+    if reused is not None:
+        result_of = reused
+    else:
+        result_of = patiently(count)
         incremental.remember(client, cfg, payload, dataset, result_of, _piece(payload)[1])
     written = _finish_piece(
         client,

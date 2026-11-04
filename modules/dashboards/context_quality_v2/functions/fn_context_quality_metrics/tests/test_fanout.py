@@ -38,13 +38,13 @@ def test_no_spaces_make_no_shards() -> None:
     assert pack_spaces({}, 10, 10) == []
 
 
-def test_a_shard_task_is_a_function_task_that_is_not_retried() -> None:
+def test_a_shard_task_is_a_function_task_that_is_retried_once() -> None:
     task = shard_task(3, 7, "fn_x", {"action": "compute_shard"})
 
     assert task["externalId"] == "shard_003"
     assert task["type"] == "function"
     assert task["parameters"] == {"function": {"externalId": "fn_x", "data": {"action": "compute_shard"}}}
-    assert task["retries"] == 0
+    assert task["retries"] == 1
     assert task["onFailure"] == "abortWorkflow"
     assert task["dependsOn"] == []
 
@@ -55,7 +55,7 @@ def test_a_batch_task_is_named_after_the_space_and_what_it_counts() -> None:
     task = shard_task(1, 4, "fn_x", data)
 
     assert task["name"] == "Context Quality batch 2 of 4: sp_big (assets, Widget)"
-    assert task["retries"] == 0
+    assert task["retries"] == 1
 
 
 def items(count: int) -> list[dict[str, Any]]:

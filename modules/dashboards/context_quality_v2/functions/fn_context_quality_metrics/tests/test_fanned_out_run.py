@@ -360,7 +360,7 @@ def test_the_tasks_can_be_chained_so_that_the_batches_run_one_by_one(monkeypatch
 
     sequential = plan(RecordingClient(), shardTargetEntities=200, maxConcurrentShards=1)
     two = plan(RecordingClient(), shardTargetEntities=200, maxConcurrentShards=2)
-    free = plan(RecordingClient(), shardTargetEntities=200)
+    free = plan(RecordingClient(), shardTargetEntities=200, maxConcurrentShards=0)
 
     chain = [[dep["externalId"] for dep in t["dependsOn"]] for t in sequential["tasks"]]
     assert chain[0] == []
@@ -790,3 +790,26 @@ def test_the_time_of_the_run_is_the_time_of_the_plan() -> None:
     (item,) = records(client)
     assert props(item)["runTimestamp"] == RUN_TS
     assert datetime.fromisoformat(RUN_TS.replace("Z", "+00:00")).tzinfo == UTC
+
+
+def test_a_batch_that_met_a_busy_project_reads_again_and_writes_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+    from cq import resilience
+
+    pauses: list[float] = []
+    monkeypatch.setattr(resilience, "sleep", pauses.append)
+    original, failures = runner.load_batch, [1]
+
+    def busy_once(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        if failures:
+            failures.pop()
+            raise CogniteAPIError("Graph query timed out", code=408)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(runner, "load_batch", busy_once)
+    client = RecordingClient()
+
+    summary = batch_run(client, kinds=["equipment"])
+
+    assert pauses == [30.0]
+    assert len(records(client)) == summary["rowsWritten"] + 1  # its rows and the part record, written once

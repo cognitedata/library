@@ -74,7 +74,7 @@ The two container external ids are fixed by the run log and are **not** variable
 | `metricsTieringEnabled` | `false` | tiering is off by default; set `true` together with `metricsTierByTypeCode` to turn it on |
 | `metricsDivisionTagPrefix`, `metricsRetiredTag`, `metricsFreshnessDays`, `metricsMaxDepth` | `""`, `""`, `30`, `8` | the project's settings |
 | `metricsExportRetentionDays` | `30` | how many days the workbook of unlinked items of a run stays in Files |
-| `metricsMaxShards`, `metricsShardTargetEntities`, `metricsMaxConcurrentShards` | `150`, `250000`, `0` | how a run is divided into parallel function calls, and how many run at once (see "Running in parallel shards") |
+| `metricsMaxShards`, `metricsShardTargetEntities`, `metricsMaxConcurrentShards` | `150`, `100000`, `2` | how a run is divided into parallel function calls, and how many run at once (see "Running in parallel shards") |
 
 A deployment that needs other names sets them in its own `config.<env>.yaml`. Nothing in the function or the workflow
 falls back to a name that is not passed to it.
@@ -243,7 +243,7 @@ parallel:
 
 **How the work is divided.** Each call counts one of two things:
 
-- **Whole spaces** (`compute_shard`). A space with no more than `metricsShardTargetEntities` entities (default 250,000,
+- **Whole spaces** (`compute_shard`). A space with no more than `metricsShardTargetEntities` entities (default 100,000,
   configured views included) is counted whole, and small spaces share a call.
 - **Part of a space** (`compute_batch`). A bigger space is split by kind (assets, equipment, time series, files, 3D
   objects, work orders, notifications, annotations, and each configured view). Kinds that are small enough share a
@@ -261,8 +261,8 @@ project; the rest wait. The tasks carry the configuration, and a task's input an
 plan also makes the target larger when a large config file would not fit, and rejects a configuration too large for
 even one call.
 
-**Running the calls one after the other.** `metricsMaxConcurrentShards` sets how many calls run at once: `0` (the
-default) all at once, `1` one after the other, `N` in N lanes. The calls are listed heaviest first and a call waits for
+**Running the calls one after the other.** `metricsMaxConcurrentShards` sets how many calls run at once: `2` (the
+default) two at a time, `0` all at once, `1` one after the other, `N` in N lanes. The calls are listed heaviest first and a call waits for
 the one N places before it (`dependsOn`), so with `1` a run is a chain; a call that fails stops the ones after it. Use
 it to go easy on the project's data modeling and time series services, or to follow one run in order.
 
@@ -276,8 +276,15 @@ it to go easy on the project's data modeling and time series services, or to fol
   the same. The cap on a drill-down list is per space and kind, so the batches of a kind share it. A metric with
   nothing to measure in a batched kind is still shown as not applicable, but without the reason. The depth of an asset
   beyond `maxDepth` levels is a lower bound.
-- *No retry.* A call writes immutable records, so it is not retried (`retries: 0`): a call that fails fails the run,
-  and the run is started again.
+- *Retries.* A call reads and counts first and writes last. A read that still meets a busy project (408, 429, 5xx)
+  after the retries of each query is started again from the beginning after 30 and then 60 seconds, while the first
+  attempt leaves room for it in the call's ten minutes, and the task is retried once by the workflow (`retries: 1`).
+  When even listing the ids of a slice times out, the ids are asked for in pages of 500, then 250, then 100 instead of
+  the 1000 the SDK always asks for (`PAGE_SIZES`), each size starting the listing over. A call is stopped after ten
+  minutes, so a read gives up after 540 seconds of the call (`CALL_BUDGET`): no retry pause that would not fit, and no
+  smaller page without 60 seconds left, is started, and the error of the service is raised while it can still be said.
+  A call that failed while writing may meet the immutable records it already wrote, and then fails the run as before;
+  the run is started again.
 - *Limits that remain.* Slices are cut by the start of the external ids: instances whose ids cannot be told apart by
   their first characters stay together in one slice, bigger than the target. A call has ten minutes, so a slice of
   millions of such instances can still be too much. Lookups for an asset batch ask about its ancestors level by level

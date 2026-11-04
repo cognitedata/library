@@ -49,10 +49,10 @@ metricsMaxDepth: 8
 # maxShards stays below the 200 tasks a workflow execution may hold (plan, dynamic task and finalize count too);
 # small spaces share a shard until it holds shardTargetEntities entities.
 metricsMaxShards: 150
-metricsShardTargetEntities: 250000
+metricsShardTargetEntities: 100000
 # How many of those calls run at the same time: 0 is all at once (up to the 50 tasks a project runs concurrently),
 # 1 is one after the other. A call that fails stops the ones after it.
-metricsMaxConcurrentShards: 0
+metricsMaxConcurrentShards: 2
 # The Excel workbook of every unlinked item of a run is kept in Cognite Files, in the module's data set, for this many
 # days. See README, "The workbook of unlinked items".
 metricsExportRetentionDays: 30

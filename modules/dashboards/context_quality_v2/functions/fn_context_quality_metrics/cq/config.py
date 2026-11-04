@@ -50,8 +50,8 @@ DEFAULT_CONFIG: RunConfig = {
     "maxShards": 150,
     # How many of those calls run at the same time: 0 is all at once, 1 is one after the other (each call waits for
     # the one before it). A call that fails stops the ones after it.
-    "maxConcurrentShards": 0,
-    "shardTargetEntities": 250000,
+    "maxConcurrentShards": 2,
+    "shardTargetEntities": 100000,
     # The workbook of every unlinked item of a run (cq.export) goes to Cognite Files, into this data set (its external id).
     # Empty switches the export off. The workbooks of runs older than exportRetentionDays are deleted.
     "exportDataSet": "",

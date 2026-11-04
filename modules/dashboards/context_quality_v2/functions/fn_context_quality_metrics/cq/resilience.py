@@ -19,7 +19,30 @@ from cognite.client.exceptions import CogniteAPIError
 POLICY: dict[int, tuple[int, float]] = {429: (6, 1.0), 408: (2, 3.0), 502: (4, 1.0), 503: (4, 1.0), 504: (4, 1.0)}
 READS = ("aggregate", "list", "retrieve", "retrieve_nodes", "retrieve_edges", "search")
 
+# A piece that still met a busy project after those retries is read again, from the start, after a longer pause; only
+# while the first attempt left room for it in the ten minutes of a call.
+PATIENCE_WAITS = (30.0, 60.0)
+PATIENCE_BUDGET = 300.0
+
+# A call of the function is stopped after ten minutes, whatever it is doing. A read gives up after these seconds of it
+# (`begin_call`), so that the call fails with the error of the service while there is still time to say so, and the
+# task can be tried again with ten minutes of its own.
+CALL_BUDGET = 540.0
+
 sleep: Callable[[float], None] = time.sleep
+clock: Callable[[], float] = time.monotonic
+_call_started: float | None = None
+
+
+def begin_call() -> None:
+    """Marks the start of a call of the function: its budget of `CALL_BUDGET` seconds is counted from here."""
+    global _call_started
+    _call_started = clock()
+
+
+def time_left() -> float:
+    """Seconds of the call's budget that are left. Unlimited where no call has begun (a script, a test)."""
+    return float("inf") if _call_started is None else CALL_BUDGET - (clock() - _call_started)
 
 
 def retrying[**P, R](call: Callable[P, R]) -> Callable[P, R]:
@@ -32,9 +55,10 @@ def retrying[**P, R](call: Callable[P, R]) -> Callable[P, R]:
             except CogniteAPIError as error:
                 attempts, pause = POLICY.get(error.code, (1, 0.0))
                 attempt += 1
-                if attempt >= attempts:
+                wait = pause * 2 ** (attempt - 1)
+                if attempt >= attempts or time_left() < wait:
                     raise
-                sleep(pause * 2 ** (attempt - 1))
+                sleep(wait)
 
     return run
 
@@ -69,3 +93,17 @@ class _Client:
 def harden(client: CogniteClient) -> CogniteClient:
     """`client`, with the reads of its data modeling instances API retried."""
     return client if isinstance(client, _Client) else _Client(client)  # type: ignore[return-value]
+
+
+def patiently[R](work: Callable[[], R]) -> R:
+    """`work()`, started again after a pause when it fails on a busy project (the errors of `POLICY`) even after the
+    retries of each read. `work` must only read and compute: whatever it did is done again, so it must not write."""
+    started = clock()
+    for wait in PATIENCE_WAITS:
+        try:
+            return work()
+        except CogniteAPIError as error:
+            if error.code not in POLICY or clock() - started + wait > PATIENCE_BUDGET:
+                raise
+        sleep(wait)
+    return work()

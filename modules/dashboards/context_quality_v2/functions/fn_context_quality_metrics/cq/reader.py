@@ -7,6 +7,7 @@ from typing import Any
 from cognite.client import CogniteClient
 from cognite.client.data_classes.aggregations import Count
 from cognite.client.data_classes.data_modeling import DirectRelation, MappedProperty, Node, ViewId
+from cognite.client.data_classes.data_modeling import filters as f
 from cognite.client.data_classes.data_modeling.instances import InstanceSort
 from cognite.client.data_classes.filters import Filter
 from cognite.client.exceptions import CogniteAPIError
@@ -14,6 +15,7 @@ from cognite.client.exceptions import CogniteAPIError
 from cq.batching import CHARSET, CountLeaves, Leaf, SampleId, counter, leaf_filter
 from cq.discovery import ENTITY_KEYS, count_entities_by_space, discover_facility_spaces
 from cq.extra_links import ExtraLink, ViewNodes
+from cq.resilience import retrying, time_left
 from cq.types import (
     LoadedData,
     Ref,
@@ -29,6 +31,11 @@ def _view(space: str, xid: str) -> ViewId:
 
 RETRIEVE_CHUNK = 500
 RETRIEVE_MIN_CHUNK = 25
+# The SDK asks for 1000 instances in every request and cannot be told otherwise. When even listing the ids of a slice
+# times out, they are asked for in requests of these sizes, one size after the other, until one is light enough.
+PAGE_SIZES = (500, 250, 100)
+# A size is only started when this many seconds of the call are left: its first request alone can take that long to time out
+PAGE_STEP_SECONDS = 60.0
 
 
 def _list_slice(
@@ -48,20 +55,70 @@ def _list_slice(
     )
 
 
+def _id_pairs_in_pages(
+    client: CogniteClient, instance_type: str, spaces: list[str] | None, part: Any, page: int
+) -> list[tuple[str, str]]:
+    """The (space, external id) of every instance that matches a slice, asked for `page` at a time, following the
+    cursor of each response to the next page until the service gives none. It is the request the SDK sends for
+    `instances.list(limit=-1)`, with a limit of our own: the SDK's is always 1000."""
+    flt = Filter.load(part) if isinstance(part, dict) else part
+    if spaces is not None:
+        flt = f.SpaceFilter(spaces, instance_type) & flt
+    request: dict[str, Any] = {
+        "instanceType": instance_type,
+        "includeTyping": False,
+        "sort": [InstanceSort([instance_type, "space"]).dump(), InstanceSort([instance_type, "externalId"]).dump()],
+        "filter": flt.dump(camel_case_property=False),
+        "limit": page,
+    }
+    post = retrying(client.post)
+    url = f"/api/v1/projects/{client.config.project}/models/instances/list"
+    pairs: list[tuple[str, str]] = []
+    cursor: str | None = None
+    while True:
+        response = post(url, json={**request, "cursor": cursor} if cursor else request).json()
+        pairs.extend((item["space"], item["externalId"]) for item in response["items"])
+        cursor = response.get("nextCursor")
+        if not cursor:
+            return pairs
+
+
+def _id_pairs(client: CogniteClient, instance_type: str, spaces: list[str] | None, part: Any) -> list[tuple[str, str]]:
+    """The (space, external id) of every instance that matches a slice. A request that times out is made again with a
+    smaller page (`PAGE_SIZES`); each size starts the listing over, so no instance is listed twice or left out. A size
+    is not started when the call has too little time left (cq.resilience): the last timeout is raised instead."""
+    try:
+        ids = client.data_modeling.instances.list(
+            instance_type=instance_type,
+            space=spaces,
+            filter=part,
+            sort=[InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])],
+            limit=-1,
+        )
+        return [(item.space, item.external_id) for item in ids]
+    except CogniteAPIError as error:
+        if error.code != 408:
+            raise
+        timeout = error
+    for page in PAGE_SIZES:
+        if time_left() < PAGE_STEP_SECONDS:
+            raise timeout
+        try:
+            return _id_pairs_in_pages(client, instance_type, spaces, part, page)
+        except CogniteAPIError as error:
+            if error.code != 408:
+                raise
+            timeout = error
+    raise timeout
+
+
 def _list_slice_by_id(
     client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
 ) -> list[Any]:
     """The same instances, found another way: list only the ids that match the slice (no "has data" filter, which makes
     the service scan the view's whole container), then read the properties of those ids in chunks. An instance that has
     no data in the view comes back without its properties, and the callers skip it."""
-    ids = client.data_modeling.instances.list(
-        instance_type=instance_type,
-        space=spaces,
-        filter=part,
-        sort=[InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])],
-        limit=-1,
-    )
-    pairs = [(item.space, item.external_id) for item in ids]
+    pairs = _id_pairs(client, instance_type, spaces, part)
     found: list[Any] = []
     for start in range(0, len(pairs), RETRIEVE_CHUNK):
         found.extend(_retrieve(client, instance_type, view, pairs[start : start + RETRIEVE_CHUNK]))

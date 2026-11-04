@@ -39,9 +39,10 @@ def pack_spaces(weights: dict[str, int], max_shards: int, target: int) -> list[l
 
 
 def shard_task(index: int, count: int, function_external_id: str, data: dict[str, Any]) -> dict[str, Any]:
-    """A workflow task definition that runs one piece of the run. `retries` is 0: a piece writes records, which are
-    immutable, so a second attempt could not write the same rows again; a failed piece fails the run and the run is
-    started again."""
+    """A workflow task definition that runs one piece of the run. `retries` is 1: a piece that failed while reading
+    (the usual failure, a busy project) has written nothing, so the second attempt starts clean. One that failed while
+    writing its records may meet the rows it already wrote, which are immutable; it then fails again and, as before,
+    fails the run, which is started again."""
     if data["action"] == "compute_batch":
         what = ", ".join([*data["kinds"], *(view for _, view in data["views"])])
         name = f"Context Quality batch {index + 1} of {count}: {data['space']} ({what})"
@@ -55,7 +56,7 @@ def shard_task(index: int, count: int, function_external_id: str, data: dict[str
         "name": name,
         "description": description,
         "parameters": {"function": {"externalId": function_external_id, "data": data}},
-        "retries": 0,
+        "retries": 1,
         "timeout": 600,
         "onFailure": "abortWorkflow",
         "dependsOn": [],
