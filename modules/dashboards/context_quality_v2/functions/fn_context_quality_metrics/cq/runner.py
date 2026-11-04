@@ -393,8 +393,7 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     leaves: list[Leaf] = [(kind, text) for kind, text in payload.get("leaves") or []]
     shard = int(payload["shard"])
     # in an incremental run a batch whose slice did not change is not read again: its earlier result is written as it is
-    dataset = export.data_set_id(client, cfg)
-    reused, note = incremental.reuse(client, cfg, payload, dataset)
+    reused, note = incremental.reuse(client, cfg, payload)
 
     def count() -> incremental.PieceResult:
         flt = batch_filter(leaves, edge=kinds == frozenset({"annotations"})) if leaves else None
@@ -431,7 +430,7 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         result_of = reused
     else:
         result_of = patiently(count)
-        incremental.remember(client, cfg, payload, dataset, result_of, _piece(payload)[1])
+        incremental.remember(client, cfg, payload, result_of, _piece(payload)[1])
     written = _finish_piece(
         client,
         cfg,

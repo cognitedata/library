@@ -56,6 +56,10 @@ DEFAULT_CONFIG: RunConfig = {
     # Empty switches the export off. The workbooks of runs older than exportRetentionDays are deleted.
     "exportDataSet": "",
     "exportRetentionDays": 30,
+    # The RAW table that keeps the result of every batch for the next incremental run (cq.incremental). Empty switches
+    # that off: nothing is kept, and every run counts everything. Results older than exportRetentionDays are deleted.
+    "stateDatabase": "",
+    "stateTable": "",
     "freshnessDays": 30,
     "maxDepth": 8,
     "lowConfidence": 0.5,
@@ -126,8 +130,9 @@ def build_config(overrides: dict[str, Any] | None) -> RunConfig:
     switch = (overrides or {}).get("tieringEnabled", False)
     if not isinstance(switch, bool):
         raise ValueError(f"tieringEnabled must be true or false, not {switch!r}")
-    if not isinstance((overrides or {}).get("exportDataSet", ""), str):
-        raise ValueError(f"exportDataSet must be text, not {(overrides or {})['exportDataSet']!r}")
+    for name in ("exportDataSet", "stateDatabase", "stateTable"):
+        if not isinstance((overrides or {}).get(name, ""), str):
+            raise ValueError(f"{name} must be text, not {(overrides or {})[name]!r}")
     for name, lowest in (
         ("maxShards", 1),
         ("shardTargetEntities", 1),

@@ -73,7 +73,8 @@ The two container external ids are fixed by the run log and are **not** variable
 | `metricsFacilityNames`, `metricsTierByTypeCode`, `metricsDefaultOwners`, `metricsOwnerPrefixRules`, `metricsExclusions` | empty | the project's rules, as JSON text (Toolkit reads a mapping-valued variable as a namespace, so a mapping or list is written as a string such as `'{"pump": 1}'`) |
 | `metricsTieringEnabled` | `false` | tiering is off by default; set `true` together with `metricsTierByTypeCode` to turn it on |
 | `metricsDivisionTagPrefix`, `metricsRetiredTag`, `metricsFreshnessDays`, `metricsMaxDepth` | `""`, `""`, `30`, `8` | the project's settings |
-| `metricsExportRetentionDays` | `30` | how many days the workbook of unlinked items of a run stays in Files |
+| `metricsExportRetentionDays` | `30` | how many days the workbook of unlinked items of a run stays in Files, and a stored batch result in the state table |
+| `metricsStateDatabase`, `metricsStateTable` | `db_context_quality`, `context_quality_pieces` | the RAW table where every batch keeps its result for the next incremental run; the function's group needs access to the database |
 | `metricsMaxShards`, `metricsShardTargetEntities`, `metricsMaxConcurrentShards` | `150`, `100000`, `2` | how a run is divided into parallel function calls, and how many run at once (see "Running in parallel shards") |
 
 A deployment that needs other names sets them in its own `config.<env>.yaml`. Nothing in the function or the workflow
@@ -121,7 +122,8 @@ the function: a project supplies its own in the task's `config` (the workflow's 
 
 A missing or blank one is a `ValueError` naming it, raised before the client is used, so nothing is read or written.
 The two container names (`relationshipContainer`, `fileAnnotationContainer`) are part of the run log rather
-than of an environment, so they keep their defaults. The function reads no RAW table.
+than of an environment, so they keep their defaults. The function reads no RAW table of the project: the one table it uses is its own, where an incremental run keeps the
+result of every batch (see "Running incrementally").
 
 **What is deployed.** Toolkit zips the whole function folder, so the deployed package also contains the tests, their
 fixtures (`parity_dataset.py`, `tiny_data.py`, `sample_rules.py`, all in the function's `tests/` folder, and `conftest.py`). This matches
@@ -369,8 +371,12 @@ A run counts every instance of the kinds it measures, even when a few of them ch
 "incremental"` in the workflow input (`"full"` is the default) a **batch** (one slice of one kind of
 a space, `cq/incremental.py`) is only read again when something it reads changed:
 
-- Every batch leaves its result in Cognite Files (`cq-piece-<key>.json`, in the module's data set) with the time of the run
-  that counted it. The next incremental run asks, with a `limit 1` query on `lastUpdatedTime`, whether anything the batch
+- Every batch leaves its result in one row of a RAW table (`metricsStateDatabase`, `metricsStateTable`; the row key is a hash of
+  everything that decides the result) with the time of the run that counted it. The result is kept compressed; one that
+  does not fit a row (about 2 million characters) is not kept, and its batch is counted every time. A result that no
+  run has written for `metricsExportRetentionDays` is deleted. The function's group needs `rawAcl` read, write and list on
+  the database; without it nothing is kept or reused, and every run counts everything.
+  The next incremental run asks, with a `limit 1` query on `lastUpdatedTime`, whether anything the batch
   reads is newer. If not, the stored rows, warnings and unlinked items are written into the new run unchanged, so
   the dashboard and the workbook need no other change. A batch that did change is counted whole.
 - What a batch reads: its own slice; the whole space of the kinds it looks up (assets: assets and time series; 3D objects:
@@ -414,7 +420,7 @@ locations and warns `locations-unavailable`.
 
 | Group | Capabilities | Why |
 |---|---|---|
-| `gp_context_quality_function` (the identity the workflow runs as) | `projectsAcl` read and list, `groupsAcl` list, `sessionsAcl` create, `functionsAcl` read and write (library convention for a workflow identity); `dataModelsAcl` read on `cdf_cdm`, `cdf_idm` and the schema space; `dataModelInstancesAcl` **read** on `metricsSourceSpaces`; `timeSeriesAcl` read; `locationFiltersAcl` read; `streamRecordsAcl` **write** on the instance space | read the entities, datapoints and location filters, append records |
+| `gp_context_quality_function` (the identity the workflow runs as) | `projectsAcl` read and list, `groupsAcl` list, `sessionsAcl` create, `functionsAcl` read and write (library convention for a workflow identity); `dataModelsAcl` read on `cdf_cdm`, `cdf_idm` and the schema space; `dataModelInstancesAcl` **read** on `metricsSourceSpaces`; `timeSeriesAcl` read; `locationFiltersAcl` read; `streamRecordsAcl` **write** on the instance space; `rawAcl` read, write and list on the state database | read the entities, datapoints and location filters, append records |
 | `gp_context_quality_dashboard_users` | `projectsAcl` read and list, `groupsAcl` list, `streamRecordsAcl` **read** on the instance space, `dataModelsAcl` read on the schema space, `streamsAcl` read, `locationFiltersAcl` read | read the run log, and let the runs they start read the location filters; the stream settings read is optional (the dashboard works without it) |
 
 Neither group can write instances or deploy anything, and the dashboard group cannot write at all. The scopes come from
@@ -467,6 +473,9 @@ runtime. See [`scripts/README.md`](../../../scripts/README.md).
 
 ```
 context_quality_v2/
+├── raw/
+│   ├── context_quality.Database.yaml
+│   └── context_quality_pieces.Table.yaml
 ├── data_sets/
 │   └── context_quality.DataSet.yaml
 ├── functions/

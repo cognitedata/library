@@ -532,7 +532,9 @@ def test_a_batch_uploads_its_items_too(monkeypatch: pytest.MonkeyPatch) -> None:
     }
 
 
-INCREMENTAL_CFG = build_config({**SAMPLE_RESOURCES, "exportDataSet": "ds_cq"})
+INCREMENTAL_CFG = build_config(
+    {**SAMPLE_RESOURCES, "exportDataSet": "ds_cq", "stateDatabase": "db_cq", "stateTable": "pieces"}
+)
 
 
 def counting_loads(monkeypatch: pytest.MonkeyPatch) -> list[int]:
@@ -592,7 +594,7 @@ def test_a_full_batch_counts_everything_and_leaves_its_result_for_the_next_run(m
     batch_run(client, INCREMENTAL_CFG, kinds=["equipment"], count=100)
 
     assert len(loads) == 2
-    assert len(client.files.content) == 1
+    assert len(client.state.rows) == 1
 
 
 def test_the_finalize_step_says_how_many_batches_were_reused() -> None:

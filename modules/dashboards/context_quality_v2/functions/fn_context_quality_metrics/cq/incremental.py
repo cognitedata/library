@@ -1,8 +1,8 @@
 """Reusing the result of a batch when nothing it reads has changed since it was computed (a run in `incremental` mode).
 
 A batch (cq.runner.compute_batch) counts one slice of one kind of a space, and what it writes is a function of the
-instances it reads. Every batch therefore leaves its result in Cognite Files (`cq-piece-<key>.json`, in the export data
-set), together with the time of the run that computed it. A run in `incremental` mode asks, for each batch, whether
+instances it reads. Every batch therefore leaves its result in a row of a RAW table (`stateDatabase`, `stateTable`; the
+row key is `piece_key`), together with the time of the run that computed it. A run in `incremental` mode asks, for each batch, whether
 anything the batch reads has a `lastUpdatedTime` after that time. If nothing does, the stored result is written into
 the new run as it is, and the slice is not read again. A batch that did change is counted whole, as in a full run.
 
@@ -22,8 +22,10 @@ The key of a stored result holds everything that decides it: the slice, the dime
 the code of this package, so a changed configuration or a new deployment finds no stored result and counts everything.
 """
 
+import base64
 import hashlib
 import json
+import zlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from functools import cache
@@ -31,7 +33,6 @@ from pathlib import Path
 from typing import Any
 
 from cognite.client import CogniteClient
-from cognite.client.data_classes import FileMetadataUpdate
 from cognite.client.data_classes.data_modeling import ViewId
 from cognite.client.data_classes.data_modeling import filters as f
 from cognite.client.data_classes.filters import Filter
@@ -44,7 +45,8 @@ from cq.scope import DIMENSION_KINDS, parse_scope
 from cq.types import Row, RunConfig
 
 FULL, INCREMENTAL = "full", "incremental"
-CACHE_PREFIX = "cq-piece-"
+# A RAW column holds 2,621,440 characters at most. A result is kept compressed, and one that still does not fit is not kept.
+MAX_BODY_CHARS = 2_000_000
 # A change made while the run that computed a result was starting is found at the next run, not missed.
 SAFETY = timedelta(minutes=5)
 
@@ -65,7 +67,15 @@ _LABEL_VIEWS = {
     "fileCategory": "CogniteFileCategory",
 }
 # Not part of what a batch computes
-_PLAN_ONLY = ("maxShards", "maxConcurrentShards", "shardTargetEntities", "exportDataSet", "exportRetentionDays")
+_PLAN_ONLY = (
+    "maxShards",
+    "maxConcurrentShards",
+    "shardTargetEntities",
+    "exportDataSet",
+    "exportRetentionDays",
+    "stateDatabase",
+    "stateTable",
+)
 
 
 def parse_mode(raw: Any) -> str:
@@ -111,7 +121,7 @@ def _dimensions_of(payload: dict[str, Any]) -> list[str]:
 
 
 def piece_key(cfg: RunConfig, payload: dict[str, Any]) -> str:
-    """The external id of the stored result of a batch: the same slice, scope, configuration and code give the same one."""
+    """The RAW row key of the stored result of a batch: the same slice, scope, configuration and code give the same one."""
     identity = {
         "space": payload["space"],
         "facility": payload["facility"],
@@ -123,7 +133,7 @@ def piece_key(cfg: RunConfig, payload: dict[str, Any]) -> str:
         "code": code_version(),
     }
     encoded = json.dumps(identity, sort_keys=True, separators=(",", ":"), default=str)
-    return f"{CACHE_PREFIX}{hashlib.sha256(encoded.encode()).hexdigest()[:32]}.json"
+    return hashlib.sha256(encoded.encode()).hexdigest()[:32]
 
 
 def _not_reusable(payload: dict[str, Any]) -> str | None:
@@ -186,93 +196,90 @@ def _populated_now(client: CogniteClient, payload: dict[str, Any]) -> list[str]:
     return sorted(lookups._populated(client, data, kinds, payload["space"]))
 
 
-def _stored(client: CogniteClient, key: str) -> tuple[PieceResult, int]:
-    body = json.loads(client.files.download_bytes(external_id=key))
-    result = PieceResult(
+def _keeps_results(cfg: RunConfig) -> bool:
+    return bool(cfg["stateDatabase"] and cfg["stateTable"])
+
+
+def _encode(body: dict[str, Any]) -> str:
+    return base64.b64encode(zlib.compress(json.dumps(body, separators=(",", ":")).encode("utf-8"))).decode("ascii")
+
+
+def _result_of(encoded: str) -> PieceResult:
+    body = json.loads(zlib.decompress(base64.b64decode(encoded)))
+    return PieceResult(
         rows=[(row_key, props) for row_key, props in body["rows"]],
         annotation_rows=[(row_key, props) for row_key, props in body["annotationRows"]],
         warnings=body["warnings"],
         listed=[tuple(row) for row in body["listed"]],
         populated=body["populated"],
     )
-    return result, int(body["count"])
 
 
-def reuse(
-    client: CogniteClient, cfg: RunConfig, payload: dict[str, Any], dataset: int | None
-) -> tuple[PieceResult | None, str]:
+def reuse(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> tuple[PieceResult | None, str]:
     """The stored result of a batch when it can be reused, and in any case a short note on why or why not."""
     if parse_mode(payload.get("mode")) != INCREMENTAL:
         return None, "full run"
-    if dataset is None:
-        return None, "no export data set to keep results in"
+    if not _keeps_results(cfg):
+        return None, "no table to keep results in"
     if (why := _not_reusable(payload)) is not None:
         return None, why
-    key = piece_key(cfg, payload)
     try:
-        file = client.files.retrieve(external_id=key)
-        if file is None:
+        row = client.raw.rows.retrieve(cfg["stateDatabase"], cfg["stateTable"], piece_key(cfg, payload))
+        if row is None or not row.columns:
             return None, "no earlier result"
-        meta = file.metadata or {}
-        if meta.get("count") != str(payload.get("count")):
+        kept = row.columns
+        if kept.get("count") != payload.get("count"):
             return None, "the number of instances changed"
-        computed = datetime.fromisoformat(meta["computedAt"].replace("Z", "+00:00"))
+        computed = datetime.fromisoformat(kept["computedAt"].replace("Z", "+00:00"))
         if (changed := _what_changed(client, cfg, payload, int((computed - SAFETY).timestamp() * 1000))) is not None:
             return None, f"{changed} changed"
-        result, _count = _stored(client, key)
+        result = _result_of(kept["body"])
         if result.populated != _populated_now(client, payload):
             return None, "the classifications in use changed"
-    except (CogniteAPIError, KeyError, ValueError, TypeError) as error:
+    except (CogniteAPIError, KeyError, ValueError, TypeError, zlib.error) as error:
         return None, f"could not reuse the earlier result ({type(error).__name__}: {str(error)[:120]})"
-    try:
-        client.files.update(FileMetadataUpdate(external_id=key).metadata.add({"usedAt": datetime.now(UTC).isoformat()}))
-    except CogniteAPIError:
-        pass  # only keeps the result from being tidied away as unused
     return result, "reused"
 
 
 def remember(
-    client: CogniteClient,
-    cfg: RunConfig,
-    payload: dict[str, Any],
-    dataset: int | None,
-    result: PieceResult,
-    run_ts: datetime,
+    client: CogniteClient, cfg: RunConfig, payload: dict[str, Any], result: PieceResult, run_ts: datetime
 ) -> None:
-    """Keeps the result of a batch for the next incremental run. Best effort: a run never fails for it."""
-    if dataset is None or _not_reusable(payload) is not None:
+    """Keeps the result of a batch for the next incremental run. Best effort: a run never fails for it. A result too big
+    for a row is not kept; the batch is counted again next time, as one with no earlier result."""
+    if not _keeps_results(cfg) or _not_reusable(payload) is not None:
         return
-    key = piece_key(cfg, payload)
     body = {
-        "count": payload.get("count"),
         "rows": result.rows,
         "annotationRows": result.annotation_rows,
         "warnings": result.warnings,
         "listed": result.listed,
         "populated": result.populated,
     }
+    encoded = _encode(body)
+    if len(encoded) > MAX_BODY_CHARS:
+        return
+    kept = {"computedAt": run_ts.astimezone(UTC).isoformat(), "count": payload.get("count"), "body": encoded}
     try:
-        client.files.upload_bytes(
-            content=json.dumps(body, separators=(",", ":")).encode("utf-8"),
-            name=key,
-            external_id=key,
-            mime_type="application/json",
-            data_set_id=dataset,
-            overwrite=True,
-            metadata={"computedAt": run_ts.astimezone(UTC).isoformat(), "count": str(payload.get("count"))},
-        )
+        client.raw.rows.insert(cfg["stateDatabase"], cfg["stateTable"], {piece_key(cfg, payload): kept})
     except CogniteAPIError:
         pass
 
 
-def remove_old_results(client: CogniteClient, cfg: RunConfig, dataset: int, now: datetime) -> int:
-    """Deletes the stored results that no run has written or reused for `exportRetentionDays`. -> how many."""
+def remove_old_results(client: CogniteClient, cfg: RunConfig, now: datetime) -> int:
+    """Deletes the stored results that no run has written for `exportRetentionDays`. -> how many. A batch that was
+    reused is not written again, but a full run writes every batch, and one runs weekly, so a result in use is young."""
+    if not _keeps_results(cfg):
+        return 0
     cutoff = int((now - timedelta(days=cfg["exportRetentionDays"])).timestamp() * 1000)
-    old = [
-        file.external_id
-        for file in client.files.list(external_id_prefix=CACHE_PREFIX, data_set_ids=[dataset], limit=-1)
-        if file.external_id and (file.last_updated_time or 0) < cutoff
-    ]
-    if old:
-        client.files.delete(external_id=old, ignore_unknown_ids=True)
-    return len(old)
+    database, table = cfg["stateDatabase"], cfg["stateTable"]
+    removed = 0
+    try:
+        old = [
+            row.key for row in client.raw.rows.list(database, table, max_last_updated_time=cutoff, columns=[], limit=-1)
+        ]
+        for start in range(0, len(old), 1000):
+            client.raw.rows.delete(database, table, old[start : start + 1000])
+            removed += len(old[start : start + 1000])
+    except CogniteAPIError:
+        pass
+    return removed

@@ -116,6 +116,20 @@ def test_the_plan_gets_the_mode_of_the_run() -> None:
     assert tasks_by_id()["plan"]["parameters"]["function"]["data"]["mode"] == "${workflow.input.mode}"
 
 
+def test_the_incremental_results_go_to_a_table_the_module_creates_and_the_function_is_told_about() -> None:
+    database = rendered("context_quality.Database.yaml", MODULE / "raw")
+    table = rendered("context_quality_pieces.Table.yaml", MODULE / "raw")
+    assert database == [{"dbName": DEFAULTS["metricsStateDatabase"]}]
+    assert table == [{"dbName": DEFAULTS["metricsStateDatabase"], "tableName": DEFAULTS["metricsStateTable"]}]
+    # the plan and the export carry it in their config, as the pieces read it from there
+    for name in ("plan", "export"):
+        config = tasks_by_id()[name]["parameters"]["function"]["data"]["config"]
+        assert (config["stateDatabase"], config["stateTable"]) == (
+            DEFAULTS["metricsStateDatabase"],
+            DEFAULTS["metricsStateTable"],
+        )
+
+
 def test_a_failed_step_fails_the_execution_so_the_run_is_never_completed() -> None:
     for name in ("plan", "shards", "finalize"):
         assert tasks_by_id()[name]["onFailure"] == "abortWorkflow"
@@ -427,9 +441,17 @@ def test_the_function_group_has_no_instance_write_and_no_infrastructure_deployme
         "functionsAcl": {"WRITE"},
         "streamRecordsAcl": {"WRITE"},
         "filesAcl": {"WRITE"},
+        "rawAcl": {"WRITE"},  # only the table where an incremental run keeps its results, see the next test
     }
-    deploy = {"dataModelsAcl", "dataModelInstancesAcl", "rawAcl", "transformationsAcl", "streamsAcl", "groupsAcl"}
+    deploy = {"dataModelsAcl", "dataModelInstancesAcl", "transformationsAcl", "streamsAcl", "groupsAcl"}
     assert not {name for name, actions in writes.items() if actions} & deploy
+
+
+def test_the_function_group_can_use_raw_only_in_the_database_that_keeps_the_incremental_results() -> None:
+    (raw,) = capabilities("context_quality_function.Group.yaml")["rawAcl"]
+
+    assert raw["actions"] == ["READ", "WRITE", "LIST"]
+    assert raw["scope"] == {"tableScope": {"dbsToTables": {DEFAULTS["metricsStateDatabase"]: []}}}
 
 
 def test_the_function_group_reads_what_the_function_loads() -> None:

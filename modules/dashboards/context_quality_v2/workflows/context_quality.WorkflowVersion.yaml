@@ -48,6 +48,8 @@ workflowDefinition:
               maxConcurrentShards: {{ metricsMaxConcurrentShards }}
               exportDataSet: "{{ metricsDatasetExternalId }}"
               exportRetentionDays: {{ metricsExportRetentionDays }}
+              stateDatabase: "{{ metricsStateDatabase }}"
+              stateTable: "{{ metricsStateTable }}"
       retries: 1
       timeout: 600
       onFailure: abortWorkflow
@@ -112,6 +114,8 @@ workflowDefinition:
               instanceSpace: "{{ metricsInstanceSpace }}"
               exportDataSet: "{{ metricsDatasetExternalId }}"
               exportRetentionDays: {{ metricsExportRetentionDays }}
+              stateDatabase: "{{ metricsStateDatabase }}"
+              stateTable: "{{ metricsStateTable }}"
       dependsOn:
         - externalId: finalize
       retries: 1

@@ -1,0 +1,2 @@
+- dbName: "{{ metricsStateDatabase }}"
+  tableName: "{{ metricsStateTable }}"

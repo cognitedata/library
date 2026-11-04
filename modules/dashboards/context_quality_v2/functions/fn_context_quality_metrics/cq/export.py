@@ -458,7 +458,7 @@ def build_workbook(
     if replaced:
         client.files.delete(external_id=replaced, ignore_unknown_ids=True)
     removed = remove_old_workbooks(client, cfg, dataset, external_id, now or datetime.now(UTC))
-    removed += incremental.remove_old_results(client, cfg, dataset, now or datetime.now(UTC))
+    removed += incremental.remove_old_results(client, cfg, now or datetime.now(UTC))
     return {
         "exported": True,
         "externalId": external_id,

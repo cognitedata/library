@@ -56,6 +56,10 @@ metricsMaxConcurrentShards: 2
 # The Excel workbook of every unlinked item of a run is kept in Cognite Files, in the module's data set, for this many
 # days. See README, "The workbook of unlinked items".
 metricsExportRetentionDays: 30
+# The RAW table where every batch keeps its result for the next incremental run (README, "Running incrementally"). A
+# result nobody wrote for metricsExportRetentionDays is deleted. The function's group needs access to the database.
+metricsStateDatabase: db_context_quality
+metricsStateTable: context_quality_pieces
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Access. REQUIRED before deployment: the identity-provider values below come from your environment (.env) and are
