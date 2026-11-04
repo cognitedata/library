@@ -24,6 +24,7 @@ modules = [
     "contextualization/cdf_file_annotation",
     "contextualization/cdf_entity_matching",
     "tools/apps/qualitizer",
+    "tools/apps/work_package_generator",
 ]
 
 [packages.quickstartdp]
@@ -148,10 +149,11 @@ modules = [
 [packages.tools]
 id = "tool"
 title = "Tools and Accelerators"
-description = "Qualitizer and other accelerator tools for CDF projects."
+description = "Qualitizer, Work Package Generator, and other accelerator tools for CDF projects."
 canCherryPick = true
 modules = [
     "tools/apps/qualitizer",
+    "tools/apps/work_package_generator",
 ]
 
 [packages.custom]

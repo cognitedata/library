@@ -1,0 +1,269 @@
+{
+	"schemaVersion": 1,
+	"name": "Work Package Generator",
+	"description": "A tool to easily create, manage, and customize work packages in canvas for team projects.",
+	"dataModel": {
+		"views": {
+			"asset": {
+				"space": "cdf_cdm",
+				"externalId": "CogniteAsset",
+				"version": "v1"
+			},
+			"equipment": {
+				"space": "cdf_cdm",
+				"externalId": "CogniteEquipment",
+				"version": "v1"
+			},
+			"activity": {
+				"space": "cdf_cdm",
+				"externalId": "CogniteActivity",
+				"version": "v1"
+			},
+			"timeSeries": {
+				"space": "cdf_cdm",
+				"externalId": "CogniteTimeSeries",
+				"version": "v1"
+			},
+			"file": {
+				"space": "cdf_cdm",
+				"externalId": "CogniteFile",
+				"version": "v1"
+			},
+			"solutionTag": {
+				"space": "cdf_apps_shared",
+				"externalId": "CogniteSolutionTag",
+				"version": "v1"
+			}
+		},
+		"activityContainer": {
+			"space": "cdf_cdm",
+			"externalId": "CogniteActivity"
+		}
+	},
+	"canvas": {
+		"schemaSpace": "cdf_industrial_canvas",
+		"instanceSpace": "IndustrialCanvasInstanceSpace",
+		"canvasView": {
+			"space": "cdf_industrial_canvas",
+			"externalId": "Canvas",
+			"version": "v7"
+		},
+		"instanceView": {
+			"space": "cdf_industrial_canvas",
+			"externalId": "FdmInstanceContainerReference",
+			"version": "v1"
+		},
+		"annotationView": {
+			"space": "cdf_industrial_canvas",
+			"externalId": "CanvasAnnotation",
+			"version": "v1"
+		},
+		"dimensions": {
+			"x": 0,
+			"y": 0,
+			"width": 600,
+			"height": 400,
+			"maxWidth": 1200,
+			"maxHeight": 1200
+		},
+		"userId": "work-package-generator",
+		"visibility": "public",
+		"style": {
+			"backgroundColor": "#fff59d",
+			"color": "#333333",
+			"borderColor": "rgba(83, 88, 127, 0.24)",
+			"borderWidth": 2,
+			"borderRadius": 4
+		}
+	},
+	"resourceTypes": {
+		"activity": {
+			"displayName": "Activities",
+			"view": "activity",
+			"properties": ["name", "description", "externalId"],
+			"assetRelationProperty": "assets",
+			"assetRelationIsArray": true
+		},
+		"asset": {
+			"displayName": "Assets",
+			"view": "asset",
+			"properties": ["name", "description", "externalId"],
+			"assetRelationProperty": "parent",
+			"assetRelationIsArray": false
+		},
+		"equipment": {
+			"displayName": "Equipment",
+			"view": "equipment",
+			"properties": ["name", "description", "externalId"],
+			"assetRelationProperty": "asset",
+			"assetRelationIsArray": false
+		},
+		"file": {
+			"displayName": "Files",
+			"view": "file",
+			"properties": ["name", "description", "externalId"],
+			"assetRelationProperty": "assets",
+			"assetRelationIsArray": true
+		},
+		"timeseries": {
+			"displayName": "Time Series",
+			"view": "timeSeries",
+			"properties": ["name", "description", "externalId"],
+			"assetRelationProperty": "assets",
+			"assetRelationIsArray": true,
+			"activityContainerIdentifier": "timeSeries"
+		}
+	},
+	"context": {
+		"workOrder": {
+			"properties": [
+				"name",
+				"description",
+				"type",
+				"status",
+				"priority",
+				"category",
+				"workOrderType",
+				"maintenanceType",
+				"scheduledStartTime",
+				"scheduledEndTime",
+				"estimatedDuration",
+				"actualStartTime",
+				"actualEndTime",
+				"workOrderNumber",
+				"requester",
+				"assignedTo",
+				"location",
+				"equipment",
+				"system",
+				"frequency",
+				"criticality"
+			]
+		},
+		"asset": {
+			"properties": [
+				"name",
+				"description",
+				"type",
+				"category",
+				"subcategory",
+				"assetType",
+				"criticality",
+				"status",
+				"location",
+				"parentAsset",
+				"parentAssetExternalId",
+				"hierarchy",
+				"specifications",
+				"manufacturer",
+				"model",
+				"serialNumber",
+				"installationDate",
+				"operatingConditions",
+				"capacity",
+				"powerRating",
+				"pressureRating",
+				"temperatureRating",
+				"flowRate",
+				"dimensions",
+				"weight",
+				"material",
+				"system",
+				"process",
+				"area",
+				"zone",
+				"building",
+				"floor",
+				"room"
+			]
+		}
+	},
+	"agent": {
+		"model": "cognite/fast",
+		"runtimeVersion": "1.2.0",
+		"externalIdSuffix": "work_package_generator_helper_agent",
+		"name": "Work Package Generator Helper",
+		"description": "AI agent for assisting with work package generation and analysis.",
+		"instructions": "",
+		"tools": []
+	},
+	"templates": {
+		"namePrefix": "template",
+		"baseTemplate": {
+			"id": "__base_all_resources__",
+			"name": "All Resources",
+			"visibility": "public",
+			"space": "local"
+		}
+	},
+	"solutionTag": {
+		"instanceSpace": "SolutionTagsInstanceSpace",
+		"externalId": "wpg-work-package",
+		"name": "Work Package"
+	},
+	"limits": {
+		"instancePageSize": 1000,
+		"upsertBatchSize": 1000,
+		"deleteBatchSize": 1000,
+		"searchResultLimit": 20,
+		"resourcesDisplayLimit": 50,
+		"maxCanvasListScanItems": 10000,
+		"maxResourceInstancesTotal": 2000,
+		"maxTemplateCanvasChildItems": 5000,
+		"maxCanvasCleanupItems": 100000,
+		"findCanvasByNameMaxItems": 500
+	},
+	"cluster": {
+		"apiHostSuffix": "cognitedata.com",
+		"hostAliases": {
+			"api.cognitedata.com": "api"
+		}
+	},
+	"fusion": {
+		"hostSuffix": ".fusion.cognite.com",
+		"canvasWorkspace": "industrial-tools"
+	},
+	"workOrderProperties": {
+		"name": "name",
+		"description": "description",
+		"type": "type",
+		"status": "status",
+		"priority": "priority",
+		"scheduledStartTime": "scheduledStartTime",
+		"scheduledEndTime": "scheduledEndTime",
+		"workOrderNumber": "workOrderNumber",
+		"sourceId": "sourceId",
+		"assets": "assets"
+	},
+	"prompts": {
+		"resourceSelection": "{{workOrderSection}}\n\n{{assetSection}}\n\nTASK: Select the best {{resourceName}} for the label \"{{label}}\" from the available options.\n\nThe label \"{{label}}\" indicates what type of {{resourceName}} is needed for this specific work order and asset combination.\n\nSELECTION CRITERIA:\n- The label \"{{label}}\" indicates what type of {{resourceType}} is needed\n- Consider how the {{resourceType}} relates to the work order and asset context\n- Look for the most relevant {{resourceType}} for this specific work order on this asset\n\nAVAILABLE {{resourceNameUpper}}:\n{{optionsText}}\n\nYou MUST respond with ONLY the external ID of the best matching {{resourceName}}. Do not include any explanation or additional text.\nIf none of the available {{resourceName}}s are good matches, respond with an empty response.",
+		"templateSelection": "WORK ORDER CONTEXT:\n- Name: {{workOrderName}}\n- Type: {{workOrderType}}\n- Description: {{workOrderDescription}}\n\nASSET CONTEXT:\n- Name: {{assetName}}\n- Type: {{assetType}}\n- Description: {{assetDescription}}\n\nAVAILABLE RESOURCES:\n{{resourcesSection}}\n\nAVAILABLE TEMPLATE CANVASES:{{canvasSection}}\n\nTASK: Select the best template canvas for this work order, or decline if none fit. Consider:\n1. How well the canvas name matches the work order type/purpose\n2. Whether the available resources can fulfill the template's requirements\n3. The overall fit between the work order context and the template's expected resources\n\nIf none of the templates are a good fit for this work order, respond with NONE. A generic all-resources layout will be used instead.\n\nRespond with ONLY the canvas ID (external_id) of your selection, or NONE, nothing else."
+	},
+	"ui": {
+		"workOrderStatusOptions": [
+			"Active",
+			"Planned",
+			"In Progress",
+			"On Hold",
+			"Completed",
+			"Cancelled"
+		],
+		"workOrderPriorityOptions": ["Critical", "High", "Medium", "Low"],
+		"templateInstructionExamples": {
+			"workOrderId": "WorkOrder - 4672741",
+			"functionalLocationId": "CXR-PTU-17X829"
+		},
+		"terms": {
+			"workOrder": "Work Order",
+			"workPackage": "Work Package",
+			"functionalLocation": "Functional Location"
+		},
+		"stepperLabels": [
+			"Work Order",
+			"Template",
+			"Resources",
+			"Selections",
+			"Create"
+		]
+	}
+}

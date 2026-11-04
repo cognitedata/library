@@ -1,0 +1,80 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
+	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended",
+			"correctness": {
+				"noUnusedVariables": "error",
+				"noComponentHookFactories": "off"
+			},
+			"performance": {
+				"useDomNodeTextContent": "off"
+			},
+			"suspicious": {
+				"noExplicitAny": "error",
+				"noUnknownAtRules": "off"
+			},
+			"style": {
+				"noNonNullAssertion": "error"
+			},
+			"complexity": {
+				"noForEach": "off"
+			}
+		}
+	},
+	"formatter": {
+		"enabled": true
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"trailingCommas": "es5",
+			"semicolons": "always"
+		}
+	},
+	"json": {
+		"formatter": {
+			"enabled": true
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["src/canvas-preview/**"],
+			"linter": {
+				"rules": {
+					"a11y": {
+						"noSvgWithoutTitle": "off",
+						"noStaticElementInteractions": "off",
+						"useKeyWithClickEvents": "off",
+						"useButtonType": "off"
+					},
+					"suspicious": {
+						"noArrayIndexKey": "off"
+					},
+					"style": {
+						"noNonNullAssertion": "off"
+					},
+					"correctness": {
+						"noUnusedFunctionParameters": "off",
+						"useExhaustiveDependencies": "off"
+					}
+				}
+			}
+		}
+	],
+	"files": {
+		"includes": [
+			"src/**",
+			"vite.config.ts",
+			"vitest.config.ts",
+			"vitest.setup.ts"
+		]
+	}
+}

@@ -1,0 +1,32 @@
+# Defaults for the Work Package Generator module.
+# Do not rename the fixed identifiers (spaces, WPGConfig_SOL, WPGConfig, wpg_config).
+# The app looks them up by those names.
+
+# CDF project the module is deployed to. Used in the agent external id: {cdf_project}_{wpg_agent_external_id_suffix}.
+cdf_project: <cdf-project>
+
+wpg_config_version: v1
+wpg_cdm_view_version: v1
+# Canvas root is v7 in cdf_industrial_canvas. Item and annotation views stay at v1.
+wpg_canvas_view_version: v7
+wpg_canvas_child_view_version: v1
+wpg_solution_tag_view_version: v1
+wpg_canvas_instance_space: IndustrialCanvasInstanceSpace
+wpg_solution_tag_instance_space: SolutionTagsInstanceSpace
+wpg_agent_model: cognite/fast
+wpg_agent_runtime_version: "1.2.0"
+wpg_agent_external_id_suffix: work_package_generator_helper_agent
+wpg_agent_name: Work Package Generator Helper
+wpg_agent_description: AI agent for assisting with work package generation and analysis.
+# Leave empty when every user opens the app from Fusion. Set an org slug for local or non-Fusion hosts.
+wpg_fusion_fallback_organization: ""
+wpg_limits_instance_page_size: 1000
+wpg_limits_upsert_batch_size: 1000
+wpg_limits_delete_batch_size: 1000
+wpg_limits_search_result_limit: 20
+wpg_limits_resources_display_limit: 50
+wpg_limits_max_canvas_list_scan_items: 10000
+wpg_limits_max_resource_instances_total: 2000
+wpg_limits_max_template_canvas_child_items: 5000
+wpg_limits_max_canvas_cleanup_items: 100000
+wpg_limits_find_canvas_by_name_max_items: 500

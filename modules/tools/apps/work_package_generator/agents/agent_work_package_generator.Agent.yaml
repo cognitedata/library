@@ -1,0 +1,10 @@
+# Agent looked up by the app as {cdf project}_{wpg_agent_external_id_suffix},
+# unless the config node sets agent.existingAgentExternalId.
+# Model, runtime, suffix, name, and description use the same variables as the config node.
+externalId: "{{ cdf_project }}_{{ wpg_agent_external_id_suffix }}"
+name: "{{ wpg_agent_name }}"
+description: "{{ wpg_agent_description }}"
+instructions: ""
+model: "{{ wpg_agent_model }}"
+runtimeVersion: "{{ wpg_agent_runtime_version }}"
+tools: []

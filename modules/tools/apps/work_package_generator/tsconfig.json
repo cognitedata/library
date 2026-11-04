@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "types": ["@testing-library/jest-dom"],
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Path aliases (relative to this config; `baseUrl` is a hard error in TypeScript 7) */
+    "paths": {
+      "@/*": ["./src/*"],
+      "@app.json": ["./app.json"],
+      "pdfjs-dist": ["./node_modules/pdfjs-dist/types/src/pdf.d.ts"],
+      "@dune-canvas/canvas-preview-lib": ["./src/canvas-preview/canvas-preview-lib/src/index.ts"],
+      "@dune-canvas/canvas-lib": ["./src/canvas-preview/canvas-lib/src/index.ts"],
+      "@dune-canvas/canvas-app": ["./src/canvas-preview/canvas-app/src/index.ts"],
+      "@dune-canvas/canvas-plugins": ["./src/canvas-preview/canvas-plugins/src/index.ts"],
+      "@dune-canvas/canvas-plugins/*": ["./src/canvas-preview/canvas-plugins/src/*"]
+    }
+  },
+  "include": ["src", "app.json"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
