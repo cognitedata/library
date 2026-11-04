@@ -372,8 +372,10 @@ A run counts every instance of the kinds it measures, even when a few of them ch
 a space, `cq/incremental.py`) is only read again when something it reads changed:
 
 - Every batch leaves its result in one row of a RAW table (`metricsStateDatabase`, `metricsStateTable`; the row key is a hash of
-  everything that decides the result) with the time of the run that counted it. The result is kept compressed; one that
-  does not fit a row (about 2 million characters) is not kept, and its batch is counted every time. A result that no
+  everything that decides the result) with the time of the run that counted it. The result is kept compressed and cut into
+  parts of a million characters, a row each, the header row written last; one of more than 20 parts is not kept, and its
+  batch is counted every time. `compute_batch` says what became of it in `kept` (`kept`, or `not kept:` and why), and a
+  result that could not be kept is an `incremental-not-kept` warning of the run; it never fails the run. A result that no
   run has written for `metricsExportRetentionDays` is deleted. The function's group needs `rawAcl` read, write and list on
   the database; without it nothing is kept or reused, and every run counts everything.
   The next incremental run asks, with a `limit 1` query on `lastUpdatedTime`, whether anything the batch

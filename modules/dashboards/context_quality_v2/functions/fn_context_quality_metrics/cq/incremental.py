@@ -2,7 +2,8 @@
 
 A batch (cq.runner.compute_batch) counts one slice of one kind of a space, and what it writes is a function of the
 instances it reads. Every batch therefore leaves its result in a row of a RAW table (`stateDatabase`, `stateTable`; the
-row key is `piece_key`), together with the time of the run that computed it. A run in `incremental` mode asks, for each batch, whether
+row key is `piece_key`, and the parts of a big result follow in rows `piece_key#1`, `#2`...), together with the time of
+the run that computed it. A run in `incremental` mode asks, for each batch, whether
 anything the batch reads has a `lastUpdatedTime` after that time. If nothing does, the stored result is written into
 the new run as it is, and the slice is not read again. A batch that did change is counted whole, as in a full run.
 
@@ -45,8 +46,10 @@ from cq.scope import DIMENSION_KINDS, parse_scope
 from cq.types import Row, RunConfig
 
 FULL, INCREMENTAL = "full", "incremental"
-# A RAW column holds 2,621,440 characters at most. A result is kept compressed, and one that still does not fit is not kept.
-MAX_BODY_CHARS = 2_000_000
+# A RAW column holds 2,621,440 characters at most, so a result is kept compressed and cut into parts of this size, one
+# row each. A result of more than MAX_PARTS parts is not kept: it would be slower to read than to count again.
+CHUNK_CHARS = 1_000_000
+MAX_PARTS = 20
 # A change made while the run that computed a result was starting is found at the next run, not missed.
 SAFETY = timedelta(minutes=5)
 
@@ -215,6 +218,22 @@ def _result_of(encoded: str) -> PieceResult:
     )
 
 
+def _part_key(key: str, index: int) -> str:
+    return f"{key}#{index}"
+
+
+def _stored_body(client: CogniteClient, cfg: RunConfig, key: str, header: dict[str, Any]) -> str:
+    """The encoded result: the first part is in the header row, the others in rows of their own. A part that is missing,
+    or that another write left (it has another time than the header), means the result cannot be trusted."""
+    parts = [header["body"]]
+    for index in range(1, int(header["parts"])):
+        part = client.raw.rows.retrieve(cfg["stateDatabase"], cfg["stateTable"], _part_key(key, index))
+        if part is None or not part.columns or part.columns.get("computedAt") != header["computedAt"]:
+            raise ValueError(f"part {index} of the earlier result is missing")
+        parts.append(part.columns["body"])
+    return "".join(parts)
+
+
 def reuse(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> tuple[PieceResult | None, str]:
     """The stored result of a batch when it can be reused, and in any case a short note on why or why not."""
     if parse_mode(payload.get("mode")) != INCREMENTAL:
@@ -223,8 +242,9 @@ def reuse(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> tup
         return None, "no table to keep results in"
     if (why := _not_reusable(payload)) is not None:
         return None, why
+    key = piece_key(cfg, payload)
     try:
-        row = client.raw.rows.retrieve(cfg["stateDatabase"], cfg["stateTable"], piece_key(cfg, payload))
+        row = client.raw.rows.retrieve(cfg["stateDatabase"], cfg["stateTable"], key)
         if row is None or not row.columns:
             return None, "no earlier result"
         kept = row.columns
@@ -233,7 +253,7 @@ def reuse(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> tup
         computed = datetime.fromisoformat(kept["computedAt"].replace("Z", "+00:00"))
         if (changed := _what_changed(client, cfg, payload, int((computed - SAFETY).timestamp() * 1000))) is not None:
             return None, f"{changed} changed"
-        result = _result_of(kept["body"])
+        result = _result_of(_stored_body(client, cfg, key, kept))
         if result.populated != _populated_now(client, payload):
             return None, "the classifications in use changed"
     except (CogniteAPIError, KeyError, ValueError, TypeError, zlib.error) as error:
@@ -243,11 +263,11 @@ def reuse(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> tup
 
 def remember(
     client: CogniteClient, cfg: RunConfig, payload: dict[str, Any], result: PieceResult, run_ts: datetime
-) -> None:
-    """Keeps the result of a batch for the next incremental run. Best effort: a run never fails for it. A result too big
-    for a row is not kept; the batch is counted again next time, as one with no earlier result."""
+) -> str:
+    """Keeps the result of a batch for the next incremental run. Best effort: a run never fails for it, so what it says
+    is returned instead: "" when there was nothing to keep, "kept", or "not kept: " and why."""
     if not _keeps_results(cfg) or _not_reusable(payload) is not None:
-        return
+        return ""
     body = {
         "rows": result.rows,
         "annotationRows": result.annotation_rows,
@@ -256,13 +276,21 @@ def remember(
         "populated": result.populated,
     }
     encoded = _encode(body)
-    if len(encoded) > MAX_BODY_CHARS:
-        return
-    kept = {"computedAt": run_ts.astimezone(UTC).isoformat(), "count": payload.get("count"), "body": encoded}
+    parts = [encoded[start : start + CHUNK_CHARS] for start in range(0, len(encoded), CHUNK_CHARS)]
+    if len(parts) > MAX_PARTS:
+        return f"not kept: the result is too big ({len(encoded):,} characters)"
+    key, computed = piece_key(cfg, payload), run_ts.astimezone(UTC).isoformat()
     try:
-        client.raw.rows.insert(cfg["stateDatabase"], cfg["stateTable"], {piece_key(cfg, payload): kept})
-    except CogniteAPIError:
-        pass
+        # the header goes last: it is what says the parts are all there, and a reader checks them against its time
+        for index, part in enumerate(parts[1:], start=1):
+            client.raw.rows.insert(
+                cfg["stateDatabase"], cfg["stateTable"], {_part_key(key, index): {"computedAt": computed, "body": part}}
+            )
+        header = {"computedAt": computed, "count": payload.get("count"), "parts": len(parts), "body": parts[0]}
+        client.raw.rows.insert(cfg["stateDatabase"], cfg["stateTable"], {key: header})
+    except CogniteAPIError as error:
+        return f"not kept: {error.code} {str(error.message)[:120]}"
+    return "kept"
 
 
 def remove_old_results(client: CogniteClient, cfg: RunConfig, now: datetime) -> int:

@@ -486,7 +486,7 @@ def with_export(
     """Stands in for Cognite Files: records what each piece uploads. A client that has no files cannot keep the stored
     results of batches (cq.incremental), so they are left out unless `keep_results`."""
     if not keep_results:
-        monkeypatch.setattr(runner.incremental, "remember", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(runner.incremental, "remember", lambda *_args, **_kwargs: "")
     uploaded: list[tuple[str, int, list[tuple[str, ...]]]] = []
     monkeypatch.setattr(runner.export, "data_set_id", lambda _client, cfg: 77 if cfg["exportDataSet"] else None)
     monkeypatch.setattr(
@@ -590,11 +590,12 @@ def test_a_full_batch_counts_everything_and_leaves_its_result_for_the_next_run(m
     loads = counting_loads(monkeypatch)
     client = IncrementalClient()
 
-    batch_run(client, INCREMENTAL_CFG, kinds=["equipment"], count=100)
+    first = batch_run(client, INCREMENTAL_CFG, kinds=["equipment"], count=100)
     batch_run(client, INCREMENTAL_CFG, kinds=["equipment"], count=100)
 
     assert len(loads) == 2
     assert len(client.state.rows) == 1
+    assert first["kept"] == "kept"
 
 
 def test_the_finalize_step_says_how_many_batches_were_reused() -> None:
@@ -815,3 +816,41 @@ def test_a_batch_that_met_a_busy_project_reads_again_and_writes_once(monkeypatch
 
     assert pauses == [30.0]
     assert len(records(client)) == summary["rowsWritten"] + 1  # its rows and the part record, written once
+
+
+def test_a_result_that_could_not_be_kept_is_a_warning_of_the_run_and_never_fails_the_batch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+
+    with_export(monkeypatch, keep_results=True)
+    counting_loads(monkeypatch)
+    client = IncrementalClient()
+
+    def refuse(*_a: Any, **_k: Any) -> None:
+        raise CogniteAPIError("Insufficient access rights", 403)
+
+    client.state.insert = refuse  # type: ignore[method-assign]
+
+    out = batch_run(client, INCREMENTAL_CFG, kinds=["equipment"], mode="incremental", count=100)
+
+    assert out["kept"] == "not kept: 403 Insufficient access rights"
+    (part_record,) = [props(i) for i in records(client) if props(i)["rowKind"] == "runPart"]
+    (warning_,) = [w for w in json.loads(part_record["warnings"]) if w["code"] == "incremental-not-kept"]
+    assert "Insufficient access rights" in warning_["message"]
+    assert part_record["rowsWritten"] == out["rowsWritten"] > 0
+
+
+def test_a_reused_batch_and_a_batch_with_nowhere_to_keep_its_result_say_nothing_of_keeping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with_export(monkeypatch, keep_results=True)
+    counting_loads(monkeypatch)
+    client = IncrementalClient()
+    incremental_batch(client, 3)
+
+    reused = incremental_batch(client, 7)
+    nowhere = batch_run(RecordingClient(), kinds=["equipment"], count=100)  # no table in the default configuration
+
+    assert reused["reuse"] == "reused" and "kept" not in reused
+    assert "kept" not in nowhere

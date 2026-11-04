@@ -251,33 +251,95 @@ def test_nothing_is_kept_or_reused_without_a_table() -> None:
     assert incremental.reuse(client, no_table, PAYLOAD)[0] is None  # type: ignore[arg-type]
 
 
-def test_a_result_too_big_for_a_row_is_not_kept(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_result_is_kept_in_one_row_that_says_when_it_was_made_and_how_many_instances_it_counted() -> None:
     client = IncrementalClient()
-    monkeypatch.setattr(incremental, "MAX_BODY_CHARS", 10)
 
+    assert incremental.remember(client, CFG, PAYLOAD, RESULT, RUN_TS) == "kept"  # type: ignore[arg-type]
+
+    ((key, row),) = client.state.rows.items()
+    assert key == incremental.piece_key(CFG, PAYLOAD) and len(key) == 32
+    assert (row["computedAt"], row["count"], row["parts"]) == (RUN_TS.isoformat(), PAYLOAD["count"], 1)
+    assert "agg:associationRate" not in row["body"]  # compressed
+
+
+@pytest.fixture
+def small_parts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(incremental, "CHUNK_CHARS", 40)
+    monkeypatch.setattr(incremental, "MAX_PARTS", 100)
+
+
+def test_a_big_result_is_kept_in_several_rows_and_reused_whole(small_parts: None) -> None:
+    client = IncrementalClient()
     stored(client)
 
+    key = incremental.piece_key(CFG, PAYLOAD)
+    parts = client.state.rows[key]["parts"]
+    assert parts > 2
+    assert sorted(client.state.rows) == sorted([key, *(f"{key}#{n}" for n in range(1, parts))])
+    assert all(len(row["body"]) <= incremental.CHUNK_CHARS for row in client.state.rows.values())
+    assert reuse(client) == (RESULT, "reused")
+
+
+def test_a_result_of_more_parts_than_allowed_is_not_kept_and_says_why(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = IncrementalClient()
+    monkeypatch.setattr(incremental, "CHUNK_CHARS", 40)
+    monkeypatch.setattr(incremental, "MAX_PARTS", 2)
+
+    said = incremental.remember(client, CFG, PAYLOAD, RESULT, RUN_TS)  # type: ignore[arg-type]
+
+    assert said.startswith("not kept: the result is too big (") and "characters)" in said
     assert client.state.rows == {}
     assert reuse(client) == (None, "no earlier result")
 
 
-def test_a_result_is_kept_in_one_row_that_says_when_it_was_made_and_how_many_instances_it_counted() -> None:
+def test_a_result_with_a_part_missing_is_counted_again(small_parts: None) -> None:
+    client = IncrementalClient()
+    stored(client)
+    key = incremental.piece_key(CFG, PAYLOAD)
+    del client.state.rows[f"{key}#1"]
+
+    result, note = reuse(client)
+
+    assert result is None and "part 1 of the earlier result is missing" in note
+
+
+def test_parts_left_by_another_write_are_never_mixed_with_a_header(small_parts: None) -> None:
+    """A write that got its parts in but not its header leaves the old header with new parts: they must not be reused."""
+    client = IncrementalClient()
+    stored(client)
+    real_insert = client.state.insert
+
+    def refuse_the_header(db_name: str, table_name: str, row: dict[str, dict[str, Any]]) -> None:
+        if not any("#" in key for key in row):
+            raise CogniteAPIError("no access", 403)
+        real_insert(db_name, table_name, row)
+
+    client.state.insert = refuse_the_header  # type: ignore[method-assign]
+    later = RUN_TS + timedelta(days=1)
+
+    said = incremental.remember(client, CFG, PAYLOAD, RESULT, later)  # type: ignore[arg-type]
+
+    assert said.startswith("not kept: 403")
+    result, note = reuse(client)
+    assert result is None and "missing" in note
+
+
+def test_remember_says_what_became_of_the_result() -> None:
     client = IncrementalClient()
 
-    stored(client)
-
-    ((key, row),) = client.state.rows.items()
-    assert key == incremental.piece_key(CFG, PAYLOAD) and len(key) == 32
-    assert row["computedAt"] == RUN_TS.isoformat() and row["count"] == PAYLOAD["count"]
-    assert len(row["body"]) < incremental.MAX_BODY_CHARS and "agg:associationRate" not in row["body"]  # compressed
+    assert incremental.remember(client, CFG, PAYLOAD, RESULT, RUN_TS) == "kept"  # type: ignore[arg-type]
+    assert incremental.remember(client, {**CFG, "stateTable": ""}, PAYLOAD, RESULT, RUN_TS) == ""  # type: ignore[arg-type]
+    series = {**PAYLOAD, "kinds": ["timeseries"]}
+    assert incremental.remember(client, CFG, series, RESULT, RUN_TS) == ""  # type: ignore[arg-type]
 
 
 def test_a_table_that_cannot_be_written_never_fails_the_run() -> None:
     client = IncrementalClient()
     client.state.insert = lambda *_a, **_k: (_ for _ in ()).throw(CogniteAPIError("no access", 403))  # type: ignore[method-assign]
 
-    stored(client)  # does not raise
+    said = incremental.remember(client, CFG, PAYLOAD, RESULT, RUN_TS)  # type: ignore[arg-type]  # does not raise
 
+    assert said == "not kept: 403 no access"
     assert client.state.rows == {}
 
 

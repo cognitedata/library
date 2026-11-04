@@ -426,11 +426,16 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
             listed += export.item_rows([], gaps)
         return incremental.PieceResult(main_rows, anno_rows, warnings, listed, populated)
 
+    kept = ""
     if reused is not None:
         result_of = reused
     else:
         result_of = patiently(count)
-        incremental.remember(client, cfg, payload, result_of, _piece(payload)[1])
+        kept = incremental.remember(client, cfg, payload, result_of, _piece(payload)[1])
+    # a result that could not be kept never fails the run; the run says so instead
+    warnings = result_of.warnings
+    if kept.startswith("not kept"):
+        warnings = [*warnings, {"code": "incremental-not-kept", "message": kept, "subject": "incremental"}]
     written = _finish_piece(
         client,
         cfg,
@@ -438,10 +443,11 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         "batch:reused" if reused is not None else "batch",
         _rekey(result_of.rows, shard),
         _rekey(result_of.annotation_rows, shard),
-        result_of.warnings,
+        warnings,
         result_of.listed,
     )
-    return {"action": "compute_batch", "shard": shard, "rowsWritten": written, "space": space, "reuse": note}
+    out = {"action": "compute_batch", "shard": shard, "rowsWritten": written, "space": space, "reuse": note}
+    return {**out, "kept": kept} if kept else out
 
 
 PART_WAIT_SECONDS = 120
