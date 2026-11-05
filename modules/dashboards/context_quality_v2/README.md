@@ -208,7 +208,8 @@ deploying principal may write to (the project's other function modules show whic
 
 Do this before `cdf deploy` and keep the line when the module is updated, because an update overwrites the file. If the
 deploy of the function fails in a data-modeling-only project, this is the first thing to check. The module has no variable
-for it yet.
+for it: Toolkit has no conditional lines in its YAML, and it rejects an empty `space:`, so a variable that is empty by
+default cannot be offered without making the line mandatory for every project.
 
 ### Adding the module to an existing Toolkit project
 
