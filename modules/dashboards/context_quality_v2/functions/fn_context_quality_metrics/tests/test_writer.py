@@ -248,11 +248,9 @@ def test_the_other_row_kinds_keep_their_existing_ids() -> None:
         {("orphanRate", "asset-hierarchy", "sp_a", "fac", "div", "disc", "own", 1, None): [3, 2, 1, 0.0]}
     )
     excl = writer.exclusion_rows({("files", "user:file-extension", "sp_a", "fac", "div", "disc"): 2})
-    anno = writer.annotation_bucket_rows({("sp_a", "fac", "div", 1, "Approved", "high"): [2, 1.5]})
 
     assert keys(agg) == ["agg:orphanRate|sp_a|div|disc|own|1|None"]
     assert keys(excl) == ["excl:files|user:file-extension|sp_a|div|disc"]
-    assert keys(anno) == ["anno:sp_a|div|1|Approved|high"]
 
 
 def test_writing_the_same_run_twice_uses_the_same_external_ids() -> None:

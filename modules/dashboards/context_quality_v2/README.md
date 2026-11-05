@@ -16,8 +16,7 @@ The module owns two things:
 
 ### The run log
 
-Every record is a row of the container `ContextQualityRelationship` (or, for `annotationBucket`, of
-`ContextQualityFileAnnotation`). Its `externalId` is `{runId}:{rowKey}` in the instance space, and `rowKind` says what it
+Every record is a row of the container `ContextQualityRelationship`. Its `externalId` is `{runId}:{rowKey}` in the instance space, and `rowKind` says what it
 is:
 
 | `rowKind` | What it holds | Row key |
@@ -27,7 +26,6 @@ is:
 | `exclusion` | How many entities were excluded, per category | `excl:` |
 | `drilldown` | One entity that has a gap, capped per metric and space | `drill:` |
 | `classification` | Counts per type, class or category | `cls:` |
-| `annotationBucket` | File annotation counts by status and confidence | `anno:` |
 | `extraLink`, `extraLinkGap` | Counts for the links of a configuration file, and the instances without the link | `xlink:`, `xgap:` |
 | `location` | A location filter that can be used as a scope: its name, parent and the facilities it covers | `loc:` |
 | `runPart` | What one parallel piece of a run reports to `finalize`; read only by the function | `part:` |
@@ -37,8 +35,7 @@ ever added as optional ones, so an older run stays readable.
 
 ### Design in one paragraph
 
-A run writes a `run:started` marker, then its `aggregate`, `exclusion`, `drilldown` and `classification` rows (and
-`annotationBucket` rows to a second container), and **last** a `run:complete` marker. "Current" means the latest run
+A run writes a `run:started` marker, then its `aggregate`, `exclusion`, `drilldown` and `classification` rows, and **last** a `run:complete` marker. "Current" means the latest run
 with a `complete` marker; earlier complete runs are the history. Rows are raw counts, never percentages: a consumer
 sums the rows for the scope the user picked and divides. Nothing is ever updated or deleted by the backend.
 
@@ -120,8 +117,8 @@ the function: a project supplies its own in the task's `config` (the workflow's 
 | `stream` | a real `compute_metrics` run | the Records stream that is written. `validate` and `dry_run` never write it, so they do not need it |
 
 A missing or blank one is a `ValueError` naming it, raised before the client is used, so nothing is read or written.
-The two container names (`relationshipContainer`, `fileAnnotationContainer`) are part of the run log rather
-than of an environment, so they keep their defaults. The function reads no RAW table.
+The container name (`relationshipContainer`) is part of the run log rather
+than of an environment, so it keeps its default. The function reads no RAW table.
 
 **What is deployed.** Toolkit zips the whole function folder, so the deployed package also contains the tests, their
 fixtures (`parity_dataset.py`, `tiny_data.py`, `sample_rules.py`, all in the function's `tests/` folder, and `conftest.py`). This matches
@@ -322,7 +319,7 @@ resolves. **Still to confirm**: that `dependsOn` between the generated tasks mak
 
 ### The workbook of unlinked items
 
-The drill-down lists in the stream are capped (500 rows per list, space and kind), so the dashboard can show only a
+The drill-down lists in the stream are capped (200 rows per list, space and kind, which is what the dashboard lists of a metric), so the dashboard can show only a
 preview. The full lists are an **Excel workbook in Cognite Files**, one per run, so that the append-only stream does not
 grow with them (records cannot be deleted; files can).
 
@@ -473,11 +470,9 @@ context_quality_v2/
 │   ├── context_quality_metrics.Space.yaml
 │   ├── context_quality_instances.Space.yaml
 │   ├── containers/
-│   │   ├── ContextQualityRelationship.Container.yaml
-│   │   └── ContextQualityFileAnnotation.Container.yaml
+│   │   └── ContextQualityRelationship.Container.yaml
 │   └── views/
-│       ├── ContextQualityRelationship.View.yaml
-│       └── ContextQualityFileAnnotation.View.yaml
+│       └── ContextQualityRelationship.View.yaml
 ├── streams/
 │   └── context_quality_metrics.Streams.yaml
 ├── default.config.yaml

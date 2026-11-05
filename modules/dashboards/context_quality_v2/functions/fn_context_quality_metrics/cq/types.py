@@ -144,7 +144,6 @@ class RunConfig(TypedDict):
     schemaSpace: str
     instanceSpace: str
     relationshipContainer: str
-    fileAnnotationContainer: str
     facilitySpaces: dict[str, str]
     facilityNames: dict[str, str]
     excludeSpaces: list[str]
@@ -164,6 +163,5 @@ class RunConfig(TypedDict):
     freshnessDays: int
     maxDepth: int
     lowConfidence: float
-    highConfidence: float
     drilldownCap: int
     batchSize: int

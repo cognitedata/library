@@ -37,10 +37,7 @@ def test_the_defaults_name_no_legacy_or_demo_resource() -> None:
 def test_the_container_names_remain_defaults_because_they_are_not_environment_settings() -> None:
     cfg = build_config(NEW_PROJECT)
 
-    assert (cfg["relationshipContainer"], cfg["fileAnnotationContainer"]) == (
-        "ContextQualityRelationship",
-        "ContextQualityFileAnnotation",
-    )
+    assert cfg["relationshipContainer"] == "ContextQualityRelationship"
 
 
 # ---------------------------------------------------------------- required resources fail before the client is touched

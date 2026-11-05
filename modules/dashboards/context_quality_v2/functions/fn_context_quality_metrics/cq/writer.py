@@ -267,32 +267,6 @@ def extra_link_gap_rows(gaps: list[LinkGap], facility_spaces: dict[str, str], ca
     return out
 
 
-def annotation_bucket_rows(buckets: dict[tuple, list[Any]]) -> list[Row]:
-    out: list[Row] = []
-    for (unit, facility, div, tier, status, bucket), (count, csum) in buckets.items():
-        n = "|".join(str(x) for x in (unit, div, tier, status, bucket))
-        out.append(
-            (
-                f"anno:{n}",
-                _clean(
-                    {
-                        "rowKind": "annotationBucket",
-                        "reportingUnitId": unit,
-                        "facilityId": facility,
-                        "divisionId": div,
-                        "tier": tier,
-                        "annotationType": "asset-tag",
-                        "status": status,
-                        "confidenceBucket": bucket,
-                        "count": count,
-                        "confidenceSum": round(csum, 4),
-                    }
-                ),
-            )
-        )
-    return out
-
-
 def ingest(
     client: CogniteClient, cfg: RunConfig, container_key: str, run_id: str, run_ts: datetime, rows: list[Row]
 ) -> int:

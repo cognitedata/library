@@ -36,7 +36,6 @@ ROW_KINDS = {
     "exclusion",
     "drilldown",
     "classification",
-    "annotationBucket",
     "extraLink",
     "extraLinkGap",
     "location",
@@ -49,7 +48,6 @@ RECORD_KEY_PREFIXES = (
     "excl:",
     "drill:",
     "cls:",
-    "anno:",
     "xlink:",
     "xgap:",
     "loc:",
@@ -298,7 +296,6 @@ def test_the_function_has_no_default_resource_and_a_deployment_names_its_own() -
 
 def test_the_function_writes_to_the_containers_of_this_module() -> None:
     assert DEFAULT_CONFIG["relationshipContainer"] == CONTAINERS["relationship"]
-    assert DEFAULT_CONFIG["fileAnnotationContainer"] == CONTAINERS["fileAnnotation"]
 
 
 def test_every_record_fits_the_container_it_is_written_to(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -322,9 +319,8 @@ def test_every_record_is_of_a_known_row_kind_and_in_the_container_that_kind_belo
 
     for item in items:
         properties = item["sources"][0]["properties"]
-        container = CONTAINERS["fileAnnotation" if properties["rowKind"] == "annotationBucket" else "relationship"]
         assert properties["rowKind"] in ROW_KINDS, item["externalId"]
-        assert item["sources"][0]["source"]["externalId"] == container, item["externalId"]
+        assert item["sources"][0]["source"]["externalId"] == CONTAINERS["relationship"], item["externalId"]
 
 
 def test_the_run_is_only_readable_once_the_complete_marker_exists(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -55,7 +55,7 @@ def test_counting_each_facility_space_alone_gives_the_numbers_of_counting_them_t
     whole = compute(whole_data, CFG, latest, now=now)  # type: ignore[arg-type]
     parts = [compute(data_of({space: name}), CFG, latest, now=now) for space, name in FACILITIES.items()]  # type: ignore[arg-type]
 
-    for key in ("agg", "exclusions", "annotation_buckets", "classifications"):
+    for key in ("agg", "exclusions", "classifications"):
         together = {k: v for part in parts for k, v in part[key].items()}
         assert together == dict(whole[key]), key
     assert sorted(map(str, (item for part in parts for item in part["drilldown"]))) == sorted(
@@ -434,7 +434,7 @@ def test_the_drill_down_cap_of_a_space_is_shared_by_the_batches_of_a_kind(monkey
     batch_run(RecordingClient(), kinds=["files"], groupBatches=4)
     batch_run(RecordingClient(), kinds=["files"])
 
-    assert seen == [125, 500]
+    assert seen == [50, 200]
 
 
 def test_a_batch_leaves_to_the_plan_what_it_cannot_know_about_the_whole_run() -> None:

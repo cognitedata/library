@@ -312,7 +312,6 @@ def compute(
             )
 
     # ---- file annotation
-    fa_rows = defaultdict(lambda: [0, 0.0])  # (unit, facility, div, tier, status, bucket) -> count, confSum
     dim = "file-annotation"
     for an in data["annotations"] if want("annotations") else ():
         g = ctx(an["space"], an["asset"])
@@ -348,10 +347,6 @@ def compute(
                 an["file"][1],
                 f"awaiting review {age} days" if age is not None else "awaiting review",
             )
-        bucket = "none" if conf is None else "high" if conf >= cfg["highConfidence"] else "low" if low else "medium"
-        r = fa_rows[(g["unit"], g["facility"], g["div"], g["tier"], an["status"], bucket)]
-        r[0] += 1
-        r[1] += conf or 0.0
 
     classifications = compute_classifications(scoped, cfg, A, ctx, lambda dimension: _owner(cfg, dimension), populated)
     populations = population_counts(scoped)
@@ -362,7 +357,6 @@ def compute(
         "agg": acc.agg,
         "exclusions": excl,
         "drilldown": drill,
-        "annotation_buckets": fa_rows,
         "classifications": classifications,
         "warnings": build_warnings(scoped, cfg, populations, not_applicable, drill),
     }

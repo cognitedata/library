@@ -100,13 +100,12 @@ def extra_link_rows(
     return rows, extra_link_truncation_warnings(gaps, cfg["drilldownCap"])
 
 
-def build_rows(result: dict[str, Any], cfg: RunConfig) -> tuple[list[Row], list[Row]]:
+def build_rows(result: dict[str, Any], cfg: RunConfig) -> list[Row]:
     return (
         writer.aggregate_rows(result["agg"])
         + writer.exclusion_rows(result["exclusions"])
         + writer.drilldown_rows(result["drilldown"], cfg["drilldownCap"])
-        + writer.classification_rows(result["classifications"]),
-        writer.annotation_bucket_rows(result["annotation_buckets"]),
+        + writer.classification_rows(result["classifications"])
     )
 
 
@@ -116,7 +115,7 @@ def compute_metrics(client: CogniteClient, cfg: RunConfig, payload: dict[str, An
     if parse_scope(payload.get("scope"), links_given=bool(links)).partial:
         raise ValueError("compute_metrics measures every dimension in one call. Use plan for a run of some of them.")
     data, result = compute_run(client, cfg)
-    main_rows, anno_rows = build_rows(result, cfg)
+    main_rows = build_rows(result, cfg)
     link_rows, link_warnings = extra_link_rows(client, links, data, cfg)
     main_rows += link_rows
     found, location_warnings = locations.read(client, data["facility_spaces"])
@@ -132,7 +131,6 @@ def compute_metrics(client: CogniteClient, cfg: RunConfig, payload: dict[str, An
         "extraLinkRows": sum(1 for k, _ in main_rows if k.startswith("xlink")),
         "extraLinkGapRows": sum(1 for k, _ in main_rows if k.startswith("xgap")),
         "locationRows": len(found),
-        "annotationBucketRows": len(anno_rows),
         "notApplicableRows": sum(1 for k, p in main_rows if k.startswith("agg") and p.get("notApplicable") is True),
         "warnings": warnings,
     }
@@ -153,7 +151,6 @@ def compute_metrics(client: CogniteClient, cfg: RunConfig, payload: dict[str, An
         [("run:started", writer.run_row(run_id, run_ts, "started")[2])],
     )
     n = writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, main_rows)
-    n += writer.ingest(client, cfg, "fileAnnotationContainer", run_id, run_ts, anno_rows)
     # the 'complete' marker is written last: a run is only readable once it exists
     writer.ingest(
         client,
@@ -310,7 +307,6 @@ def _finish_piece(
     payload: dict[str, Any],
     detail: str,
     rows: list[Row],
-    annotation_rows: list[Row],
     warnings: list[dict[str, Any]],
     export_rows: list[tuple[str, ...]] | None = None,
 ) -> int:
@@ -319,7 +315,6 @@ def _finish_piece(
     if export_rows is not None:
         warnings = [*warnings, *_export_part(client, cfg, payload, export_rows)]
     written = writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, rows)
-    written += writer.ingest(client, cfg, "fileAnnotationContainer", run_id, run_ts, annotation_rows)
     part = writer.run_part_row(shard, detail, encode_warnings(warnings), written)
     writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, [part])
     return written
@@ -342,9 +337,8 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     spaces: dict[str, str] = payload.get("spaces") or {}
     extra_spaces: dict[str, str] = payload.get("extraSpaces") or {}
 
-    def count() -> tuple[list[Row], list[Row], list[dict[str, Any]], list[tuple[str, ...]]]:
+    def count() -> tuple[list[Row], list[dict[str, Any]], list[tuple[str, ...]]]:
         main_rows: list[Row] = []
-        anno_rows: list[Row] = []
         warnings: list[dict[str, Any]] = []
         listed: list[tuple[str, ...]] = []
         links = parse_extra_links(payload.get("extraLinks"))
@@ -361,7 +355,7 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
                 data = load_shard(client, spaces, needed)
                 result = filter_result(compute(data, cfg, latest_datapoints(client, data), kinds=scope.kinds), scope)
                 left_to_the_plan = _NOT_FROM_A_BATCH
-            main_rows, anno_rows = build_rows(result, cfg)
+            main_rows = build_rows(result, cfg)
             listed = [*export.item_rows(result["drilldown"]), *export.summary_rows(result["agg"])]
             warnings = [w for w in result["warnings"] if w["code"] not in left_to_the_plan]
         if links and extra_spaces:
@@ -372,12 +366,12 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
             main_rows += writer.extra_link_gap_rows(gaps, extra_spaces, cfg["drilldownCap"])
             warnings = [*warnings, *extra_link_truncation_warnings(gaps, cfg["drilldownCap"])]
             listed += export.item_rows([], gaps)
-        return main_rows, anno_rows, warnings, listed
+        return main_rows, warnings, listed
 
     started_at = time.monotonic()
-    main_rows, anno_rows, warnings, listed = patiently(count)
+    main_rows, warnings, listed = patiently(count)
     counted_at = time.monotonic()
-    written = _finish_piece(client, cfg, payload, "shard", main_rows, anno_rows, warnings, listed)
+    written = _finish_piece(client, cfg, payload, "shard", main_rows, warnings, listed)
     return {
         "action": "compute_shard",
         "shard": int(payload["shard"]),
@@ -404,12 +398,11 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     leaves: list[Leaf] = [(kind, text) for kind, text in payload.get("leaves") or []]
     shard = int(payload["shard"])
 
-    def count() -> tuple[list[Row], list[Row], list[dict[str, Any]], list[tuple[str, ...]]]:
+    def count() -> tuple[list[Row], list[dict[str, Any]], list[tuple[str, ...]]]:
         flt = batch_filter(leaves, edge=kinds == frozenset({"annotations"})) if leaves else None
         # the cap on a drill-down list is per space; the batches of one kind share it
         counted = {**cfg, "drilldownCap": max(1, cfg["drilldownCap"] // max(1, int(payload.get("groupBatches") or 1)))}
         main_rows: list[Row] = []
-        anno_rows: list[Row] = []
         warnings: list[dict[str, Any]] = []
         listed: list[tuple[str, ...]] = []
         if kinds:
@@ -417,7 +410,7 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
             cross = fetch_cross(client, data, counted, kinds, space)  # type: ignore[arg-type]
             result = compute(data, counted, latest_datapoints(client, data), kinds=kinds, cross=cross)  # type: ignore[arg-type]
             result = filter_result(result, parse_scope(payload.get("scope"), links_given=None))
-            main_rows, anno_rows = build_rows(result, counted)  # type: ignore[arg-type]
+            main_rows = build_rows(result, counted)  # type: ignore[arg-type]
             listed = [*export.item_rows(result["drilldown"]), *export.summary_rows(result["agg"])]
             warnings = [w for w in result["warnings"] if w["code"] not in _NOT_FROM_A_BATCH]
         links = parse_extra_links(payload.get("extraLinks"))
@@ -431,14 +424,12 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
             main_rows += writer.extra_link_gap_rows(gaps, {space: facility}, counted["drilldownCap"])  # type: ignore[arg-type]
             warnings = [*warnings, *extra_link_truncation_warnings(gaps, counted["drilldownCap"])]  # type: ignore[arg-type]
             listed += export.item_rows([], gaps)
-        return main_rows, anno_rows, warnings, listed
+        return main_rows, warnings, listed
 
     started_at = time.monotonic()
-    main_rows, anno_rows, warnings, listed = patiently(count)
+    main_rows, warnings, listed = patiently(count)
     counted_at = time.monotonic()
-    written = _finish_piece(
-        client, cfg, payload, "batch", _rekey(main_rows, shard), _rekey(anno_rows, shard), warnings, listed
-    )
+    written = _finish_piece(client, cfg, payload, "batch", _rekey(main_rows, shard), warnings, listed)
     return {
         "action": "compute_batch",
         "shard": shard,

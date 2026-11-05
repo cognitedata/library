@@ -66,12 +66,7 @@ def test_every_record_goes_to_the_configured_stream_space_and_container(monkeypa
     for item in records(client):
         assert item["space"] == "inst"
         source = item["sources"][0]["source"]
-        expected = (
-            "ContextQualityFileAnnotation"
-            if props(item)["rowKind"] == "annotationBucket"
-            else "ContextQualityRelationship"
-        )
-        assert source == {"type": "container", "space": "schema", "externalId": expected}
+        assert source == {"type": "container", "space": "schema", "externalId": "ContextQualityRelationship"}
 
 
 def test_all_rows_of_one_run_share_the_run_id_and_timestamp(monkeypatch: pytest.MonkeyPatch) -> None:

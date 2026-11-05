@@ -60,7 +60,6 @@ def test_counting_in_batches_gives_the_numbers_of_counting_the_space_whole(name:
     assert summed(parts, "agg", 4) == summed([whole], "agg", 4)
     assert summed(parts, "exclusions", 1) == summed([whole], "exclusions", 1)
     assert summed(parts, "classifications", 2) == summed([whole], "classifications", 2)
-    assert summed(parts, "annotation_buckets", 2) == summed([whole], "annotation_buckets", 2)
     listed = sorted(map(str, (item for part in parts for item in part["drilldown"])))
     assert listed == sorted(map(str, whole["drilldown"]))
 

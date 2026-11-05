@@ -410,7 +410,7 @@ def test_validate_reports_the_warnings_without_writing(monkeypatch: pytest.Monke
 
 def test_a_failure_while_writing_never_produces_a_complete_marker(monkeypatch: pytest.MonkeyPatch) -> None:
     cfg = canned(monkeypatch)
-    for fail_after in (1, 2, 3):
+    for fail_after in (1, 2):
         client = RecordingClient(fail_after=fail_after)
 
         with pytest.raises(RuntimeError):

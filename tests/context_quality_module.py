@@ -9,7 +9,7 @@ from pydantic import JsonValue
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODULE = REPO_ROOT / "modules" / "dashboards" / "context_quality_v2"
 
-CONTAINERS = {"relationship": "ContextQualityRelationship", "fileAnnotation": "ContextQualityFileAnnotation"}
+CONTAINERS = {"relationship": "ContextQualityRelationship"}
 ISO_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$")
 VARIABLE = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 

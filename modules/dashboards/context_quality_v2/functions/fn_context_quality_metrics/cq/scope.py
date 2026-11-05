@@ -115,6 +115,5 @@ def filter_result(result: dict[str, Any], scope: Scope) -> dict[str, Any]:
         "agg": {key: value for key, value in result["agg"].items() if key[1] in dimensions},
         "exclusions": {key: value for key, value in result["exclusions"].items() if key[0] in dimensions},
         "drilldown": [item for item in result["drilldown"] if item["dim"] in dimensions],
-        "annotation_buckets": result["annotation_buckets"] if "file-annotation" in dimensions else {},
         "classifications": {key: value for key, value in result["classifications"].items() if key[3] in dimensions},
     }

@@ -115,7 +115,6 @@ def test_filtering_a_result_keeps_only_the_dimensions_of_the_scope() -> None:
     assert {key[0] for key in kept["exclusions"]} <= {"equipment-asset", "files"}
     assert {key[3] for key in kept["classifications"]} <= {"equipment-asset", "files"}
     assert {item["dim"] for item in kept["drilldown"]} == {"equipment-asset", "files"}
-    assert kept["annotation_buckets"] == {}  # file annotation is not in the scope
     assert kept["agg"] == {key: value for key, value in result["agg"].items() if key[1] in scope.dimensions}
     assert filter_result(result, parse_scope("all", None)) is result
 
@@ -210,7 +209,10 @@ def test_the_plan_counts_only_the_kinds_of_the_scope(monkeypatch: pytest.MonkeyP
     plan_world(monkeypatch, by_kind={**{kind: {} for kind in KINDS}, "assets": {A: 40}, "equipment": {A: 20}})
     universe_tools(
         monkeypatch,
-        {(A, "CogniteAsset"): [f"asset-{n:03d}" for n in range(40)], (A, "CogniteEquipment"): [f"eq-{n}" for n in range(20)]},
+        {
+            (A, "CogniteAsset"): [f"asset-{n:03d}" for n in range(40)],
+            (A, "CogniteEquipment"): [f"eq-{n}" for n in range(20)],
+        },
     )
 
     # the space holds 60 entities, over the target of 25: a full run cuts it by kind; a run for the equipment sees 20
@@ -311,5 +313,3 @@ def test_counting_only_the_kinds_of_a_dimension_gives_the_rows_a_full_count_give
     assert sorted(map(str, scoped["drilldown"])) == sorted(
         str(item) for item in full["drilldown"] if item["dim"] == dimension
     )
-    expected_buckets = full["annotation_buckets"] if dimension == "file-annotation" else {}
-    assert scoped["annotation_buckets"] == dict(expected_buckets)

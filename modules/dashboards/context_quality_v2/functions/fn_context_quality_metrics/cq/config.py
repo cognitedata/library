@@ -13,7 +13,6 @@ DEFAULT_CONFIG: RunConfig = {
     "instanceSpace": "",
     # The container names are part of the run log, not of an environment, so they keep their defaults.
     "relationshipContainer": "ContextQualityRelationship",
-    "fileAnnotationContainer": "ContextQualityFileAnnotation",
     # A facility is an instance space. By default they are discovered from where the entity nodes live.
     # Set facilitySpaces ({space: facility id}) to use an explicit allowlist instead of discovery.
     "facilitySpaces": {},
@@ -59,8 +58,8 @@ DEFAULT_CONFIG: RunConfig = {
     "freshnessDays": 30,
     "maxDepth": 8,
     "lowConfidence": 0.5,
-    "highConfidence": 0.9,
-    "drilldownCap": 500,
+    # per metric and space; the dashboard lists at most this many of a metric. The workbook is not capped by it.
+    "drilldownCap": 200,
     "batchSize": 500,
 }
 
