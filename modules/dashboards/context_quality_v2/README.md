@@ -191,6 +191,25 @@ additively: a property that is deployed keeps its definition, and a new one is o
 - A deploying principal that may create spaces, containers and views (`dataModelsAcl`) and streams (`streamsAcl`).
   Writing and reading records is done by other identities and is not granted here.
 
+### Data-modeling-only projects: name the function space
+
+In a project that is set up as data-modeling-only (for example a location with `dataModelingType: DATA_MODELING_ONLY`),
+the code of a Cognite Function is stored as a file in a data modeling space, not in the classic Files service, so the
+function definition has to say which space holds it. The module leaves this out because most projects still use classic
+Files, and a space name is specific to a project. In such a project, add one line to
+`functions/context_quality.Function.yaml` after the module is added, naming a space that exists there and that the
+deploying principal may write to (the project's other function modules show which one):
+
+```yaml
+- name: Context Quality Metrics
+  externalId: "{{ metricsFunctionExternalId }}"
+  space: <the project's function space>
+```
+
+Do this before `cdf deploy` and keep the line when the module is updated, because an update overwrites the file. If the
+deploy of the function fails in a data-modeling-only project, this is the first thing to check. The module has no variable
+for it yet.
+
 ### Adding the module to an existing Toolkit project
 
 ```bash
