@@ -65,16 +65,15 @@ The two container external ids are fixed by the run log and are **not** variable
 | `metricsFunctionExternalId` | `fn_context_quality_metrics` | the function; its folder under `functions/` is named after it |
 | `metricsDatasetExternalId` | `ds_context_quality` | the data set of the function's code and of the workbook files |
 | `metricsWorkflowExternalId`, `metricsWorkflowVersion` | `wf_context_quality_metrics`, `v1` | the workflow |
-| `metricsTriggerExternalId`, `metricsFullTriggerExternalId` | `wf_context_quality_metrics_schedule`, `wf_context_quality_metrics_full_schedule` | the daily (incremental) and the weekly (full) trigger |
-| `metricsWorkflowSchedule`, `metricsFullWorkflowSchedule`, `metricsWorkflowScheduleTimezone` | `0 4 * * 1-6`, `0 4 * * 0`, `UTC` | when the daily and the weekly trigger start a run |
+| `metricsTriggerExternalId` | `wf_context_quality_metrics_schedule` | the schedule trigger |
+| `metricsWorkflowSchedule`, `metricsWorkflowScheduleTimezone` | `0 4 * * *`, `UTC` | when the trigger starts a run |
 | `metricsFunctionGroupName`, `metricsDashboardGroupName` | `gp_context_quality_function`, `gp_context_quality_dashboard_users` | the access groups |
 | `metricsSourceSpaces` | `cdf_cdm`, `cdf_idm` | the spaces the function may read; add the facility instance spaces |
 | `metricsFunctionGroupSourceId`, `metricsDashboardGroupSourceId`, `metricsFunctionClientId`, `metricsFunctionClientSecret` | `${CQ_FUNCTION_GROUP_SOURCE_ID}`, `${CQ_DASHBOARD_GROUP_SOURCE_ID}`, `${CQ_FUNCTION_CLIENT_ID}`, `${CQ_FUNCTION_CLIENT_SECRET}` | environment values; **required**, see "Deployment inputs" |
 | `metricsFacilityNames`, `metricsTierByTypeCode`, `metricsDefaultOwners`, `metricsOwnerPrefixRules`, `metricsExclusions` | empty | the project's rules, as JSON text (Toolkit reads a mapping-valued variable as a namespace, so a mapping or list is written as a string such as `'{"pump": 1}'`) |
 | `metricsTieringEnabled` | `false` | tiering is off by default; set `true` together with `metricsTierByTypeCode` to turn it on |
 | `metricsDivisionTagPrefix`, `metricsRetiredTag`, `metricsFreshnessDays`, `metricsMaxDepth` | `""`, `""`, `30`, `8` | the project's settings |
-| `metricsExportRetentionDays` | `30` | how many days the workbook of unlinked items of a run stays in Files, and a stored batch result in the state table |
-| `metricsStateDatabase`, `metricsStateTable` | `db_context_quality`, `context_quality_pieces` | the RAW table where every batch keeps its result for the next incremental run; the function's group needs access to the database |
+| `metricsExportRetentionDays` | `30` | how many days the workbook of unlinked items of a run stays in Files |
 | `metricsMaxShards`, `metricsShardTargetEntities`, `metricsMaxConcurrentShards` | `150`, `100000`, `2` | how a run is divided into parallel function calls, and how many run at once (see "Running in parallel shards") |
 
 A deployment that needs other names sets them in its own `config.<env>.yaml`. Nothing in the function or the workflow
@@ -122,8 +121,7 @@ the function: a project supplies its own in the task's `config` (the workflow's 
 
 A missing or blank one is a `ValueError` naming it, raised before the client is used, so nothing is read or written.
 The two container names (`relationshipContainer`, `fileAnnotationContainer`) are part of the run log rather
-than of an environment, so they keep their defaults. The function reads no RAW table of the project: the one table it uses is its own, where an incremental run keeps the
-result of every batch (see "Running incrementally").
+than of an environment, so they keep their defaults. The function reads no RAW table.
 
 **What is deployed.** Toolkit zips the whole function folder, so the deployed package also contains the tests, their
 fixtures (`parity_dataset.py`, `tiny_data.py`, `sample_rules.py`, all in the function's `tests/` folder, and `conftest.py`). This matches
@@ -285,6 +283,10 @@ it to go easy on the project's data modeling and time series services, or to fol
   the 1000 the SDK always asks for (`PAGE_SIZES`), each size starting the listing over. A call is stopped after ten
   minutes, so a read gives up after 540 seconds of the call (`CALL_BUDGET`): no retry pause that would not fit, and no
   smaller page without 60 seconds left, is started, and the error of the service is raised while it can still be said.
+  Every `compute_batch` and `compute_shard` returns `timing` (a call that succeeds leaves no log): the `seconds` of
+  each step (`count`, `write`, and the `total` since the call began) and, when something slowed it
+  down, the `events` that did: failed requests by code (`http 408`), `read by id`, `ids in pages of 250`,
+  `cut by first character`, `properties read in halves`, `lookup read in halves` and `restart after a pause`.
   A call that failed while writing may meet the immutable records it already wrote, and then fails the run as before;
   the run is started again.
 - *Limits that remain.* Slices are cut by the start of the external ids: instances whose ids cannot be told apart by
@@ -340,7 +342,7 @@ workflow takes a `scope` in its input to say which of them a run is for:
 | `scope` | The run measures |
 |---|---|
 | absent | every dimension, and the configured links when `extraLinks` is not empty (a run before scopes existed) |
-| `"all"` | every dimension, no configured links (what both schedules run) |
+| `"all"` | every dimension, no configured links (what the schedule runs) |
 | `"configured"` | only the configured links (needs `extraLinks`) |
 | `{"dimensions": ["files", ...] \| "all", "configured": true \| false}` | the named dimensions, and the configured links if asked |
 
@@ -365,46 +367,6 @@ file for yet (everything measured before this) is missing from the workbook of a
 **One run at a time.** The workflow has `maxConcurrentExecutions: 1`. A consumer that starts runs should check for a run in
 progress first and say so, instead of queueing a second one behind it.
 
-### Running incrementally
-
-A run counts every instance of the kinds it measures, even when a few of them changed since the last run. With `mode:
-"incremental"` in the workflow input (`"full"` is the default) a **batch** (one slice of one kind of
-a space, `cq/incremental.py`) is only read again when something it reads changed:
-
-- Every batch leaves its result in one row of a RAW table (`metricsStateDatabase`, `metricsStateTable`; the row key is a hash of
-  everything that decides the result) with the time of the run that counted it. The result is kept compressed and cut into
-  parts of a million characters, a row each, the header row written last; one of more than 20 parts is not kept, and its
-  batch is counted every time. `compute_batch` says what became of it in `kept` (`kept`, or `not kept:` and why), and a
-  result that could not be kept is an `incremental-not-kept` warning of the run; it never fails the run. A result that no
-  run has written for `metricsExportRetentionDays` is deleted. The function's group needs `rawAcl` read, write and list on
-  the database; without it nothing is kept or reused, and every run counts everything.
-  The next incremental run asks, with a `limit 1` query on `lastUpdatedTime`, whether anything the batch
-  reads is newer. If not, the stored rows, warnings and unlinked items are written into the new run unchanged, so
-  the dashboard and the workbook need no other change. A batch that did change is counted whole.
-- What a batch reads: its own slice; the whole space of the kinds it looks up (assets: assets and time series; 3D objects:
-  assets; work orders: notifications), and the assets when tier or division is configured; and the nodes that label the
-  classifications. Whether a classification is in use in the space is asked again. The number of instances the plan
-  counted in the slice must also be the same.
-- Any doubt counts the batch: a query that fails or times out, a file that cannot be read, a different configuration or
-  scope, or new function code (the key holds all of them). The `compute_batch` output says why in `reuse`, a part record
-  is `batch:reused`, and `finalize` returns how many batches were reused.
-
-**The schedule** is two triggers: a daily incremental run (`context_quality.WorkflowTrigger.yaml`, Monday to Saturday) and a
-weekly full run (`context_quality_full.WorkflowTrigger.yaml`, Sunday), which counts every slice again. The weekly run is
-insurance, not a fix for a known fault: it corrects what an incremental run cannot see, and replaces stored results that
-could not be used (a failed check counts the batch, which is safe but slow). Keep the two schedules apart, as the workflow
-runs one execution at a time. To switch the weekly run off, pause or delete its trigger in the CDF UI, or remove its file
-and set `metricsWorkflowSchedule` back to `0 4 * * *`, so that the daily run covers Sunday too.
-
-**What an incremental run cannot see**, so a full run is still what makes everything exact: a deleted instance that leaves
-the slice's count unchanged (a delete alone changes the count, which is seen), and the days an annotation has waited for
-review (written into a detail text). **Time series are always counted**: their result depends on their datapoints and on the
-clock. Asset hierarchy gains little, as an asset's result depends on the other assets and the time series of its space.
-
-A plan still counts the kinds to cut them into slices (its minutes are the same as before); the saving is in the batches.
-Stored results nobody wrote or reused for `exportRetentionDays` are removed by the export step. Without an export data set
-nothing is stored and every run counts everything.
-
 ### Location filters as a scope
 
 The project's location filters (Locations in Fusion, `locations/*.LocationFilter.yaml` in Toolkit) can be used as a scope next
@@ -422,7 +384,7 @@ locations and warns `locations-unavailable`.
 
 | Group | Capabilities | Why |
 |---|---|---|
-| `gp_context_quality_function` (the identity the workflow runs as) | `projectsAcl` read and list, `groupsAcl` list, `sessionsAcl` create, `functionsAcl` read and write (library convention for a workflow identity); `dataModelsAcl` read on `cdf_cdm`, `cdf_idm` and the schema space; `dataModelInstancesAcl` **read** on `metricsSourceSpaces`; `timeSeriesAcl` read; `locationFiltersAcl` read; `streamRecordsAcl` **write** on the instance space; `rawAcl` read, write and list on the state database | read the entities, datapoints and location filters, append records |
+| `gp_context_quality_function` (the identity the workflow runs as) | `projectsAcl` read and list, `groupsAcl` list, `sessionsAcl` create, `functionsAcl` read and write (library convention for a workflow identity); `dataModelsAcl` read on `cdf_cdm`, `cdf_idm` and the schema space; `dataModelInstancesAcl` **read** on `metricsSourceSpaces`; `timeSeriesAcl` read; `locationFiltersAcl` read; `streamRecordsAcl` **write** on the instance space | read the entities, datapoints and location filters, append records |
 | `gp_context_quality_dashboard_users` | `projectsAcl` read and list, `groupsAcl` list, `streamRecordsAcl` **read** on the instance space, `dataModelsAcl` read on the schema space, `streamsAcl` read, `locationFiltersAcl` read | read the run log, and let the runs they start read the location filters; the stream settings read is optional (the dashboard works without it) |
 
 Neither group can write instances or deploy anything, and the dashboard group cannot write at all. The scopes come from
@@ -475,9 +437,6 @@ runtime. See [`scripts/README.md`](../../../scripts/README.md).
 
 ```
 context_quality_v2/
-├── raw/
-│   ├── context_quality.Database.yaml
-│   └── context_quality_pieces.Table.yaml
 ├── data_sets/
 │   └── context_quality.DataSet.yaml
 ├── functions/
@@ -486,8 +445,7 @@ context_quality_v2/
 ├── workflows/
 │   ├── context_quality.Workflow.yaml
 │   ├── context_quality.WorkflowVersion.yaml
-│   ├── context_quality.WorkflowTrigger.yaml        # daily, incremental
-│   └── context_quality_full.WorkflowTrigger.yaml   # weekly, full
+│   └── context_quality.WorkflowTrigger.yaml
 ├── auth/
 │   ├── context_quality_function.Group.yaml
 │   └── context_quality_dashboard_users.Group.yaml

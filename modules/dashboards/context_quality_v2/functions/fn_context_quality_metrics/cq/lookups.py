@@ -18,6 +18,7 @@ from cognite.client.exceptions import CogniteAPIError
 
 from cq.cross import Cross
 from cq.reader import _MISSING_VIEW, CDM, IDM, _ref
+from cq.resilience import note
 from cq.types import AssetRow, LoadedData, Ref
 
 CHUNK = 500
@@ -64,6 +65,7 @@ def _halving[T, R: (list, set)](ask: Callable[[list[T]], R]) -> Callable[[list[T
         except CogniteAPIError as error:
             if error.code != 408 or len(chunk) <= 1:
                 raise
+            note("lookup read in halves")
             middle = len(chunk) // 2
             first, second = run(chunk[:middle]), run(chunk[middle:])
             return first | second if isinstance(first, set) else first + second  # type: ignore[operator,return-value]

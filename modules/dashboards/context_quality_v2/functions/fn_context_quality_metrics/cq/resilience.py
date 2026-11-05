@@ -6,7 +6,9 @@ caller (and each new kind of query) failing the run on the first one. What a cal
 as reading a smaller piece (cq.reader, cq.lookups), it still does, with the error that is left after the retries.
 """
 
+import threading
 import time
+from collections import Counter
 from collections.abc import Callable
 from functools import wraps
 from typing import Any
@@ -34,10 +36,35 @@ clock: Callable[[], float] = time.monotonic
 _call_started: float | None = None
 
 
+_events: Counter[str] = Counter()
+_events_lock = threading.Lock()
+
+
 def begin_call() -> None:
-    """Marks the start of a call of the function: its budget of `CALL_BUDGET` seconds is counted from here."""
+    """Marks the start of a call of the function: its budget of `CALL_BUDGET` seconds is counted from here, and the
+    events noted by the call before it are forgotten."""
     global _call_started
     _call_started = clock()
+    with _events_lock:
+        _events.clear()
+
+
+def note(event: str) -> None:
+    """Counts something that made the call slower than a plain read: a failed request, a fallback, a restart. The
+    reads run in threads, so this is safe to call from them."""
+    with _events_lock:
+        _events[event] += 1
+
+
+def events() -> dict[str, int]:
+    """What `note` counted since the call began, for the call's output."""
+    with _events_lock:
+        return dict(_events)
+
+
+def elapsed() -> float:
+    """Seconds since the call began (0 where no call has begun)."""
+    return 0.0 if _call_started is None else clock() - _call_started
 
 
 def time_left() -> float:
@@ -53,6 +80,7 @@ def retrying[**P, R](call: Callable[P, R]) -> Callable[P, R]:
             try:
                 return call(*args, **kwargs)
             except CogniteAPIError as error:
+                note(f"http {error.code}")
                 attempts, pause = POLICY.get(error.code, (1, 0.0))
                 attempt += 1
                 wait = pause * 2 ** (attempt - 1)
@@ -105,5 +133,6 @@ def patiently[R](work: Callable[[], R]) -> R:
         except CogniteAPIError as error:
             if error.code not in POLICY or clock() - started + wait > PATIENCE_BUDGET:
                 raise
+        note("restart after a pause")
         sleep(wait)
     return work()

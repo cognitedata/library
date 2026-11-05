@@ -405,7 +405,11 @@ def test_a_slice_that_times_out_is_read_by_id_and_a_read_without_a_slice_is_cut_
     client.data_modeling.instances.retrieve.reset_mock()
     client.data_modeling.instances.list.reset_mock()
     ids.clear()
+    from cq import resilience
+
+    resilience.begin_call()
     assert _list_instances(client, "node", view, ["sp"], None) == []
+    assert resilience.events()["cut by first character"] == 1
     filters_used = [call.kwargs["filter"] for call in client.data_modeling.instances.list.call_args_list]
     assert filters_used[0] is None  # the whole read first, then one slice per first character, each tried and read by id
     assert len(filters_used) == 1 + 2 * (len(CHARSET) + 1)
@@ -429,8 +433,12 @@ def test_a_chunk_of_ids_that_times_out_is_read_again_in_halves() -> None:
     client = MagicMock()
     client.data_modeling.instances.retrieve.side_effect = retrieve
     pairs = [("sp", f"e{n}") for n in range(400)]
+    from cq import resilience
+
+    resilience.begin_call()
     assert _retrieve(client, "node", ViewId("cdf_cdm", "CogniteEquipment", "v1"), pairs) == pairs
     assert sizes == [400, 200, 100, 100, 200, 100, 100]
+    assert resilience.events() == {"properties read in halves": 3}
 
     client.data_modeling.instances.retrieve.side_effect = CogniteAPIError("Graph query timed out", code=408)
     with pytest.raises(CogniteAPIError):

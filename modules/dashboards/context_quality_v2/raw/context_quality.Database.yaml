@@ -1,2 +1,0 @@
-# Keeps what an incremental run reuses: the result of every batch (README, "Running incrementally").
-- dbName: "{{ metricsStateDatabase }}"

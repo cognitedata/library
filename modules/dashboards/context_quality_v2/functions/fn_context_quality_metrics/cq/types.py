@@ -160,8 +160,6 @@ class RunConfig(TypedDict):
     maxConcurrentShards: int
     exportDataSet: str
     exportRetentionDays: int
-    stateDatabase: str
-    stateTable: str
     shardTargetEntities: int
     freshnessDays: int
     maxDepth: int

@@ -15,7 +15,7 @@ from cognite.client.exceptions import CogniteAPIError
 from cq.batching import CHARSET, CountLeaves, Leaf, SampleId, counter, leaf_filter
 from cq.discovery import ENTITY_KEYS, count_entities_by_space, discover_facility_spaces
 from cq.extra_links import ExtraLink, ViewNodes
-from cq.resilience import retrying, time_left
+from cq.resilience import note, retrying, time_left
 from cq.types import (
     LoadedData,
     Ref,
@@ -103,6 +103,7 @@ def _id_pairs(client: CogniteClient, instance_type: str, spaces: list[str] | Non
     for page in PAGE_SIZES:
         if time_left() < PAGE_STEP_SECONDS:
             raise timeout
+        note(f"ids in pages of {page}")
         try:
             return _id_pairs_in_pages(client, instance_type, spaces, part, page)
         except CogniteAPIError as error:
@@ -135,6 +136,7 @@ def _retrieve(client: CogniteClient, instance_type: str, view: ViewId, pairs: li
     except CogniteAPIError as error:
         if error.code != 408 or len(pairs) <= RETRIEVE_MIN_CHUNK:
             raise
+        note("properties read in halves")
         half = len(pairs) // 2
         return _retrieve(client, instance_type, view, pairs[:half]) + _retrieve(client, instance_type, view, pairs[half:])
 
@@ -152,7 +154,9 @@ def _read_slice(
         if error.code != 408:
             raise
         if part is not None:
+            note("read by id")
             return _list_slice_by_id(client, instance_type, view, spaces, part)
+        note("cut by first character")
     by_first_character: list[Leaf] = [("prefix", char) for char in CHARSET] + [("rest", "")]
     found: list[Any] = []
     for leaf in by_first_character:

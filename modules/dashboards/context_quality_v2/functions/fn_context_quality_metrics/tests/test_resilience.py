@@ -154,3 +154,47 @@ def test_every_call_of_the_handler_begins_its_budget(monkeypatch: pytest.MonkeyP
     handler.handle({"action": "validate"}, MagicMock())
 
     assert resilience.time_left() <= resilience.CALL_BUDGET
+
+
+def test_the_calls_requests_that_fail_are_counted_by_code(no_sleep: list[float]) -> None:
+    resilience.begin_call()
+    client = MagicMock()
+    client.data_modeling.instances.list = failing([408, 429, 429, 200])
+
+    harden(client).data_modeling.instances.list()
+
+    assert resilience.events() == {"http 408": 1, "http 429": 2}
+
+
+def test_what_a_call_noted_is_forgotten_when_the_next_call_begins() -> None:
+    resilience.begin_call()
+    resilience.note("read by id")
+    resilience.note("read by id")
+
+    assert resilience.events() == {"read by id": 2}
+    resilience.begin_call()
+    assert resilience.events() == {}
+
+
+def test_a_restart_after_a_pause_is_noted(no_sleep: list[float]) -> None:
+    resilience.begin_call()
+
+    resilience.patiently(times_out_then(2))
+
+    assert resilience.events() == {"restart after a pause": 2}
+
+
+def test_noting_from_several_threads_loses_nothing() -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    resilience.begin_call()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda _: [resilience.note("x") for _ in range(250)], range(8)))
+
+    assert resilience.events() == {"x": 2000}
+
+
+def test_the_seconds_of_a_call_count_from_its_start(call_clock: list[float]) -> None:
+    call_clock[0] = 12.5
+
+    assert resilience.elapsed() == 12.5

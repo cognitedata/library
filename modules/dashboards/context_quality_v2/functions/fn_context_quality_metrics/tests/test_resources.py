@@ -141,15 +141,14 @@ def test_the_function_has_no_raw_settings() -> None:
     assert not {"rawDatabase", "rawDatapointsTable"} & set(SAMPLE_RULES)
 
 
-def test_only_the_incremental_state_store_uses_raw() -> None:
+def test_no_production_code_reads_a_raw_setting() -> None:
     from pathlib import Path
 
     root = Path(__file__).resolve().parent.parent
     sources = [root / "handler.py", *sorted((root / "cq").glob("*.py"))]
 
     assert [p.name for p in sources if "rawDatabase" in p.read_text() or "rawDatapointsTable" in p.read_text()] == []
-    # the one table the function writes is its own, where an incremental run keeps the result of every batch
-    assert [p.name for p in sources if ".raw" in p.read_text() or "RawRow" in p.read_text()] == ["incremental.py"]
+    assert [p.name for p in sources if ".raw" in p.read_text() or "RawRow" in p.read_text()] == []
 
 
 # ---------------------------------------------------------------- division convention

@@ -69,16 +69,6 @@ capabilities:
         idScope:
           ids:
             - "{{ metricsDatasetExternalId }}"
-  # the results an incremental run reuses: every batch keeps its result in one table of this database
-  - rawAcl:
-      actions:
-        - READ
-        - WRITE
-        - LIST
-      scope:
-        tableScope:
-          dbsToTables:
-            "{{ metricsStateDatabase }}": []
   # read the project's location filters: a location that lists instance spaces is offered as a scope (README, locations)
   - locationFiltersAcl:
       actions:

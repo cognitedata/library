@@ -240,9 +240,11 @@ def test_a_slice_whose_reads_all_time_out_at_1000_is_read_through_the_pages() ->
     client = times_out_for_the_sdk(service)
     client.data_modeling.instances.retrieve.side_effect = lambda nodes, sources: MagicMock(nodes=list(nodes))
 
+    resilience.begin_call()
     found = _read_slice(client, "node", VIEW, ["sp"], SLICE)
 
     assert found == service.ids
+    assert resilience.events() == {"read by id": 1, "ids in pages of 500": 1, "ids in pages of 250": 1, "http 408": 2}
     assert client.data_modeling.instances.list.call_count == 2  # the read, then the listing of the ids, both at 1000
 
 
@@ -295,3 +297,12 @@ def test_the_steps_stop_where_the_time_of_the_call_runs_out(monkeypatch: pytest.
 
     # 500 fails at 130 s and again (the retry) at 260 s, 250 at 390 s and 520 s: 20 s are left, and a size needs 60
     assert [request["limit"] for request in service.requests] == [500, 500, 250, 250]
+
+
+def test_the_steps_taken_to_get_the_ids_are_noted_for_the_output_of_the_call() -> None:
+    resilience.begin_call()
+    service = FakeService(1234, lightest=250)
+
+    _id_pairs(times_out_for_the_sdk(service), "node", ["sp"], SLICE)
+
+    assert resilience.events() == {"ids in pages of 500": 1, "ids in pages of 250": 1, "http 408": 2}
