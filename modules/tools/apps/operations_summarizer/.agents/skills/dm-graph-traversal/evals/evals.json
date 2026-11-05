@@ -1,0 +1,485 @@
+{
+  "skill_name": "dm-graph-traversal",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need initiatives plus related features and commitment edges for one page. Should I use instances.list or instances.query?",
+      "expected_output": "Select instances.query and explain that relationship-aware retrieval should be graph-native rather than stitched from multiple flat calls.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response explicitly recommends instances.query.",
+          "type": "content"
+        },
+        {
+          "text": "Response explains this is relationship-aware/graph-context retrieval.",
+          "type": "content"
+        },
+        {
+          "text": "Response warns against client-side stitching or N+1 list calls.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "We only need all initiative nodes with a simple status filter and no edge traversal. Which API is better?",
+      "expected_output": "Select instances.list and explain that flat, non-traversal reads should stay on list.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response explicitly recommends instances.list.",
+          "type": "content"
+        },
+        {
+          "text": "Response describes this as flat retrieval with no traversal.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Query fails with Unexpected field - nodes.limit in with.initiatives. How do I fix it?",
+      "expected_output": "Move limit to with.initiatives.limit and state nodes.limit is invalid.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response includes step-level limit placement (with.<step>.limit).",
+          "type": "content"
+        },
+        {
+          "text": "Response states nodes.limit is invalid.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I put edges.limit under a traversal step and now query validation fails. What is the right shape?",
+      "expected_output": "Explain that edges.limit is invalid and limit must be set at the result-step level.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response states edges.limit is invalid.",
+          "type": "content"
+        },
+        {
+          "text": "Response gives correct pattern with.<step>.limit.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "instances.query returns properties must not be null. We do have select.sources configured. What is missing?",
+      "expected_output": "Call out missing select.<step>.sources[*].properties and require explicit property lists.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response references select.<step>.sources[*].properties.",
+          "type": "content"
+        },
+        {
+          "text": "Response requires explicit properties array.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Traversal step returns empty results without error after refactor. Which versioning mistake should I check first?",
+      "expected_output": "Check traversal property references are versioned (View/version) and not unversioned refs.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response mentions versioned refs using View/version.",
+          "type": "content"
+        },
+        {
+          "text": "Response ties unversioned refs to silent empty traversal results.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "How can I prevent unrelated nodes from entering the start step when querying cycles?",
+      "expected_output": "Recommend start-step filters with node space and hasData constraints to restrict the source set.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response recommends hasData on start step.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes an additional start-step scope constraint (for example node space).",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Reverse traversal over an edge returns no rows. Which parts of the edge expression should we verify?",
+      "expected_output": "Verify direction, through.identifier, and from/source step linkage.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response includes direction verification.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes through.identifier verification.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes from/source-step linkage verification.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "First page is correct but later pages lose feature links. How should cursor pagination be implemented?",
+      "expected_output": "Use step-specific cursor loops (nextCursor.<step>) and continue until the step cursor is absent.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response mentions step-specific cursor keys such as nextCursor.<step>.",
+          "type": "content"
+        },
+        {
+          "text": "Response describes looping until cursor exhaustion.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "What unit test should prevent accidental fallback from query to list in a graph-native helper?",
+      "expected_output": "Recommend payload-shape assertions on instances.query and an explicit assertion that instances.list was not called.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response includes query payload-shape assertions.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes negative assertion for instances.list calls.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "Give me the most important payload-shape assertions for limits in query tests.",
+      "expected_output": "Assert with.<step>.limit exists and nested nodes.limit/edges.limit are absent.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response asserts with.<step>.limit presence.",
+          "type": "content"
+        },
+        {
+          "text": "Response asserts nodes.limit absence.",
+          "type": "content"
+        },
+        {
+          "text": "Response asserts edges.limit absence.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "What should we assert for select.sources in tests to avoid runtime validation errors?",
+      "expected_output": "Assert sources exist and each source has explicit properties including expected field names.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response asserts sources are present.",
+          "type": "content"
+        },
+        {
+          "text": "Response asserts properties are present per source.",
+          "type": "content"
+        },
+        {
+          "text": "Response suggests checking expected property names.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "We merge commitment ARR with fallback ARR facts. How should tie-break semantics be defined?",
+      "expected_output": "Define deterministic merge rules, with explicit commitment ARR preferred over fallback ARR facts.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response defines deterministic merge policy.",
+          "type": "content"
+        },
+        {
+          "text": "Response states explicit values win over fallback values.",
+          "type": "content"
+        },
+        {
+          "text": "Response recommends documenting/testing the rule.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "ARR at risk is inflated because one customer has multiple commitment edges. What merge rule prevents double counting?",
+      "expected_output": "Deduplicate by business key (customer) so each customer contributes once using a clear tie-break strategy.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response calls for dedupe by customer/business key.",
+          "type": "content"
+        },
+        {
+          "text": "Response enforces single contribution per dedupe key.",
+          "type": "content"
+        },
+        {
+          "text": "Response defines tie-break policy for competing values.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "How can we validate a new TypeScript query design quickly before wiring everything in frontend code?",
+      "expected_output": "Use Node.js/TypeScript parity checks to validate query payload shape and traversal semantics before wiring app integration.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response recommends a Node.js/TypeScript parity workflow.",
+          "type": "content"
+        },
+        {
+          "text": "Response references the reusable Node validator or equivalent TypeScript-first validation flow.",
+          "type": "content"
+        },
+        {
+          "text": "Response validates both payload shape and semantics.",
+          "type": "content"
+        },
+        {
+          "text": "Response avoids defaulting to Python unless explicitly requested.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "We currently do one list call per initiative to fetch related links. What is the recommended migration approach?",
+      "expected_output": "Replace N+1 list calls with one multi-step instances.query and join results by stable identifiers.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response proposes single multi-step instances.query.",
+          "type": "content"
+        },
+        {
+          "text": "Response explicitly removes/eliminates N+1 list pattern.",
+          "type": "content"
+        },
+        {
+          "text": "Response describes joining by identifiers/keys.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "Give me a concise done-checklist before merging a graph traversal helper.",
+      "expected_output": "Provide checklist with API-choice correctness, payload guardrail compliance, and regression tests.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response includes query-vs-list choice verification.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes payload guardrails.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes regression/payload-shape testing.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "prompt": "Create a rapid troubleshooting playbook for query errors we keep seeing.",
+      "expected_output": "Provide a failure-signature table mapping error symptoms to likely causes and concrete fixes.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response provides error/signature oriented troubleshooting.",
+          "type": "content"
+        },
+        {
+          "text": "Response maps likely causes.",
+          "type": "content"
+        },
+        {
+          "text": "Response gives concrete corrective actions.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "This page uses 7 separate instances.list calls and merges results in the UI layer. We can ship it as-is, right?",
+      "expected_output": "Treat this as a strong signal to evaluate a consolidated instances.query traversal approach, while keeping fallback and pagination explicit.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response identifies many related list calls on one page as a trigger to explore instances.query.",
+          "type": "content"
+        },
+        {
+          "text": "Response recommends consolidation strategy instead of defaulting to list fan-out.",
+          "type": "content"
+        },
+        {
+          "text": "Response preserves explicit fallback/pagination guidance.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "prompt": "My query fails with 'Cannot traverse lists of direct relations inwards.' when traversing from equipment to production schedules. What should I change?",
+      "expected_output": "Explain that inwards traversal over list direct relations is invalid and recommend traversing from the owning side with outwards direction or remodeling as an edge relation.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response states the failure is caused by inwards traversal on list direct relations.",
+          "type": "content"
+        },
+        {
+          "text": "Response recommends traversing from the owning node with outwards direction.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes edge remodeling as an alternative fix.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "prompt": "I need latest usage values per feature, but also need graph traversal to map customer -> PTTS nodes -> feature. What is the recommended query pattern?",
+      "expected_output": "Use a two-phase pattern: traverse with instances.query to collect timeseries instance IDs, then fetch latest values with batched datapoints.retrieveLatest and merge by stable entity key.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response recommends instances.query for graph traversal and ID collection.",
+          "type": "content"
+        },
+        {
+          "text": "Response recommends datapoints.retrieveLatest for latest-value retrieval.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes batching guidance and ignoreUnknownIds handling.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes deterministic merge-by-entity guidance.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "prompt": "User search starts with fuzzy equipment name matching, then needs related work orders and latest metrics. Should we start with query traversal or search?",
+      "expected_output": "Recommend search-first then traverse: use instances.search to rank anchors, then instances.query for graph hydration, and apply retrieveLatest for last-value metrics.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response recommends instances.search first for fuzzy/discovery stage.",
+          "type": "content"
+        },
+        {
+          "text": "Response recommends instances.query second for relation traversal.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes two-phase latest-value retrieval via datapoints.retrieveLatest when needed.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "prompt": "Our DMS query endpoint occasionally returns 429 and 5xx during peak usage. What production rule should be enforced?",
+      "expected_output": "Require bounded transient retry policy with exponential backoff and jitter, while keeping payload/page sizes moderate and preserving deterministic behavior.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response explicitly lists transient retry status classes (for example 408/425/429/5xx).",
+          "type": "content"
+        },
+        {
+          "text": "Response requires exponential backoff with jitter and bounded retries.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes payload/page-size moderation guidance.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "prompt": "Can we just use properties ['*'] and broad list/query filters first, then narrow results client-side?",
+      "expected_output": "Reject this as an anti-pattern: prefer explicit server-side filtering and explicit property lists, and only broaden constraints through staged strict-to-broad fallback.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response rejects wildcard projection in production paths.",
+          "type": "content"
+        },
+        {
+          "text": "Response recommends server-side filtering over client-side filtering.",
+          "type": "content"
+        },
+        {
+          "text": "Response describes strict-to-broad fallback instead of immediately broad retrieval.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "prompt": "We need Initiative -> Commitment edge properties (arrAtRisk, confidence) and then Customer details. How should we structure the query?",
+      "expected_output": "Recommend an edge-first traversal design: start nodes, traverse to edges as first-class records, project edge properties explicitly, then traverse/join endpoint nodes and apply deterministic dedupe/tie-break aggregation.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response treats edge rows as first-class data (not transport-only).",
+          "type": "content"
+        },
+        {
+          "text": "Response requires explicit edge property projection via select.<edgeStep>.sources.properties.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes endpoint join/hydration after edge traversal.",
+          "type": "content"
+        },
+        {
+          "text": "Response includes deterministic dedupe/tie-break guidance for multi-edge aggregation.",
+          "type": "content"
+        }
+      ]
+    }
+  ]
+}

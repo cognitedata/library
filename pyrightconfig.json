@@ -25,6 +25,6 @@
     "modules/dashboards/context_quality/streamlit/**",
     "modules/tools/notebooks/**",
     "modules/datamodels/**",
-    "modules/tools/apps/operations-summarizer/functions/**"
+    "modules/tools/apps/operations_summarizer/functions/**"
   ]
 }

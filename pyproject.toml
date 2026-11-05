@@ -39,7 +39,7 @@ line-length = 120
 target-version = "py313"
 # Handler is not a uv workspace member yet. Exclude it so this move does not
 # restyle pre-existing function code. Remove when that follow-up lands.
-extend-exclude = ["modules/tools/apps/operations-summarizer/functions"]
+extend-exclude = ["modules/tools/apps/operations_summarizer/functions"]
 
 [tool.ruff.format]
 # Python only; keep code samples in docs as written

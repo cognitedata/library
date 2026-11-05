@@ -1,0 +1,197 @@
+{
+  "skill_name": "reveal-3d",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a Dune app at apps/my-app. Add a 3D viewer page where I can browse and load CAD models from my CDF project. Add a button on the main page to reach it.",
+      "expected_output": "A working 3D viewer page using the @cognite/reveal-widget npm package (no copied source bundle), model browsing via sdk.models3D.list(), a controller class wrapping RevealWidgetController driven imperatively via setControllerRef, Vite configured with resolve.dedupe including three and @cognite/reveal, and no leftover process/util/assert polyfill setup.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "@cognite/reveal-widget, @cognite/reveal, @cognite/sdk, react, and react-dom are in package.json dependencies",
+          "type": "content"
+        },
+        {
+          "text": "No app-local copied Reveal source bundle (e.g. src/features/reveal-3d/*.ts provider/hook files) was created",
+          "type": "content"
+        },
+        {
+          "text": "RevealWidget, RevealWidgetController, and Reveal3DResourceHandle types are imported from @cognite/reveal-widget",
+          "type": "content"
+        },
+        {
+          "text": "process, util, assert, and ajv are NOT added to package.json dependencies for this integration",
+          "type": "content"
+        },
+        {
+          "text": "vite-plugin-node-polyfills is NOT present in package.json or vite.config.ts",
+          "type": "content"
+        },
+        {
+          "text": "main.tsx does NOT contain a process polyfill (import process from 'process'; window.process = process)",
+          "type": "content"
+        },
+        {
+          "text": "vite.config.ts resolve.dedupe includes 'three' and '@cognite/reveal'",
+          "type": "content"
+        },
+        {
+          "text": "vite.config.ts does NOT contain a resolve.alias entry for util, assert, or process",
+          "type": "content"
+        },
+        {
+          "text": "A controller class wraps RevealWidgetController and is constructed inside the setControllerRef callback passed to RevealWidget",
+          "type": "content"
+        },
+        {
+          "text": "The previous controller instance is disposed (calling .remove() on tracked Reveal3DResourceHandle objects) before a new one is constructed, and when the controller becomes undefined",
+          "type": "content"
+        },
+        {
+          "text": "RevealWidget is not nested inside another provider component from @cognite/reveal-widget",
+          "type": "content"
+        },
+        {
+          "text": "widgetController.addResource is called with a CadAddOptions object using sourceType: 'classic' and modelId/revisionId fields for the selected model",
+          "type": "content"
+        },
+        {
+          "text": "The onSelect callback passed to the model browser is wrapped in useCallback (not an inline arrow function)",
+          "type": "content"
+        },
+        {
+          "text": "The RevealWidget container div has an explicit height (e.g. height: '70vh' or h-[65vh])",
+          "type": "content"
+        },
+        {
+          "text": "sdk passed to viewerOptions is memoized with useMemo keyed on sdk.project",
+          "type": "content"
+        },
+        {
+          "text": "RevealWidget is given an appIdentifier string prop",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I have an DM asset with space cdf_idm and externalId pump_001. Add a 3D viewer to my asset detail page that highlights this asset once its CAD model is loaded. The detail page is at src/AssetDetail.tsx.",
+      "expected_output": "A viewer using @cognite/reveal-widget's RevealWidget and RevealWidgetController integrated into AssetDetail.tsx, loading the relevant CAD model then calling styleByInstance/focusInstances with a DmsUniqueIdentifier ({ externalId: 'pump_001', space: 'cdf_idm' }) to highlight and focus the asset.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "RevealWidget, RevealWidgetController, and Default3DStyles are imported from @cognite/reveal-widget",
+          "type": "content"
+        },
+        {
+          "text": "A DmsUniqueIdentifier-shaped object with space 'cdf_idm' and externalId 'pump_001' is passed to styleByInstance and/or focusInstances",
+          "type": "content"
+        },
+        {
+          "text": "styleByInstance is called with Default3DStyles.Highlighted (or an equivalent explicit style) after the relevant model has been loaded via addResource",
+          "type": "content"
+        },
+        {
+          "text": "focusInstances is called to move the camera to the highlighted instance",
+          "type": "content"
+        },
+        {
+          "text": "No app-local copied Reveal source bundle was created; no CacheProvider/RevealProvider/RevealCanvas/Reveal3DResources components from an old bundle are referenced",
+          "type": "content"
+        },
+        {
+          "text": "The controller class disposes tracked Reveal3DResourceHandle objects (.remove()) on unmount or when setControllerRef receives undefined",
+          "type": "content"
+        },
+        {
+          "text": "The RevealWidget container has an explicit height",
+          "type": "content"
+        },
+        {
+          "text": "vite.config.ts resolve.dedupe includes 'three' and '@cognite/reveal', and no process/util/assert polyfill setup was added",
+          "type": "content"
+        },
+        {
+          "text": "RevealWidget is given an appIdentifier string prop",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Add a full-screen 3D viewer that loads model ID 206509079235820 revision 576781257263693. Put it at a /viewer route.",
+      "expected_output": "A full-screen viewer component using RevealWidget + RevealWidgetController from @cognite/reveal-widget, loading a CadAddOptions resource with sourceType 'classic', modelId 206509079235820, and revisionId 576781257263693, accessible at /viewer.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "widgetController.addResource is called with an object containing type: 'cad', sourceType: 'classic', modelId 206509079235820, and revisionId 576781257263693",
+          "type": "content"
+        },
+        {
+          "text": "The resource is loaded from inside the setControllerRef callback or a controller class method, not recomputed inline on every render",
+          "type": "content"
+        },
+        {
+          "text": "cameraController.focusModel is called after the resource is added",
+          "type": "content"
+        },
+        {
+          "text": "The RevealWidget container is full-screen (height: 100vh or h-screen or equivalent)",
+          "type": "content"
+        },
+        {
+          "text": "A route is configured at /viewer",
+          "type": "content"
+        },
+        {
+          "text": "No process/util/assert polyfills, vite-plugin-node-polyfills, or copied Reveal source bundle were added",
+          "type": "content"
+        },
+        {
+          "text": "vite.config.ts resolve.dedupe includes 'three' and '@cognite/reveal'",
+          "type": "content"
+        },
+        {
+          "text": "RevealWidget is given an appIdentifier string prop",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "In my existing Flows app that already has a RevealWidget showing a CAD model, add a red notification badge that says \"Pump 01 needs attention\" pinned at the 3D position x=10, y=20, z=5, and let me toggle all badges on and off with a button.",
+      "expected_output": "Uses controller.htmlOverlays.add(element, {x:10,y:20,z:5}) from the existing RevealWidgetController (via the controller class), styled with a centering transform, tracks the returned handle, removes it on cleanup, and toggles via htmlOverlays.setVisible. Does not import HtmlOverlayTool or create a second viewer.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "controller.htmlOverlays.add is called with an HTMLElement and a position object { x: 10, y: 20, z: 5 }",
+          "type": "content"
+        },
+        {
+          "text": "HtmlOverlayTool or Cognite3DViewer from @cognite/reveal is NOT imported or instantiated, and no second Reveal viewer/canvas is created",
+          "type": "content"
+        },
+        {
+          "text": "The overlay is created from the controller class / setControllerRef-driven code, not from a useEffect reacting to prop changes",
+          "type": "content"
+        },
+        {
+          "text": "The element is styled with a centering transform (e.g. translate(-50%, -50%)) and sets pointer-events appropriately, without relying on markup style attributes",
+          "type": "content"
+        },
+        {
+          "text": "The returned HtmlOverlayHandle is tracked and .remove() (or htmlOverlays.clear()) is called in the controller's dispose()",
+          "type": "content"
+        },
+        {
+          "text": "The toggle button calls controller.htmlOverlays.setVisible(boolean)",
+          "type": "content"
+        },
+        {
+          "text": "The position is treated as CDF coordinates; the response does not invent a widget API for looking up an asset's position",
+          "type": "content"
+        }
+      ]
+    }
+  ]
+}

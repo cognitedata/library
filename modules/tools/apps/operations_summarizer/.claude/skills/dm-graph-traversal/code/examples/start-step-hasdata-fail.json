@@ -1,0 +1,30 @@
+﻿{
+  "with": {
+    "cycles": {
+      "nodes": {
+        "filter": {
+          "equals": {
+            "property": ["node", "space"],
+            "value": "product_portfolio"
+          }
+        }
+      },
+      "limit": 50
+    }
+  },
+  "select": {
+    "cycles": {
+      "sources": [
+        {
+          "source": {
+            "type": "view",
+            "space": "product_portfolio",
+            "externalId": "PortfolioReviewCycle",
+            "version": "v1"
+          },
+          "properties": ["key"]
+        }
+      ]
+    }
+  }
+}

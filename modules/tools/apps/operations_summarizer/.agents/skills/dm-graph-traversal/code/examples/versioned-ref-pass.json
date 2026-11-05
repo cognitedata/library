@@ -1,0 +1,70 @@
+﻿{
+  "with": {
+    "initiatives": {
+      "nodes": {
+        "filter": {
+          "and": [
+            {
+              "equals": {
+                "property": ["node", "space"],
+                "value": "product_portfolio"
+              }
+            },
+            {
+              "hasData": [
+                {
+                  "type": "view",
+                  "space": "product_portfolio",
+                  "externalId": "RoadmapInitiative",
+                  "version": "v1"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "limit": 100
+    },
+    "commitments": {
+      "edges": {
+        "from": "initiatives",
+        "direction": "outwards",
+        "filter": {
+          "equals": {
+            "property": ["product_portfolio", "CustomerInitiativeCommitment/v1", "arrAtRisk"],
+            "value": 0
+          }
+        }
+      },
+      "limit": 100
+    }
+  },
+  "select": {
+    "initiatives": {
+      "sources": [
+        {
+          "source": {
+            "type": "view",
+            "space": "product_portfolio",
+            "externalId": "RoadmapInitiative",
+            "version": "v1"
+          },
+          "properties": ["title"]
+        }
+      ]
+    },
+    "commitments": {
+      "sources": [
+        {
+          "source": {
+            "type": "view",
+            "space": "product_portfolio",
+            "externalId": "CustomerInitiativeCommitment",
+            "version": "v1"
+          },
+          "properties": ["arrAtRisk"]
+        }
+      ]
+    }
+  }
+}

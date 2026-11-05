@@ -1,0 +1,10 @@
+﻿{
+  "directRelationLists": [
+    {
+      "space": "ssp_manufacturing",
+      "externalId": "ProductionSchedule",
+      "version": "v1.0.0",
+      "identifier": "equipment"
+    }
+  ]
+}

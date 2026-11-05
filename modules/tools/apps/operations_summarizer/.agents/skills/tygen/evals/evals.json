@@ -1,0 +1,173 @@
+{
+  "skill_name": "tygen",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Our Dune app does not have COGNITE_ALPHA_ENABLE_TYGEN set. Use TyGen to generate client helpers for the EquipmentModel.",
+      "expected_output": "Do not apply TyGen or enable the flag. Explain that TyGen is an opt-in alpha capability and continue with the native @cognite/sdk APIs and types already used by the app.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response requires COGNITE_ALPHA_ENABLE_TYGEN to be explicitly true before TyGen is used.",
+          "type": "content"
+        },
+        {
+          "text": "Response does not add or enable the alpha flag.",
+          "type": "content"
+        },
+        {
+          "text": "Response recommends the native @cognite/sdk as the fallback.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "COGNITE_ALPHA_ENABLE_TYGEN=true is already set for this app. Generate types for the data model production:EquipmentModel:v3 using the default output location.",
+      "expected_output": "Run cognite tygen generate with the versioned --data-model value and explain that the default output directory is src/generated_types/EquipmentModel/. The explicit generation request is sufficient confirmation.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response uses cognite tygen generate rather than apps sdk types.",
+          "type": "content"
+        },
+        {
+          "text": "Response accepts the explicit generation request as confirmation and does not ask for redundant permission.",
+          "type": "content"
+        },
+        {
+          "text": "Response passes --data-model production:EquipmentModel:v3.",
+          "type": "content"
+        },
+        {
+          "text": "Response identifies src/generated_types/EquipmentModel as the default output directory.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The TyGen alpha flag is enabled and types are generated for PlantModel in src/generated_types/PlantModel. Show how to list the names of active Equipment in a React component.",
+      "expected_output": "Import initTygen from the generated index.ts, bind it to the client from useCogniteSdk(), and call tygen.equipment.query (or search) with a short-name filter on status and select ['name']. Read item.properties.name directly, without space and View/version nesting.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response imports initTygen from the generated directory, not from @cognite/sdk.",
+          "type": "content"
+        },
+        {
+          "text": "Response calls a per-view method such as tygen.equipment.query or tygen.equipment.search.",
+          "type": "content"
+        },
+        {
+          "text": "The filter uses the short property name 'status', not a full [space, 'View/version', 'status'] path.",
+          "type": "content"
+        },
+        {
+          "text": "Response reads item.properties.name directly, without properties[space]['Equipment/1'] nesting.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "We changed a CDF data model after TyGen generation. Should I edit src/generated_types/EquipmentModel/types.ts to add the new field?",
+      "expected_output": "Regenerate from the versioned data model, inspect the generated diff, run typecheck and relevant tests, and commit the generated output with the app source. Do not hand-edit generated files.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response instructs regeneration instead of hand-editing generated files.",
+          "type": "content"
+        },
+        {
+          "text": "Response requires inspecting the generated diff.",
+          "type": "content"
+        },
+        {
+          "text": "Response requires typecheck and relevant tests.",
+          "type": "content"
+        },
+        {
+          "text": "Response says to commit the generated output with the app source.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "The TyGen alpha flag is enabled. I want to generate types but do not know the data model reference. I can use an interactive terminal and browser login. How should I run TyGen?",
+      "expected_output": "Run tygen generate without --data-model in an interactive terminal so the model picker selects a versioned model. Use --interactive for browser authentication and explain that it is independent of the model picker.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response omits --data-model to use the interactive model picker.",
+          "type": "content"
+        },
+        {
+          "text": "Response uses --interactive for browser authentication and distinguishes it from the model picker.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "TyGen alpha is enabled. For each WorkOrder, show its name and the name of its mainAsset, which is a direct relation to FunctionalLocation in the same model.",
+      "expected_output": "Use tygen.workOrder.query with select ['name'] and include { mainAsset: { select: ['name'] } }, and read item.related.mainAsset?.properties?.name. No second request per work order.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response uses include with the mainAsset relation in one tygen.workOrder.query call.",
+          "type": "content"
+        },
+        {
+          "text": "Response reads the related name from item.related.mainAsset, handling undefined.",
+          "type": "content"
+        },
+        {
+          "text": "Response does not fetch each related instance in a separate request.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "TyGen alpha is enabled. The work order list has optional filters for type and location. Build the filter from whichever are set and pass it to tygen.workOrder.query.",
+      "expected_output": "Spread in the conditions that are set, each ending in as const, and pass { and: conditions }. An empty and is fine.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response spreads in the conditions that are set and ends each one in as const.",
+          "type": "content"
+        },
+        {
+          "text": "Response explains that without as const the property names widen to string and the call fails to typecheck.",
+          "type": "content"
+        },
+        {
+          "text": "Response does not cast the request to any or unknown.",
+          "type": "content"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "TyGen alpha is enabled. Count WorkOrders by workOrderType, which is an enum property, with tygen.workOrder.aggregate.",
+      "expected_output": "Explain that the API cannot group by an enum property, so groupBy rejects it. Count each enum value with its own aggregate: a count with an equals filter on that value.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Response says enum properties cannot be used in groupBy.",
+          "type": "content"
+        },
+        {
+          "text": "Response counts each enum value with a filtered count, one aggregate per value.",
+          "type": "content"
+        },
+        {
+          "text": "Response does not cast groupBy to bypass the type error.",
+          "type": "content"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+﻿{
+  "with": {
+    "initiatives": {
+      "nodes": {
+        "filter": {
+          "and": [
+            {
+              "equals": {
+                "property": ["node", "space"],
+                "value": "product_portfolio"
+              }
+            },
+            {
+              "hasData": [
+                {
+                  "type": "view",
+                  "space": "product_portfolio",
+                  "externalId": "RoadmapInitiative",
+                  "version": "v1"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "limit": 1000
+    },
+    "featureLinks": {
+      "nodes": {
+        "from": "initiatives",
+        "through": {
+          "view": {
+            "type": "view",
+            "space": "product_portfolio",
+            "externalId": "InitiativeFeatureLink",
+            "version": "v1"
+          },
+          "identifier": "initiative"
+        },
+        "direction": "inwards"
+      },
+      "limit": 1000
+    },
+    "commitments": {
+      "edges": {
+        "from": "initiatives",
+        "direction": "outwards",
+        "filter": {
+          "equals": {
+            "property": ["edge", "type"],
+            "value": {
+              "space": "product_portfolio",
+              "externalId": "CustomerInitiativeCommitment"
+            }
+          }
+        }
+      },
+      "limit": 1000
+    }
+  },
+  "select": {
+    "initiatives": {
+      "sources": [
+        {
+          "source": {
+            "type": "view",
+            "space": "product_portfolio",
+            "externalId": "RoadmapInitiative",
+            "version": "v1"
+          }
+        }
+      ]
+    },
+    "featureLinks": {
+      "sources": [
+        {
+          "source": {
+            "type": "view",
+            "space": "product_portfolio",
+            "externalId": "InitiativeFeatureLink",
+            "version": "v1"
+          },
+          "properties": ["initiative", "portfolioFeature", "impactStrength"]
+        }
+      ]
+    },
+    "commitments": {
+      "sources": [
+        {
+          "source": {
+            "type": "view",
+            "space": "product_portfolio",
+            "externalId": "CustomerInitiativeCommitment",
+            "version": "v1"
+          },
+          "properties": ["arrAtRisk"]
+        }
+      ]
+    }
+  }
+}

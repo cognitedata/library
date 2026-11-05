@@ -1,0 +1,44 @@
+﻿{
+  "with": {
+    "cycles": {
+      "nodes": {
+        "filter": {
+          "and": [
+            {
+              "equals": {
+                "property": ["node", "space"],
+                "value": "product_portfolio"
+              }
+            },
+            {
+              "hasData": [
+                {
+                  "type": "view",
+                  "space": "product_portfolio",
+                  "externalId": "PortfolioReviewCycle",
+                  "version": "v1"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "limit": 200
+    }
+  },
+  "select": {
+    "cycles": {
+      "sources": [
+        {
+          "source": {
+            "type": "view",
+            "space": "product_portfolio",
+            "externalId": "PortfolioReviewCycle",
+            "version": "v1"
+          },
+          "properties": ["key", "displayName", "periodStart", "periodEnd", "status"]
+        }
+      ]
+    }
+  }
+}

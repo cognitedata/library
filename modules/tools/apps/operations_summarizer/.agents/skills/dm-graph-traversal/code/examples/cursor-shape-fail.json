@@ -1,0 +1,51 @@
+﻿{
+  "with": {
+    "initiatives": {
+      "nodes": {
+        "filter": {
+          "and": [
+            {
+              "equals": {
+                "property": ["node", "space"],
+                "value": "product_portfolio"
+              }
+            },
+            {
+              "hasData": [
+                {
+                  "type": "view",
+                  "space": "product_portfolio",
+                  "externalId": "RoadmapInitiative",
+                  "version": "v1"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "limit": 100
+    }
+  },
+  "cursors": {
+    "badStep": "abc123",
+    "initiatives": ""
+  },
+  "nextCursor": {
+    "initiatives": "should-not-be-here"
+  },
+  "select": {
+    "initiatives": {
+      "sources": [
+        {
+          "source": {
+            "type": "view",
+            "space": "product_portfolio",
+            "externalId": "RoadmapInitiative",
+            "version": "v1"
+          },
+          "properties": ["title"]
+        }
+      ]
+    }
+  }
+}

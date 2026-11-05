@@ -1,0 +1,63 @@
+﻿{
+  "with": {
+    "productionSchedules": {
+      "nodes": {
+        "filter": {
+          "hasData": [
+            {
+              "type": "view",
+              "space": "ssp_manufacturing",
+              "externalId": "ProductionSchedule",
+              "version": "v1.0.0"
+            }
+          ]
+        }
+      },
+      "limit": 1000
+    },
+    "equipment": {
+      "nodes": {
+        "from": "productionSchedules",
+        "through": {
+          "view": {
+            "space": "ssp_manufacturing",
+            "externalId": "ProductionSchedule",
+            "version": "v1.0.0",
+            "type": "view"
+          },
+          "identifier": "equipment"
+        },
+        "direction": "outwards"
+      },
+      "limit": 1000
+    }
+  },
+  "select": {
+    "productionSchedules": {
+      "sources": [
+        {
+          "source": {
+            "space": "ssp_manufacturing",
+            "externalId": "ProductionSchedule",
+            "version": "v1.0.0",
+            "type": "view"
+          },
+          "properties": ["equipment", "customerOrderRef"]
+        }
+      ]
+    },
+    "equipment": {
+      "sources": [
+        {
+          "source": {
+            "space": "sp_asset_maintenance",
+            "externalId": "FunctionalAsset",
+            "version": "v1.0.0",
+            "type": "view"
+          },
+          "properties": ["name"]
+        }
+      ]
+    }
+  }
+}
