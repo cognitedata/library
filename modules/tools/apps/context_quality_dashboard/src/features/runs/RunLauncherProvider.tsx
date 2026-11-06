@@ -85,7 +85,10 @@ export function RunLauncherProvider({ children, runningCheckMs = RUNNING_CHECK_M
       void dashboard
         .refresh()
         .then(() => invalidateDashboardQueries(queryClient))
-        .then(() => queryClient.invalidateQueries({ queryKey: ['runInProgress'] }));
+        .then(() => queryClient.invalidateQueries({ queryKey: ['runInProgress'] }))
+        .catch((error: unknown) => {
+          console.error('The dashboard could not be reloaded after the run finished', error);
+        });
     }
   }, [status.data, executionId, dashboard, queryClient]);
 

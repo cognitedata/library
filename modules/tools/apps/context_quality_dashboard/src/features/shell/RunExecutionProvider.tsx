@@ -66,7 +66,12 @@ export function RunExecutionProvider({ children, pollMs: pollMsProp }: RunExecut
   useEffect(() => {
     if (status.data === 'completed' && executionId !== undefined && reloaded.current !== executionId) {
       reloaded.current = executionId;
-      void qualityDashboardService.refresh().then(() => invalidateDashboardQueries(queryClient));
+      void qualityDashboardService
+        .refresh()
+        .then(() => invalidateDashboardQueries(queryClient))
+        .catch((error: unknown) => {
+          console.error('The dashboard could not be reloaded after the run finished', error);
+        });
     }
   }, [status.data, executionId, qualityDashboardService, queryClient]);
 

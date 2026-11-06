@@ -49,11 +49,7 @@ export function DimensionSwitcher({ viewModel }: DimensionSwitcherProps) {
     if (scope === undefined) {
       return;
     }
-    if (scope.kind === 'configured' && scope.modelId.length === 0 && modelId !== undefined) {
-      viewModel.selectDimensionsScope({ ...scope, modelId });
-    } else {
-      viewModel.selectDimensionsScope(scope);
-    }
+    viewModel.selectDimensionsScope(scope);
     setOpen(false);
   };
 
