@@ -152,6 +152,7 @@ description = "Qualitizer and other accelerator tools for CDF projects."
 canCherryPick = true
 modules = [
     "tools/apps/qualitizer",
+    "tools/apps/context_quality_dashboard",
 ]
 
 [packages.custom]
