@@ -1,0 +1,10 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: ContextQualityMetrics
+version: "{{ metricsVersion }}"
+name: Context quality metrics
+description: Data model for the Context Quality metrics run log (the Records and Streams backend)
+views:
+  - space: "{{ metricsSchemaSpace }}"
+    externalId: ContextQualityRelationship
+    version: "{{ metricsVersion }}"
+    type: view

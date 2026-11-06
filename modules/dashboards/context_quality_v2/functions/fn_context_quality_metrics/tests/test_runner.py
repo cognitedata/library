@@ -172,3 +172,8 @@ def test_the_writer_helper_formats_timestamps_the_way_the_records_need() -> None
     from datetime import UTC, datetime
 
     assert writer.now_iso(datetime(2026, 10, 13, 5, 34, 25, tzinfo=UTC)) == "2026-10-13T05:34:25.000Z"
+
+
+def test_a_piece_action_without_its_run_is_rejected_before_any_cdf_call() -> None:
+    with pytest.raises(ValueError, match="compute_shard needs runId, runTimestamp, shard"):
+        handler.handle({"action": "compute_shard"}, None)  # type: ignore[arg-type]

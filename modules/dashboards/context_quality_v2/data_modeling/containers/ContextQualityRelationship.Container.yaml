@@ -1,7 +1,7 @@
 space: "{{ metricsSchemaSpace }}"
 externalId: ContextQualityRelationship
 usedFor: record
-name: Context Quality Relationship
+name: Context quality relationship
 description: >
   Immutable log rows for counted metrics, exclusions, drilldown rows and run markers (rowKind). Raw counts only; the app does the division.
 properties:
@@ -13,7 +13,7 @@ properties:
     immutable: false
     nullable: false
     autoIncrement: false
-    name: runId
+    name: Run id
   runTimestamp:
     type:
       list: false
@@ -21,7 +21,7 @@ properties:
     immutable: false
     nullable: false
     autoIncrement: false
-    name: runTimestamp
+    name: Run timestamp
   rowKind:
     type:
       list: false
@@ -30,7 +30,7 @@ properties:
     immutable: false
     nullable: false
     autoIncrement: false
-    name: rowKind
+    name: Row kind
   metricId:
     type:
       list: false
@@ -39,7 +39,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: metricId
+    name: Metric id
   dimensionId:
     type:
       list: false
@@ -48,7 +48,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: dimensionId
+    name: Dimension id
   reportingUnitId:
     type:
       list: false
@@ -57,7 +57,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: reportingUnitId
+    name: Reporting unit id
   facilityId:
     type:
       list: false
@@ -66,7 +66,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: facilityId
+    name: Facility id
   divisionId:
     type:
       list: false
@@ -75,7 +75,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: divisionId
+    name: Division id
   disciplineId:
     type:
       list: false
@@ -84,7 +84,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: disciplineId
+    name: Discipline id
   ownerId:
     type:
       list: false
@@ -93,7 +93,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: ownerId
+    name: Owner id
   tier:
     type:
       list: false
@@ -101,7 +101,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: tier
+    name: Tier
   ruleSetVersion:
     type:
       list: false
@@ -110,7 +110,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: ruleSetVersion
+    name: Rule set version
   eligibleCount:
     type:
       list: false
@@ -118,7 +118,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: eligibleCount
+    name: Eligible count
   passingCount:
     type:
       list: false
@@ -126,7 +126,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: passingCount
+    name: Passing count
   issueCount:
     type:
       list: false
@@ -134,7 +134,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: issueCount
+    name: Issue count
   valueSum:
     type:
       list: false
@@ -142,7 +142,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: valueSum
+    name: Value sum
   notApplicable:
     type:
       list: false
@@ -150,7 +150,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: notApplicable
+    name: Not applicable
   matchType:
     type:
       list: false
@@ -159,7 +159,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: matchType
+    name: Match type
   subKey:
     type:
       list: false
@@ -168,7 +168,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: subKey
+    name: Sub key
   exclusionCategory:
     type:
       list: false
@@ -177,7 +177,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: exclusionCategory
+    name: Exclusion category
   excludedCount:
     type:
       list: false
@@ -185,7 +185,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: excludedCount
+    name: Excluded count
   entityId:
     type:
       list: false
@@ -194,7 +194,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: entityId
+    name: Entity id
   entityLabel:
     type:
       list: false
@@ -203,7 +203,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: entityLabel
+    name: Entity label
   entityRef:
     type:
       list: false
@@ -212,7 +212,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: entityRef
+    name: Entity ref
   detail:
     type:
       list: false
@@ -221,7 +221,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: detail
+    name: Detail
   cellsJson:
     type:
       list: false
@@ -230,7 +230,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: cellsJson
+    name: Cells json
   matched:
     type:
       list: false
@@ -238,7 +238,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: matched
+    name: Matched
   status:
     type:
       list: false
@@ -247,7 +247,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: status
+    name: Status
   scope:
     type:
       list: false
@@ -256,7 +256,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: scope
+    name: Scope
   warnings:
     type:
       list: false
@@ -265,7 +265,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: warnings
+    name: Warnings
   rowsWritten:
     type:
       list: false
@@ -273,7 +273,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: rowsWritten
+    name: Rows written
   classificationKind:
     type:
       list: false
@@ -282,7 +282,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: classificationKind
+    name: Classification kind
   classificationId:
     type:
       list: false
@@ -291,7 +291,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: classificationId
+    name: Classification id
   classificationName:
     type:
       list: false
@@ -300,4 +300,4 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: classificationName
+    name: Classification name

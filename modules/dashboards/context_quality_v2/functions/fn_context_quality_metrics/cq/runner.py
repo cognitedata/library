@@ -122,6 +122,7 @@ def compute_metrics(client: CogniteClient, cfg: RunConfig, payload: dict[str, An
     main_rows += writer.location_rows(found)
     warnings = [*result["warnings"], *link_warnings, *location_warnings]
     summary = {
+        "status": "succeeded",
         "action": "compute_metrics",
         "facilities": data["facility_spaces"],
         "aggregateRows": sum(1 for k, _ in main_rows if k.startswith("agg")),
@@ -271,6 +272,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
     part = writer.run_part_row(None, "plan", encode_warnings(warnings), written)
     writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, [part])
     return {
+        "status": "succeeded",
         "action": "plan",
         "runId": run_id,
         "runTimestamp": common["runTimestamp"],
@@ -373,6 +375,7 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     counted_at = time.monotonic()
     written = _finish_piece(client, cfg, payload, "shard", main_rows, warnings, listed)
     return {
+        "status": "succeeded",
         "action": "compute_shard",
         "shard": int(payload["shard"]),
         "rowsWritten": written,
@@ -431,6 +434,7 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     counted_at = time.monotonic()
     written = _finish_piece(client, cfg, payload, "batch", _rekey(main_rows, shard), warnings, listed)
     return {
+        "status": "succeeded",
         "action": "compute_batch",
         "shard": shard,
         "rowsWritten": written,
@@ -503,6 +507,7 @@ def finalize(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> 
     )
     writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, [("run:complete", marker[2])])
     return {
+        "status": "succeeded",
         "action": "finalize",
         "runId": run_id,
         "pieces": expected,
@@ -519,7 +524,7 @@ def export_workbook(client: CogniteClient, cfg: RunConfig, payload: dict[str, An
     """
     scope = parse_scope(payload.get("scope"), links_given=None)
     built = export.build_workbook(client, cfg, payload["runId"], int(payload["shardCount"]), measured=scope.measured)
-    return {"action": "export", **built}
+    return {"status": "succeeded", "action": "export", **built}
 
 
 def validate(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict[str, Any]:
@@ -533,6 +538,7 @@ def validate(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> 
         t["passing"] += p
         t["issue"] += i
     return {
+        "status": "succeeded",
         "action": "validate",
         "facilities": data["facility_spaces"],
         "metrics": totals,

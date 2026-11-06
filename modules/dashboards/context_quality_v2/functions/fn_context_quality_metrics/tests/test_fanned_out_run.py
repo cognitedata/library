@@ -573,7 +573,7 @@ def test_the_export_step_builds_the_workbook_of_the_run(monkeypatch: pytest.Monk
     out = runner.export_workbook(RecordingClient(), CFG, {"runId": RUN_ID, "shardCount": "5"})  # type: ignore[arg-type]
 
     assert seen == [(RUN_ID, 5)]
-    assert out == {"action": "export", "exported": True}
+    assert out == {"status": "succeeded", "action": "export", "exported": True}
 
 
 # ---------------------------------------------------------------- finalize

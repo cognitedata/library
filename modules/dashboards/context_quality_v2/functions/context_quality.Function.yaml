@@ -1,4 +1,4 @@
-- name: Context Quality Metrics
+- name: Context quality metrics
   externalId: "{{ metricsFunctionExternalId }}"
   owner: Anonymous
   description: >

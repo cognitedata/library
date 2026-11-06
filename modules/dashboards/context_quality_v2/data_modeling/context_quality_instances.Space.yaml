@@ -1,5 +1,5 @@
 space: "{{ metricsInstanceSpace }}"
-name: "{{ metricsInstanceSpace }}"
+name: Context quality metrics instances
 description: >
   Instance space for the records the Context Quality backend writes to the metrics stream.
   Separate from metricsSchemaSpace, which holds only the container and view definitions.
