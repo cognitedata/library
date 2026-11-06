@@ -11,7 +11,7 @@ from typing import Any
 from cq.availability import build_warnings, population_counts, register_not_applicable
 from cq.classification import compute_classifications, entity_classes
 from cq.cross import Cross
-from cq.types import AssetRow, DrillItem, EntityKey, Grain, LoadedData, Ref, RunConfig
+from cq.types import AssetRow, DrillItem, EntityKey, Grain, LoadedData, MetricKey, Ref, RunConfig
 
 KINDS = ("assets", "equipment", "timeseries", "files", "objects3d", "work_orders", "notifications", "annotations")
 
@@ -32,7 +32,9 @@ def _tier_label(tier: int | None) -> str:
 
 class Acc:
     def __init__(self) -> None:
-        self.agg: dict[tuple, list[Any]] = defaultdict(lambda: [0, 0, 0, 0.0])  # eligible, passing, issue, valueSum
+        self.agg: dict[MetricKey, list[int | float]] = defaultdict(
+            lambda: [0, 0, 0, 0.0]
+        )  # eligible, passing, issue, valueSum
 
     def add(self, key: tuple, eligible: bool = True, passing: bool = False, value: float | None = None) -> None:
         if not eligible:
@@ -74,7 +76,7 @@ def compute(
         return f"{_tier_label(tier)} {text}" if tiering else text
 
     # ---- asset facts
-    A: dict[Any, AssetRow] = {(a["space"], a["id"]): a for a in data["assets"]}
+    A: dict[EntityKey, AssetRow] = {(a["space"], a["id"]): a for a in data["assets"]}
     prefix = cfg["divisionTagPrefix"]
 
     def enrich(a: AssetRow) -> None:
@@ -86,7 +88,7 @@ def compute(
         a["retired"] = bool(cfg["retiredTag"]) and cfg["retiredTag"] in a["tags"]
 
     # the assets an entity of the batch may need to look at: its own, and the ones `cross` fetched for it
-    known: dict[Any, AssetRow] = dict(A)
+    known: dict[Ref, AssetRow] = dict(A)
     for key_, row in (cross.assets if cross else {}).items():
         if key_ not in known:
             enrich(row)
@@ -98,7 +100,7 @@ def compute(
         a["orphan"] = a["parent"] is None and k not in has_children
         a["parent_loaded"] = a["parent"] in known
 
-    def depth(k: Any) -> int:
+    def depth(k: Ref) -> int:
         d, seen = 1, set()
         while known.get(k) and known[k]["parent"] and k not in seen:
             seen.add(k)
@@ -120,13 +122,13 @@ def compute(
         }
 
     # what is counted here: the kinds this call is responsible for
-    scoped: Any = data if kinds is None else {**data, **{kind: [] for kind in KINDS if kind not in kinds}}
+    scoped: LoadedData = data if kinds is None else {**data, **{kind: [] for kind in KINDS if kind not in kinds}}
     populated = cross.populated if cross else None
     classes_by_entity = entity_classes(scoped, populated)
     acc, excl, drill = Acc(), defaultdict(int), []
     drill: list[DrillItem]
 
-    def key(metric: str, dim: str, g: Grain, sub: str | None = None, owner: str | None = None) -> tuple:
+    def key(metric: str, dim: str, g: Grain, sub: str | None = None, owner: str | None = None) -> MetricKey:
         return (metric, dim, g["unit"], g["facility"], g["div"], g["disc"], owner or _owner(cfg, dim), g["tier"], sub)
 
     def drilldown(

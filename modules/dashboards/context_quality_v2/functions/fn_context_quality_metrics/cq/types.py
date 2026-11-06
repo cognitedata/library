@@ -11,6 +11,8 @@ from typing import Any, NotRequired, TypedDict
 type Ref = tuple[str | None, str]
 type EntityKey = tuple[str, str]
 type RowProps = dict[str, Any]
+type MetricKey = tuple[str, str, str, str | None, str | None, str | None, str | None, int | None, str | None]
+type ClassKey = tuple[str, str, str, str, str, str | None, str | None, str | None, str | None, int | None]
 type Row = tuple[str, RowProps]
 
 

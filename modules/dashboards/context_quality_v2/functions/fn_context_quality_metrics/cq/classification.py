@@ -8,7 +8,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
-from cq.types import EntityKey, Grain, LoadedData, Ref, RunConfig
+from cq.types import AssetRow, ClassKey, EntityKey, Grain, LoadedData, Ref, RunConfig
 
 UNCLASSIFIED_ID, UNCLASSIFIED_NAME = "__none__", "Unclassified"
 
@@ -54,7 +54,7 @@ def entity_classes(data: LoadedData, populated: set[str] | None = None) -> dict[
 
 
 def _participation(
-    kind: str, entity: dict[str, Any], A: dict[EntityKey, Any], cfg: RunConfig
+    kind: str, entity: dict[str, Any], A: dict[EntityKey, AssetRow], cfg: RunConfig
 ) -> tuple[bool, bool, Ref | None]:
     """(eligible, passing, asset_key_for_grain) for one entity, matching the dimension's own rules."""
     if kind in ("assetType", "assetClass"):
@@ -69,13 +69,13 @@ def _participation(
 def compute_classifications(
     data: LoadedData,
     cfg: RunConfig,
-    A: dict[EntityKey, Any],
+    A: dict[EntityKey, AssetRow],
     ctx: Callable[[str, Ref | None], Grain],
     owner_for: Callable[[str], str | None],
     populated: set[str] | None = None,
-) -> dict[tuple, list[int]]:
+) -> dict[ClassKey, list[int]]:
     """-> {(kind, classId, className, dim, unit, facility, div, disc, owner, tier): [eligible, passing]}"""
-    out: dict[tuple, list[int]] = defaultdict(lambda: [0, 0])
+    out: dict[ClassKey, list[int]] = defaultdict(lambda: [0, 0])
     for kind in discover(data, populated):
         _, entities, field, dim = next(s for s in SPECS if s[0] == kind)
         labels = data["class_labels"][kind]
