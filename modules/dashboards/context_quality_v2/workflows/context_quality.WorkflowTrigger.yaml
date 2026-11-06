@@ -6,7 +6,7 @@ triggerRule:
 workflowExternalId: "{{ metricsWorkflowExternalId }}"
 workflowVersion: "{{ metricsWorkflowVersion }}"
 # the workflow reads extraLinks from its input; a scheduled run has no config file, so it passes none
-# and a full run: every dimension, no configured links (see README, "Running some dimensions only")
+# and a full run: every dimension, no configured links (see REFERENCE.md, "Running some dimensions only")
 input:
   extraLinks: []
   scope: all

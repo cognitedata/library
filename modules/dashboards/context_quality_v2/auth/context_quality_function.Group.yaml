@@ -46,7 +46,7 @@ capabilities:
         spaceIdScope:
           spaceIds:
             {{ metricsSourceSpaces }}
-  # read the latest datapoint of each time series (freshness). The scope is not validated against a deployment: see the README.
+  # read the latest datapoint of each time series (freshness). The scope is not validated against a deployment: see REFERENCE.md.
   - timeSeriesAcl:
       actions:
         - READ
@@ -69,7 +69,7 @@ capabilities:
         idScope:
           ids:
             - "{{ metricsDatasetExternalId }}"
-  # read the project's location filters: a location that lists instance spaces is offered as a scope (README, locations)
+  # read the project's location filters: a location that lists instance spaces is offered as a scope (REFERENCE.md, locations)
   - locationFiltersAcl:
       actions:
         - READ
