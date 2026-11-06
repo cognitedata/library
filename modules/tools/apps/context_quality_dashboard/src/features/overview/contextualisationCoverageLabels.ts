@@ -1,3 +1,5 @@
+import { interpolate } from '../../i18n/interpolate';
+
 export function formatCount(count: number): string {
   return count.toLocaleString('en-US');
 }
@@ -20,6 +22,3 @@ export function buildCoverageBreakdownAriaLabel(
   });
 }
 
-function interpolate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match: string, name: string) => vars[name] ?? '');
-}

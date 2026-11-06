@@ -5,6 +5,8 @@ import {
   DialogTitle,
 } from '@cognite/aura/components/dialog';
 
+import { interpolate } from '../../i18n/interpolate';
+
 import type { RunConfigError, RunConfigModel, RunConfigResult } from './runConfigFile';
 
 type RunConfigFileReviewDialogProps = {
@@ -14,12 +16,8 @@ type RunConfigFileReviewDialogProps = {
   t: (key: string) => string;
 };
 
-function fill(template: string, values: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match: string, name: string) => values[name] ?? '');
-}
-
 function errorText(error: RunConfigError, t: (key: string) => string): string {
-  return fill(t(`configuration.file.error.${error.code}`), { subject: error.subject ?? '' }).trim();
+  return interpolate(t(`configuration.file.error.${error.code}`), { subject: error.subject ?? '' }).trim();
 }
 
 /** View -> properties, in the order the file lists them. */
@@ -56,7 +54,7 @@ export function RunConfigFileReviewDialog({
         {result.ok ? (
           <div className="space-y-4">
             <p className="text-sm text-success-foreground">
-              {fill(t('configuration.file.valid'), {
+              {interpolate(t('configuration.file.valid'), {
                 models: String(result.models.length),
                 links: String(result.models.reduce((total, entry) => total + entry.links.length, 0)),
               })}

@@ -3,6 +3,7 @@ import { Button } from '@cognite/aura/components/button';
 import { Card, CardContent } from '@cognite/aura/components/card';
 import { IconChevronRight } from '@cognite/aura/icons';
 
+import { interpolate } from '../../i18n/interpolate';
 import type { SnapshotPointDto } from '../../types';
 
 import {
@@ -141,6 +142,3 @@ export function DimensionOverviewCard({
   );
 }
 
-function interpolate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match: string, name: string) => vars[name] ?? '');
-}

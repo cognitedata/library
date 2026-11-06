@@ -20,7 +20,8 @@ import { Tabs, TabsList, TabsPanel, TabsTrigger } from '@cognite/aura/components
 import { IconChevronDown, IconChevronRight } from '@cognite/aura/icons';
 import { useId, useState } from 'react';
 
-import { fill } from './fill';
+import { interpolate } from '../../i18n/interpolate';
+
 import { METRICS_MODEL_FILTER_ALL } from './rerunSelectionContext';
 import { RerunSelectionFooter } from './RerunSelectionFooter';
 import type { CheckState, ModelNode } from './selectionTree';
@@ -84,7 +85,7 @@ function ViewGroup({
           className="size-7 shrink-0 p-0"
           aria-expanded={open}
           aria-controls={panelId}
-          aria-label={fill(t('rerun.toggleView'), { name: view.view })}
+          aria-label={interpolate(t('rerun.toggleView'), { name: view.view })}
           onClick={() => setOpen((value) => !value)}
         >
           {open ? <IconChevronDown className="size-4" aria-hidden /> : <IconChevronRight className="size-4" aria-hidden />}

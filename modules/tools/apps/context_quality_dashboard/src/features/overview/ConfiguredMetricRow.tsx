@@ -4,6 +4,7 @@ import { Button } from '@cognite/aura/components/button';
 import { Card, CardContent } from '@cognite/aura/components/card';
 import { IconChevronRight } from '@cognite/aura/icons';
 
+import { interpolate } from '../../i18n/interpolate';
 import type { ConfiguredMetricDto, ConfiguredMetricTrendPointDto } from '../../types';
 import { metricCardDrilldownButtonClassName } from '../dimension/dimensionMetricPresentation';
 
@@ -277,6 +278,3 @@ function ConfiguredMetricHeader({
   );
 }
 
-function interpolate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match: string, name: string) => vars[name] ?? '');
-}

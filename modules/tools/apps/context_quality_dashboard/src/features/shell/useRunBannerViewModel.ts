@@ -1,16 +1,13 @@
 import { useCallback, useMemo } from 'react';
 
 import { useAppState } from '../../app/state/useAppState';
+import { interpolate } from '../../i18n/interpolate';
 import { useLanguage } from '../../i18n/useLanguage';
 import { useRunLauncher } from '../runs/useRunLauncher';
 
 import { deriveRunBannerState, type RunBannerState } from './runBannerState';
 import { useQualityOperations } from './useQualityOperations';
 import { useRunExecution } from './useRunExecution';
-
-function fill(template: string, values: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match: string, name: string) => values[name] ?? '');
-}
 
 export type RunBannerViewModel = {
   banner: RunBannerState;
@@ -69,7 +66,7 @@ export function useRunBannerViewModel(): RunBannerViewModel {
     const bodyTemplate = t(banner.copy.bodyKey);
     return banner.copy.bodyValues === undefined
       ? bodyTemplate
-      : fill(bodyTemplate, banner.copy.bodyValues);
+      : interpolate(bodyTemplate, banner.copy.bodyValues);
   }, [banner, t]);
 
   const line = useMemo(() => {

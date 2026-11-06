@@ -3,6 +3,8 @@ import { Progress } from '@cognite/aura/components/progress';
 import { IconFileText, IconUpload, IconX } from '@cognite/aura/icons';
 import type { DragEvent, KeyboardEvent } from 'react';
 
+import { interpolate } from '../../i18n/interpolate';
+
 import { formatRunConfigFileSize } from './runConfigFileUploadPresentation';
 
 type RunConfigFileUploadPanelProps = {
@@ -16,10 +18,6 @@ type RunConfigFileUploadPanelProps = {
   /** Shorter dropzone for onboarding layouts. */
   layout?: 'default' | 'compact';
 };
-
-function fill(template: string, values: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match: string, name: string) => values[name] ?? '');
-}
 
 function pickConfigFile(files: FileList | undefined): File | null {
   const file = files?.[0];
@@ -88,7 +86,7 @@ export function RunConfigFileUploadPanel({
   const sizeLabel = formatRunConfigFileSize(fileByteLength);
   const statusText = isUploading
     ? t('configuration.file.uploading')
-    : fill(t('configuration.file.uploadedReady'), { size: sizeLabel });
+    : interpolate(t('configuration.file.uploadedReady'), { size: sizeLabel });
 
   return (
     <div

@@ -4,6 +4,7 @@ import { Progress } from '@cognite/aura/components/progress';
 import { Tabs, TabsList, TabsPanel, TabsTrigger } from '@cognite/aura/components/tabs';
 import { useRef, useState, type ChangeEvent } from 'react';
 
+import { interpolate } from '../../i18n/interpolate';
 import { RunRequestButton } from '../runs/RunRequestButton';
 
 import { RunConfigFileReviewDialog } from './RunConfigFileReviewDialog';
@@ -12,10 +13,6 @@ import { runConfigFileByteLength } from './runConfigFileUploadPresentation';
 import type { RunConfigFileViewModel, RunPhase } from './useRunConfigFileViewModel';
 
 type EditorTab = 'upload' | 'paste';
-
-function fill(template: string, values: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match: string, name: string) => values[name] ?? '');
-}
 
 type RunConfigEditorCardProps = {
   viewModel: RunConfigFileViewModel;
@@ -191,7 +188,7 @@ function RunStatus({ viewModel }: { viewModel: RunConfigFileViewModel }) {
     running: t('configuration.run.running'),
     completed: null,
     failed: t('configuration.run.failed'),
-    'not-started': startError === null ? null : fill(t(startError.key), { message: startError.message }),
+    'not-started': startError === null ? null : interpolate(t(startError.key), { message: startError.message }),
   };
   const message = text[phase];
   if (message === null && !inProgress) {

@@ -6,10 +6,10 @@ import {
 } from '@cognite/aura/components/empty-state';
 import { Skeleton } from '@cognite/aura/components/skeleton';
 
+import { interpolate } from '../../i18n/interpolate';
 import { useLanguage } from '../../i18n/useLanguage';
 import { useBackend, useRunService } from '../../services/useServices';
 import type { TrendWindow } from '../../types';
-import { fill } from '../runs/fill';
 import { formatLastSuccessfulRun } from '../shell/formatLastSuccessfulRun';
 import {
   sectionHeadingClassName,
@@ -175,7 +175,7 @@ function measuredCaptionFor(
   if (measuredAt === undefined || freshest === undefined || measuredAt >= freshest) {
     return null;
   }
-  return fill(t('overview.measuredAt'), {
+  return interpolate(t('overview.measuredAt'), {
     date: formatLastSuccessfulRun(measuredAt, language === 'ja' ? 'ja-JP' : 'en-GB'),
   });
 }

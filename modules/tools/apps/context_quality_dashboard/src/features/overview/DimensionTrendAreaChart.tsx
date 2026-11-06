@@ -1,5 +1,6 @@
 import { useId, useState, type MouseEvent } from 'react';
 
+import { interpolate } from '../../i18n/interpolate';
 import type { SnapshotPointDto } from '../../types';
 
 import { formatCount } from './contextualisationCoverageLabels';
@@ -234,6 +235,3 @@ function hoveredIndexFromPointer(
   return Math.max(0, Math.min(pointCount - 1, index));
 }
 
-function interpolate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match: string, name: string) => vars[name] ?? '');
-}

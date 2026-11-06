@@ -1,10 +1,10 @@
 import { Button } from '@cognite/aura/components/button';
 
 import { useAppState } from '../../app/state/useAppState';
+import { interpolate } from '../../i18n/interpolate';
 import { useLanguage } from '../../i18n/useLanguage';
 import { DEFAULT_DIMENSION_ID } from '../dimension/useDimensionViewModel';
 import { configuredGroupRunRequest } from '../runs/configuredGroupRunRequest';
-import { fill } from '../runs/fill';
 import { RunRequestButton } from '../runs/RunRequestButton';
 import { useRunLauncher } from '../runs/useRunLauncher';
 
@@ -85,7 +85,7 @@ export function RunStatusIndicator() {
       {showBuiltinDimensionRunButton ? (
         <RunRequestButton
           request={{ kind: 'dimension', dimensionId }}
-          label={fill(t('run.button.dimension'), { name: t(`dimension.${dimensionId}`) })}
+          label={interpolate(t('run.button.dimension'), { name: t(`dimension.${dimensionId}`) })}
           models={null}
         />
       ) : null}
@@ -93,7 +93,7 @@ export function RunStatusIndicator() {
         <RunRequestButton
           request={configuredRun.request}
           models={configuredRun.models}
-          label={fill(t('run.button.configuredView'), { name: configuredGroup.viewLabel })}
+          label={interpolate(t('run.button.configuredView'), { name: configuredGroup.viewLabel })}
         />
       ) : null}
       {launcher?.otherRunInProgress === true ? (

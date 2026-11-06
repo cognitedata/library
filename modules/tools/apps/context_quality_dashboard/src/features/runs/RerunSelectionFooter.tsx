@@ -3,8 +3,9 @@ import { Button } from '@cognite/aura/components/button';
 import { IconCircleCheckFilled, IconX } from '@cognite/aura/icons';
 import { useState } from 'react';
 
+import { interpolate } from '../../i18n/interpolate';
+
 import { ConfirmRunDialog } from './ConfirmRunDialog';
-import { fill } from './fill';
 import type { RerunViewModel } from './useRerunViewModel';
 
 /** Compact selection counts and run action at the bottom of the selection card. */
@@ -43,7 +44,7 @@ export function RerunSelectionFooter({ viewModel }: { viewModel: RerunViewModel 
           <div className="box-border w-full px-5 pt-3">
             <Alert variant="error" role="alert" className="w-full max-w-full">
               <AlertDescription>
-                {fill(t(viewModel.startError.key), { message: viewModel.startError.message })}
+                {interpolate(t(viewModel.startError.key), { message: viewModel.startError.message })}
               </AlertDescription>
             </Alert>
           </div>
@@ -66,12 +67,12 @@ export function RerunSelectionFooter({ viewModel }: { viewModel: RerunViewModel 
             <p className="text-sm font-medium text-foreground" data-testid="rerun-summary-total">
               {viewModel.selectedTotal === 0
                 ? t('rerun.summary.none')
-                : fill(t('rerun.summary.total'), { count: String(viewModel.selectedTotal) })}
+                : interpolate(t('rerun.summary.total'), { count: String(viewModel.selectedTotal) })}
             </p>
             <p className="text-xs text-muted-foreground">
               <span data-testid="rerun-summary-dimensions">
                 {t('rerun.summary.dimensions')}:{' '}
-                {fill(t('rerun.summary.counts'), {
+                {interpolate(t('rerun.summary.counts'), {
                   selected: String(viewModel.selectedDimensions.length),
                   total: String(viewModel.dimensionIds.length),
                 })}
@@ -79,7 +80,7 @@ export function RerunSelectionFooter({ viewModel }: { viewModel: RerunViewModel 
               <span aria-hidden>{' · '}</span>
               <span data-testid="rerun-summary-metrics">
                 {t('rerun.summary.metrics')}:{' '}
-                {fill(t('rerun.summary.counts'), {
+                {interpolate(t('rerun.summary.counts'), {
                   selected: String(viewModel.selectedMetrics.length),
                   total: String(viewModel.totalMetrics),
                 })}
@@ -107,7 +108,7 @@ export function RerunSelectionFooter({ viewModel }: { viewModel: RerunViewModel 
             ) : (
               viewModel.selectedTotal === 0
                 ? t('rerun.summary.runNone')
-                : fill(t('rerun.summary.run'), { count: String(viewModel.selectedTotal) })
+                : interpolate(t('rerun.summary.run'), { count: String(viewModel.selectedTotal) })
             )}
           </Button>
         </div>

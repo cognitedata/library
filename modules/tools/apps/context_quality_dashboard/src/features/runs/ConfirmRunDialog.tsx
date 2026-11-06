@@ -10,9 +10,9 @@ import {
 import { IconBuilding, IconClock, IconInfoCircle } from '@cognite/aura/icons';
 import type { ComponentType } from 'react';
 
+import { interpolate } from '../../i18n/interpolate';
 import { useLanguage } from '../../i18n/useLanguage';
 
-import { fill } from './fill';
 import { requestKey, type RunRequest } from './runRequest';
 
 type ConfirmRunDialogProps = {
@@ -46,9 +46,9 @@ export function ConfirmRunDialog({ open, onOpenChange, request, blocked, onConfi
         {blocked === null ? (
           <>
             <DialogHeader>
-              <DialogTitle>{fill(t(`run.confirm.title.${request.kind}`), { name, count })}</DialogTitle>
+              <DialogTitle>{interpolate(t(`run.confirm.title.${request.kind}`), { name, count })}</DialogTitle>
               <DialogDescription>
-                {fill(t(`run.confirm.body.${request.kind}`), { name, count })}
+                {interpolate(t(`run.confirm.body.${request.kind}`), { name, count })}
               </DialogDescription>
             </DialogHeader>
             <ConfirmRunBeforeYouStart t={t} />

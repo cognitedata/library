@@ -10,15 +10,13 @@ import {
 } from '@cognite/aura/icons';
 import { useState } from 'react';
 
+import { interpolate } from '../../i18n/interpolate';
+
 import { BuiltInChecksCoverageSidePanel } from './BuiltInChecksCoverageSidePanel';
 import type { BuiltInOnboardingStatus } from './builtInOnboardingStatus';
 import { RunConfigEditorCard } from './RunConfigEditorCard';
 import { RunConfigExampleDownload } from './RunConfigExampleDownload';
 import { useFirstRunOnboardingViewModel } from './useFirstRunOnboardingViewModel';
-
-function fill(template: string, values: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match: string, name: string) => values[name] ?? '');
-}
 
 const onboardingShellClassName = 'mx-auto w-full max-w-[880px] space-y-6 py-1';
 
@@ -224,7 +222,7 @@ function BuiltInStatusCard({ viewModel }: BuiltInStatusCardProps) {
               ) : null}
               {builtInFailureDetail !== null ? (
                 <p className="text-sm text-destructive-foreground" data-testid="first-run-built-in-status">
-                  {fill(t(builtInFailureDetail.key), { message: builtInFailureDetail.message })}{' '}
+                  {interpolate(t(builtInFailureDetail.key), { message: builtInFailureDetail.message })}{' '}
                   <Button
                     type="button"
                     variant="ghost"

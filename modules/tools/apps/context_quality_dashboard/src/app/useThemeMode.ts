@@ -5,9 +5,13 @@ export type ThemeMode = 'light' | 'dark';
 const STORAGE_KEY = 'context-quality-dashboard.theme';
 
 function readStoredTheme(): ThemeMode {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === 'dark' || stored === 'light') {
-    return stored;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'dark' || stored === 'light') {
+      return stored;
+    }
+  } catch {
+    // Storage can be blocked inside an iframe or a private window: fall back to the system theme.
   }
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
@@ -21,7 +25,11 @@ export function useThemeMode() {
 
   useEffect(() => {
     applyThemeMode(mode);
-    localStorage.setItem(STORAGE_KEY, mode);
+    try {
+      localStorage.setItem(STORAGE_KEY, mode);
+    } catch {
+      // The choice then lasts only for this session.
+    }
   }, [mode]);
 
   return {

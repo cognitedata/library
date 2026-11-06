@@ -3,6 +3,7 @@ import { Skeleton } from '@cognite/aura/components/skeleton';
 import { IconChevronRight } from '@cognite/aura/icons';
 import { useMemo, useState, type ReactNode } from 'react';
 
+import { interpolate } from '../../i18n/interpolate';
 import type {
   ConfiguredDataModelDto,
   ConfiguredGroupDto,
@@ -319,6 +320,3 @@ function ConfiguredMetricsDetail({ group, trendSeries, onOpenDrilldown, t }: Con
   );
 }
 
-function interpolate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match: string, name: string) => vars[name] ?? '');
-}
