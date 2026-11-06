@@ -100,6 +100,8 @@ cdf deploy
 
 The first scheduled run follows the next trigger time. To get data now, start the workflow in Fusion (**Data
 management > Data workflows > `wf_context_quality_metrics` > Run**) with the input `{"extraLinks": [], "scope": "all"}`.
+Or start it from the dashboard: open the app and press **Run built-in checks** on its first-run screen (see
+["Start a run"](../../tools/apps/context_quality_dashboard/README.md#start-a-run)). The dashboard does not start runs by itself.
 
 A run is done when its last task, `finalize`, succeeds. Only then does the dashboard show it; a failed run is never
 shown and the previous one stays current. Then deploy the
