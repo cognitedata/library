@@ -11,7 +11,7 @@ import time
 from collections import Counter
 from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, ParamSpec, TypeVar
 
 from cognite.client import CogniteClient
 from cognite.client.exceptions import CogniteAPIError
@@ -72,7 +72,11 @@ def time_left() -> float:
     return float("inf") if _call_started is None else CALL_BUDGET - (clock() - _call_started)
 
 
-def retrying[**P, R](call: Callable[P, R]) -> Callable[P, R]:
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def retrying(call: Callable[P, R]) -> Callable[P, R]:  # noqa: UP047 - CodeQL cannot read the `[**P, R]` syntax
     @wraps(call)
     def run(*args: P.args, **kwargs: P.kwargs) -> R:
         attempt = 0

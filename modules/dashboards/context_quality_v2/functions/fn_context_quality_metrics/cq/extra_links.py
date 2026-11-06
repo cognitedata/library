@@ -114,7 +114,7 @@ def count_links(
         empty = (link["model"], link["view"]) in empty_views if empty_views is not None else not found
         if empty:
             for space in facility_spaces:
-                counts[(link["model"], link["view"], link["property"], space)]
+                counts.setdefault((link["model"], link["view"], link["property"], space), [0, 0, 0])
     return dict(counts)
 
 

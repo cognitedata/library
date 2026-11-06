@@ -13,11 +13,15 @@ from tiny_data import NOW, asset, data
 NEW_PROJECT = {"stream": "cq_metrics", "schemaSpace": "sp_cq_schema", "instanceSpace": "sp_cq_data"}
 
 
+class ClientUsed(AttributeError, AssertionError):
+    """Raised on any use of the client: an AttributeError, as `__getattr__` should raise, and an AssertionError, as the tests expect."""
+
+
 class NoCalls:
     """A client that fails on any use, to show nothing was read or written."""
 
     def __getattr__(self, name: str) -> Any:
-        raise AssertionError(f"the client was used: {name}")
+        raise ClientUsed(f"the client was used: {name}")
 
 
 # ---------------------------------------------------------------- no silent legacy defaults

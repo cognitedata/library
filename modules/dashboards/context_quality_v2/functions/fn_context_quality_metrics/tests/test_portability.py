@@ -145,11 +145,15 @@ def test_the_error_names_the_supported_tiers() -> None:
         build_config({"tierByTypeCode": {"pump": 4}})
 
 
+class ClientUsed(AttributeError, AssertionError):
+    """Raised on any use of the client: an AttributeError, as `__getattr__` should raise, and an AssertionError, as the tests expect."""
+
+
 class NoCalls:
     """A client that fails on any use, to show nothing was read or written."""
 
     def __getattr__(self, name: str) -> Any:
-        raise AssertionError(f"the client was used: {name}")
+        raise ClientUsed(f"the client was used: {name}")
 
 
 @pytest.mark.parametrize("action", ["compute_metrics", "validate"])
