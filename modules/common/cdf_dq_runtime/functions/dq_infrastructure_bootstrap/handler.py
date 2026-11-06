@@ -78,7 +78,7 @@ def _write_settings_with_overrides(settings_path: Path, data: dict[str, Any]) ->
         return Path(tmp.name)
 
 
-def handler(data: dict[str, Any], client: "CogniteClient", secrets: dict[str, str] | None = None) -> dict[str, object]:
+def handle(data: dict[str, Any], client: "CogniteClient", secrets: dict[str, str] | None = None) -> dict[str, object]:
     """Deploy Data Quality Validation infrastructure from this module's rendered config."""
     config_dir = Path(__file__).parent / "config"
     bundled_settings = config_dir / "settings.yaml"
