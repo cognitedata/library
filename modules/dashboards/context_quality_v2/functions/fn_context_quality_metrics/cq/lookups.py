@@ -19,7 +19,7 @@ from cognite.client.exceptions import CogniteAPIError
 from cq.cross import Cross
 from cq.reader import _MISSING_VIEW, CDM, IDM, _ref
 from cq.resilience import note
-from cq.types import AssetRow, LoadedData, Ref
+from cq.types import AssetRow, LoadedData, Ref, RunConfig
 
 CHUNK = 500
 TIME_SERIES_CHUNK = 100
@@ -206,7 +206,7 @@ def _with_time_series(client: CogniteClient, assets: list[Ref], space: str) -> s
     return {ref for found in _in_parallel(_halving(ask), _chunks(assets, TIME_SERIES_CHUNK)) for ref in found}
 
 
-def fetch_cross(client: CogniteClient, data: LoadedData, cfg: Any, kinds: frozenset[str], space: str) -> Cross:
+def fetch_cross(client: CogniteClient, data: LoadedData, cfg: RunConfig, kinds: frozenset[str], space: str) -> Cross:
     """What the entities of `data` (the batch) need to know that `data` does not hold. See cq.cross.Cross."""
     cross = Cross(populated=_populated(client, data, kinds, space))
     # the grain of an entity comes from the asset it links to, but only when tier or division is configured
