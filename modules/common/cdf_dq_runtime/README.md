@@ -290,10 +290,13 @@ The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space
 ### Bootstrap flow
 
 `cdf deploy` publishes `dq-infrastructure-bootstrap` and a five-minute
-Function Schedule. The function calls the package deploy entrypoint, which is
-idempotent. In a `finally` block, the function deletes its own schedule even
-when deployment fails; a later `cdf deploy` can recreate it. Data Quality
-record views remain owned by the package.
+Function Schedule. Toolkit variables (`dataQualitySpace`, `recordsStreamId`,
+and related keys) are passed on `Schedule.data` because they are not
+substituted inside the function code bundle; the handler merges them into
+`settings.yaml` before calling the package deploy entrypoint (idempotent).
+In a `finally` block, the function deletes its own schedule even when
+deployment fails; a later `cdf deploy` can recreate it. Data Quality record
+views remain owned by the package.
 
 ### Local
 

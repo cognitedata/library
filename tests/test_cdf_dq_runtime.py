@@ -700,6 +700,11 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     schedule_text = schedule.read_text(encoding="utf-8")
     assert "functionExternalId: dq-infrastructure-bootstrap" in schedule_text
     assert 'cronExpression: "*/5 * * * *"' in schedule_text
+    assert 'dataQualitySpace: "{{ dataQualitySpace }}"' in schedule_text
+    assert 'recordsStreamId: "{{ recordsStreamId }}"' in schedule_text
+    assert 'functionCodeDatasetExternalId: "{{ functionCodeDatasetExternalId }}"' in schedule_text
+    assert 'dataProductExternalId: "{{ dataProductExternalId }}"' in schedule_text
+    assert 'dataProductVersion: "{{ dataProductVersion }}"' in schedule_text
     assert not (_MODULE / "workflows" / "dq_infrastructure_bootstrap.Workflow.yaml").exists()
     assert not (_MODULE / "workflows" / "dq_infrastructure_bootstrap.WorkflowVersion.yaml").exists()
     assert not (_MODULE / "workflows" / "dq_infrastructure_bootstrap.WorkflowTrigger.yaml").exists()
@@ -717,6 +722,7 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     ]
     handler_text = (bootstrap / "handler.py").read_text(encoding="utf-8")
     assert "_delete_bootstrap_schedule(client)" in handler_text
+    assert "_write_settings_with_overrides" in handler_text
 
 
 def _load_bootstrap_handler(monkeypatch: pytest.MonkeyPatch, deploy_impl: object) -> types.ModuleType:
@@ -776,6 +782,55 @@ def test_bootstrap_handler_deletes_schedule_when_deployment_fails(monkeypatch: p
     with pytest.raises(RuntimeError, match="temporary deployment failure"):
         handler_module.handler({}, client)
     assert deleted == [2]
+
+
+def test_bootstrap_handler_preserves_deploy_error_when_schedule_cleanup_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        raise RuntimeError("temporary deployment failure")
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    schedule_api = SimpleNamespace(
+        list=lambda **_kwargs: (_ for _ in ()).throw(AttributeError("schedules api unavailable")),
+        delete=lambda *, id: None,
+    )
+    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
+
+    with pytest.raises(RuntimeError, match="temporary deployment failure"):
+        handler_module.handler({}, client)
+
+
+def test_bootstrap_handler_applies_schedule_data_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_settings: dict[str, object] = {}
+    bundled = _MODULE / "functions" / "dq_infrastructure_bootstrap" / "config" / "settings.yaml"
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        settings_path = kwargs["settings_path"]
+        assert isinstance(settings_path, Path)
+        assert settings_path != bundled
+        captured_settings.update(yaml.safe_load(settings_path.read_text(encoding="utf-8")))
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    schedule_api = SimpleNamespace(list=lambda **_kwargs: [], delete=lambda *, id: None)
+    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
+
+    result = handler_module.handler(
+        {
+            "dataQualitySpace": "customDq",
+            "recordsStreamId": "custom_stream",
+            "functionCodeDatasetExternalId": "custom_dataset",
+            "dataProductExternalId": "custom-dp",
+            "dataProductVersion": "9.9.9",
+        },
+        client,
+    )
+    assert result == {"status": "completed"}
+    assert captured_settings["config_space"] == "customDq"
+    assert captured_settings["records"] == {"space": "customDq", "stream_id": "custom_stream"}
+    assert captured_settings["function_code_dataset_external_id"] == "custom_dataset"
+    assert captured_settings["external_dataproducts"] == [{"external_id": "custom-dp", "version": "9.9.9"}]
 
 
 def _install_fake_data_quality(monkeypatch: pytest.MonkeyPatch, *, pipeline_impl: object, settings: object) -> None:

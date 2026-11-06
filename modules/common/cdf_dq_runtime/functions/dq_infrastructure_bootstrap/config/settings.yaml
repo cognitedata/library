@@ -20,8 +20,9 @@ trigger:
   batch_timeout: 60
 
 # Values must be literals: Toolkit does not substitute module variables inside
-# function code bundles (only in *.Function.yaml and other resource files).
-# Keep these aligned with default.config.yaml defaults for cdf_dq_runtime.
+# function code bundles. Overrides from config.<env>.yaml are passed via
+# Schedule.data and merged by handler.py at runtime. Keep these aligned with
+# default.config.yaml defaults for cdf_dq_runtime.
 records:
   space: dataQuality
   stream_id: test_stream_1
