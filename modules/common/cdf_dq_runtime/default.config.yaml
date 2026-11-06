@@ -32,15 +32,16 @@ viewNotificationExternalId: CogniteNotification  # was: YourOrgNotification
 # (maintenance order, operation, notification); both spaces were created by this module.
 instanceSpace: inst_location
 # External ID prefix used to select time series for datapoint validation (timeseries_config/).
-timeSeriesExternalIdPrefix: "" # was: "pi:"
+# Required — an empty prefix selects every series in instanceSpace and can exceed the function timeout.
+timeSeriesExternalIdPrefix: "pi:"
 
 # --- Data product and rule sets --------------------------------------------------------
 # Schema space owned exclusively by the data product (created by this module). Must not be
 # a cdf_* system space or a space owned by another data product. The data product's views
 # must live in this space or in a cdf_* system space.
-dataProductSchemaSpace: sp_dq_data_product  # was: sp_enterprise_process_industry
+dataProductSchemaSpace: dm_sol_data_quality  # was: sp_dq_data_product / sp_enterprise_process_industry
 # Data product that binds the views, instance spaces and rule sets together.
-dataProductExternalId: cognite-core-data-quality  # was: enterprise-process-industry
+dataProductExternalId: data_quality_core  # was: cognite-core-data-quality / enterprise-process-industry
 # Version of the data product. Bump when views, instance spaces or rule set versions change
 # (view references and quality rules are immutable on an existing version).
 dataProductVersion: "1.0.0"  # was: "1.1.10"
@@ -49,9 +50,12 @@ ruleSetVersion: "1.0.0"  # was: "1.0.0" (rules targeted the YourOrg views)
 
 # --- Runtime -----------------------------------------------------------------------------
 # Space for data quality state (settings, cursors, historic queue) and record containers.
-dataQualitySpace: dataQuality
+dataQualitySpace: inst_data_quality  # was: dataQuality
 # Records stream receiving validation results. deploy_infrastructure.py creates it if missing
 # (immutable BasicArchive template).
-recordsStreamId: test_stream_1
+recordsStreamId: cdf_all_validation_results  # was: test_stream_1
 # Data set for the CDF Function code file.
-functionCodeDatasetExternalId: dq_shacl_rules
+functionCodeDatasetExternalId: ds_data_quality_all  # was: dq_shacl_rules
+# IdP credentials for the bootstrap Function Schedule and Function secrets (workflow triggers).
+functionClientId: ${IDP_CLIENT_ID}
+functionClientSecret: ${IDP_CLIENT_SECRET}

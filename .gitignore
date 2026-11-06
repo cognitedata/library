@@ -5,6 +5,9 @@ packages.zip
 # Cursor agent scratchpad - not part of the library
 .cursor_docs/
 
+# Local cog-vd-best-practices audit output (do not commit)
+AUDIT_REPORT.md
+
 # macOS system files
 .DS_Store
 

@@ -1,0 +1,38 @@
+workflow:
+  external_id_prefix: wf_all_validate_instances
+  version: "1"
+  task:
+    retries: 3
+    timeout: 600
+    on_failure: abortWorkflow
+
+timeseries_workflow:
+  external_id_prefix: wf_all_validate_timeseries
+  version: "1"
+  task:
+    retries: 3
+    # Must stay ≤ 900 s — CDF Functions hard-stop at 15 minutes.
+    timeout: 900
+    on_failure: abortWorkflow
+
+trigger:
+  external_id_prefix: wf_all_validate_instances_trigger
+  batch_size: 10
+  batch_timeout: 60
+
+# Values must be literals: Toolkit does not substitute module variables inside
+# function code bundles. Overrides from config.<env>.yaml are passed via
+# Schedule.data and merged by handler.py at runtime. Keep these aligned with
+# default.config.yaml defaults for cdf_dq_runtime.
+records:
+  space: inst_data_quality
+  stream_id: cdf_all_validation_results
+
+config_space: inst_data_quality
+function_code_dataset_external_id: ds_data_quality_all
+config_source: dataproduct
+data_product_sync_cron: "13 * * * *"
+
+external_dataproducts:
+  - external_id: data_quality_core
+    version: "1.0.0"

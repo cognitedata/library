@@ -1,0 +1,14 @@
+name: fn_dataproduct_all_bootstrap_infrastructure
+functionExternalId: fn_dataproduct_all_bootstrap_infrastructure
+description: Run the Data Quality Validation infrastructure bootstrap.
+cronExpression: "*/5 * * * *"
+authentication:
+  clientId: "{{ functionClientId }}"
+  clientSecret: "{{ functionClientSecret }}"
+# Toolkit substitutes these into Schedule.data (not into the function code bundle settings.yaml).
+data:
+  dataQualitySpace: "{{ dataQualitySpace }}"
+  recordsStreamId: "{{ recordsStreamId }}"
+  functionCodeDatasetExternalId: "{{ functionCodeDatasetExternalId }}"
+  dataProductExternalId: "{{ dataProductExternalId }}"
+  dataProductVersion: "{{ dataProductVersion }}"

@@ -9,8 +9,8 @@ By default the module validates the **Cognite Core** (`cdf_cdm`) and **Cognite P
 | Layer | Toolkit (`cdf deploy`) | Module script (`deploy_infrastructure.py`) |
 | --- | --- | --- |
 | RuleSets / DataProducts | Yes | Consumes via `external_dataproducts` |
-| Record view (`DataQualityValidationRecord`) | Yes (`data_modeling/views/` — `streamId` only) | — (`usedFor: record` is on the container from Python deploy) |
-| Function + record containers | — | Yes |
+| Record containers + record view (`DataQualityValidationRecord`) | — | Yes (owned and versioned by the Python package) |
+| Function + orchestration state | — | Yes |
 | Instance workflows | — | Yes (external DataProduct + `views/` overrides) |
 | Time-series workflows | — | Yes (`timeseries_config/` configs) |
 | `data_product_sync` + historic queue | — | Yes (`data_product_sync_cron`) |
@@ -27,12 +27,11 @@ flowchart LR
     RS[RuleSets / RuleSetVersions]
     DP[DataProduct versions]
     SP[Spaces]
-    RV[Record view DataQualityValidationRecord]
   end
 
-  subgraph py["`deploy_infrastructure.py`"]
+  subgraph py["`deploy_infrastructure.py` / package"]
     FN[CDF Function]
-    CTR[DQ record containers]
+    CTR[DQ record containers + record views]
     WF[Workflows + triggers]
     SET[DataQualitySettings in DMS]
   end
@@ -47,6 +46,7 @@ flowchart LR
   SP --> DP
   DP -->|`external_dataproducts`| WF
   FN --> WF
+  CTR --> REC
   CTR --> STATE
   SET --> STATE
   INST -->|read| FN
@@ -116,10 +116,10 @@ Prefixes and crons below match this module’s `settings.yaml` / sample `views/`
 
 | Workflow | Trigger / schedule | What it does |
 | --- | --- | --- |
-| **Instance sync-cursor** (`dq-shacl-…`) | DMS data-change trigger (batched: `trigger.batch_size` / `batch_timeout`) | Incremental SHACL on changed instances since the last cursor; writes validation records. One consolidated workflow per view (or DataProduct grouping). Does **not** run uniqueness. |
+| **Instance sync-cursor** (`wf_all_validate_instances-…`) | DMS data-change trigger (batched: `trigger.batch_size` / `batch_timeout`) | Incremental SHACL on changed instances since the last cursor; writes validation records. One consolidated workflow per view (or DataProduct grouping). Does **not** run uniqueness. |
 | **Uniqueness** (`…-uniqueness`) | Cron — from SHACL `dqs:schedule`, or view `uniqueness_cron` (sample: Equipment `0 */4 * * *`, MaintenanceOrder `2 * * * *`; default often `0 6 * * *`) | Global uniqueness checks declared in RuleSet (`dqs:uniquenessConstraint` / `dqs:unique`). Created only when SHACL has uniqueness for that view. |
 | **Edge existence** (`…-edge-existence`) | Two DMS sync triggers per rule (node + edge), no backfill | Typed-edge cardinality (`dqs:edgeExistenceConstraint`). Deploy-time triggers; baseline over in-scope nodes also runs as part of historic orchestration when rules/DP version change. |
-| **Time-series** (`dq-ts-shacl-…`) | Cron from `timeseries_config/*.yaml` (sample: `2 * * * *`) | Datapoint SHACL for filtered series; RuleSets whose `sh:targetClass` matches the timeseries view. |
+| **Time-series** (`wf_all_validate_timeseries-…`) | Cron from `timeseries_config/*.yaml` (sample: `2 * * * *`) | Datapoint SHACL for filtered series; RuleSets whose `sh:targetClass` matches the timeseries view. |
 | **`data_product_sync`** | Cron `data_product_sync_cron` (sample: `13 * * * *`) | Loads managed / external DataProducts; if version or rules changed, redeploys instance/uniqueness/edge/timeseries workflows and may **enqueue historic** jobs for affected views. |
 | **Historic queue manager** (`dq-historic-queue-manager`) | Cron ~every 5 minutes (package default) | Drains `HistoricJobQueue` **sequentially** (one orchestration at a time); starts the next job when the current completes or fails; supersedes older queued jobs for the same view when a newer DP version lands. |
 | **Historic orchestrator** (function, not a standing WF id) | Started by queue manager or `deploy_pipeline.py` / `--enqueue-historic` | Partitioned full-history SHACL for a view; then hands off to sync-cursor + a short-lived **Monitor** function schedule (~every 2 min) until orchestration finishes. |
@@ -130,21 +130,22 @@ Optional (not in this sample): **`rule_engine_result_sync`** listener workflows 
 ### Data movement (short)
 
 1. **Catalog** — Toolkit publishes RuleSets and DataProduct versions (views + `instanceSpaces` + `quality.rules`).
-2. **Wire-up** — Python deploy creates the Function, state containers in `config_space` (`dataQuality`), workflows/triggers from `external_dataproducts` + optional `views/` / `timeseries_config/` overrides, and persists `DataQualitySettings` / `ViewConfigState`.
+2. **Wire-up** — Python deploy creates the Function, state containers in `config_space` (`inst_data_quality`), workflows/triggers from `external_dataproducts` + optional `views/` / `timeseries_config/` overrides, and persists `DataQualitySettings` / `ViewConfigState`.
 3. **Steady state** — Change triggers and crons invoke the Function; it reads instances (or datapoints) and RuleSets, writes **Records** to `records.space` / `records.stream_id`, and updates cursors / orchestration state in DMS.
 4. **Version bump** — `data_product_sync` detects a new DataProduct/RuleSet version → redeploys workflows → enqueues historic → queue manager runs full revalidation, then incremental sync resumes.
 
 ### Where quality-job results are stored (records)
 
-Validation outputs are **Records** (not DMS instances). This module does **not** ship Toolkit `*.Container.yaml` for those schemas.
+Validation outputs are **Records** (not DMS instances). This module does **not** ship Toolkit `*.Container.yaml` or `*.View.yaml` for those schemas — the [`cognite-data-quality`](https://github.com/cognitedata/data-quality-validation) package owns and versions them. Review property descriptions, `usedFor: record` (no constraints/indexes), and direct-relation shapes in the package (`cognite_data_quality/_records.py`), not under `data_modeling/`.
 
 | What | Where it is defined / applied |
 | --- | --- |
-| Result container schemas | [`cognite-data-quality`](https://github.com/cognitedata/data-quality-validation) package (`cognite_data_quality/_records.py`), applied by `deploy_validation_infrastructure()` / `deploy_infrastructure.py` |
+| Result container schemas | Package (`cognite_data_quality/_records.py`), applied by `deploy_validation_infrastructure()` / `deploy_infrastructure.py` |
 | Validation results | Container `DataQualityValidationRecord` (`usedFor: record`) in `records.space` |
 | SHACL-AF / rule-engine inferences | Container `RuleEngineResult` (`usedFor: record`) in the same space |
-| Record view | Toolkit `data_modeling/views/DataQualityValidationRecord.View.yaml` — same external ID, version `v1`, `streamId: [recordsStreamId]`. Maps the validation container; CDF **computes** `usedFor: record` on the view from `streamId` (do not set `usedFor` on the view YAML). |
-| Stream + space target | This module’s `settings.yaml` → `records.space` / `records.stream_id` (variables `dataQualitySpace` / `recordsStreamId`, defaults `dataQuality` / `test_stream_1`) |
+| Record view | Same package — `DataQualityValidationRecord` with `streamId` bound to `records.stream_id`. Do not add a Toolkit copy under `data_modeling/views/`. |
+| Orchestration / runtime state | Package-created DMS containers in `config_space` (`dataQualitySpace`) |
+| Stream + space target | This module’s `settings.yaml` → `records.space` / `records.stream_id` (variables `dataQualitySpace` / `recordsStreamId`) |
 
 **How to use the record view**
 
@@ -152,7 +153,7 @@ Validation outputs are **Records** (not DMS instances). This module does **not**
 - **Do not** add the view to a `*.DataModel.yaml` — [data models cannot include record views yet](https://docs.cognite.com/cdf/dm/records/concepts/records_and_streams#record-views). Records are not returned by `/models/instances/query` or GraphQL.
 - **Do not** expect CDF Transformations (Spark SQL) to read or write this view — Transformations have no records/stream destination; use the Records API, a Function, or (for stream pipelines) Hosted Extractors.
 
-Field reference: [Records output](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/records_output.html). `deploy_infrastructure.py` creates the stream if it does not exist (`BasicArchive`) and ensures the record containers. **On a fresh project, deploying the Toolkit record view before the stream and container exist can fail.** Deploy order: `cdf deploy` → `deploy_infrastructure.py` (creates stream + containers) → re-run `cdf deploy` so the record view succeeds.
+Field reference: [Records output](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/records_output.html). Deploy order: `cdf deploy` (RuleSets, DataProducts, spaces) → `deploy_infrastructure.py` (stream, record containers, record views, function, workflows). A single Toolkit deploy is enough; do not re-run `cdf deploy` for a record view.
 
 See also: [Deploy infrastructure](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/deploy.html), [Lifecycle and CI/CD](https://cognite-data-quality-validation.readthedocs-hosted.com/en/latest/usage/lifecycle.html).
 
@@ -167,11 +168,11 @@ RuleSets and DataProducts require the Toolkit [`data-products` alpha flag](https
 data-products = true
 ```
 
-The `[alpha_flags]` header must be uncommented. If only `data-products = true` is set (for example under `[plugins]`), Toolkit ignores it: `cdf build` emits only the spaces under `data_modeling/` and skips `rulesets/` / `data_products/`. Then `deploy_infrastructure.py` fails with `Data product version 'cognite-core-data-quality:1.0.0' not found` (404).
+The `[alpha_flags]` header must be uncommented. If only `data-products = true` is set (for example under `[plugins]`), Toolkit ignores it: `cdf build` emits only the spaces under `data_modeling/` and skips `rulesets/` / `data_products/`. Then `deploy_infrastructure.py` fails with `Data product version 'data_quality_core:1.0.0' not found` (404).
 
 After enabling the flag, run `cdf build && cdf deploy` so the data product version exists in CDF before the Python script.
 
-The instance space (`instanceSpace`, default `inst_location`) must already exist and contain the nodes to validate; this module does not create it. The records stream (`recordsStreamId`, default `test_stream_1`) is created by `deploy_infrastructure.py` if missing (immutable `BasicArchive` template).
+The instance space (`instanceSpace`, default `inst_location`) must already exist and contain the nodes to validate; this module does not create it. The records stream (`recordsStreamId`, default `cdf_all_validation_results`) is created by `deploy_infrastructure.py` if missing (immutable `BasicArchive` template).
 
 ### Access control
 
@@ -180,23 +181,25 @@ The identity used by `cdf deploy` and `deploy_infrastructure.py` (Toolkit `.env`
 | Capability | Needed for |
 | --- | --- |
 | `dataProductsAcl:CREATE` / `UPDATE` / `DELETE` | Create/update/delete DataProducts via `cdf deploy` |
-| `dataProductsAcl:READ` | `deploy_infrastructure.py` loading external DataProducts (for example `cognite-core-data-quality`) when deploying workflows |
+| `dataProductsAcl:READ` | `deploy_infrastructure.py` loading external DataProducts (for example `data_quality_core`) when deploying workflows |
 | `ruleSetsAcl:CREATE` / `READ` / `UPDATE` / `DELETE` | Create/update/delete RuleSets and RuleSetVersions via `cdf deploy` |
 | `streamsAcl:READ` / `CREATE` / `DELETE` | Installation: `deploy_infrastructure.py` ensuring `recordsStreamId` exists (creates with `BasicArchive` if missing); delete when cleaning up |
+| `functionsAcl:WRITE` | Bootstrap schedule identity (`functionClientId`) deleting its own Function Schedule after a successful run |
 
 Grant these (typically all actions, scope `all`) in Fusion → Access management on the group linked to that identity — for Toolkit this is often `cognite_toolkit_service_principal`.
 
 `deploy_infrastructure.py` verifies these capabilities (and the function runtime ones below) via `token.inspect` before deploying, and exits if any are missing.
 
-The identity used **at runtime** by the CDF Function (the service principal whose `client-id` / `client-secret` were registered via `deploy_infrastructure.py`) must also have Streams access and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `test_stream_1`). Without these, validation fails when posting results:
+The identity used **at runtime** by the CDF Function (the service principal whose `client-id` / `client-secret` were registered via `deploy_infrastructure.py` / Toolkit `functionClientId`) must also have Streams access and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `cdf_all_validation_results`). Without these, validation fails when posting results. The same identity needs `functionsAcl:WRITE` so the bootstrap function can delete its schedule after success:
 
 | Capability | Needed for |
 | --- | --- |
 | `streamsAcl:READ` | Resolve stream type for `recordsStreamId` |
 | `streamRecordsAcl:READ` / `WRITE` | Read/write validation result records (scope `all`, or at least `dataQualitySpace`) |
+| `functionsAcl:WRITE` | Bootstrap self-delete of Function Schedules for `fn_dataproduct_all_bootstrap_infrastructure` |
 
 ```text
-WARNING: could not resolve stream type for 'test_stream_1'; defaulting to immutable (ingest):
+WARNING: could not resolve stream type for 'cdf_all_validation_results'; defaulting to immutable (ingest):
 The user does not have the required Streams capabilities. | code: 403
 ERROR posting record for …: The user does not have stream records read or write capability. | code: 403
 ```
@@ -208,7 +211,7 @@ Common deploy-time errors:
 ```text
 CogniteAPIError: Missing capability DataProducts:READ | code: 403
 CogniteAPIError: Missing capability RuleSets:CREATE | code: 403
-Data product version 'cognite-core-data-quality:1.0.0' not found | code: 404
+Data product version 'data_quality_core:1.0.0' not found | code: 404
 ```
 
 The 404 means Toolkit has not deployed that DataProduct version yet (alpha flag off, or `cdf deploy` not run / failed).
@@ -245,13 +248,15 @@ variables:
 | `viewNotificationExternalId` | `CogniteNotification` | rulesets, data product, views | Notification view (in `secondarySchemaSpace`) |
 | `instanceSpace` | `inst_location` | rulesets, data product, views, timeseries_config | Instance space with the nodes to validate (all views). Must already exist |
 | `timeSeriesExternalIdPrefix` | `pi:` | timeseries_config | External ID prefix selecting time series for datapoint validation |
-| `dataProductSchemaSpace` | `sp_dq_data_product` | data product, data_modeling | Schema space owned exclusively by the data product. Must not be a `cdf_*` space or owned by another data product |
-| `dataProductExternalId` | `cognite-core-data-quality` | data product, settings | Data product binding views, instance spaces and rule sets |
+| `dataProductSchemaSpace` | `dm_sol_data_quality` | data product, data_modeling | Schema space owned exclusively by the data product. Must not be a `cdf_*` space or owned by another data product |
+| `dataProductExternalId` | `data_quality_core` | data product, settings | Data product binding views, instance spaces and rule sets |
 | `dataProductVersion` | `1.0.0` | data product, settings | Data product version. Bump when views, instance spaces or rule set versions change (they are immutable on an existing version) |
 | `ruleSetVersion` | `2.0.0` | rulesets, data product, timeseries_config | Version of every RuleSetVersion. Bump when you edit rule content |
-| `dataQualitySpace` | `dataQuality` | settings, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
-| `recordsStreamId` | `test_stream_1` | settings | Records stream for validation results. Created by `deploy_infrastructure.py` if missing |
-| `functionCodeDatasetExternalId` | `dq_shacl_rules` | settings | Data set for the CDF Function code file |
+| `dataQualitySpace` | `inst_data_quality` | settings, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
+| `recordsStreamId` | `cdf_all_validation_results` | settings | Records stream for validation results. Created by `deploy_infrastructure.py` if missing |
+| `functionCodeDatasetExternalId` | `ds_data_quality_all` | settings | Data set for the CDF Function code file |
+| `functionClientId` | `${IDP_CLIENT_ID}` | schedule + function secrets | Client ID for the bootstrap Function Schedule and Function secrets (`client-id`) used as workflow trigger credentials |
+| `functionClientSecret` | `${IDP_CLIENT_SECRET}` | schedule + function secrets | Client secret for the bootstrap Function Schedule and Function secrets (`client-secret`) |
 
 A data product version may only reference views in its own schema space or in a `cdf_*` system space. To validate your own enterprise views, set `dataProductSchemaSpace`, `schemaSpace` and `secondarySchemaSpace` to the enterprise schema space (when no other data product owns it).
 
@@ -263,7 +268,7 @@ A data product version may only reference views in its own schema space or in a 
 | --- | --- |
 | `workflow.external_id_prefix` / `version` | Prefix and version of instance validation workflows (`<prefix>-<data product>[-uniqueness\|-edge-existence]`) |
 | `workflow.task.retries` / `timeout` / `on_failure` | Retries, timeout (seconds) and failure policy (`abortWorkflow` or `skipTask`) of the validation function task |
-| `timeseries_workflow.*` | Same settings for time series workflows; longer default timeout (1800 s) for datapoint checks |
+| `timeseries_workflow.*` | Same settings for time series workflows; task timeout capped at 900 s (CDF Function limit) |
 | `trigger.external_id_prefix` | Prefix of DMS data-change triggers |
 | `trigger.batch_size` / `batch_timeout` | Changed instances per run, and seconds to wait for a full batch |
 | `records.space` / `records.stream_id` | Target space and stream for validation records |
@@ -274,7 +279,7 @@ A data product version may only reference views in its own schema space or in a 
 | `timeseries.config_dir` | Folder with time series validation configs (`timeseries_config`) |
 | `external_dataproducts` | Data products published by Toolkit; wired without republishing |
 
-Per-view tuning (partitioning, batch sizes, `uniqueness_cron`) is in `views/*.yaml`; time series schedule and filter in `timeseries_config/timeseries_quality.yaml`.
+Per-view tuning (partitioning, batch sizes, `max_concurrent_executions: 1`, `uniqueness_cron`) is in `views/*.yaml`; time series schedule and filter in `timeseries_config/timeseries_quality.yaml`.
 
 ### SHACL rules and view IRIs
 
@@ -282,16 +287,37 @@ The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space
 
 ## Operator flow
 
+### Bootstrap flow
+
+`cdf deploy` publishes `fn_dataproduct_all_bootstrap_infrastructure` and a five-minute
+Function Schedule. Toolkit variables (`dataQualitySpace`, `recordsStreamId`,
+and related keys) are passed on `Schedule.data` because they are not
+substituted inside the function code bundle; the handler merges them into
+`settings.yaml` before calling the package deploy entrypoint (idempotent).
+The Function also receives `client-id` / `client-secret` secrets (from
+`functionClientId` / `functionClientSecret`); the handler maps those into
+`settings.runtime_credentials` so workflow triggers such as
+`dq-data-product-sync` can be upserted — schedule authentication alone does
+not expose client credentials on the in-function Cognite client.
+After a **successful** deploy, the function deletes every Function Schedule for
+`fn_dataproduct_all_bootstrap_infrastructure` (so leftover hyphen-era names cannot keep firing).
+Delete failures are printed to the function log (`CogniteAPIError` includes the
+HTTP code) and do not fail the deploy result. If bootstrap fails, the five-minute
+schedule stays so the next cron tick can retry. A later `cdf deploy` recreates the
+schedule when needed. The schedule identity needs `functionsAcl:WRITE` to delete
+schedules (403 in the logs means grant WRITE). Stuck schedules can also be removed
+in Fusion or via `manage_rulesets.ipynb`. Data Quality record views remain owned by
+the package.
+
 ### Local
 
 ```bash
 cdf modules add dp:data_quality
 # Ensure data-products = true under [alpha_flags] in cdf.toml (see Prerequisites)
-cdf build && cdf deploy                    # RuleSets + DataProducts (+ record view may fail on first run)
+cdf build && cdf deploy                    # RuleSets + DataProducts + spaces
 pip install -U cognite-data-quality
 python modules/common/cdf_dq_runtime/scripts/deploy_infrastructure.py \
-  --toolkit-config config.dev.yaml
-cdf deploy                                 # re-run so the record view lands after stream + containers exist
+  --toolkit-config config.dev.yaml         # stream, record containers/views, function, workflows
 ```
 
 ### Build notes
@@ -339,7 +365,7 @@ Use [`scripts/manage_rulesets.ipynb`](scripts/manage_rulesets.ipynb) instead. It
 | `delete_monitor_schedules(schedule_ids, dry_run=True)` | Deletes selected monitor schedules by id (for example a stuck `Monitor YourOrgAsset validation` schedule after switching views) |
 | `list_historic_queue_jobs()` | Prints `HistoricJobQueue` nodes in `dataQualitySpace` (status, view, data product, orchestration id) |
 | `delete_historic_queue_jobs(external_ids, dry_run=True)` | Deletes selected queue jobs and linked `OrchestrationState` / matching Monitor schedules (use for stuck `hq_YourOrg*` jobs left after a view switch) |
-| `list_dq_workflows()` | Prints instance/time-series DQ workflows (`dq-shacl-*`, `dq-ts-shacl-*`) and their triggers |
+| `list_dq_workflows()` | Prints instance/time-series DQ workflows (`wf_all_validate_instances-*`, `wf_all_validate_timeseries-*`) and their triggers |
 | `delete_dq_workflows(external_ids, dry_run=True)` | Deletes selected workflows after removing every trigger that targets them (use for stale `YourOrg*` / previous data-product workflows left after a view switch) |
 
 CDF refuses to delete a rule set version that a data product version still references (`Version '1.0.0' of rule set '...' can not be deleted, because it is referenced by 1 data product version(s)`), which is why `delete_rulesets` removes those data product versions first. All delete functions only print what they would delete unless `dry_run=False`.
@@ -374,7 +400,7 @@ cdf_dq_runtime/
 ├── default.config.yaml        # Customer identifiers (variables), see Configuration
 ├── settings.yaml              # Runtime settings (deploy script only, not Toolkit)
 ├── module.toml
-├── data_modeling/             # Toolkit: spaces + record view (DataQualityValidationRecord)
+├── data_modeling/             # Toolkit: spaces only (record containers/views owned by the package)
 ├── data_products/             # Toolkit: DataProduct + DataProductVersion (views, instance spaces, rules)
 ├── rulesets/                  # Toolkit: RuleSet + RuleSetVersion (SHACL) per view
 ├── views/                     # Deploy script: per-view workflow overrides
