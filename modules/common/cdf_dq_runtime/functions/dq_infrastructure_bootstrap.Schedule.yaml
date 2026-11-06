@@ -1,5 +1,5 @@
-name: dq-infrastructure-bootstrap
-functionExternalId: dq-infrastructure-bootstrap
+name: dq_infrastructure_bootstrap
+functionExternalId: dq_infrastructure_bootstrap
 description: Run the Data Quality Validation infrastructure bootstrap.
 cronExpression: "*/5 * * * *"
 # Toolkit substitutes these into Schedule.data (not into the function code bundle settings.yaml).

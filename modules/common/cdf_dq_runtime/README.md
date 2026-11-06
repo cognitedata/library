@@ -290,7 +290,7 @@ The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space
 
 ### Bootstrap flow
 
-`cdf deploy` publishes `dq-infrastructure-bootstrap` and a five-minute
+`cdf deploy` publishes `dq_infrastructure_bootstrap` and a five-minute
 Function Schedule. Toolkit variables (`dataQualitySpace`, `recordsStreamId`,
 and related keys) are passed on `Schedule.data` because they are not
 substituted inside the function code bundle; the handler merges them into

@@ -698,7 +698,7 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     schedule = _MODULE / "functions" / "dq_infrastructure_bootstrap.Schedule.yaml"
     assert schedule.is_file()
     schedule_text = schedule.read_text(encoding="utf-8")
-    assert "functionExternalId: dq-infrastructure-bootstrap" in schedule_text
+    assert "functionExternalId: dq_infrastructure_bootstrap" in schedule_text
     assert 'cronExpression: "*/5 * * * *"' in schedule_text
     assert 'dataQualitySpace: "{{ dataQualitySpace }}"' in schedule_text
     assert 'recordsStreamId: "{{ recordsStreamId }}"' in schedule_text

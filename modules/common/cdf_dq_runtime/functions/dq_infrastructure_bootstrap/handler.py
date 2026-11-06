@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     from cognite.client import CogniteClient
 
 
-BOOTSTRAP_FUNCTION_EXTERNAL_ID = "dq-infrastructure-bootstrap"
-BOOTSTRAP_SCHEDULE_NAME = "dq-infrastructure-bootstrap"
+BOOTSTRAP_FUNCTION_EXTERNAL_ID = "dq_infrastructure_bootstrap"
+BOOTSTRAP_SCHEDULE_NAME = "dq_infrastructure_bootstrap"
 
 # Toolkit cannot substitute module variables inside function code bundles. Pass these via
 # Schedule.data (see dq_infrastructure_bootstrap.Schedule.yaml) so config.<env>.yaml overrides apply.
