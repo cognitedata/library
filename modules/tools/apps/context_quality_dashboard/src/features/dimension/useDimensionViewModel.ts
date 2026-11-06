@@ -145,7 +145,12 @@ export function useDimensionViewModel(): DimensionViewModel {
 
   const drilldownQuery = useQuery({
     queryKey: ['drilldown', selectedMetricId, filters],
-    queryFn: () => qualityDashboardService.getDrilldown(selectedMetricId as MetricId, filters),
+    queryFn: () => {
+      if (selectedMetricId === undefined) {
+        throw new Error('No metric selected');
+      }
+      return qualityDashboardService.getDrilldown(selectedMetricId, filters);
+    },
     enabled:
       isBuiltinScope &&
       selectedMetricId !== undefined &&

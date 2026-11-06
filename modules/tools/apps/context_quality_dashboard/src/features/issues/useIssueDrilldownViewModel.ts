@@ -31,7 +31,12 @@ export function useIssueDrilldownViewModel(): DrilldownPanelViewModel {
 
   const drilldownQuery = useQuery({
     queryKey: ['drilldown', selectedMetricId, filters],
-    queryFn: () => qualityDashboardService.getDrilldown(selectedMetricId as MetricId, filters),
+    queryFn: () => {
+      if (selectedMetricId === undefined) {
+        throw new Error('No metric selected');
+      }
+      return qualityDashboardService.getDrilldown(selectedMetricId, filters);
+    },
     enabled: drilldownOpen && dimensionQuery.data?.enabled === true,
   });
 
