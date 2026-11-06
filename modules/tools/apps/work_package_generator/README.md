@@ -57,6 +57,29 @@ A React 19 / TypeScript / Vite app built on `@cognite/app-sdk`, `@cognite/sdk`, 
 
 ## Deployment
 
+### Release flow
+
+Run the Toolkit build and deploy commands from the **root of the repo**. Run every Cognite CLI app command (`apps deploy`, `apps sign`, `apps publish`, `apps activate`, `apps skills pull`, `apps status`, `apps submit`) from **this module folder**:
+
+`modules/tools/apps/work_package_generator`
+
+Those commands read `app.json` in the current directory. Running them from the library repo root fails because `app.json` is not there.
+
+```mermaid
+flowchart LR
+  A["Download this folder and add it to the Toolkit repo"] --> B["Deploy the Toolkit module"]
+  B --> C["Deploy the app"]
+  C --> D["Sign, certify, and activate"]
+  D --> E["Merge to the main branch"]
+```
+
+1. Download `work_package_generator` and add it to the Toolkit project (see [Adding the module to a Toolkit project](#adding-the-module-to-a-toolkit-project)).
+2. Update `dataModel.views` in `data_modeling/wpg_config.Node.yaml` to your enterprise data model (DOM) before the Toolkit deploy.
+3. From the root of the repo, build the module, dry-run the plan, then deploy (see [Build and deploy](#build-and-deploy)).
+4. Deploy the app from this module folder.
+5. Sign the bundle, certify it for production, publish, and activate (see [Sign, certify, and activate](#8-sign-certify-and-activate)).
+6. Merge the module changes to the main branch of the repo that ships this app.
+
 ### Prerequisites
 
 - Cognite Toolkit **0.9.x** or later
@@ -70,14 +93,23 @@ A React 19 / TypeScript / Vite app built on `@cognite/app-sdk`, `@cognite/sdk`, 
 1. Add the module to your Toolkit project (for example with `cdf modules add` and select **Work Package Generator Application** from the *Tools and Accelerators* package). Its variables are merged into your `config.<env>.yaml` under `modules.<path>.work_package_generator`.
 2. Set `cdf_project` to your CDF project name. The agent external id and the app both use it.
 3. Review the other variables (see [Variables](#variables)).
-4. Build and deploy:
+4. Point `dataModel.views` in `data_modeling/wpg_config.Node.yaml` at your enterprise data model (DOM) before the Toolkit deploy. The shipped views are Cognite Core (`CogniteAsset`, `CogniteActivity`, and so on). See [Point a view at a different data model](#point-a-view-at-a-different-data-model).
+5. [Build and deploy](#build-and-deploy) the Toolkit resources.
+6. From `modules/tools/apps/work_package_generator`, deploy the app, then sign, certify, and activate it (see [Deploy the app](#7-deploy-the-app) and [Sign, certify, and activate](#8-sign-certify-and-activate)).
 
-   ```bash
-   cdf build
-   cdf deploy
-   ```
+### Build and deploy
 
-5. Deploy the app (see [Deploy the app](#7-deploy-the-app)).
+Before you deploy, update `dataModel.views` in `data_modeling/wpg_config.Node.yaml` to your enterprise data model (DOM). The file ships Cognite Core views (`cdf_cdm` / `CogniteAsset`, `CogniteEquipment`, `CogniteActivity`, `CogniteTimeSeries`, `CogniteFile`). Replace `space`, `externalId`, and `version` for each role your project does not serve from Core, and align `resourceTypes`, `context`, and `workOrderProperties` with that model's property names. `cdf deploy` writes this node as-is and overwrites later Fusion edits. See [Point a view at a different data model](#point-a-view-at-a-different-data-model).
+
+From the root of the repo:
+
+```bash
+cdf build -c config.<env>.yaml -m work_package_generator
+cdf deploy --dry-run --verbose
+cdf deploy
+```
+
+`cdf build` builds only this module, using `config.dev.yaml`. `cdf deploy --dry-run --verbose` prints the deploy plan so you can check it before anything is written. `cdf deploy` writes the built resources to CDF.
 
 `cdf deploy` overwrites the config node, including edits made in Fusion. This module is the source of truth. Change values here and redeploy. Two installs of this app in one project are not supported.
 
@@ -93,7 +125,7 @@ A React 19 / TypeScript / Vite app built on `@cognite/app-sdk`, `@cognite/sdk`, 
 - `wpg_limits_*` – page, batch, search, and scan caps
 - `wpg_fusion_fallback_organization` – org slug used only when the app is not opened from a Fusion host. Leave empty when users open the app inside Fusion.
 
-`prompts`, `ui`, `context`, and `resourceTypes` are literal JSON on the node. Edit `data_modeling/wpg_config.Node.yaml` to change them. Prompt text contains `{{placeholder}}` tokens for the app. Those are not Toolkit variables, so `cdf build` may report a **ConsistencyError** for those names. That is expected. If **every** `wpg_*` variable is unresolved, your `config.<env>.yaml` is not loaded.
+`prompts`, `ui`, `context`, and `resourceTypes` are literal JSON on the node. Edit `data_modeling/wpg_config.Node.yaml` to change them. Prompt text uses `{{placeholder}}` tokens that the app fills at runtime. In that JSON, write each opening pair as `\u007b\u007b` (for example `\u007b\u007bworkOrderSection}}`). YAML and JSON both decode that to `{{placeholder}}`, and `cdf build` does not treat it as a Toolkit variable. If **every** `wpg_*` variable is unresolved, your `config.<env>.yaml` is not loaded.
 
 `wpg_agent_model` is `cognite/fast`. The Toolkit agent schema does not list that model, so `cdf build` reports a **ModelSyntaxWarning** for the agent file. This is expected. The built agent still uses `cognite/fast`, which is the model the app sends.
 
@@ -255,6 +287,8 @@ This runs the Cognite CLI in interactive mode. Useful flags:
 
 ##### 7.2 Non-interactive
 
+From this module folder (`modules/tools/apps/work_package_generator`), not the library repo root:
+
 - Set `deployClientId` and `deploySecretName` in `app.json` to match your pipeline secrets.
 - Provide the client secret in the environment under the name referenced by `deploySecretName`.
 - Run the Cognite CLI without `--interactive` (there is no `deploy:ci` npm script):
@@ -267,7 +301,78 @@ This runs the Cognite CLI in interactive mode. Useful flags:
 
 The committed `.npmrc` sets `legacy-peer-deps=true`, which `npm install` needs for this dependency set. If your registry requires authentication, add the token to your user-level `~/.npmrc` or pass `NODE_AUTH_TOKEN` in automated environments. Never commit a token.
 
-#### 8. Quick verification checklist
+#### 8. Sign, certify, and activate
+
+Deploying the Toolkit module and uploading the app leaves the version as a draft. Publishing to a CDF project needs a developer signature. A production project also needs Cognite's application certification signature. Follow [Signing Flows custom apps from the CLI](https://docs.cognite.com/cdf/flows/guides/code-signing) and [Certifying a Flows custom app for production](https://docs.cognite.com/cdf/flows/guides/application-certification).
+
+Run every command in this section from `modules/tools/apps/work_package_generator`. You need a registered signing key (`npx @cognite/cli@latest keys generate --interactive`, then submit the Zendesk form the CLI prints) and [builder certification](https://docs.cognite.com/cdf/flows/guides/builder-certification.md). Projects with [Dev status](https://docs.cognite.com/cdf/flows/guides/dev-status.md) need only the developer signature. Production projects need both signatures.
+
+##### 8.1 Pull builder skills
+
+Certification is skill-driven. Pull the skills into this app before you run them. See [About builder skills](https://docs.cognite.com/cdf/flows/concepts/skills).
+
+```bash
+npx @cognite/cli@latest apps skills pull
+```
+
+The CLI writes skills under `.agents/skills/` and `.claude/skills/`. In Cursor or Claude Code, run these slash commands in order:
+
+| Skill | What it produces |
+| --- | --- |
+| `/flows-app-brief` | `App-Brief.md` at the module root. Required fields must be filled in. |
+| `/flows-code-review` | `reviews/code-review/feedback-round-N/`. Re-run until `Must Fix open: 0`. |
+| `/flows-design-review` | `reviews/design-review/feedback-round-N/`. Target average **3.8** or higher. |
+| `/flows-external-app-submit` | Checks the gates above, then runs `apps submit`. |
+
+Commit `App-Brief.md` and the latest review reports before submit. The source archive includes only committed files, and `apps submit` fails when the working tree is dirty.
+
+##### 8.2 Sign
+
+`apps deploy` (section 7) uploads a draft and keeps the exact bytes at `.cognite-bundles/<externalId>-<versionTag>.zip`. Do not commit that folder.
+
+```bash
+npx @cognite/cli@latest apps sign
+npx @cognite/cli@latest apps status .
+```
+
+`apps sign` writes `<bundle>.dev.sig` beside the zip and submits the developer signature. `apps status` should list that signature. A verdict other than `VALID` blocks serve-time verification; the [verdict table](https://docs.cognite.com/cdf/flows/guides/code-signing#upload-sign-and-publish-the-app) says what to do.
+
+##### 8.3 Certify for production
+
+Skip this step for a Dev status project and go to [8.4 Publish and activate](#84-publish-and-activate).
+
+After `apps deploy` and `apps sign`, and with a clean git tree:
+
+```bash
+npx @cognite/cli@latest apps submit
+```
+
+`/flows-external-app-submit` runs this after the gates pass. Attach everything the CLI places in the submit folder, plus a short screen recording of the primary tasks, to the pre-filled Zendesk ticket.
+
+When Cognite approves the version, save the returned `.cert.sig` next to the developer signature:
+
+```text
+.cognite-bundles/
+  <externalId>-<versionTag>.zip
+  <externalId>-<versionTag>.zip.dev.sig
+  <externalId>-<versionTag>.zip.cert.sig
+```
+
+Do not commit `.cert.sig`. Any later code change needs a new version and a new certification before it can be published to production.
+
+##### 8.4 Publish and activate
+
+```bash
+npx @cognite/cli@latest apps publish .
+npx @cognite/cli@latest apps activate
+npx @cognite/cli@latest apps status .
+```
+
+`apps publish` moves the version from DRAFT to PUBLISHED and submits `.dev.sig` (and `.cert.sig` when it is present). `apps activate` makes that published version the one Fusion serves. `apps status` should show **PUBLISHED** and each signature as **VALID**.
+
+If the bundle changes after signing (a new `npm run build`, an edit under `dist/`, or a version bump), run `apps deploy`, `apps sign`, and `apps publish` again, and recertify before a production publish.
+
+#### 9. Quick verification checklist
 
 - [ ] Toolkit resources are deployed, and app users can read `dm_sol_wpg_app` and `inst_wpg_app_config`.
 - [ ] `app.json` `project` and `baseUrl` match the CLI deploy target. Fusion org comes from the host page.
@@ -278,10 +383,33 @@ The committed `.npmrc` sets `legacy-peer-deps=true`, which `npm install` needs f
 - [ ] Config node is complete for this customer (views, canvas spaces, agent model and suffix).
 - [ ] AI agent API works or you created `{project}_{agent.externalIdSuffix}` manually.
 - [ ] After create, Fusion opens the canvas using the host org (or `fusion.fallbackOrganization`) and the returned `canvasId`.
+- [ ] `apps status` shows the version as **PUBLISHED**, the developer signature as **VALID**, and (on a production project) the certification signature as **VALID**. The version is activated.
 
 ### Config keys
 
 Edit the config node (`data_modeling/wpg_config.Node.yaml`, with values from your `config.<env>.yaml`) and redeploy. A JavaScript rebuild is not required. Keys below are the node properties. You can add extra entries under `dataModel.views` and `resourceTypes`. A resource type `view` value must be a key in `dataModel.views`. `limits.instancePageSize`, `upsertBatchSize`, and `deleteBatchSize` must be integers from 1 to 1000. `schemaVersion` must be `1`.
+
+#### Point a view at a different data model
+
+Each entry under `dataModel.views` in `data_modeling/wpg_config.Node.yaml` is the view the app reads for that role. `space`, `externalId`, and `version` are the CDF view identity. The shipped `externalId` values (`CogniteAsset`, `CogniteEquipment`, `CogniteActivity`, and so on) are literals in that file. Only the version is a Toolkit variable (`wpg_cdm_view_version` in `config.<env>.yaml` or `default.config.yaml`).
+
+To pull assets from a customer view instead of `CogniteAsset`, change the `asset` entry. For example, a `WorkOrder` view in space `sp_customer`:
+
+```yaml
+asset:
+  space: sp_customer
+  externalId: WorkOrder
+  version: "v1"
+```
+
+Then update anything that assumes Cognite Core property names on that role:
+
+- `resourceTypes` entries whose `view` is `asset` — `properties`, `assetRelationProperty`, and `assetRelationIsArray` must match the new view.
+- `context.asset.properties` — property names sent to the agent.
+- `workOrderProperties` — only when you change `dataModel.views.activity` (the work-order search view). Property names there must exist on the new activity view.
+- `dataModel.activityContainer` — only when the activity container is not `cdf_cdm` / `CogniteActivity`.
+
+Leave the key (`asset`, `activity`, …) as it is. The app looks up roles by that key. `cdf deploy` overwrites the live node, so edit the YAML and redeploy rather than editing the node in Fusion.
 
 | Key | Change per customer? | Shipped value / role |
 | --- | --- | --- |
@@ -404,3 +532,6 @@ work_package_generator/
 - [Cognite SDK (TypeScript)](https://docs.cognite.com/sdks/typescript/)
 - [Cognite App SDK](https://www.npmjs.com/package/@cognite/app-sdk)
 - [Cognite Toolkit](https://docs.cognite.com/cdf/deploy/cdf_toolkit/)
+- [Signing Flows custom apps from the CLI](https://docs.cognite.com/cdf/flows/guides/code-signing)
+- [About builder skills](https://docs.cognite.com/cdf/flows/concepts/skills)
+- [Certifying a Flows custom app for production](https://docs.cognite.com/cdf/flows/guides/application-certification)
