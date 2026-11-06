@@ -728,6 +728,7 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     handler_text = (bootstrap / "handler.py").read_text(encoding="utf-8")
     assert "_delete_bootstrap_schedule(client)" in handler_text
     assert "_write_settings_with_overrides" in handler_text
+    assert "Leave the five-minute schedule in place" in handler_text
 
 
 def _load_bootstrap_handler(monkeypatch: pytest.MonkeyPatch, deploy_impl: object) -> types.ModuleType:
@@ -746,7 +747,7 @@ def _load_bootstrap_handler(monkeypatch: pytest.MonkeyPatch, deploy_impl: object
     return module
 
 
-def test_bootstrap_handler_deletes_only_its_schedule_by_function_external_id(
+def test_bootstrap_handler_deletes_all_schedules_for_function_on_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[dict[str, object]] = []
@@ -757,7 +758,7 @@ def test_bootstrap_handler_deletes_only_its_schedule_by_function_external_id(
 
     handler_module = _load_bootstrap_handler(monkeypatch, deploy)
     schedules = [
-        SimpleNamespace(id=1, name="unrelated"),
+        SimpleNamespace(id=1, name="dq-infrastructure-bootstrap"),
         SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME),
     ]
     schedule_api = SimpleNamespace(
@@ -767,11 +768,11 @@ def test_bootstrap_handler_deletes_only_its_schedule_by_function_external_id(
     client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
 
     assert handler_module.handle({}, client) == {"status": "completed"}
-    assert calls == [{"function_external_id": handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID, "limit": -1}]
-    assert deleted == [2]
+    assert calls == [{"function_external_id": handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID, "limit": None}]
+    assert deleted == [1, 2]
 
 
-def test_bootstrap_handler_deletes_schedule_when_deployment_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_bootstrap_handler_keeps_schedule_when_deployment_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     deleted: list[int] = []
 
     def deploy(**_kwargs: object) -> dict[str, object]:
@@ -786,24 +787,33 @@ def test_bootstrap_handler_deletes_schedule_when_deployment_fails(monkeypatch: p
 
     with pytest.raises(RuntimeError, match="temporary deployment failure"):
         handler_module.handle({}, client)
-    assert deleted == [2]
+    assert deleted == []
 
 
-def test_bootstrap_handler_preserves_deploy_error_when_schedule_cleanup_fails(
+def test_bootstrap_handler_logs_schedule_delete_failure_without_failing_deploy(
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+
     def deploy(**_kwargs: object) -> dict[str, object]:
-        raise RuntimeError("temporary deployment failure")
+        return {"status": "completed"}
 
     handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+
+    def delete_forbidden(*, id: int) -> None:
+        raise CogniteAPIError(message="missing capability", code=403, x_request_id="req")
+
     schedule_api = SimpleNamespace(
-        list=lambda **_kwargs: (_ for _ in ()).throw(AttributeError("schedules api unavailable")),
-        delete=lambda *, id: None,
+        list=lambda **_kwargs: [SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME)],
+        delete=delete_forbidden,
     )
     client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
 
-    with pytest.raises(RuntimeError, match="temporary deployment failure"):
-        handler_module.handle({}, client)
+    assert handler_module.handle({}, client) == {"status": "completed"}
+    captured = capsys.readouterr().out
+    assert "Failed to delete bootstrap schedule id=2" in captured
+    assert "code=403" in captured
 
 
 def test_bootstrap_handler_applies_schedule_data_overrides(monkeypatch: pytest.MonkeyPatch) -> None:

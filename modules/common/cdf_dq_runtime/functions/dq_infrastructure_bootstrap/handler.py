@@ -1,11 +1,11 @@
 """Bootstrap Data Quality Validation infrastructure from the released package."""
 
-import logging
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import yaml
+from cognite.client.exceptions import CogniteAPIError
 from cognite_data_quality import deploy_validation_infrastructure
 
 if TYPE_CHECKING:
@@ -27,19 +27,44 @@ _SETTINGS_OVERRIDE_KEYS = frozenset(
     }
 )
 
-logger = logging.getLogger(__name__)
-
 
 def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
-    """Delete the Toolkit-managed schedule after bootstrap converges."""
+    """Delete Toolkit bootstrap schedules after a successful deploy.
+
+    Deletes every schedule for this function external id (not only an exact name match) so
+    leftover hyphen-era schedules cannot keep firing. Never raises — delete failures must not
+    mask a successful deploy result. Requires functionsAcl:WRITE on the schedule identity.
+    """
+    schedules: list[Any] = []
     try:
-        schedules = client.functions.schedules.list(function_external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID, limit=-1)
-        for schedule in schedules:
-            if schedule.name == BOOTSTRAP_SCHEDULE_NAME:
-                client.functions.schedules.delete(id=schedule.id)
+        schedules = list(
+            client.functions.schedules.list(function_external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID, limit=None)
+        )
+    except CogniteAPIError as e:
+        print(
+            f"Failed to list bootstrap schedules for {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | code={e.code}"
+        )
+        return
     except Exception as e:
-        # Must not raise from finally: any failure here would mask a deploy error.
-        logger.warning(f"Failed to delete bootstrap schedule {BOOTSTRAP_SCHEDULE_NAME}: {e}")
+        print(f"Failed to list bootstrap schedules for {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e}")
+        return
+
+    if not schedules:
+        print(f"No bootstrap schedules found for {BOOTSTRAP_FUNCTION_EXTERNAL_ID}")
+        return
+
+    for schedule in schedules:
+        schedule_id = schedule.id
+        schedule_name = schedule.name or ""
+        try:
+            client.functions.schedules.delete(id=schedule_id)
+            print(f"Deleted bootstrap schedule id={schedule_id} name={schedule_name}")
+        except CogniteAPIError as e:
+            print(
+                f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e} | code={e.code}"
+            )
+        except Exception as e:
+            print(f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e}")
 
 
 def _credential_pair(
@@ -136,7 +161,7 @@ def handle(data: dict[str, Any], client: "CogniteClient", secrets: dict[str, str
     override_path: Path | None = None
     try:
         override_path = _write_settings_with_overrides(bundled_settings, data, secrets)
-        return deploy_validation_infrastructure(
+        result = deploy_validation_infrastructure(
             client=client,
             settings_path=override_path or bundled_settings,
             views_dir=(config_dir / "views") if (config_dir / "views").is_dir() else None,
@@ -145,7 +170,12 @@ def handle(data: dict[str, Any], client: "CogniteClient", secrets: dict[str, str
             function_secrets=secrets,
             force=bool(data.get("force", False)),
         )
+    except Exception:
+        # Leave the five-minute schedule in place so bootstrap can retry.
+        raise
+    else:
+        _delete_bootstrap_schedule(client)
+        return result
     finally:
         if override_path is not None:
             override_path.unlink(missing_ok=True)
-        _delete_bootstrap_schedule(client)
