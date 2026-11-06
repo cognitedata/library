@@ -1,4 +1,5 @@
-"""A run split into plan, shards and finalize: the same numbers as one call, and a run that completes only when whole."""
+"""A run split into plan, shards and finalize: the same numbers as one call, and a run that completes only when
+whole."""
 
 import json
 from datetime import UTC, datetime

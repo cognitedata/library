@@ -351,7 +351,8 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
                 result = compute(data, cfg, latest_datapoints(client, data))
                 left_to_the_plan: tuple[str, ...] = ("no-source-entities",)  # the plan says that, for the run
             else:
-                # some dimensions only: read their kinds (and the assets the grain of an entity comes from, when it does),
+                # some dimensions only: read their kinds (and the assets the grain of an entity comes from, when it
+                # does),
                 # count their kinds, and keep what belongs to the dimensions of the scope
                 needed = scope.kinds | ({"assets"} if _grain_needs_assets(cfg) else frozenset())
                 data = load_shard(client, spaces, needed)
@@ -384,12 +385,14 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     }
 
 
-# What a batch leaves to the plan or cannot say: whether a kind exists anywhere, and why a metric has nothing to measure.
+# What a batch leaves to the plan or cannot say: whether a kind exists anywhere, and why a metric has nothing to
+# measure.
 _NOT_FROM_A_BATCH = ("no-source-entities", "metric-not-applicable")
 
 
 def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict[str, Any]:
-    """Step two for a big space, once per batch and in parallel: counts some kinds, or one slice of one kind, of a space.
+    """Step two for a big space, once per batch and in parallel: counts some kinds, or one slice of one kind, of a
+    space.
 
     What the batch's entities link to outside it is looked up (cq.lookups), so the numbers add up to those of counting
     the whole space. The rows of a kind are written by the batches of that kind only; their keys carry the batch number.

@@ -1,4 +1,5 @@
-"""Tiering is off by default: no asset gets a tier and the coverage metrics measure every asset; a project turns it on."""
+"""Tiering is off by default: no asset gets a tier and the coverage metrics measure every asset; a project turns it
+on."""
 
 from typing import Any
 

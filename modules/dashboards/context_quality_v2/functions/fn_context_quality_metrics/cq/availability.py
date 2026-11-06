@@ -190,7 +190,8 @@ def _sample(codes: set[str]) -> list[str]:
 
 
 def no_source_warnings(total: dict[str, int], unavailable: list[str]) -> list[dict[str, Any]]:
-    """A warning for each kind of entity that no facility space holds, unless its whole view is missing (that has its own)."""
+    """A warning for each kind of entity that no facility space holds, unless its whole view is missing (that has its
+    own)."""
     return [
         _warning(
             "no-source-entities",

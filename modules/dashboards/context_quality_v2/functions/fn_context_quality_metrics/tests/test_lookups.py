@@ -1,7 +1,8 @@
 """The queries that answer, for a batch, what its entities link to outside it, against a stand-in data modeling service.
 
 The stand-in holds the parity dataset as the service would (direct relations as {space, externalId}) and understands the
-filters the lookups use, so what is checked is that the right questions are asked and the answers are used right: counting
+filters the lookups use, so what is checked is that the right questions are asked and the answers are used right:
+counting
 a space in batches with `fetch_cross` gives the numbers of counting the space whole.
 """
 

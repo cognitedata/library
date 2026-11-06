@@ -89,7 +89,8 @@ def test_the_drilldown_id_follows_the_documented_encoding() -> None:
 
 
 def test_the_classification_id_follows_the_documented_encoding() -> None:
-    """sha256 of the compact JSON of the complete row key (kind, id, name, dimension, space, facility, division, discipline, owner, tier)."""
+    """sha256 of the compact JSON of the complete row key (kind, id, name, dimension, space, facility, division,
+    discipline, owner, tier)."""
     logical_key = [
         "classification",
         "assetType",

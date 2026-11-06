@@ -20,7 +20,8 @@ def no_location_filters(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def a_call_of_its_own(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every test is a call of its own: what an earlier one noted (cq.resilience) is forgotten, and no call's time budget
+    """Every test is a call of its own: what an earlier one noted (cq.resilience) is forgotten, and no call's time
+    budget
     is running unless the test starts one."""
     from cq import resilience
 

@@ -31,7 +31,8 @@ def _asset_centric(location: dict[str, Any]) -> bool:
 def resolve(locations: list[dict[str, Any]], facilities: dict[str, str]) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """(the supported locations, how many were left out per reason).
 
-    A supported location is {"id", "name", "parent", "spaces", "facilityIds"}: its instance spaces that are facilities of
+    A supported location is {"id", "name", "parent", "spaces", "facilityIds"}: its instance spaces that are facilities
+    of
     the run, and the facility ids of those. `parent` is the external id of the parent location, or None.
     """
     external_id_of = {item["id"]: item["externalId"] for item in locations if "id" in item}

@@ -146,7 +146,8 @@ def test_the_error_names_the_supported_tiers() -> None:
 
 
 class ClientUsed(AttributeError, AssertionError):
-    """Raised on any use of the client: an AttributeError, as `__getattr__` should raise, and an AssertionError, as the tests expect."""
+    """Raised on any use of the client: an AttributeError, as `__getattr__` should raise, and an AssertionError, as the
+    tests expect."""
 
 
 class NoCalls:

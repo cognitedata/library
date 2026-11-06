@@ -5,7 +5,8 @@ One function, several actions. The payload decides what runs:
     {"action": "compute_metrics", "dry_run": false}   the whole run in one call: for small projects and dry runs
     {"action": "plan", "functionExternalId": "..."}    step one of a fanned-out run: finds the shards, starts the run
     {"action": "compute_shard", ...}                   step two, once per shard of whole spaces (made by plan)
-    {"action": "compute_batch", ...}                   step two, once per slice of a space that is too big (made by plan)
+    {"action": "compute_batch", ...}                   step two, once per slice of a space that is too big (made by
+    plan)
     {"action": "finalize", ...}                        step three: completes the run when every shard has reported
     {"action": "export", ...}                          step four: the workbook of every unlinked item of the run
     {"action": "validate"}
@@ -14,7 +15,8 @@ The workflow runs plan, then a dynamic task that calls compute_shard once per sh
 
 Any key in payload["config"] overrides the matching key in cq.config.DEFAULT_CONFIG.
 
-plan also takes payload["scope"] (cq.scope): "all", "configured" or {"dimensions": [...], "configured": bool}, so that a run
+plan also takes payload["scope"] (cq.scope): "all", "configured" or {"dimensions": [...], "configured": bool}, so that a
+run
 measures some dimensions only; the pieces it creates carry it, and finalize writes it into the complete marker.
 
 compute_metrics also takes payload["extraLinks"], a list of {"model": "space:externalId:version", "links":

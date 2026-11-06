@@ -121,7 +121,8 @@ def test_the_overrides_are_not_changed_or_shared_with_the_result() -> None:
 
 
 def test_a_later_layer_replaces_an_earlier_one_key_by_key() -> None:
-    """Callers that layer settings (project, then task) combine them per key; a key set in the later layer wins whole."""
+    """Callers that layer settings (project, then task) combine them per key; a key set in the later layer wins
+    whole."""
     project = {"tierByTypeCode": {"pump": 1, "valve": 2}, "batchSize": 100, "facilityNames": {"sp_a": "a"}}
     task = {"tierByTypeCode": {"valve": 1}, "facilityNames": {}}
 

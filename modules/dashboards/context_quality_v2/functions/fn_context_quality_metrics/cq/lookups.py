@@ -104,7 +104,8 @@ def _asset_row(node: Any, props: dict[str, Any]) -> AssetRow:
 
 
 def _assets(client: CogniteClient, refs: Iterable[Ref], space: str) -> dict[Ref, AssetRow]:
-    """The assets of `space` named by `refs`, by key. An asset that does not exist, or lies in another space, is absent."""
+    """The assets of `space` named by `refs`, by key. An asset that does not exist, or lies in another space, is
+    absent."""
 
     def get(chunk: list[Ref]) -> list[AssetRow]:
         nodes = client.data_modeling.instances.retrieve_nodes(

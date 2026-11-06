@@ -1,4 +1,5 @@
-"""compute_metrics with the payload's extraLinks: parsed first, counted per facility, written before the complete marker."""
+"""compute_metrics with the payload's extraLinks: parsed first, counted per facility, written before the complete
+marker."""
 
 from typing import Any
 

@@ -22,7 +22,8 @@ DEFAULT_CONFIG: RunConfig = {
     # (this keeps a shared root or reference space from showing up as a facility).
     "excludeSpaces": ["cdf_cdm", "cdf_idm", "cdf_cdm_units", "cdf_extraction_extensions", "cdf_apps_shared"],
     "minFacilityEntities": 10,
-    # Tiering is off by default: no asset gets a tier and the coverage metrics measure every asset. A project turns it on
+    # Tiering is off by default: no asset gets a tier and the coverage metrics measure every asset. A project turns it
+    # on
     # and gives tierByTypeCode.
     "tieringEnabled": False,
     # asset tier from the CogniteAssetType code ({code: 1, 2 or 3}), used only while tieringEnabled. Empty by default:
@@ -51,7 +52,8 @@ DEFAULT_CONFIG: RunConfig = {
     # the one before it). A call that fails stops the ones after it.
     "maxConcurrentShards": 2,
     "shardTargetEntities": 100000,
-    # The workbook of every unlinked item of a run (cq.export) goes to Cognite Files, into this data set (its external id).
+    # The workbook of every unlinked item of a run (cq.export) goes to Cognite Files, into this data set (its external
+    # id).
     # Empty switches the export off. The workbooks of runs older than exportRetentionDays are deleted.
     "exportDataSet": "",
     "exportRetentionDays": 30,
@@ -95,7 +97,8 @@ def require_resources(cfg: RunConfig, *, writes: bool) -> None:
 
 
 def _check_tiers(mapping: Any) -> None:
-    """Rejects a tierByTypeCode that is not {type code: 1, 2 or 3}. Nothing is coerced: "1", 1.0, True and null all fail."""
+    """Rejects a tierByTypeCode that is not {type code: 1, 2 or 3}. Nothing is coerced: "1", 1.0, True and null all
+    fail."""
     if not isinstance(mapping, dict):
         raise ValueError(f"tierByTypeCode must be a mapping of type code to tier, not {mapping!r}")
     for code, tier in mapping.items():
@@ -117,7 +120,8 @@ def build_config(overrides: dict[str, Any] | None) -> RunConfig:
 
     `tierByTypeCode` is validated here, so a bad tier fails before anything is read or written.
 
-    The old scalar `decommissionedTag` is no longer a setting. Honouring it next to `exclusions.decommissionedTags` would
+    The old scalar `decommissionedTag` is no longer a setting. Honouring it next to `exclusions.decommissionedTags`
+    would
     need a precedence rule, and any such rule lets it undo an explicitly empty `exclusions`, so it is rejected.
     """
     if "decommissionedTag" in (overrides or {}):

@@ -104,7 +104,8 @@ def parse_scope(raw: Any, links_given: bool | None = None) -> Scope:
 def filter_result(result: dict[str, Any], scope: Scope) -> dict[str, Any]:
     """`cq.metrics.compute`'s result without what belongs to a dimension the scope leaves out.
 
-    A call counts the kinds of data its dimensions need, and a kind can feed a dimension that is not in scope (the assets
+    A call counts the kinds of data its dimensions need, and a kind can feed a dimension that is not in scope (the
+    assets
     of a time series run also yield the asset hierarchy rows); those are dropped here, before anything is written.
     """
     if not scope.partial:

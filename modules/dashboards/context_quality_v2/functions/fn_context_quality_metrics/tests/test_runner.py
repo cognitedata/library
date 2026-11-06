@@ -161,7 +161,8 @@ def test_the_handler_applies_the_payload_config_over_the_defaults(monkeypatch: p
 
 
 def test_dict_overrides_replace_the_defaults_instead_of_merging_into_them() -> None:
-    """Covered in detail by test_config.py; kept here because the handler's config handling is part of the runner flow."""
+    """Covered in detail by test_config.py; kept here because the handler's config handling is part of the runner
+    flow."""
     cfg = build_config({"tierByTypeCode": {"widget": 1}, "excludeSpaces": ["only_this"]})
 
     assert cfg["tierByTypeCode"] == {"widget": 1}  # the default entries are gone

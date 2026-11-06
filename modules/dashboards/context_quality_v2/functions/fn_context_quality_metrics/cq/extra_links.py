@@ -119,7 +119,8 @@ def count_links(
 
 
 def find_gaps(links: list[ExtraLink], nodes: ViewNodes, facility_spaces: dict[str, str]) -> list[LinkGap]:
-    """The instances, in the facilities, whose link is not set. An instance is labelled with its name when its view has one."""
+    """The instances, in the facilities, whose link is not set. An instance is labelled with its name when its view has
+    one."""
     gaps: list[LinkGap] = []
     for link in links:
         for space, external_id, props in nodes.get((link["model"], link["view"]), []):

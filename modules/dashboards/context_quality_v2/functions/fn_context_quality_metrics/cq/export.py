@@ -1,6 +1,7 @@
 """One Excel workbook of every unlinked (or incomplete) item of a run, a sheet for each list.
 
-The drill-down rows in the stream are capped, so the dashboard can only show a preview. The workbook holds the full lists:
+The drill-down rows in the stream are capped, so the dashboard can only show a preview. The workbook holds the full
+lists:
 
 1. Each piece of a run (a shard or a batch, cq.runner) writes its items as a small CSV part to Cognite Files while it
    runs. The part names the sheets its rows belong to, and how many.
@@ -241,7 +242,8 @@ def _sheet_counts(rows: list[tuple[str, ...]]) -> dict[str, int]:
 
 
 def write_part(client: CogniteClient, data_set_id: int, run_id: str, piece: int, rows: list[tuple[str, ...]]) -> int:
-    """Uploads the rows of one piece of the run as a CSV. -> rows uploaded. The sheet counts go in the file's metadata."""
+    """Uploads the rows of one piece of the run as a CSV. -> rows uploaded. The sheet counts go in the file's
+    metadata."""
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(PART_HEADER)

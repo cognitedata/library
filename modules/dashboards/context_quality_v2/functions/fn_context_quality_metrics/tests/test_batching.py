@@ -185,7 +185,8 @@ def test_the_filter_of_an_edge_refers_to_the_external_id_of_an_edge_and_that_of_
 
 
 def test_no_filter_compares_an_external_id_with_the_empty_text() -> None:
-    """The service rejects an equals filter on an empty external id, so the first cut of a big kind must not make one."""
+    """The service rejects an equals filter on an empty external id, so the first cut of a big kind must not make
+    one."""
     universe = Universe([f"id{n:04d}" for n in range(300)])
     leaves = universe.split(target=50)
     assert covered_exactly_once(universe, leaves)

@@ -1,4 +1,5 @@
-"""Every read of the data modeling service goes through one retry policy, so no query has to handle a busy project itself.
+"""Every read of the data modeling service goes through one retry policy, so no query has to handle a busy project
+itself.
 
 The service answers a busy project with 429 (more than 8 concurrent instance reads), 408 (a query that ran too long)
 or a 5xx. `harden` wraps the instance reads of a client so that these are retried with a growing pause, instead of each

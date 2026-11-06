@@ -34,7 +34,8 @@ RETRIEVE_MIN_CHUNK = 25
 # The SDK asks for 1000 instances in every request and cannot be told otherwise. When even listing the ids of a slice
 # times out, they are asked for in requests of these sizes, one size after the other, until one is light enough.
 PAGE_SIZES = (500, 250, 100)
-# A size is only started when this many seconds of the call are left: its first request alone can take that long to time out
+# A size is only started when this many seconds of the call are left: its first request alone can take that long to time
+# out
 PAGE_STEP_SECONDS = 60.0
 
 
@@ -147,7 +148,8 @@ def _read_slice(
     client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
 ) -> list[Any]:
     """One slice of a view's instances. If the service times out on it (the "has data" filter makes it scan the whole
-    container), a slice is read by id (`_list_slice_by_id`), and a read with no filter, which has no slice to list by id,
+    container), a slice is read by id (`_list_slice_by_id`), and a read with no filter, which has no slice to list by
+    id,
     is cut into one slice per first character of the external id (the same cut as `cq.batching`, which covers every
     instance exactly once) and each of those is read the same way."""
     try:
@@ -444,7 +446,8 @@ def _counts_by_space(client: CogniteClient, view: ViewId, *, edge: bool = False)
 def count_kinds_by_space_remote(client: CogniteClient) -> tuple[dict[str, dict[str, int]], list[str]]:
     """-> ({kind: {space: instances}}, optional views the project does not have).
 
-    The figures `load_all` derives from reading everything (`count_entities_by_space`), kind by kind, at the cost of a few
+    The figures `load_all` derives from reading everything (`count_entities_by_space`), kind by kind, at the cost of a
+    few
     aggregate calls, so a run can be planned without loading the project.
     """
     by_kind: dict[str, dict[str, int]] = {}
