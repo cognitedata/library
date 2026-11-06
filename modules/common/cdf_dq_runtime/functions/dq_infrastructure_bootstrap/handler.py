@@ -1,10 +1,10 @@
 """Bootstrap Data Quality Validation infrastructure from the released package."""
 
-from __future__ import annotations
-
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from cognite.client.exceptions import CogniteAPIError
 from cognite_data_quality import deploy_validation_infrastructure
 
 if TYPE_CHECKING:
@@ -14,22 +14,21 @@ if TYPE_CHECKING:
 BOOTSTRAP_FUNCTION_EXTERNAL_ID = "dq-infrastructure-bootstrap"
 BOOTSTRAP_SCHEDULE_NAME = "dq-infrastructure-bootstrap"
 
+logger = logging.getLogger(__name__)
 
-def _delete_bootstrap_schedule(client: CogniteClient) -> None:
+
+def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
     """Delete the Toolkit-managed schedule after bootstrap converges."""
-    import logging
-
-    logger = logging.getLogger(__name__)
     try:
         schedules = client.functions.schedules.list(function_external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID, limit=-1)
         for schedule in schedules:
             if schedule.name == BOOTSTRAP_SCHEDULE_NAME:
                 client.functions.schedules.delete(id=schedule.id)
-    except Exception as e:
-        logger.warning(f"Failed to delete bootstrap schedule: {e}")
+    except CogniteAPIError as e:
+        logger.warning(f"Failed to delete bootstrap schedule {BOOTSTRAP_SCHEDULE_NAME}: {e}")
 
 
-def handler(data: dict[str, Any], client: CogniteClient, secrets: dict[str, str] | None = None) -> dict[str, object]:
+def handler(data: dict[str, Any], client: "CogniteClient", secrets: dict[str, str] | None = None) -> dict[str, object]:
     """Deploy Data Quality Validation infrastructure from this module's rendered config."""
     config_dir = Path(__file__).parent / "config"
     try:
