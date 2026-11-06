@@ -14,7 +14,7 @@ workflow:
   task:
     # Retries of the validation function task before the run fails.
     retries: 3
-    # Function task timeout in seconds.
+    # Function task timeout in seconds (must stay ≤ 900 — CDF Functions hard-stop at 15 minutes).
     timeout: 600
     # abortWorkflow stops the run on task failure; skipTask continues with remaining tasks.
     on_failure: abortWorkflow
@@ -26,8 +26,8 @@ timeseries_workflow:
   version: "1"
   task:
     retries: 3
-    # Datapoint checks call the SDK/INDSL per series, so allow a longer timeout (seconds).
-    timeout: 1800
+    # Must stay ≤ 900 s — CDF Functions hard-stop at 15 minutes; extra timeout is never used.
+    timeout: 900
     on_failure: abortWorkflow
 
 # DMS data-change triggers that start the instance validation workflows.

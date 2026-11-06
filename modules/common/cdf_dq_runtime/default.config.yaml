@@ -32,7 +32,8 @@ viewNotificationExternalId: CogniteNotification  # was: YourOrgNotification
 # (maintenance order, operation, notification); both spaces were created by this module.
 instanceSpace: inst_location
 # External ID prefix used to select time series for datapoint validation (timeseries_config/).
-timeSeriesExternalIdPrefix: "" # was: "pi:"
+# Required — an empty prefix selects every series in instanceSpace and can exceed the function timeout.
+timeSeriesExternalIdPrefix: "pi:"
 
 # --- Data product and rule sets --------------------------------------------------------
 # Schema space owned exclusively by the data product (created by this module). Must not be

@@ -11,7 +11,8 @@ timeseries_workflow:
   version: "1"
   task:
     retries: 3
-    timeout: 1800
+    # Must stay ≤ 900 s — CDF Functions hard-stop at 15 minutes.
+    timeout: 900
     on_failure: abortWorkflow
 
 trigger:
