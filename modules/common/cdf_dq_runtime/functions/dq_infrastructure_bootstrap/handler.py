@@ -18,6 +18,7 @@ BOOTSTRAP_SCHEDULE_NAME = "dq-infrastructure-bootstrap"
 def _delete_bootstrap_schedule(client: CogniteClient) -> None:
     """Delete the Toolkit-managed schedule after bootstrap converges."""
     import logging
+
     logger = logging.getLogger(__name__)
     try:
         schedules = client.functions.schedules.list(function_external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID, limit=-1)
