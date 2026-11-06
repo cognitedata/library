@@ -763,7 +763,7 @@ def test_bootstrap_handler_deletes_only_its_schedule_by_function_external_id(
     )
     client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
 
-    assert handler_module.handler({}, client) == {"status": "completed"}
+    assert handler_module.handle({}, client) == {"status": "completed"}
     assert calls == [{"function_external_id": handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID, "limit": -1}]
     assert deleted == [2]
 
@@ -782,7 +782,7 @@ def test_bootstrap_handler_deletes_schedule_when_deployment_fails(monkeypatch: p
     client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
 
     with pytest.raises(RuntimeError, match="temporary deployment failure"):
-        handler_module.handler({}, client)
+        handler_module.handle({}, client)
     assert deleted == [2]
 
 
@@ -800,7 +800,7 @@ def test_bootstrap_handler_preserves_deploy_error_when_schedule_cleanup_fails(
     client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
 
     with pytest.raises(RuntimeError, match="temporary deployment failure"):
-        handler_module.handler({}, client)
+        handler_module.handle({}, client)
 
 
 def test_bootstrap_handler_applies_schedule_data_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -818,7 +818,7 @@ def test_bootstrap_handler_applies_schedule_data_overrides(monkeypatch: pytest.M
     schedule_api = SimpleNamespace(list=lambda **_kwargs: [], delete=lambda *, id: None)
     client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
 
-    result = handler_module.handler(
+    result = handler_module.handle(
         {
             "dataQualitySpace": "customDq",
             "recordsStreamId": "custom_stream",
