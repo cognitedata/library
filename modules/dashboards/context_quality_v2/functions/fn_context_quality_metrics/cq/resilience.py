@@ -109,18 +109,31 @@ class _Instances:
         return getattr(self._api, name)
 
 
+class _DataModeling:
+    """The data modeling API of a client, with its instances API hardened. The client's own API is left as it is."""
+
+    def __init__(self, api: Any) -> None:
+        self._api = api
+        self.instances = _Instances(api.instances)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._api, name)
+
+
 class _Client:
     """The client, which hardens its instances API the first time the data modeling API is asked for, so a call that
     never reads (a run that fails on its configuration) does not touch the client at all."""
 
     def __init__(self, client: CogniteClient) -> None:
         self._client = client
+        self._data_modeling: _DataModeling | None = None
 
     def __getattr__(self, name: str) -> Any:
-        value = getattr(self._client, name)
-        if name == "data_modeling" and not isinstance(getattr(value, "instances", None), _Instances):
-            value.instances = _Instances(value.instances)
-        return value
+        if name != "data_modeling":
+            return getattr(self._client, name)
+        if self._data_modeling is None:
+            self._data_modeling = _DataModeling(self._client.data_modeling)
+        return self._data_modeling
 
 
 def harden(client: CogniteClient) -> CogniteClient:

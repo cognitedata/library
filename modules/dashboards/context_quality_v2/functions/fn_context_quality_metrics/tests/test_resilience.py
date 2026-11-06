@@ -54,9 +54,17 @@ def test_other_errors_are_not_retried(no_sleep: list[float]) -> None:
 def test_harden_is_idempotent_and_leaves_other_calls_alone() -> None:
     client = MagicMock()
     client.data_modeling.instances.apply = lambda: "applied"
-    once = harden(client).data_modeling.instances
-    assert harden(client).data_modeling.instances is once
-    assert once.apply() == "applied"
+    hardened = harden(client)
+    assert harden(hardened) is hardened
+    assert hardened.data_modeling.instances is hardened.data_modeling.instances
+    assert hardened.data_modeling.instances.apply() == "applied"
+
+
+def test_harden_does_not_change_the_client_it_wraps() -> None:
+    client = MagicMock()
+    original = client.data_modeling.instances
+    assert harden(client).data_modeling.instances is not original
+    assert client.data_modeling.instances is original
 
 
 def times_out_then(times: int) -> Any:

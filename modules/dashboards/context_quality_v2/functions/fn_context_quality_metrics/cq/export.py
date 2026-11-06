@@ -20,9 +20,11 @@ import csv
 import io
 import json
 import os
+import shutil
 import tempfile
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
+from contextlib import ExitStack
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -309,16 +311,15 @@ def newest_by_dimension(files: Iterable[_DimensionFile]) -> dict[str, _Dimension
 def _read_dimension_file(client: CogniteClient, external_id: str) -> Iterator[list[str]]:
     """The rows of a dimension file, from disk so that a big one is never held in memory."""
     folder = tempfile.mkdtemp()
-    path = os.path.join(folder, "dimension.csv")
-    client.files.download_to_path(path, external_id=external_id)
     try:
+        path = os.path.join(folder, "dimension.csv")
+        client.files.download_to_path(path, external_id=external_id)
         with open(path, newline="", encoding="utf-8") as handle:
             reader = csv.reader(handle)
             next(reader, None)
             yield from reader
     finally:
-        os.remove(path)
-        os.rmdir(folder)
+        shutil.rmtree(folder, ignore_errors=True)
 
 
 class _DimensionOut:
@@ -354,6 +355,20 @@ def build_workbook(
     `measured` names the dimensions the run measured (CONFIGURED for the configured links); every dimension when None.
     The workbook holds all dimensions: those the run did not measure come from the dimension files of earlier runs.
     """
+    with ExitStack() as cleanup:
+        return _build_workbook(client, cfg, run_id, pieces, now, measured, cleanup)
+
+
+def _build_workbook(
+    client: CogniteClient,
+    cfg: RunConfig,
+    run_id: str,
+    pieces: int,
+    now: datetime | None,
+    measured: Iterable[str] | None,
+    cleanup: ExitStack,
+) -> dict[str, Any]:
+    """The work of `build_workbook`. What it creates on disk is removed by `cleanup`, whether it succeeds or fails."""
     dataset = data_set_id(client, cfg)
     if dataset is None:
         return {"exported": False, "reason": "exportDataSet is not set"}
@@ -379,6 +394,7 @@ def build_workbook(
             counts[sheet] += count
     order = _sheet_order(counts)
     folder = tempfile.mkdtemp()
+    cleanup.callback(shutil.rmtree, folder, ignore_errors=True)
     path = os.path.join(folder, workbook_external_id(run_id))
     book = xlsxwriter.Workbook(path, {"constant_memory": True})
     header = book.add_format({"bold": True, "bg_color": "#E4E6E8", "bottom": 1})
@@ -395,6 +411,8 @@ def build_workbook(
         sheet.set_column(6, 7, 16)
     totals: dict[tuple[str, str, str], list[int]] = defaultdict(lambda: [0, 0, 0])
     outs = {dimension: _DimensionOut(folder, dimension, run_id) for dimension in everything if dimension in this_run}
+    for out in outs.values():
+        cleanup.callback(out.close)
 
     def take(row: list[str], out: _DimensionOut | None) -> None:
         if row[0] == ITEM:
@@ -449,7 +467,6 @@ def build_workbook(
         metadata={"runId": run_id, "missingPieces": json.dumps(missing), "measured": json.dumps(sorted(this_run))},
     )
     os.remove(path)
-    os.rmdir(folder)
     client.files.delete(external_id=list(present), ignore_unknown_ids=True)
     replaced = [
         file.external_id
