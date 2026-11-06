@@ -1,2 +1,2 @@
-dbName: "db_{{location}}_db_postgres"
+dbName: "raw_asset_{{location}}_{{sourceSystem}}"
 tableName: "mytable"

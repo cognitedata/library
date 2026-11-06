@@ -85,7 +85,7 @@ def test_a_long_shared_beginning_does_not_cost_a_round_per_character() -> None:
 
 
 def test_random_ids_are_covered_exactly_once() -> None:
-    rng = random.Random(7)
+    rng = random.Random(7)  # noqa: S311 - seeded test data, not security
     alphabet = string.ascii_letters + string.digits + "_-é~"
     ids = list({"".join(rng.choice(alphabet) for _ in range(rng.randint(1, 12))) for _ in range(1500)})
     universe = Universe(ids)

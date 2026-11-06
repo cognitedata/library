@@ -1,0 +1,308 @@
+"""Match entities are read once per view through the sync endpoint and filtered in memory."""
+
+import json
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
+
+sys.path.append(str(Path(__file__).parent))
+
+from cognite.client.data_classes import Row
+from cognite.client.data_classes.data_modeling import Node
+from cognite.client.exceptions import CogniteAPIError
+from services.config_service import Config
+
+
+def _config(primary: str | None = None, secondary: str | None = None) -> Config:
+    parameters: dict[str, object] = {
+        "targetEntitiesTags": ["DetectInDiagrams", "OMD"],
+    }
+    if primary:
+        parameters["primaryScopeProperty"] = primary
+    if secondary:
+        parameters["secondaryScopeProperty"] = secondary
+    return Config.model_validate(
+        {
+            "parameters": parameters,
+            "data": {
+                "fileView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "files",
+                    "externalId": "CogniteFile",
+                    "version": "v1",
+                },
+                "targetEntitiesView": {
+                    "schemaSpace": "cdf_cdm",
+                    "instanceSpace": "assets",
+                    "externalId": "CogniteAsset",
+                    "version": "v1",
+                },
+                "annotationStateView": {
+                    "schemaSpace": "dm_sol_file_annotation",
+                    "instanceSpace": "files",
+                    "externalId": "FileAnnotationState",
+                    "version": "v1",
+                },
+                "sinkNode": {"space": "patterns", "externalId": "pattern_sink"},
+            },
+        }
+    )
+
+
+def _asset(external_id: str, deleted: bool = False, **properties: object) -> Node:
+    node: dict[str, object] = {
+        "instanceType": "node",
+        "space": "assets",
+        "externalId": external_id,
+        "version": 1,
+        "lastUpdatedTime": 0,
+        "createdTime": 0,
+        "properties": {} if deleted else {"cdf_cdm": {"CogniteAsset/v1": {"name": external_id, **properties}}},
+    }
+    if deleted:
+        node["deletedTime"] = 1
+    return Node.load(node)
+
+
+def _page(nodes: list[Node], cursor: str = "next") -> MagicMock:
+    page = MagicMock()
+    page.__getitem__.return_value = nodes
+    page.cursors = {"entities": cursor}
+    return page
+
+
+def _client(asset_pages: list[MagicMock], state: Row | None = None, cached: list | None = None) -> MagicMock:
+    client = MagicMock()
+    client.raw.rows.retrieve.return_value = state
+    client.files.download_bytes.return_value = json.dumps(cached or []).encode()
+    # The last empty page ends the asset read, the one before it the file-entity read.
+    client.data_modeling.instances.sync.side_effect = [*asset_pages, _page([]), _page([])]
+    return client
+
+
+def _targets(config: Config, client: MagicMock, primary: str = "", secondary: str | None = None) -> list[str]:
+    from services.data_model_service import GeneralDataModelService
+
+    targets, _ = GeneralDataModelService(config, client, MagicMock()).get_instances_entities(primary, secondary, None)
+    return sorted(target.external_id for target in targets)
+
+
+def test_the_entity_read_filters_on_space_and_view_only() -> None:
+    """Tags and scope in the read filter made an OR across containers that DMS could not page."""
+    client = _client([_page([_asset("A-1", tags=["OMD"], site="S1")])])
+
+    _targets(_config(primary="site"), client, primary="S1")
+
+    for call in client.data_modeling.instances.sync.call_args_list:
+        # Two-phase lets DMS use an index for the initial read of a hasData filter.
+        assert call.args[0].with_["entities"].sync_mode == "two_phase"
+        read_filter = str(call.args[0].with_["entities"].filter.dump())
+        assert "hasData" in read_filter
+        assert "'or'" not in read_filter and "tags" not in read_filter and "S1" not in read_filter
+
+
+def test_entities_are_filtered_by_tag_and_grouped_by_scope_in_memory() -> None:
+    client = _client(
+        [
+            _page(
+                [
+                    _asset("in-scope", tags=["DetectInDiagrams"], site="S1", unit="U1"),
+                    _asset("other-unit", tags=["DetectInDiagrams"], site="S1", unit="U2"),
+                    _asset("scope-wide", tags=["ScopeWideDetect"], site="S1", unit="U2"),
+                    _asset("other-site", tags=["OMD", "ScopeWideDetect"], site="S2", unit="U1"),
+                    _asset("untagged", tags=["Other"], site="S1", unit="U1"),
+                ]
+            )
+        ]
+    )
+
+    assert _targets(_config("site", "unit"), client, "S1", "U1") == ["in-scope", "scope-wide"]
+
+
+def test_entities_without_scope_values_are_matched_against_every_document() -> None:
+    """Assets with no site/unit still match; they go in the unscoped set used for every file."""
+    from services.data_model_service import GeneralDataModelService
+
+    client = _client(
+        [
+            _page(
+                [
+                    _asset("in-scope", tags=["DetectInDiagrams"], site="S1", unit="U1"),
+                    _asset("unscoped", tags=["DetectInDiagrams"]),
+                    _asset("empty-scope", tags=["DetectInDiagrams"], site="", unit=""),
+                    _asset("other-site", tags=["DetectInDiagrams"], site="S2", unit="U1"),
+                ]
+            )
+        ]
+    )
+    logger = MagicMock()
+
+    targets, _ = GeneralDataModelService(_config("site", "unit"), client, logger).get_instances_entities(
+        "S1", "U1", None
+    )
+
+    assert sorted(target.external_id for target in targets) == ["empty-scope", "in-scope", "unscoped"]
+    warnings = [call.args[0] if call.args else call.kwargs.get("message", "") for call in logger.warning.call_args_list]
+    assert any("unscoped" in message.lower() and "all documents" in message.lower() for message in warnings)
+
+
+def test_unscoped_files_are_matched_against_all_assets_when_site_and_unit_are_configured() -> None:
+    """Files with no site load every tagged asset — scoped and unscoped — across all sites/units."""
+
+    def assets_page() -> MagicMock:
+        return _page(
+            [
+                _asset("site-a-unit-1", tags=["DetectInDiagrams"], site="S1", unit="U1"),
+                _asset("site-a-unit-2", tags=["DetectInDiagrams"], site="S1", unit="U2"),
+                _asset("site-b", tags=["DetectInDiagrams"], site="S2", unit="U1"),
+                _asset("unscoped", tags=["DetectInDiagrams"]),
+                _asset("untagged", tags=["Other"], site="S1", unit="U1"),
+            ]
+        )
+
+    expected = ["site-a-unit-1", "site-a-unit-2", "site-b", "unscoped"]
+    # primary="" is the Launch batch for files missing the primary scope value.
+    # Secondary must not narrow the set: without a site, match every tagged asset.
+    assert _targets(_config("site", "unit"), _client([assets_page()]), primary="", secondary=None) == expected
+    assert _targets(_config("site", "unit"), _client([assets_page()]), primary="", secondary="U1") == expected
+
+
+def test_a_file_entity_without_aliases_is_kept_to_match_on_its_name() -> None:
+    from services.data_model_service import GeneralDataModelService
+
+    file_node = Node.load(
+        {
+            "instanceType": "node",
+            "space": "files",
+            "externalId": "PID-0001",
+            "version": 1,
+            "lastUpdatedTime": 0,
+            "createdTime": 0,
+            "properties": {"cdf_cdm": {"CogniteFile/v1": {"name": "PID-0001", "tags": ["DetectInDiagrams"]}}},
+        }
+    )
+    client = _client([])
+    client.data_modeling.instances.sync.side_effect = [_page([]), _page([file_node]), _page([])]
+
+    _, files = GeneralDataModelService(_config(), client, MagicMock()).get_instances_entities("", None, None)
+
+    assert [file.external_id for file in files] == ["PID-0001"]
+
+
+def test_an_unchanged_view_is_read_from_the_cached_file() -> None:
+    cached = [["assets", "A-1", {"name": "A-1", "tags": ["OMD"]}]]
+    client = _client([], state=Row("state", columns={"cursor": "c1", "batchSize": 1000}), cached=cached)
+
+    assert _targets(_config(), client) == ["A-1"]
+    assert client.files.download_bytes.called
+    client.files.upload_bytes.assert_not_called()
+    stored_state = client.raw.rows.insert.call_args.args[2]
+    assert stored_state.columns["cursor"] == "next"
+
+
+def test_changes_are_merged_into_the_cached_entities() -> None:
+    """An asset that is deleted or loses its tag leaves the cache; a newly tagged one joins it."""
+    cached = [
+        ["assets", "deleted", {"name": "deleted", "tags": ["OMD"]}],
+        ["assets", "untagged", {"name": "untagged", "tags": ["OMD"]}],
+        ["assets", "kept", {"name": "kept", "tags": ["OMD"]}],
+    ]
+    changes = [_asset("deleted", deleted=True), _asset("untagged", tags=[]), _asset("new", tags=["DetectInDiagrams"])]
+    client = _client([_page(changes)], state=Row("state", columns={"cursor": "c1", "batchSize": 1000}), cached=cached)
+
+    assert _targets(_config(), client) == ["kept", "new"]
+    stored = json.loads(client.files.upload_bytes.call_args.kwargs["content"])
+    assert sorted(entity[1] for entity in stored) == ["kept", "new"]
+
+
+def test_a_timed_out_page_is_read_again_smaller() -> None:
+    responses: list[object] = [CogniteAPIError("Graph query timed out", code=408), _page([]), _page([])]
+    limits: list[int] = []
+
+    def sync(query):
+        # The query is reused between calls, so its page size is recorded as it is sent.
+        limits.append(query.with_["entities"].limit)
+        response = responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+    client = _client([])
+    client.data_modeling.instances.sync.side_effect = sync
+
+    _targets(_config(), client)
+
+    assert limits[:2] == [1000, 800]
+
+
+def test_sync_page_with_no_http_status_does_not_crash() -> None:
+    """CogniteAPIError with code=None (e.g. connection failure) must not TypeError on `e.code >= 500`."""
+    from cognite.client.data_classes.data_modeling.query import NodeResultSetExpression, Query, Select
+    from services.entity_sync_service import EntitySyncService
+
+    client = MagicMock()
+    client.data_modeling.instances.sync.side_effect = CogniteAPIError("connection failed", code=None)
+    service = EntitySyncService(client, _config(), MagicMock(log_level="INFO"))
+    expression = NodeResultSetExpression(limit=100)
+    query = Query(with_={"entities": expression}, select={"entities": Select()})
+
+    with pytest.raises(CogniteAPIError, match="connection failed"):
+        service._sync_page(query, expression, batch_size=1000)
+
+
+def _raw_store(client: MagicMock) -> None:
+    """Makes the mocked RAW table return the rows written to it."""
+    rows: dict[str, Row] = {}
+
+    def insert(db_name: str, table_name: str, row: Row, ensure_parent: bool = False) -> None:
+        rows[row.key] = row
+
+    client.raw.rows.insert.side_effect = insert
+    client.raw.rows.retrieve.side_effect = lambda db_name, table_name, key: rows.get(key)
+
+
+def _scope_entities(aliases: list[str]):
+    from cognite.client.data_classes.data_modeling import ViewId
+    from services.entity_sync_service import EntityInstance
+
+    view_id = ViewId("cdf_cdm", "CogniteAsset", "v1")
+    return [EntityInstance("assets", alias, {view_id: {"name": alias, "aliases": [alias]}}) for alias in aliases]
+
+
+def test_pattern_samples_are_reused_while_the_scope_entities_are_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Generating samples runs regexes over every alias, which is wasted work when nothing changed."""
+    from services.entity_cache_service import GeneralCacheService
+
+    client = MagicMock()
+    _raw_store(client)
+    cache = GeneralCacheService(_config(), client, MagicMock(log_level="INFO"))
+    generate = MagicMock(wraps=cache._generate_tag_samples_from_entities)
+    monkeypatch.setattr(cache, "_generate_tag_samples_from_entities", generate)
+    data_model_service = MagicMock()
+
+    data_model_service.get_instances_entities.return_value = (_scope_entities(["23-KA-9101"]), [])
+    _, first = cache.get_entities(data_model_service, "", None, None)
+    _, reused = cache.get_entities(data_model_service, "", None, None)
+    assert generate.call_count == 2  # assets and files, once
+    assert reused == first
+
+    data_model_service.get_instances_entities.return_value = (_scope_entities(["23-KA-9101", "23-PB-2001"]), [])
+    cache.get_entities(data_model_service, "", None, None)
+    assert generate.call_count == 4
+
+
+def test_a_first_read_that_outlasts_the_budget_is_stored_and_continued_next_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.entity_sync_service import EntitySyncIncompleteError
+
+    monkeypatch.setattr("services.entity_sync_service.ENTITY_SYNC_CHECKPOINT_SECONDS", 0)
+    client = _client([_page([_asset("A-1", tags=["OMD"])], cursor="partial")], state=Row("state", {"batchSize": 1}))
+
+    with pytest.raises(EntitySyncIncompleteError):
+        _targets(_config(), client)
+
+    assert client.files.upload_bytes.called
+    assert client.raw.rows.insert.call_args.args[2].columns["cursor"] == "partial"

@@ -1,0 +1,46 @@
+space: "{{ scopeSchemaSpace }}"
+externalId: FileScope
+name: File scope
+description: >
+  Test-only site and unit properties for CogniteFile instances, used to exercise
+  primary/secondary scope in the file annotation module.
+usedFor: node
+properties:
+  site:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Site
+    description: Primary scope value, typically a site or facility code (for example VAL).
+  unit:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Unit
+    description: Secondary scope value within the site, typically a unit number (for example 23).
+constraints:
+  cogniteFile:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+indexes:
+  siteIndex:
+    indexType: btree
+    properties:
+      - site
+    cursorable: true
+  unitIndex:
+    indexType: btree
+    properties:
+      - unit
+    cursorable: true

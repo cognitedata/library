@@ -1,0 +1,3 @@
+- description: Schema space for the file annotation test data model that adds site and unit scope properties
+  name: "{{ scopeSchemaSpace }}"
+  space: "{{ scopeSchemaSpace }}"

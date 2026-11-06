@@ -1,1 +1,1 @@
-dbName: "db_{{location}}_opcua"
+dbName: "raw_timeseries_{{location}}_{{sourceSystem}}"

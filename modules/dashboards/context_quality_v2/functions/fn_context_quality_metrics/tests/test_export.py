@@ -426,4 +426,9 @@ def test_every_list_belongs_to_the_dimension_that_measures_it() -> None:
     assert set(export.SHEET_DIMENSION.values()) <= set(export.DIMENSION_ORDER)
     assert len(export.SHEET_DIMENSION) == len(export.SHEETS)
     assert export.row_dimension((export.SUMMARY, "files", "m", "", "1", "1", "0")) == "files"
-    assert export.row_dimension(export.item_rows([], [{"view": "V", "property": "p", "label": "l", "external_id": "x", "space": "s"}])[0]) == "configured"
+    assert (
+        export.row_dimension(
+            export.item_rows([], [{"view": "V", "property": "p", "label": "l", "external_id": "x", "space": "s"}])[0]
+        )
+        == "configured"
+    )

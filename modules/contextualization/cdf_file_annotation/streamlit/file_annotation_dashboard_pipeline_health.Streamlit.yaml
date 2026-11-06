@@ -1,5 +1,5 @@
 externalId: file_annotation_dashboard_pipeline_health
-name: File Annotation Dashboard - Pipeline Health
+name: File annotation pipeline health
 creator: {{ ApplicationOwner }}
 description: Dashboard to inspect the health of the File Annotation Pipeline
 published: true

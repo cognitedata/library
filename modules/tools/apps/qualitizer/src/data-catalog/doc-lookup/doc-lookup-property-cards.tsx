@@ -41,23 +41,6 @@ function PropertyTypeCard({
   );
 }
 
-function CardField({
-  label,
-  colors,
-  children,
-}: {
-  label: string;
-  colors: PropertyColorClasses;
-  children: ReactNode;
-}) {
-  return (
-    <div className="min-w-0">
-      <div className={`text-[10px] font-medium uppercase tracking-wide ${colors.label}`}>{label}</div>
-      <div className="mt-0.5 text-sm leading-snug text-slate-900">{children}</div>
-    </div>
-  );
-}
-
 function StringChipList({ items, colors }: { items: string[]; colors: PropertyColorClasses }) {
   return (
     <div className="flex flex-wrap gap-1">

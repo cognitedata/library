@@ -138,7 +138,9 @@ def _retrieve(client: CogniteClient, instance_type: str, view: ViewId, pairs: li
             raise
         note("properties read in halves")
         half = len(pairs) // 2
-        return _retrieve(client, instance_type, view, pairs[:half]) + _retrieve(client, instance_type, view, pairs[half:])
+        return _retrieve(client, instance_type, view, pairs[:half]) + _retrieve(
+            client, instance_type, view, pairs[half:]
+        )
 
 
 def _read_slice(
@@ -361,11 +363,7 @@ def _load(
     ]
     av = _view(CDM, "CogniteDiagramAnnotation")
     d["annotations"] = []
-    edges = (
-        _list_instances(client, "edge", av, spaces, flt)
-        if want("annotations")
-        else []
-    )
+    edges = _list_instances(client, "edge", av, spaces, flt) if want("annotations") else []
     for e in edges:
         p = e.properties.get(av)
         if p is None:

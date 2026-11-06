@@ -15,16 +15,13 @@ cdf_files_extractor/
 ├── extraction_pipelines/
 │   ├── ep_files_sharepoint.ExtractionPipeline.yaml         # Pipeline definition (contacts, schedule, source)
 │   └── ep_files_sharepoint.ExtractionPipeline.Config.yaml  # Files Extractor runtime config (file provider, paths, filters)
-├── raw/
-│   └── db_files.Database.yaml                               # db_{{location}}_files (optional RAW-backed state store)
 └── module.toml
 ```
 
 > **Note:** File bytes and `CogniteFile` metadata land in CDF Files and
 > `{{instanceSpace}}` (the shipped example uses `destination-mode: cdm`). The
-> module does **not** stage file content to RAW. The `raw/` folder deploys
-> `db_{{location}}_files` so the producer group can use RAW for an optional
-> extractor state store (see `state-store` in `ExtractionPipeline.Config.yaml`).
+> module does **not** use RAW. The extractor keeps its state store in a local file by
+> default; see [State store](#state-store) to keep it in RAW instead.
 
 ## Data Flow
 
@@ -42,11 +39,19 @@ Files Extractor   (destination-mode: cdm)
 
 | Resource | External ID | Purpose |
 |---|---|---|
-| ExtractionPipeline | `ep_{{location}}_files_sharepoint` | Pipeline health tracking and config delivery |
+| ExtractionPipeline | `ep_files_{{location}}_{{sourceSystem}}` | Pipeline health tracking and config delivery |
 | Data set | `{{dataset}}` | Groups uploaded files and pipeline resources |
-| RAW Database | `db_{{location}}_files` | Optional RAW-backed extractor state store (not used for file ingestion) |
 | DM Space | `{{instanceSpace}}` | Per-extractor instance space for DM instances |
-| Access Group | `producer_{{location}}_ep_files_{{environment}}` | Scoped service-principal group for the Files extractor |
+| Access Group | `producer_{{location}}_ep_file_{{sourceSystem}}_{{environment}}` | Scoped service-principal group — one per extractor type × source system |
+
+Names follow the [CDF resource naming conventions](https://docs.cognite.com/cdf/deploy/reference/cdf_resource_naming_conventions):
+pipelines use `ep_{data_type}_{location}_{source}` and access groups use the persona-led
+pattern `producer_[{site}_]ep_{extractortype}_{sourcesystem}_{environment}`.
+
+The producer group follows the least-privilege scoping in the GVD data onboarding SOP:
+`extractionConfigs:READ`, `extractionRuns:WRITE`, and `extractionPipelines:READ` on the
+pipeline's data set, with no `extractionPipelines:WRITE`. It also has `projects:LIST`
+(all) and `groups:LIST` (current user), the minimum capabilities for any CDF application.
 
 ## Configuration
 
@@ -56,9 +61,10 @@ All variables are declared locally in `config.<env>.yaml` (no inheritance):
 variables:
   modules:
     cdf_files_extractor:
-      location: "oslo"                                       # Site code, used in externalIds (ep_<location>_files_sharepoint)
+      location: "oslo"                                       # Site code, used in externalIds (ep_files_<location>_<sourceSystem>)
+      sourceSystem: "sharepoint"                             # Source system token, used in the pipeline ID and group name
       dataset: "ds_files_oslo"                               # ds_<data_type>_<location> — computed by setup_project.py
-      instanceSpace: "sp_oslo_files"                        # Per-extractor DM instance space — computed by setup_project.py
+      instanceSpace: "inst_oslo_files"                        # Per-extractor DM instance space — computed by setup_project.py
 
       integration_owner_name: "Integration Owner"            # Technical contact for the pipeline
       integration_owner_email: "integration.owner@example.com"
@@ -102,10 +108,8 @@ SharePoint Online example with a single extraction path. Before production use:
    keep deleted files visible with a `deleted` metadata flag.
 5. **Pick a state-store path** in `Config.yaml` that the extractor service
    account can write to (default: `/path/to/state-store.json` is a placeholder
-   — change before running). For cluster deployments, uncomment the RAW
-   `state-store` block and point `database` at `db_{{location}}_files` (deployed
-   from `raw/db_files.Database.yaml`). Add a `*.Table.yaml` under `raw/` if you
-   want Toolkit to create the state table at deploy time.
+   — change before running). Without a state store the extractor re-checks every
+   file on each run. For cluster deployments, use a [RAW state store](#state-store).
 6. **Confirm `data_model.space`** matches your `instanceSpace` — `CogniteFile`
    instances are written there. The CDM destination requires that the space
    already exists (this module deploys it automatically).
@@ -113,6 +117,18 @@ SharePoint Online example with a single extraction path. Before production use:
    used by `SP_CLIENT_ID` needs the `Sites.Read.All` (or narrower)
    application permission with admin consent granted. Follow the SharePoint
    setup guide linked below.
+
+### State store
+
+The extractor tracks progress in a state store so it only uploads new or changed files.
+The shipped config uses a local JSON file. To keep the state in CDF RAW instead:
+
+1. Add `raw/<name>.Database.yaml` and `raw/<name>.Table.yaml` to this module, e.g. database
+   `raw_files_{{location}}_{{sourceSystem}}` with table `state_store`.
+2. Add a `rawAcl` capability (`READ`, `WRITE`, `LIST`) to `producer.ep.files.Group.yaml`,
+   scoped with `tableScope` to that database and table.
+3. In `Config.yaml`, replace the local `state-store` block with the RAW one and set
+   `database` and `table`.
 
 ## Getting Started
 
@@ -125,12 +141,40 @@ SharePoint Online example with a single extraction path. Before production use:
 ### Deploy
 
 ```bash
-cdf deploy modules/sourcesystem/cdf_files_extractor --env your-environment
+cdf build -c config.your-environment.yaml
+cdf deploy
 ```
 
 ### Configure and run the extractor
 
-The extractor config is delivered via the `ep_{{location}}_files_sharepoint` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+The extractor config is delivered via the `ep_files_{{location}}_{{sourceSystem}}` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+
+### Migrating from earlier versions
+
+The pipeline external ID changed from `ep_{{location}}_files_sharepoint` to
+`ep_files_{{location}}_{{sourceSystem}}`, and the access group from
+`producer_{{location}}_ep_files_{{environment}}` to
+`producer_{{location}}_ep_file_{{sourceSystem}}_{{environment}}`. To upgrade an existing
+deployment:
+
+1. Add `sourceSystem` to `cdf_files_extractor` in each `config.<env>.yaml`.
+2. Run `cdf deploy`. This creates the new pipeline and group alongside the old ones.
+3. Update `extraction-pipeline.pipeline-id` in the extractor host's local `config.yaml`,
+   then restart the extractor.
+4. Once the extractor reports runs on the new pipeline, delete the old pipeline and group
+   in Fusion. Toolkit does not remove them for you, and the new group keeps the same
+   `sourceId`, so no IdP change is needed.
+
+The instance space also changed from `sp_{{location}}_files` to `inst_{{location}}_files`
+(`setup_project.py` writes the new name on its next run). Instances already in the old
+space are not moved: the extractor creates new instances in the new space on its next
+run. Verify the new instances, then delete the old space. To keep the old space instead,
+set `instanceSpace` back to its old value after running the wizard;
+`setup_project.py --check` then reports it as drift.
+
+The producer group's capabilities were also narrowed (see [Resources Created](#resources-created)).
+If anything else uses this group's service principal, check that it does not rely on the
+removed capabilities.
 
 ### Verify
 
@@ -141,3 +185,7 @@ Check that uploaded documents appear under the `{{dataset}}` data set in CDF Dat
 * Files Extractor docs: <https://docs.cognite.com/cdf/integration/guides/extraction/file>
 * Files Extractor configuration reference: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/file-extractor>
 * SharePoint setup guide: <https://docs.cognite.com/cdf/integration/guides/extraction/file/file_sharepoint_setup>
+
+## Changelog
+
+- Toolkit 0.9: `cdf deploy` no longer takes `--env`; examples now run `cdf build -c config.<env>.yaml` before `cdf deploy`.

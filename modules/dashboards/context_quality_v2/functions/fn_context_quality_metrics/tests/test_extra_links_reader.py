@@ -50,7 +50,13 @@ class FakeInstances:
         self.nodes, self.calls = nodes, []  # type: ignore[var-annotated]
 
     def list(
-        self, instance_type: str, sources: ViewId, space: Any = None, filter: Any = None, sort: Any = None, limit: int = 25
+        self,
+        instance_type: str,
+        sources: ViewId,
+        space: Any = None,
+        filter: Any = None,
+        sort: Any = None,
+        limit: int = 25,
     ) -> list[Node]:
         self.calls.append(
             {"instance_type": instance_type, "sources": sources, "space": space, "filter": filter, "limit": limit}

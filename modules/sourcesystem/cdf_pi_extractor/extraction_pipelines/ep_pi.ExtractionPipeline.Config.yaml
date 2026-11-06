@@ -1,4 +1,4 @@
-externalId: "ep_{{location}}_pi"
+externalId: "ep_timeseries_{{location}}_{{sourceSystem}}"
 
 config:
   # Template for the PI Extractor configuration file.

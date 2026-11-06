@@ -1,0 +1,6 @@
+cognite-extractor-utils >= 7, < 8
+cognite-sdk == 7.*
+pydantic >= 2, < 3
+pyyaml >= 6.0.1, < 7
+tenacity >= 8.0.0, < 10
+mixpanel >= 4.10.0, < 6

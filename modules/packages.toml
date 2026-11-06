@@ -80,6 +80,7 @@ canCherryPick = true
 modules = [
     "datamodels/rmdm",
     "datamodels/isa_manufacturing_extension",
+    "datamodels/isa_manufacturing_extension_search",
     "datamodels/cfihos_oil_and_gas_extension",
     "datamodels/cfihos_oil_and_gas_extension_search",
 ]
@@ -98,10 +99,9 @@ modules = [
 [packages.atlas_ai]
 id = "dp:atlas_ai"
 title = "Atlas AI Deployment Pack"
-description = "Ready-to-deploy Atlas AI agents and AI extractor."
+description = "AI property extractor: fill structured data model properties from free text with an Atlas AI agent."
 canCherryPick = true
 modules = [
-    "atlas_ai/ootb_agents",
     "solutions/cdf_ai_extractor",
 ]
 
@@ -135,6 +135,15 @@ canCherryPick = true
 modules = [
     "dashboards/context_quality",
     "dashboards/context_quality_v2",
+]
+
+[packages.data_quality]
+id = "dp:data_quality"
+title = "Data Quality Validation"
+description = "Data quality validation for Data Products."
+canCherryPick = true
+modules = [
+    "common/cdf_dq_runtime",
 ]
 
 [packages.tools]

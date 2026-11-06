@@ -1,0 +1,46 @@
+space: "{{ scopeSchemaSpace }}"
+externalId: TimeSeriesScope
+name: Time series scope
+description: >
+  Test-only site and unit properties for CogniteTimeSeries instances, used to exercise
+  primary/secondary scope in the entity matching module.
+usedFor: node
+properties:
+  site:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Site
+    description: Primary scope value, typically a site or facility code (for example VAL).
+  unit:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Unit
+    description: Secondary scope value within the site, typically a unit number (for example 23).
+constraints:
+  cogniteTimeSeries:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+indexes:
+  siteIndex:
+    indexType: btree
+    properties:
+      - site
+    cursorable: true
+  unitIndex:
+    indexType: btree
+    properties:
+      - unit
+    cursorable: true

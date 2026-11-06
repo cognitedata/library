@@ -20,10 +20,13 @@ Run from the Toolkit project root after `cdf modules add -d dp:foundation`:
   python modules/common/cdf_project_foundation/scripts/generate_actions.py --provider ado
 """
 
-
 import argparse
+import json
+import os
 import re
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -34,15 +37,27 @@ try:
 except ImportError:
     import tomli as tomllib  # type: ignore[no-redef]
 
+from _i18n import t
+
 MODULE_DIR = Path(__file__).resolve().parents[1]
 TEMPLATES_ROOT = MODULE_DIR / "templates"
 ENVIRONMENTS = ("dev", "test", "prod")
 DEPLOY_BRANCHES = {"dev": "dev", "test": "main"}
 ENV_LABELS = {"dev": "Dev", "test": "Test"}
 CONFIG_FLAG_MIN_VERSION = (0, 8, 0)
+TOOLKIT_IMAGE_REPO = "cognite/toolkit"
+DIGEST_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
+# The registry answers with the type the tag is stored as: an index for multi-arch, a manifest for single-platform.
+MANIFEST_MEDIA_TYPES = (
+    "application/vnd.oci.image.index.v1+json",
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+    "application/vnd.oci.image.manifest.v1+json",
+    "application/vnd.docker.distribution.manifest.v2+json",
+)
 
 # Module domains vendored in by the deployment packs. modules/custom/ is deliberately
 # absent — that is where team-authored modules live, and their code must stay linted.
+# atlas_ai/ is no longer shipped but stays listed: projects that pulled it earlier still vendor it.
 PACK_MODULE_DOMAINS = (
     "atlas_ai",
     "common",
@@ -70,7 +85,7 @@ def templates_dir(provider: str) -> Path:
 def workflows_output_dir(provider: str, repo_root: Path) -> Path:
     """Where generated CI/CD files are written for this provider."""
     if provider not in PROVIDER_WORKFLOWS_DIR:
-        raise ValueError(f"Unsupported provider: {provider}")
+        raise ValueError(t("Unsupported provider: {provider}").format(provider=provider))
     return repo_root / PROVIDER_WORKFLOWS_DIR[provider]
 
 
@@ -83,7 +98,7 @@ def resolve_modules_root(repo_root: Path, org_dir: str | None) -> Path:
         if candidate.is_dir():
             return candidate
     searched = ", ".join(str(c) for c in candidates)
-    raise FileNotFoundError(f"No modules directory found under: {searched}")
+    raise FileNotFoundError(t("No modules directory found under: {searched}").format(searched=searched))
 
 
 def find_repo_root(start: Path) -> Path:
@@ -91,7 +106,7 @@ def find_repo_root(start: Path) -> Path:
     for candidate in [current, *current.parents]:
         if (candidate / "cdf.toml").is_file():
             return candidate
-    raise FileNotFoundError("cdf.toml not found — run from a Cognite Toolkit project root")
+    raise FileNotFoundError(t("cdf.toml not found — run from a Cognite Toolkit project root"))
 
 
 def load_cdf_toml(repo_root: Path) -> dict[str, Any]:
@@ -104,28 +119,29 @@ def render_template(path: Path, values: dict[str, str]) -> str:
         text = text.replace(f"{{{{{key}}}}}", value)
     remaining = re.findall(r"\{\{[A-Z0-9_]+\}\}", text)
     if remaining:
-        raise ValueError(f"Unfilled placeholders in {path.name}: {remaining}")
+        raise ValueError(t("Unfilled placeholders in {path.name}: {remaining}").format(path=path, remaining=remaining))
     return text
 
 
 def write_file(path: Path, content: str, force: bool) -> None:
     if path.exists() and not force:
         try:
-            answer = input(f"{path} already exists. Overwrite? [y/N] ").strip().lower()
+            prompt = t("{path} already exists. Overwrite? [y/N]").format(path=path)
+            answer = input(f"{prompt} ").strip().lower()
         except EOFError:
             answer = "n"
         if answer not in ("y", "yes"):
-            print(f"Skipped {path}")
+            print(t("Skipped {path}").format(path=path))
             return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-    print(f"Wrote {path}")
+    print(t("Wrote {path}").format(path=path))
 
 
 def remove_file(path: Path) -> None:
     if path.exists():
         path.unlink()
-        print(f"Removed {path}")
+        print(t("Removed {path}").format(path=path))
 
 
 def build_lint_paths(org_dir: str | None, provider: str) -> str:
@@ -184,6 +200,53 @@ def setup_project_check_cmd(repo_root: Path, org_dir: str | None) -> str:
     return f"python {script_path.relative_to(repo_root).as_posix()} --check"
 
 
+def resolve_image_digest(repo: str, tag: str) -> str:
+    """Digest of ``repo:tag`` on Docker Hub: the multi-arch index, or the manifest of a single-platform tag.
+
+    A manifest HEAD request does not count against Docker Hub pull limits.
+    """
+    token_request = urllib.request.Request(
+        f"https://auth.docker.io/token?service=registry.docker.io&scope=repository:{repo}:pull"
+    )
+    with urllib.request.urlopen(token_request, timeout=30) as response:  # noqa: S310 - fixed https URL
+        token = json.load(response)["token"]
+    request = urllib.request.Request(
+        f"https://registry-1.docker.io/v2/{repo}/manifests/{tag}",
+        method="HEAD",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": ", ".join(MANIFEST_MEDIA_TYPES),
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed https URL
+        digest = response.headers.get("Docker-Content-Digest")
+    if not digest:
+        raise ValueError("registry response has no Docker-Content-Digest header")
+    return digest
+
+
+def toolkit_image(toolkit_version: str) -> str:
+    """Toolkit image pinned to its digest, so a re-pushed tag cannot change what CI runs.
+
+    ``TOOLKIT_IMAGE_DIGEST`` skips the registry lookup, for generating without network access.
+    """
+    digest = os.environ.get("TOOLKIT_IMAGE_DIGEST")
+    if not digest:
+        try:
+            digest = resolve_image_digest(TOOLKIT_IMAGE_REPO, toolkit_version)
+        except (OSError, KeyError, ValueError) as exc:
+            print(
+                f"Could not resolve the digest of {TOOLKIT_IMAGE_REPO}:{toolkit_version}: {exc}\n"
+                "Check that the tag exists, or set TOOLKIT_IMAGE_DIGEST=sha256:<digest> to generate offline.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    if not DIGEST_PATTERN.fullmatch(digest):
+        print(f"Invalid digest for {TOOLKIT_IMAGE_REPO}:{toolkit_version}: {digest!r}", file=sys.stderr)
+        sys.exit(1)
+    return f"{TOOLKIT_IMAGE_REPO}:{toolkit_version}@{digest}"
+
+
 def build_args(toolkit_version: str, org_dir: str | None, env: str) -> str:
     if parse_version(toolkit_version) >= CONFIG_FLAG_MIN_VERSION:
         return config_arg(org_dir, env)
@@ -209,14 +272,16 @@ def load_environment_projects(repo_root: Path, org_dir: str | None) -> dict[str,
         project = environment.get("project")
         if name != env:
             raise ValueError(
-                f"{path.relative_to(repo_root)} has environment.name={name!r}; expected {env!r}."
+                t("{path} has environment.name={name!r}; expected {env!r}.").format(
+                    path=path.relative_to(repo_root), name=name, env=env
+                )
             )
         if not project:
-            raise ValueError(f"{path.relative_to(repo_root)} is missing environment.project.")
+            raise ValueError(t("{path} is missing environment.project.").format(path=path.relative_to(repo_root)))
         projects[env] = str(project)
     if not projects:
         raise FileNotFoundError(
-            "No config.<env>.yaml files found. Run setup_project.py before generating workflows."
+            t("No config.<env>.yaml files found. Run setup_project.py before generating workflows.")
         )
     return projects
 
@@ -231,7 +296,9 @@ def branch_envs(projects: dict[str, str]) -> dict[str, str]:
         branch = DEPLOY_BRANCHES[env]
         if branch in envs_by_branch:
             raise ValueError(
-                f"Both {envs_by_branch[branch]!r} and {env!r} map to branch {branch!r}."
+                t("Both {first!r} and {second!r} map to branch {branch!r}.").format(
+                    first=envs_by_branch[branch], second=env, branch=branch
+                )
             )
         envs_by_branch[branch] = env
     return envs_by_branch
@@ -256,7 +323,7 @@ def github_dry_run_build_script(toolkit_version: str, org_dir: str | None, proje
         env = next(iter(branches.values()))
         return f"cdf build {build_args(toolkit_version, org_dir, env)}"
     if len(branches) > 2:
-        raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
+        raise ValueError(t("Unsupported number of deployable branches: {n}").format(n=len(branches)))
     cases: list[str] = ['case "$GITHUB_BASE_REF" in']
     for branch, env in branches.items():
         cases.extend(
@@ -367,7 +434,7 @@ def ado_dry_run_jobs(toolkit_version: str, org_dir: str | None, setup_check_cmd:
     if not branches:
         return ""
     if len(branches) > 2:
-        raise ValueError(f"Unsupported number of deployable branches: {len(branches)}")
+        raise ValueError(t("Unsupported number of deployable branches: {n}").format(n=len(branches)))
 
     jobs: list[str] = []
     if "main" in branches:
@@ -557,9 +624,7 @@ def ado_trust_boundary_note(projects: dict[str, str]) -> str:
             " wrong commit, not against someone who can push one — it lives in the YAML the tag itself"
             " supplies."
         )
-    parts.append(
-        "Each `-toolkit-credentials` group only ever needs to be authorized for its one deploy pipeline."
-    )
+    parts.append("Each `-toolkit-credentials` group only ever needs to be authorized for its one deploy pipeline.")
     return "\n\n".join(parts)
 
 
@@ -775,9 +840,7 @@ def branching_rows(projects: dict[str, str], provider: str) -> str:
         )
     if "prod" in projects:
         prod_trigger = (
-            "GitHub Release (tag `vX.Y.Z` from `main`)"
-            if provider == "github"
-            else "Git tag `vX.Y.Z` pushed to `main`"
+            "GitHub Release (tag `vX.Y.Z` from `main`)" if provider == "github" else "Git tag `vX.Y.Z` pushed to `main`"
         )
         rows.append(f"| {prod_trigger} | `{projects['prod']}` | Deploy |")
     return "\n".join(rows or ["| *(none)* | *(none)* | No CI/CD workflows generated |"])
@@ -825,13 +888,11 @@ def branch_protection_note(projects: dict[str, str], provider: str) -> str:
         return (
             "PRs to `dev` only run `cdf build` CI (0 reviewers). The `Source branch guardrail` check does"
             " not run on `dev` — it only applies to PRs targeting `main`, where it enforces that changes"
-            " are promoted from `dev` or `hotfix/*`."
-            + regen_note
+            " are promoted from `dev` or `hotfix/*`." + regen_note
         )
     if branches == {"dev"}:
         return (
-            "PRs to `dev` only run the `toolkit-pr-validate` Build Validation policy"
-            " (no reviewer requirement enabled)."
+            "PRs to `dev` only run the `toolkit-pr-validate` Build Validation policy (no reviewer requirement enabled)."
         )
     if branches == {"main"}:
         return (
@@ -956,7 +1017,7 @@ def main() -> None:
     projects = load_environment_projects(repo_root, org_dir)
     workflows_dir = workflows_output_dir(args.provider, repo_root)
 
-    toolkit_version = cdf.get("modules", {}).get("version", "0.7.220")
+    toolkit_version = cdf.get("modules", {}).get("version", "0.9.15")
     resolve_modules_root(repo_root, org_dir)
 
     setup_check_cmd = setup_project_check_cmd(repo_root, org_dir)
@@ -976,6 +1037,7 @@ def main() -> None:
 
     if args.provider == "github":
         base_values["TRUST_BOUNDARY_NOTE"] = github_trust_boundary_note(projects)
+        base_values["TOOLKIT_IMAGE"] = toolkit_image(str(toolkit_version))
         base_values["DRY_RUN_BUILD_SCRIPT"] = indent(
             github_dry_run_build_script(str(toolkit_version), org_dir, projects), 10
         )
@@ -983,7 +1045,7 @@ def main() -> None:
         if deployable_envs(projects):
             template = templates / "dry-run.yml"
             if not template.is_file():
-                print(f"Missing template: {template}", file=sys.stderr)
+                print(t("Missing template: {template}").format(template=template), file=sys.stderr)
                 sys.exit(1)
             write_file(
                 workflows_dir / "dry-run.yml",
@@ -996,7 +1058,7 @@ def main() -> None:
         if "prod" in projects:
             deploy_prod_template = templates / "deploy-prod.yml"
             if not deploy_prod_template.is_file():
-                print(f"Missing template: {deploy_prod_template}", file=sys.stderr)
+                print(t("Missing template: {template}").format(template=deploy_prod_template), file=sys.stderr)
                 sys.exit(1)
             prod_values = {
                 **base_values,
@@ -1013,7 +1075,7 @@ def main() -> None:
 
         deploy_template = templates / "deploy.yml"
         if not deploy_template.is_file():
-            print(f"Missing template: {deploy_template}", file=sys.stderr)
+            print(t("Missing template: {template}").format(template=deploy_template), file=sys.stderr)
             sys.exit(1)
         for env in ("dev", "test"):
             if env not in projects:
@@ -1046,7 +1108,7 @@ def main() -> None:
         if deployable_envs(projects):
             dry_run_template = templates / "dry-run-pipeline.yml"
             if not dry_run_template.is_file():
-                print(f"Missing template: {dry_run_template}", file=sys.stderr)
+                print(t("Missing template: {template}").format(template=dry_run_template), file=sys.stderr)
                 sys.exit(1)
             write_file(
                 workflows_dir / "dry-run-pipeline.yml",
@@ -1058,7 +1120,7 @@ def main() -> None:
 
         deploy_pipeline_template = templates / "deploy-pipeline.yml"
         if not deploy_pipeline_template.is_file():
-            print(f"Missing template: {deploy_pipeline_template}", file=sys.stderr)
+            print(t("Missing template: {template}").format(template=deploy_pipeline_template), file=sys.stderr)
             sys.exit(1)
         for env in ENVIRONMENTS:
             out = workflows_dir / ADO_DEPLOY_PIPELINE_FILES[env]
@@ -1074,7 +1136,7 @@ def main() -> None:
 
     readme_template = templates / "FOUNDATION_CICD.md"
     if not readme_template.is_file():
-        print(f"Missing template: {readme_template}", file=sys.stderr)
+        print(t("Missing template: {template}").format(template=readme_template), file=sys.stderr)
         sys.exit(1)
     cicd_readme = repo_root / "docs" / "FOUNDATION_CICD.md"
     write_file(
@@ -1084,15 +1146,15 @@ def main() -> None:
     )
 
     print()
-    print("Next steps:")
+    print(t("Next steps:"))
     if args.provider == "github":
         environments = [f"{env}-toolkit-credentials" for env in ENVIRONMENTS if env in projects]
-        print(f"  1. Create GitHub Environments: {', '.join(environments)}")
-        print("     (see docs/FOUNDATION_CICD.md)")
-        print("  2. Create and protect the branches used by the generated workflows")
+        print(t("  1. Create GitHub Environments: {environments}").format(environments=", ".join(environments)))
+        print(t("     (see docs/FOUNDATION_CICD.md)"))
+        print(t("  2. Create and protect the branches used by the generated workflows"))
         if deployable_envs(projects):
             branches = ", ".join(branch_envs(projects))
-            print(f"  3. Open a PR to {branches} to validate dry-run.yml")
+            print(t("  3. Open a PR to {branches} to validate dry-run.yml").format(branches=branches))
     else:
         ado_groups: list[str] = []
         for env in ENVIRONMENTS:
@@ -1105,12 +1167,18 @@ def main() -> None:
             for env in ENVIRONMENTS
             if env in projects
         ]
-        print(f"  1. Create Azure DevOps variable groups: {', '.join(ado_groups)}")
-        print("     (see docs/FOUNDATION_CICD.md)")
-        print(f"  2. Register each deploy pipeline: {', '.join(pipeline_registrations)}")
+        print(t("  1. Create Azure DevOps variable groups: {ado_groups}").format(ado_groups=", ".join(ado_groups)))
+        print(t("     (see docs/FOUNDATION_CICD.md)"))
+        print(
+            t("  2. Register each deploy pipeline: {pipeline_registrations}").format(
+                pipeline_registrations=", ".join(pipeline_registrations)
+            )
+        )
         if deployable_envs(projects):
             branches = ", ".join(branch_envs(projects))
-            print(f"  3. Add dry-run-pipeline.yml as a Build Validation policy on {branches}")
+            print(
+                t("  3. Add dry-run-pipeline.yml as a Build Validation policy on {branches}").format(branches=branches)
+            )
 
 
 if __name__ == "__main__":

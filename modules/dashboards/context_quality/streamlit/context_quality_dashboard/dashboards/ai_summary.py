@@ -11,31 +11,26 @@ from cognite.client import CogniteClient
 
 def get_client() -> CogniteClient:
     """Get the Cognite client from session state or create a new one."""
-    if 'cognite_client' not in st.session_state:
-        st.session_state['cognite_client'] = CogniteClient()
-    return st.session_state['cognite_client']
+    if "cognite_client" not in st.session_state:
+        st.session_state["cognite_client"] = CogniteClient()
+    return st.session_state["cognite_client"]
 
 
-def generate_ai_summary(
-    dashboard_type: str,
-    metrics_data: dict,
-    system_prompt: str,
-    model: str = "gpt-4o-mini"
-) -> str:
+def generate_ai_summary(dashboard_type: str, metrics_data: dict, system_prompt: str, model: str = "gpt-4o-mini") -> str:
     """
     Generate an AI summary for a dashboard.
-    
+
     Args:
         dashboard_type: Type of dashboard (hierarchy, equipment, timeseries, maintenance)
         metrics_data: Dictionary containing the metrics to summarize
         system_prompt: System prompt with context about the metrics
         model: AI model to use (default: gpt-4o-mini)
-    
+
     Returns:
         Generated summary text
     """
     client = get_client()
-    
+
     # Build the user prompt with metrics data
     user_prompt = f"""Based on the following {dashboard_type} metrics data, provide a brief, actionable summary:
 
@@ -52,15 +47,12 @@ Keep the tone professional but conversational. Use specific numbers from the dat
         response = client.post(
             url=f"/api/v1/projects/{client.config.project}/ai/chat/completions",
             json={
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
+                "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
                 "model": model,
                 "maxTokens": 400,
-                "temperature": 0.7
+                "temperature": 0.7,
             },
-            headers={'cdf-version': 'alpha'}
+            headers={"cdf-version": "alpha"},
         )
         return response.json()["choices"][0]["message"]["content"]
     except Exception as e:
@@ -75,7 +67,7 @@ def render_ai_summary_section(
 ) -> None:
     """
     Render an AI summary section with a generate button.
-    
+
     Args:
         dashboard_type: Type of dashboard for display
         metrics_data: Dictionary containing the metrics to summarize
@@ -84,29 +76,27 @@ def render_ai_summary_section(
     """
     st.markdown("---")
     st.subheader("AI Insights")
-    
+
     summary_key = f"{key_prefix}_ai_summary"
     loading_key = f"{key_prefix}_loading"
-    
+
     _col1, col2 = st.columns([3, 1])
-    
+
     with col2:
         if st.button("Generate Insights", key=f"{key_prefix}_generate_btn"):
             st.session_state[loading_key] = True
             st.session_state[summary_key] = None
-    
+
     # Check if we need to generate
     if st.session_state.get(loading_key, False):
         with st.spinner("Analyzing metrics..."):
             summary = generate_ai_summary(
-                dashboard_type=dashboard_type,
-                metrics_data=metrics_data,
-                system_prompt=system_prompt
+                dashboard_type=dashboard_type, metrics_data=metrics_data, system_prompt=system_prompt
             )
             st.session_state[summary_key] = summary
             st.session_state[loading_key] = False
             st.rerun()
-    
+
     # Display the summary if available
     if st.session_state.get(summary_key):
         st.info(st.session_state[summary_key])
@@ -115,6 +105,7 @@ def render_ai_summary_section(
 # =============================================================================
 # DASHBOARD-SPECIFIC PROMPTS AND DATA FORMATTERS
 # =============================================================================
+
 
 def get_hierarchy_prompt() -> str:
     """System prompt for Asset Hierarchy dashboard."""
@@ -268,75 +259,75 @@ FOCUS ON: Work Order -> Notification linkage and Work Order -> Asset/Equipment c
 def format_hierarchy_metrics(hierarchy: dict) -> str:
     """Format hierarchy metrics for AI prompt."""
     return f"""Asset Hierarchy Metrics:
-- Total Assets: {hierarchy.get('hierarchy_total_assets', 0):,}
-- Root Assets: {hierarchy.get('hierarchy_root_count', 0):,}
-- Hierarchy Completion Rate: {hierarchy.get('hierarchy_completion_rate', 0):.1f}%
-- Orphan Rate: {hierarchy.get('hierarchy_orphan_rate', 0):.1f}%
-- Max Depth: {hierarchy.get('hierarchy_max_depth', 0)} levels
-- Average Depth: {hierarchy.get('hierarchy_avg_depth', 0):.1f} levels
-- Average Children per Parent: {hierarchy.get('hierarchy_avg_children', 0):.1f}
-- Assets with Parent Link: {hierarchy.get('hierarchy_with_parent', 0):,}
-- Assets Missing Parent: {hierarchy.get('hierarchy_missing_parent', 0):,}"""
+- Total Assets: {hierarchy.get("hierarchy_total_assets", 0):,}
+- Root Assets: {hierarchy.get("hierarchy_root_count", 0):,}
+- Hierarchy Completion Rate: {hierarchy.get("hierarchy_completion_rate", 0):.1f}%
+- Orphan Rate: {hierarchy.get("hierarchy_orphan_rate", 0):.1f}%
+- Max Depth: {hierarchy.get("hierarchy_max_depth", 0)} levels
+- Average Depth: {hierarchy.get("hierarchy_avg_depth", 0):.1f} levels
+- Average Children per Parent: {hierarchy.get("hierarchy_avg_children", 0):.1f}
+- Assets with Parent Link: {hierarchy.get("hierarchy_with_parent", 0):,}
+- Assets Missing Parent: {hierarchy.get("hierarchy_missing_parent", 0):,}"""
 
 
 def format_equipment_metrics(equipment: dict, hierarchy: dict) -> str:
     """Format equipment metrics for AI prompt."""
     return f"""Equipment-Asset Metrics:
-- Total Equipment: {equipment.get('eq_total', 0):,}
-- Equipment with Asset Link: {equipment.get('eq_linked', 0):,}
-- Equipment without Asset Link: {equipment.get('eq_unlinked', 0):,}
-- Equipment Association Rate: {equipment.get('eq_association_rate', 0):.1f}%
-- Assets with Equipment: {equipment.get('eq_assets_with_equipment', 0):,}
-- Total Assets: {hierarchy.get('hierarchy_total_assets', 0):,}
-- Asset Equipment Coverage: {equipment.get('eq_asset_coverage', 0):.1f}%
-- Serial Number Completeness: {equipment.get('eq_serial_rate', 0):.1f}%
-- Manufacturer Data Quality: {equipment.get('eq_manufacturer_rate', 0):.1f}%
-- Type Consistency: {equipment.get('eq_type_consistency', 0):.1f}%
-- Critical Equipment Linked: {equipment.get('eq_critical_rate', 'N/A')}%"""
+- Total Equipment: {equipment.get("eq_total", 0):,}
+- Equipment with Asset Link: {equipment.get("eq_linked", 0):,}
+- Equipment without Asset Link: {equipment.get("eq_unlinked", 0):,}
+- Equipment Association Rate: {equipment.get("eq_association_rate", 0):.1f}%
+- Assets with Equipment: {equipment.get("eq_assets_with_equipment", 0):,}
+- Total Assets: {hierarchy.get("hierarchy_total_assets", 0):,}
+- Asset Equipment Coverage: {equipment.get("eq_asset_coverage", 0):.1f}%
+- Serial Number Completeness: {equipment.get("eq_serial_rate", 0):.1f}%
+- Manufacturer Data Quality: {equipment.get("eq_manufacturer_rate", 0):.1f}%
+- Type Consistency: {equipment.get("eq_type_consistency", 0):.1f}%
+- Critical Equipment Linked: {equipment.get("eq_critical_rate", "N/A")}%"""
 
 
 def format_timeseries_metrics(ts_metrics: dict, hierarchy: dict) -> str:
     """Format time series metrics for AI prompt."""
     return f"""Time Series Contextualization Metrics:
-- Total Time Series: {ts_metrics.get('ts_total', 0):,}
-- TS with Asset Link: {ts_metrics.get('ts_with_asset_link', 0):,}
-- Orphaned TS (no asset): {ts_metrics.get('ts_without_asset_link', 0):,}
-- TS to Asset Rate: {ts_metrics.get('ts_to_asset_rate', 0):.1f}%
-- Assets with Time Series: {ts_metrics.get('ts_associated_assets', 0):,}
-- Total Assets: {hierarchy.get('hierarchy_total_assets', 0):,}
-- Asset Monitoring Coverage: {ts_metrics.get('ts_asset_monitoring_coverage', 0):.1f}%
-- Critical Asset Coverage: {ts_metrics.get('ts_critical_coverage', 'N/A')}%
-- Data Freshness (recent data): {ts_metrics.get('ts_data_freshness', 0):.1f}%
-- Historical Data Completeness: {ts_metrics.get('ts_gap_rate', 'N/A')}%
-- Unit Consistency: {ts_metrics.get('ts_unit_consistency', 0):.1f}%"""
+- Total Time Series: {ts_metrics.get("ts_total", 0):,}
+- TS with Asset Link: {ts_metrics.get("ts_with_asset_link", 0):,}
+- Orphaned TS (no asset): {ts_metrics.get("ts_without_asset_link", 0):,}
+- TS to Asset Rate: {ts_metrics.get("ts_to_asset_rate", 0):.1f}%
+- Assets with Time Series: {ts_metrics.get("ts_associated_assets", 0):,}
+- Total Assets: {hierarchy.get("hierarchy_total_assets", 0):,}
+- Asset Monitoring Coverage: {ts_metrics.get("ts_asset_monitoring_coverage", 0):.1f}%
+- Critical Asset Coverage: {ts_metrics.get("ts_critical_coverage", "N/A")}%
+- Data Freshness (recent data): {ts_metrics.get("ts_data_freshness", 0):.1f}%
+- Historical Data Completeness: {ts_metrics.get("ts_gap_rate", "N/A")}%
+- Unit Consistency: {ts_metrics.get("ts_unit_consistency", 0):.1f}%"""
 
 
 def format_maintenance_metrics(maintenance: dict) -> str:
     """Format maintenance workflow metrics for AI prompt."""
     return f"""Maintenance Workflow Metrics (RMDM v1):
-- Total Notifications: {maintenance.get('maint_total_notifications', 0):,}
-- Total Work Orders: {maintenance.get('maint_total_orders', 0):,}
-- Total Failure Notifications: {maintenance.get('maint_total_failure_notifications', 0):,}
+- Total Notifications: {maintenance.get("maint_total_notifications", 0):,}
+- Total Work Orders: {maintenance.get("maint_total_orders", 0):,}
+- Total Failure Notifications: {maintenance.get("maint_total_failure_notifications", 0):,}
 
 Notification Linkage:
-- Notification -> Work Order Rate: {maintenance.get('maint_notif_to_order_rate', 'N/A')}% (INFORMATIONAL - low values OK)
-- Notification -> Asset Rate: {maintenance.get('maint_notif_to_asset_rate', 'N/A')}%
-- Notification -> Equipment Rate: {maintenance.get('maint_notif_to_equipment_rate', 'N/A')}%
+- Notification -> Work Order Rate: {maintenance.get("maint_notif_to_order_rate", "N/A")}% (INFORMATIONAL - low values OK)
+- Notification -> Asset Rate: {maintenance.get("maint_notif_to_asset_rate", "N/A")}%
+- Notification -> Equipment Rate: {maintenance.get("maint_notif_to_equipment_rate", "N/A")}%
 
 Work Order Quality:
-- Work Order -> Notification Rate: {maintenance.get('maint_order_to_notif_rate', 'N/A')}% (CRITICAL - should be ~100%)
-- Work Order -> Asset Rate: {maintenance.get('maint_order_to_asset_rate', 'N/A')}%
-- Work Order -> Equipment Rate: {maintenance.get('maint_order_to_equipment_rate', 'N/A')}%
-- Work Order Completion Rate: {maintenance.get('maint_order_completion_rate', 'N/A')}%
+- Work Order -> Notification Rate: {maintenance.get("maint_order_to_notif_rate", "N/A")}% (CRITICAL - should be ~100%)
+- Work Order -> Asset Rate: {maintenance.get("maint_order_to_asset_rate", "N/A")}%
+- Work Order -> Equipment Rate: {maintenance.get("maint_order_to_equipment_rate", "N/A")}%
+- Work Order Completion Rate: {maintenance.get("maint_order_completion_rate", "N/A")}%
 
 Failure Documentation:
-- Failure Mode Documentation: {maintenance.get('maint_failure_mode_rate', 'N/A')}%
-- Failure Mechanism Documentation: {maintenance.get('maint_failure_mechanism_rate', 'N/A')}%
-- Failure Cause Documentation: {maintenance.get('maint_failure_cause_rate', 'N/A')}%
+- Failure Mode Documentation: {maintenance.get("maint_failure_mode_rate", "N/A")}%
+- Failure Mechanism Documentation: {maintenance.get("maint_failure_mechanism_rate", "N/A")}%
+- Failure Cause Documentation: {maintenance.get("maint_failure_cause_rate", "N/A")}%
 
 Maintenance Coverage:
-- Asset Maintenance Coverage: {maintenance.get('maint_asset_coverage_rate', 'N/A')}% (INFORMATIONAL - low values OK)
-- Equipment Maintenance Coverage: {maintenance.get('maint_equipment_coverage_rate', 'N/A')}% (INFORMATIONAL - low values OK)"""
+- Asset Maintenance Coverage: {maintenance.get("maint_asset_coverage_rate", "N/A")}% (INFORMATIONAL - low values OK)
+- Equipment Maintenance Coverage: {maintenance.get("maint_equipment_coverage_rate", "N/A")}% (INFORMATIONAL - low values OK)"""
 
 
 def get_file_annotation_prompt() -> str:
@@ -383,50 +374,51 @@ def format_file_annotation_metrics(annot: dict, files_in_scope: int = 0, expecte
     # Calculate rates if reference numbers provided
     file_rate = "N/A (user did not provide reference)"
     if files_in_scope > 0:
-        rate = round(annot.get('annot_unique_files_with_annotations', 0) / files_in_scope * 100, 1)
+        rate = round(annot.get("annot_unique_files_with_annotations", 0) / files_in_scope * 100, 1)
         file_rate = f"{rate}%"
-    
+
     tag_rate = "N/A (user did not provide reference)"
     if expected_tags > 0:
-        rate = round(annot.get('annot_asset_tags', 0) / expected_tags * 100, 1)
+        rate = round(annot.get("annot_asset_tags", 0) / expected_tags * 100, 1)
         tag_rate = f"{rate}%"
-    
+
     return f"""File Annotation Metrics (CDM CogniteDiagramAnnotation):
 
 Core Counts:
-- Total Annotations: {annot.get('annot_total', 0):,}
-- Files with Annotations: {annot.get('annot_unique_files_with_annotations', 0):,}
-- Unique Assets Linked: {annot.get('annot_unique_assets_linked', 0):,}
-- Unique Files Cross-Linked: {annot.get('annot_unique_files_linked', 0):,}
+- Total Annotations: {annot.get("annot_total", 0):,}
+- Files with Annotations: {annot.get("annot_unique_files_with_annotations", 0):,}
+- Unique Assets Linked: {annot.get("annot_unique_assets_linked", 0):,}
+- Unique Files Cross-Linked: {annot.get("annot_unique_files_linked", 0):,}
 
 User-Provided Reference Numbers:
-- Files in Scope: {files_in_scope if files_in_scope > 0 else 'Not provided'}
-- Expected Asset Tags: {expected_tags if expected_tags > 0 else 'Not provided'}
+- Files in Scope: {files_in_scope if files_in_scope > 0 else "Not provided"}
+- Expected Asset Tags: {expected_tags if expected_tags > 0 else "Not provided"}
 
 Calculated Rates (based on user input):
 - File Processing Rate: {file_rate}
 - Asset Tag Detection Rate: {tag_rate}
 
 Confidence Distribution:
-- Average Confidence: {annot.get('annot_avg_confidence', 'N/A')}%
-- High Confidence (>=90%): {annot.get('annot_confidence_high', 0):,} ({annot.get('annot_confidence_high_pct', 0):.1f}%)
-- Medium Confidence (50-90%): {annot.get('annot_confidence_medium', 0):,} ({annot.get('annot_confidence_medium_pct', 0):.1f}%)
-- Low Confidence (<50%): {annot.get('annot_confidence_low', 0):,} ({annot.get('annot_confidence_low_pct', 0):.1f}%)
+- Average Confidence: {annot.get("annot_avg_confidence", "N/A")}%
+- High Confidence (>=90%): {annot.get("annot_confidence_high", 0):,} ({annot.get("annot_confidence_high_pct", 0):.1f}%)
+- Medium Confidence (50-90%): {annot.get("annot_confidence_medium", 0):,} ({annot.get("annot_confidence_medium_pct", 0):.1f}%)
+- Low Confidence (<50%): {annot.get("annot_confidence_low", 0):,} ({annot.get("annot_confidence_low_pct", 0):.1f}%)
 
 Review Status:
-- Approved: {annot.get('annot_approved', 0):,} ({annot.get('annot_approved_pct', 0):.1f}%)
-- Suggested (pending review): {annot.get('annot_suggested', 0):,} ({annot.get('annot_suggested_pct', 0):.1f}%)
-- Rejected: {annot.get('annot_rejected', 0):,} ({annot.get('annot_rejected_pct', 0):.1f}%)
+- Approved: {annot.get("annot_approved", 0):,} ({annot.get("annot_approved_pct", 0):.1f}%)
+- Suggested (pending review): {annot.get("annot_suggested", 0):,} ({annot.get("annot_suggested_pct", 0):.1f}%)
+- Rejected: {annot.get("annot_rejected", 0):,} ({annot.get("annot_rejected_pct", 0):.1f}%)
 
 Annotation Types:
-- Asset Tag Annotations: {annot.get('annot_asset_tags', 0):,}
-- File Link Annotations: {annot.get('annot_file_links', 0):,}
-- Other Annotations: {annot.get('annot_other', 0):,}"""
+- Asset Tag Annotations: {annot.get("annot_asset_tags", 0):,}
+- File Link Annotations: {annot.get("annot_file_links", 0):,}
+- Other Annotations: {annot.get("annot_other", 0):,}"""
 
 
 # =====================================================
 # 3D MODEL CONTEXTUALIZATION
 # =====================================================
+
 
 def get_3d_model_prompt() -> str:
     """Get the system prompt for 3D model contextualization analysis."""
@@ -458,35 +450,35 @@ Be specific with numbers and provide actionable recommendations."""
 
 def format_3d_model_metrics(model3d: dict) -> str:
     """Format 3D model metrics for AI prompt."""
-    total_objects = model3d.get('model3d_total_objects', 0)
-    objects_with_asset = model3d.get('model3d_objects_with_asset', 0)
+    total_objects = model3d.get("model3d_total_objects", 0)
+    objects_with_asset = model3d.get("model3d_objects_with_asset", 0)
     unlinked = total_objects - objects_with_asset
-    
+
     return f"""3D Model Contextualization Metrics:
 
 KEY METRIC (3D -> Asset):
 - Total 3D Objects: {total_objects:,}
 - 3D Objects Linked to Assets: {objects_with_asset:,}
 - Unlinked (Orphaned) 3D Objects: {unlinked:,}
-- 3D Contextualization Rate: {model3d.get('model3d_contextualization_rate', 0)}%
+- 3D Contextualization Rate: {model3d.get("model3d_contextualization_rate", 0)}%
 
 Asset Coverage (Asset -> 3D):
-- Total Assets Checked: {model3d.get('model3d_total_assets', 0):,}
-- Assets with 3D Representation: {model3d.get('model3d_assets_with_3d', 0):,}
-- Asset 3D Coverage Rate: {model3d.get('model3d_asset_coverage', 0)}%
+- Total Assets Checked: {model3d.get("model3d_total_assets", 0):,}
+- Assets with 3D Representation: {model3d.get("model3d_assets_with_3d", 0):,}
+- Asset 3D Coverage Rate: {model3d.get("model3d_asset_coverage", 0)}%
 
 Critical Asset 3D:
-- Total Critical Assets: {model3d.get('model3d_critical_total', 0):,}
-- Critical Assets with 3D: {model3d.get('model3d_critical_with_3d', 0):,}
-- Critical Asset 3D Rate: {model3d.get('model3d_critical_asset_rate', 0)}%
+- Total Critical Assets: {model3d.get("model3d_critical_total", 0):,}
+- Critical Assets with 3D: {model3d.get("model3d_critical_with_3d", 0):,}
+- Critical Asset 3D Rate: {model3d.get("model3d_critical_asset_rate", 0)}%
 
 Bounding Box Quality:
-- Complete Bounding Box: {model3d.get('model3d_bbox_complete_count', 0):,} ({model3d.get('model3d_bbox_completeness', 0)}%)
-- Partial Bounding Box: {model3d.get('model3d_bbox_partial_count', 0):,}
-- Missing Bounding Box: {model3d.get('model3d_bbox_none_count', 0):,}
+- Complete Bounding Box: {model3d.get("model3d_bbox_complete_count", 0):,} ({model3d.get("model3d_bbox_completeness", 0)}%)
+- Partial Bounding Box: {model3d.get("model3d_bbox_partial_count", 0):,}
+- Missing Bounding Box: {model3d.get("model3d_bbox_none_count", 0):,}
 
 Model Type Distribution:
-- CAD Models: {model3d.get('model3d_cad_count', 0):,}
-- 360 Images: {model3d.get('model3d_360_count', 0):,}
-- Point Clouds: {model3d.get('model3d_pointcloud_count', 0):,}
-- Multi-Model Objects: {model3d.get('model3d_multi_model_count', 0):,}"""
+- CAD Models: {model3d.get("model3d_cad_count", 0):,}
+- 360 Images: {model3d.get("model3d_360_count", 0):,}
+- Point Clouds: {model3d.get("model3d_pointcloud_count", 0):,}
+- Multi-Model Objects: {model3d.get("model3d_multi_model_count", 0):,}"""

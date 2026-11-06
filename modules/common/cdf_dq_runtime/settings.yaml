@@ -1,0 +1,70 @@
+# Runtime settings for deploy_validation_infrastructure() (scripts/deploy_infrastructure.py).
+#
+# Not deployed by Toolkit. The deploy script substitutes the placeholders below with values
+# from default.config.yaml / config.<env>.yaml, then passes this file to cognite-data-quality.
+# Customer identifiers belong in default.config.yaml; the literal values below are runtime
+# behaviour defaults that rarely need changing.
+
+# Instance validation workflows (one per data product view, triggered by instance changes).
+workflow:
+  # Prefix for workflow external IDs: <prefix>-<data product external ID>[-uniqueness|-edge-existence].
+  external_id_prefix: dq-shacl
+  # Workflow version written to CDF. Bump to force new workflow versions.
+  version: "1"
+  task:
+    # Retries of the validation function task before the run fails.
+    retries: 3
+    # Function task timeout in seconds.
+    timeout: 600
+    # abortWorkflow stops the run on task failure; skipTask continues with remaining tasks.
+    on_failure: abortWorkflow
+
+# Time series datapoint validation workflows (one per file in timeseries_config/, cron scheduled).
+timeseries_workflow:
+  # Prefix for time series workflow external IDs: <prefix>-<timeseries config name>.
+  external_id_prefix: dq-ts-shacl
+  version: "1"
+  task:
+    retries: 3
+    # Datapoint checks call the SDK/INDSL per series, so allow a longer timeout (seconds).
+    timeout: 1800
+    on_failure: abortWorkflow
+
+# DMS data-change triggers that start the instance validation workflows.
+trigger:
+  # Prefix for trigger external IDs: <prefix>-<data product external ID>.
+  external_id_prefix: dq-shacl-trigger
+  # Number of changed instances collected before a workflow run is started.
+  batch_size: 10
+  # Seconds to wait for batch_size changes before starting a run with fewer instances.
+  batch_timeout: 60
+
+# Where validation results (DataQualityValidationRecord / RuleEngineResult) are written.
+records:
+  # Space of the record containers and views (created by the deploy script).
+  space: {{ dataQualitySpace }}
+  # Records stream ID. Created by deploy_infrastructure.py if missing (BasicArchive).
+  stream_id: {{ recordsStreamId }}
+
+# Space for DataQualitySettings, sync cursors, orchestration state and HistoricJobQueue.
+config_space: {{ dataQualitySpace }}
+
+# Data set for the uploaded CDF Function code file.
+function_code_dataset_external_id: {{ functionCodeDatasetExternalId }}
+
+# Source of view/rule configuration. "dataproduct" reads views, instance spaces and rule sets
+# from the data products in external_dataproducts (published by Toolkit).
+config_source: dataproduct
+# Cron (UTC) for the data_product_sync workflow, which redeploys workflows and enqueues
+# historic revalidation when a data product or rule set version changes.
+data_product_sync_cron: "13 * * * *"
+
+timeseries:
+  # Folder (relative to this file) with time series validation configs.
+  config_dir: timeseries_config
+
+# Data products published by Toolkit (data_products/). Listed here so the deploy script wires
+# workflows for them without republishing.
+external_dataproducts:
+  - external_id: {{ dataProductExternalId }}
+    version: "{{ dataProductVersion }}"

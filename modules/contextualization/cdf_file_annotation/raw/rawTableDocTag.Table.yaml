@@ -1,2 +1,2 @@
-dbName: {{ rawDb }}
-tableName: {{ rawTableDocTag }}
+dbName: raw_file_annotation
+tableName: annotation_documents_tags

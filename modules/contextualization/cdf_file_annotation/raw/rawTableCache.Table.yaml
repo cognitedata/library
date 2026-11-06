@@ -1,2 +1,2 @@
-dbName: {{ rawDb }}
-tableName: {{ rawTableCache }}
+dbName: raw_file_annotation
+tableName: annotation_entities_cache

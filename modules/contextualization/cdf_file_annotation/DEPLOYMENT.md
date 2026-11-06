@@ -23,7 +23,7 @@ The module ships helper transformations under `transformations/` that merge tags
 | `tr_tag_files_detect_in_diagrams` | `DetectInDiagrams` | File view (`fileExternalId`) |
 | `tr_tag_files_to_annotate` | `ToAnnotate` | File view (`fileExternalId`) |
 
-Configure `targetEntityInstanceSpace`, `fileInstanceSpace`, view external IDs, and versions in `default.config.yaml`, then run:
+Configure `targetEntityInstanceSpace`, `fileInstanceSpace`, view external IDs, and versions in `default.config.yaml`. An empty instance space tags instances in every space, and each instance is written back to its own space. Then run:
 
 ```bash
 cdf transformations run tr_tag_assets_detect_in_diagrams
@@ -33,7 +33,10 @@ cdf transformations run tr_tag_files_to_annotate
 
 You still need a separate transformation (or upstream pipeline) to populate `aliases`.
 
-**Re-annotation:** Helper tag transformations only add tags. Files that already carry `Annotated`, `AnnotationInProcess`, or `AnnotationFailed` are excluded by `getFilesToAnnotateQuery` and will not re-enter the workflow if you only re-run `tr_tag_files_to_annotate`. Use `prepareFunction.getFilesForAnnotationResetQuery` in `extraction_pipelines/ep_file_annotation.config.yaml` (commented template at lines 34–43) to strip those status tags for files you want to process again; see `detailed_guides/CONFIG_PATTERNS.md` Recipe 2.
+**Re-annotation:** Helper tag transformations only add tags. Prepare defaults to
+`ToAnnotate` and excludes `AnnotationInProcess`, `Annotated`, and `AnnotationFailed`.
+Add `Annotated` (and/or `AnnotationFailed`) to `filesToAnnotateTags` in
+`default.config.yaml` to reprocess those files.
 
 #### Aliases Property
 
@@ -142,39 +145,47 @@ variables:
         # used in /data_models and /extraction_pipelines
         annotationStateExternalId: FileAnnotationState
         annotationStateInstanceSpace: sp_dat_cdf_annotation_states
-        annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
+        annotationStateSchemaSpace: dm_sol_file_annotation
         annotationStateVersion: v1.0.1
         fileSchemaSpace: sp_enterprise_process_industry
         fileExternalId: txFile
         fileVersion: v1
-
-        # used in /raw and /extraction_pipelines
-        rawDb: db_file_annotation
-        rawTableDocTag: annotation_documents_tags
-        rawTableDocDoc: annotation_documents_docs
-        rawTableCache: annotation_entities_cache
+        fileSearchProperty: aliases
+        fileResourceProperty: ""
 
         # used in /extraction_pipelines
         extractionPipelineExternalId: ep_file_annotation
+        patternMode: true
+        cleanOldAnnotations: true
+        assetAutoApprovalThreshold: 1.0
+        assetAutoSuggestThreshold: 1.0
+        fileAutoApprovalThreshold: 1.0
+        fileAutoSuggestThreshold: 1.0
+        primaryScopeProperty: ""
+        secondaryScopeProperty: ""
+        entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
+        fileNormalizationPatterns: []
         targetEntitySchemaSpace: sp_enterprise_process_industry
         targetEntityExternalId: txEquipment
         targetEntityVersion: v1
+        targetEntitySearchProperty: aliases
+        targetEntityResourceProperty: ""
 
         # used in /functions and /workflows
-        launchFunctionExternalId: fn_file_annotation_launch #NOTE: if this is changed, then the folder holding the launch function must be named the same as the new external ID
-        launchFunctionVersion: v1.0.0
-        finalizeFunctionExternalId: fn_file_annotation_finalize #NOTE: if this is changed, then the folder holding the finalize function must be named the same as the new external ID
-        finalizeFunctionVersion: v1.0.0
+        functionExternalId: fn_file_annotation
+        functionVersion: v1.0.0
         functionClientId: ${IDP_CLIENT_ID}
         functionClientSecret: ${IDP_CLIENT_SECRET}
 
         # used in /workflows
-        workflowSchedule: "*/10 * * * *"
         workflowExternalId: wf_file_annotation
-        workflowVersion: v1
+        # 00:00 on 29 February, so the workflow only runs on its own in leap years.
+        # Paste a daily cron when annotation should start unattended, for example "0 0 * * *".
+        workflowSchedule: "0 0 29 2 *"
 
         # used in /auth
         groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
+        environment: dev # group name: producer_pp_file_annotation_<environment>
 
 
     # ...
@@ -186,7 +197,13 @@ variables:
 
 ### Step 4: Run the Workflow
 
-After deployment, the annotation process is managed by a workflow that orchestrates the `Launch` and `Finalize` functions. The workflow is automatically triggered based on the schedule defined in the configuration. You can monitor the progress and logs of the functions in the CDF UI.
+After deployment, the annotation process is managed by a workflow that orchestrates prepare, launch, finalize, and promote. The shipped `workflowSchedule` is `0 0 29 2 *` (00:00 on 29 February). That cron only fires in leap years, so copied defaults practically never start annotation on their own. The workflow allows one run at a time (`maxConcurrentExecutions: 1`); a run started while another is active waits in a queue, so pick a schedule interval longer than a typical run. Start it from the CDF UI, or replace the schedule with a real cron when you want it to run unattended, for example a daily run at midnight:
+
+```yaml
+workflowSchedule: "0 0 * * *"
+```
+
+You can monitor the progress and logs of the functions in the CDF UI.
 
 **Optional preparatory steps:**
 

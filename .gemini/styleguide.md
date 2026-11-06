@@ -18,7 +18,7 @@ modules under `modules/` and the Python tooling at the repo root.
 - **Strong typing** (Python): Use type hints extensively. Avoid `Any` when
   possible. Prefer dataclasses or Pydantic models over untyped dictionaries.
 - **Consistency**: Follow established patterns across the codebase and the
-  Toolkit module conventions documented in `ADDING_PACKAGES_AND_MODULES.md`.
+  Toolkit module conventions documented in `CONTRIBUTING.md`.
 
 ## Principles on doing pull request reviews
 

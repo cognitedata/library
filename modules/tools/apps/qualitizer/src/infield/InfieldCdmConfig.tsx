@@ -22,7 +22,6 @@ import {
   getDataStorageReference,
   getLocationDescription,
   getLocationConfigNodeKey,
-  getLocationName,
   getMappingProbeMetrics,
   getViewMappingsForLocation,
   isDefaultViewMapping,

@@ -1,27 +1,56 @@
 """Terminal styling helpers for the setup wizard."""
 
-
 import sys
+import unicodedata
 
 _USE_COLOR = sys.stdout.isatty()
+
+
+def _display_width(text: str) -> int:
+    """Terminal display width of *text*.
+
+    East Asian Wide, Fullwidth, and Ambiguous characters (most Japanese kana/kanji,
+    full-width punctuation, and symbols like the em-dash used throughout the
+    catalogue) render as 2 terminal columns in CJK-configured terminals; everything
+    else is 1. ``len()`` counts one column per character regardless of script, so it
+    undercounts Japanese text and breaks fixed-width layout (box borders, padded
+    menus) once the string contains CJK characters. Ambiguous-width characters are
+    genuinely terminal-dependent (narrow in some configurations, wide in others) —
+    counting them as wide errs toward overflow-safe rather than under-counting.
+
+    Normalizes to NFC first: on macOS, kana with dakuten/handakuten (e.g. ``が``)
+    can arrive NFD-decomposed into a base character plus a combining mark (``か``
+    + ``゙``) — both of which independently report a wide east_asian_width,
+    which would double-count a single rendered column pair as two.
+    """
+    normalized = unicodedata.normalize("NFC", text)
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F", "A") else 1 for ch in normalized)
 
 
 class _C:
     """ANSI escape codes — empty strings when stdout is not a TTY."""
 
-    BOLD:   str = "\033[1m"  if _USE_COLOR else ""
-    DIM:    str = "\033[2m"  if _USE_COLOR else ""
-    GREEN:  str = "\033[32m" if _USE_COLOR else ""
+    BOLD: str = "\033[1m" if _USE_COLOR else ""
+    DIM: str = "\033[2m" if _USE_COLOR else ""
+    GREEN: str = "\033[32m" if _USE_COLOR else ""
     YELLOW: str = "\033[33m" if _USE_COLOR else ""
-    CYAN:   str = "\033[36m" if _USE_COLOR else ""
-    RED:    str = "\033[31m" if _USE_COLOR else ""
-    RESET:  str = "\033[0m"  if _USE_COLOR else ""
+    CYAN: str = "\033[36m" if _USE_COLOR else ""
+    RED: str = "\033[31m" if _USE_COLOR else ""
+    RESET: str = "\033[0m" if _USE_COLOR else ""
 
 
 # ── Print helpers ──────────────────────────────────────────────────────────────
 
+
 def _banner(title: str) -> None:
-    line = "─" * 56
+    # The box is at least 56 columns wide (the original fixed width, kept for
+    # short titles) and grows to fit longer titles — including Japanese ones,
+    # where _display_width() counts wide characters as 2 columns, not 1.
+    # Uses "=" rather than "─" (U+2500): the box-drawing character has an
+    # East Asian Width of Ambiguous, so CJK-configured terminals may render it
+    # as 2 columns, silently doubling the actual line width vs. what we computed.
+    width = max(56, _display_width(title) + 2)
+    line = "=" * width
     print(f"\n{_C.BOLD}{line}{_C.RESET}")
     print(f"{_C.BOLD}  {title}{_C.RESET}")
     print(f"{_C.BOLD}{line}{_C.RESET}")

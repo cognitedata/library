@@ -1,4 +1,3 @@
-
 import re
 from typing import Any, Literal
 
@@ -12,9 +11,15 @@ from pydantic.alias_generators import to_camel
 from constants import DEFAULT_ALIAS_PATTERN  # isort: skip
 
 
+class FunctionInput(BaseModel):
+    """Validated function input; the handler checks it before any CDF call."""
+
+    extraction_pipeline_ext_id: str = Field(alias="ExtractionPipelineExtId", min_length=1)
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(alias="logLevel", default="INFO")
+
+
 # Configuration classes
 class Parameters(BaseModel, alias_generator=to_camel):
-    debug: bool
     run_all: bool
     raw_db: str
     raw_table_state: str
@@ -31,7 +36,7 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     version: str
     # Configured as "aliasPattern", one regular expression or a list of them, normalised
     # to a list here. Each pattern finds the tag inside a name; the alias it yields is
-    # that pattern's capture groups joined by "_", so the groups decide the alias rather
+    # that pattern's capture groups joined by "-", so the groups decide the alias rather
     # than the whole match.
     alias_patterns: list[str] = Field(
         alias="aliasPattern",
@@ -41,6 +46,22 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     # What to keep when several patterns match one name: every alias they yield, or only
     # the longest - the most specific reading of the name.
     alias_selection: Literal["all", "longest"] = "all"
+    # Only instances whose filterProperty holds one of filterValues are read. Either one
+    # left empty reads every instance of the view.
+    filter_property: str | None = None
+    filter_values: list[str] | None = None
+
+    @field_validator("filter_property", mode="before")
+    @classmethod
+    def blank_property_is_unset(cls, value: object) -> object:
+        return value.strip() or None if isinstance(value, str) else value
+
+    @field_validator("filter_values", mode="before")
+    @classmethod
+    def normalise_filter_values(cls, value: object) -> object:
+        if isinstance(value, str):
+            value = [value] if value.strip() else []
+        return value or None
 
     @field_validator("instance_spaces", mode="before")
     @classmethod
@@ -63,7 +84,7 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
             if not compiled.groups:
                 raise ValueError(
                     f"aliasPattern {pattern!r} must have at least one capture group - "
-                    "the alias is the groups joined by '_'"
+                    "the alias is the groups joined by '-'"
                 )
         return value
 
@@ -75,14 +96,16 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
 
 
 class JobConfig(BaseModel, alias_generator=to_camel):
-    timeseries_view: ViewPropertyConfig
-    asset_view: ViewPropertyConfig
-    # Optional so a configuration written before file support existed still loads; file
-    # metadata is then skipped rather than failing the run.
+    # Each view is optional: only the configured ones are processed, and a view left out is
+    # skipped rather than failing the run.
+    timeseries_view: ViewPropertyConfig | None = None
+    asset_view: ViewPropertyConfig | None = None
     file_view: ViewPropertyConfig | None = None
+
 
 class ConfigData(BaseModel, alias_generator=to_camel):
     job: JobConfig
+
 
 class Config(BaseModel, alias_generator=to_camel):
     parameters: Parameters
@@ -99,6 +122,8 @@ def _format_view_block(label: str, view: ViewPropertyConfig | None) -> list[str]
         f"      instanceSpace: {view.instance_spaces}",
         f"      aliasPattern: {pattern_display}",
         f"      aliasSelection: {view.alias_selection}",
+        f"      filterProperty: {view.filter_property}",
+        f"      filterValues: {view.filter_values}",
     ]
 
 
@@ -108,7 +133,6 @@ def format_config_for_log(config: Config) -> str:
     lines = [
         "Loaded extraction pipeline configuration:",
         "  parameters:",
-        f"    debug: {params.debug}",
         f"    runAll: {params.run_all}",
         f"    updateAll: {params.update_all}",
         f"    removeOldAliases: {params.remove_old_aliases}",

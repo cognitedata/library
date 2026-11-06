@@ -1,0 +1,5 @@
+externalId: {{ dataProductExternalId }}
+name: Data Quality Validation
+description: Views, instance spaces and SHACL rule sets validated by the data quality runtime.
+schemaSpace: {{ dataProductSchemaSpace }}
+isGoverned: false

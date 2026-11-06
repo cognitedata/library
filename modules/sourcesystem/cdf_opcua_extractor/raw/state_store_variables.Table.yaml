@@ -1,0 +1,2 @@
+dbName: "raw_timeseries_{{location}}_{{sourceSystem}}"
+tableName: state_store_variables

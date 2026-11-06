@@ -12,8 +12,6 @@ class PipelineHealthUI:
     def render(self):
         if "selected_pipeline" not in st.session_state:
             st.session_state.selected_pipeline = None
-        if "selected_status_file_index" not in st.session_state:
-            st.session_state.selected_status_file_index = None
         if "page_num" not in st.session_state:
             st.session_state.page_num = 0
 
@@ -30,18 +28,14 @@ class PipelineHealthUI:
 
         placeholder = "-- Select a Pipeline --"
         options = [placeholder, *pipeline_ids]
-        selected_pipeline = st.selectbox("Select a pipeline:", options=options, index=0, key="ph_pipeline")
+        selected_pipeline = st.selectbox(
+            "Select File Annotation Extractor pipeline:", options=options, index=0, key="ph_pipeline"
+        )
 
         if not selected_pipeline or selected_pipeline == placeholder:
             st.session_state.selected_pipeline = None
             st.info("Please select a pipeline from the dropdown above to load its data.")
             return
-
-        last = st.session_state.get("last_loaded_pipeline")
-
-        if last != selected_pipeline:
-            st.session_state["last_loaded_pipeline"] = selected_pipeline
-            st.session_state["selected_status_file_index"] = None
 
         with st.spinner(f"Loading pipeline configuration for '{selected_pipeline}'..."):
             pipeline_config = DataFetcher.load_pipeline_config(self.client, selected_pipeline)
@@ -51,6 +45,13 @@ class PipelineHealthUI:
             return
 
         extraction_pipeline_cfg = ExtractionPipelineConfig.from_dict(pipeline_config)
+
+        if extraction_pipeline_cfg.annotation_state_view_cfg is None:
+            st.error(
+                f"Pipeline '{selected_pipeline}' config has no annotation state view. "
+                "Expected views under `data.annotationStateView` (or legacy `dataModelViews`)."
+            )
+            return
 
         with st.spinner(f"Fetching annotation states from view '{selected_pipeline}'..."):
             df_annotation_states = DataFetcher.fetch_annotation_states(self.client, extraction_pipeline_cfg)

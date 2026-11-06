@@ -74,7 +74,6 @@ def create_cfihos_view(
         prop.clean_name: MappedPropertyApply(
             container=ContainerId(space=space, external_id=class_.clean_name),
             container_property_identifier=prop.clean_id,  # or prop.clean_name
-            # name=prop.id_,    # or prop.name
             description=prop.description,
         )
         for prop in class_.sorted_properties  # can be edited based on presence
@@ -88,7 +87,6 @@ def create_cfihos_view(
         external_id=class_.clean_name,
         version=version,
         properties=properties,
-        # name=class_.id_,
         description=class_.description,
         implements=implements,
         filter=filter_,

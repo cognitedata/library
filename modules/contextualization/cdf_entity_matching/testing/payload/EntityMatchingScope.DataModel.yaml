@@ -1,0 +1,16 @@
+space: "{{ scopeSchemaSpace }}"
+externalId: "{{ scopeDataModelExternalId }}"
+name: Entity matching scope SOL
+description: >
+  Test-only solution data model that extends CogniteAsset and CogniteTimeSeries with site and
+  unit properties so scoped entity matching can be exercised in the CDF UI.
+version: "{{ scopeDmVersion }}"
+views:
+  - space: "{{ scopeSchemaSpace }}"
+    externalId: Asset
+    version: "{{ scopeDmVersion }}"
+    type: view
+  - space: "{{ scopeSchemaSpace }}"
+    externalId: ScopedTimeSeries
+    version: "{{ scopeDmVersion }}"
+    type: view

@@ -72,7 +72,7 @@ uv lock
 python scripts/export_deploy_requirements.py
 ```
 
-5. Register the module in [`modules/packages.toml`](../modules/packages.toml) if it is new deployable content (see [ADDING_PACKAGES_AND_MODULES.md](../ADDING_PACKAGES_AND_MODULES.md)).
+5. Register the module in [`modules/packages.toml`](../modules/packages.toml) if it is new deployable content (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
 6. Run checks:
 
 ```bash
@@ -95,4 +95,4 @@ Commit generated `pyproject.toml`, `requirements.txt`, `scripts/uv_workspace_mem
 
 - [AGENTS.md](../AGENTS.md) — agent/contributor guide, local checks, uv workflow
 - [modules/README.md](../modules/README.md) — module layout and validation
-- [ADDING_PACKAGES_AND_MODULES.md](../ADDING_PACKAGES_AND_MODULES.md) — registering modules and packs
+- [CONTRIBUTING.md](../CONTRIBUTING.md) — registering modules and packs

@@ -1,0 +1,47 @@
+space: "{{ scopeSchemaSpace }}"
+externalId: ScopedTimeSeries
+name: Scoped time series
+description: >
+  CogniteTimeSeries extended with test-only site and unit properties for scoped entity matching.
+  The filter keeps every CogniteTimeSeries instance visible before scope values are written.
+implements:
+  - space: cdf_cdm
+    externalId: CogniteTimeSeries
+    version: v1
+    type: view
+version: "{{ scopeDmVersion }}"
+filter:
+  hasData:
+    - type: container
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+properties:
+  site:
+    name: Site
+    description: Primary matching scope (site or facility). Example value - VAL from VAL_23-KA-9101:X.Value.
+    container:
+      space: "{{ scopeSchemaSpace }}"
+      externalId: TimeSeriesScope
+      type: container
+    containerPropertyIdentifier: site
+  unit:
+    name: Unit
+    description: Secondary matching scope within the site. Example value - 23 from VAL_23-KA-9101:X.Value.
+    container:
+      space: "{{ scopeSchemaSpace }}"
+      externalId: TimeSeriesScope
+      type: container
+    containerPropertyIdentifier: unit
+  assets:
+    name: Assets
+    description: Assets this time series is related to, resolved through the scoped Asset view.
+    container:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{ scopeSchemaSpace }}"
+      externalId: Asset
+      version: "{{ scopeDmVersion }}"
+      type: view

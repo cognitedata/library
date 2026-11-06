@@ -43,7 +43,13 @@ class FakeInstances:
         self.calls: list[dict[str, Any]] = []
 
     def list(
-        self, instance_type: str, sources: ViewId, space: Any = None, filter: Any = None, sort: Any = None, limit: int = 25
+        self,
+        instance_type: str,
+        sources: ViewId,
+        space: Any = None,
+        filter: Any = None,
+        sort: Any = None,
+        limit: int = 25,
     ) -> list[Node | Edge]:
         self.calls.append(
             {
@@ -373,7 +379,11 @@ def test_a_batch_filter_that_is_an_or_of_slices_is_read_one_slice_at_a_time() ->
     leaves = [("prefix", "a"), ("prefix", "b"), ("exact", "c")]
     found = _list_instances(client, "node", view, ["sp"], batch_filter(leaves))
     assert client.data_modeling.instances.list.call_count == 3
-    assert [item["prefix"]["value"] if "prefix" in item else item["equals"]["value"] for item in found] == ["a", "b", "c"]
+    assert [item["prefix"]["value"] if "prefix" in item else item["equals"]["value"] for item in found] == [
+        "a",
+        "b",
+        "c",
+    ]
     found = _list_instances(client, "node", view, ["sp"], batch_filter(leaves[:1]))
     assert len(found) == 1 and client.data_modeling.instances.list.call_count == 4
     _list_instances(client, "node", view, ["sp"], None)
@@ -411,7 +421,9 @@ def test_a_slice_that_times_out_is_read_by_id_and_a_read_without_a_slice_is_cut_
     assert _list_instances(client, "node", view, ["sp"], None) == []
     assert resilience.events()["cut by first character"] == 1
     filters_used = [call.kwargs["filter"] for call in client.data_modeling.instances.list.call_args_list]
-    assert filters_used[0] is None  # the whole read first, then one slice per first character, each tried and read by id
+    assert (
+        filters_used[0] is None
+    )  # the whole read first, then one slice per first character, each tried and read by id
     assert len(filters_used) == 1 + 2 * (len(CHARSET) + 1)
 
 

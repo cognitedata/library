@@ -32,7 +32,7 @@ Both packs include this module (`cdf_project_foundation`) for the persona access
 
 Ensure the following are in place:
 
-- **Cognite Toolkit latest >= 0.8.102** installed. Follow the [setup instructions](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/setup).
+- **Cognite Toolkit latest >= 0.9.0** (`cdf data upload` and the `CogniteFileContent` manifests need 0.9) installed. Follow the [setup instructions](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/setup).
 - A `cdf.toml` exists in your project root. If missing, run `cdf init` and choose **Create toml file (required)**.
 - Authentication configured and verified:
   ```bash
@@ -223,6 +223,12 @@ python modules/common/cdf_project_foundation/scripts/generate_actions.py --force
 python modules/common/cdf_project_foundation/scripts/generate_actions.py --force --provider ado
 ```
 
+> **Access:** generating and pushing the workflows needs only write access (and, on GitHub, a token
+> with the `workflow` scope). Creating environments, secrets, and branch protection needs
+> **repository admin**. If your repository already has the `Toolkit Deploy …` workflows, CI/CD is
+> already set up — skip this step. The generated `docs/FOUNDATION_CICD.md` starts with a
+> *Before you start* table showing which steps need which access.
+
 The script reads `org-dir` and toolkit version from `cdf.toml` automatically. It uses `environment.project` from each `config.<env>.yaml` as the CDF project name and validates that `environment.name` matches the expected environment.
 
 **GitHub (default):** writes `.github/workflows/` (`dry-run.yml`, `deploy-dev.yml`, `deploy-prod.yml`, and `deploy-test.yml` when `config.test.yaml` exists) and `docs/FOUNDATION_CICD.md` (GitHub Environments and secrets). Configure `ADMIN_SOURCE_ID`, `CONSUMER_SOURCE_ID`, and `PRODUCER_SOURCE_ID` as GitHub Environment variables alongside the CDF auth variables. PR validation never loads `IDP_CLIENT_SECRET` — it only runs `cdf build`, because `pull_request` compiles the workflow YAML from the PR's own merge ref.
@@ -286,7 +292,7 @@ The wizard stores group source IDs in `.env` as `CONSUMER_SOURCE_ID`, `PRODUCER_
 
 ## Project Setup Wizard — Reference
 
-The wizard (`scripts/setup_project.py`) is split across four helper modules:
+The wizard (`scripts/setup_project.py`) is split across several helper modules:
 
 | Module | Responsibility |
 |--------|---------------|
@@ -294,13 +300,39 @@ The wizard (`scripts/setup_project.py`) is split across four helper modules:
 | `_prompts.py` | `prompt`, `prompt_yes_no`, `prompt_choice`, `prompt_env_var` |
 | `_env_io.py` | `.env` file parse and upsert helpers |
 | `_yaml_patch.py` | Line-preserving YAML scalar patcher (preserves comments and blank lines) |
+| `_i18n.py` / `_messages_ja.py` | English-keyed message catalogue (`t()`) and locale resolution — see [Language](#language) |
+
+### Language
+
+The wizard's interactive prompts and messages are available in English (default) and
+Japanese. The active locale is resolved once, at startup, in this order:
+
+1. The `CDF_LOCALE` environment variable (`en` or `ja`) — an explicit override for
+   when OS detection gets it wrong.
+2. On macOS, the System Settings UI language (`defaults read -g AppleLocale`) — this
+   reflects the actual UI language regardless of the shell's own locale env vars,
+   which commonly stay `en_US.UTF-8` even when macOS itself is set to Japanese.
+3. On Windows, the Windows UI language (`GetUserDefaultUILanguage`).
+4. On other Unix (Linux, CI, containers) — or if OS detection above didn't resolve —
+   the terminal's own locale: `LC_ALL` → `LC_MESSAGES` → `LANG` (first one set wins).
+
+An unsupported or unparseable locale (e.g. `fr_FR.UTF-8`, `C`, `POSIX`) falls back to
+English silently — no error, no first-run language prompt. Example:
+
+```bash
+CDF_LOCALE=ja python scripts/setup_project.py
+```
+
+`setup_project.py --check` (used in CI) always prints in English and exits with the
+same codes regardless of locale, since its output is consumed by tooling, not read
+interactively.
 
 ### Wizard flow
 
 1. Resolves which pack (`foundation` or `demo`) this project is set up for — see [Which pack am I on?](#which-pack-am-i-on). Shown in the header; only prompts if genuinely ambiguous.
 2. Prompts for which environments to set up (all three, dev only, dev+prod, or custom).
 3. Asks for the CDF project name for each selected environment (pre-filled on re-run).
-4. Asks for an required site / location name — used as access-group suffix, source system location, and entity-matching `location_name`.
+4. Asks for an required site / location name — used as access-group suffix and source system location.
 5. Prompts for source system integration owner and data owner contacts (shared or per-module).
    - For the CFIHOS data model: prompts for **data model owner** name and email (renamed from "integration owner" to reflect its purpose).
 6. Prompts for group source IDs (Entra ID object IDs) and writes them to `.env`.
