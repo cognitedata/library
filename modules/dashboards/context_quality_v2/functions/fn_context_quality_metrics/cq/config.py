@@ -73,6 +73,9 @@ EXCLUSION_LISTS = (
 
 
 TIERS = (1, 2, 3)
+# The plan, the dynamic task, finalize and the export also count among the 200 tasks of a run, and finalize reads the
+# part of every shard in one request of at most 1000.
+MAX_SHARDS_LIMIT = 190
 RESOURCE_KEYS = ("stream", "schemaSpace", "instanceSpace")
 
 
@@ -136,6 +139,11 @@ def build_config(overrides: dict[str, Any] | None) -> RunConfig:
         value = (overrides or {}).get(name, DEFAULT_CONFIG[name])  # type: ignore[literal-required]
         if type(value) is not int or value < lowest:
             raise ValueError(f"{name} must be a whole number of at least {lowest}, not {value!r}")
+    shards = (overrides or {}).get("maxShards", DEFAULT_CONFIG["maxShards"])
+    if shards > MAX_SHARDS_LIMIT:
+        raise ValueError(
+            f"maxShards must be at most {MAX_SHARDS_LIMIT}, not {shards!r}: a workflow run holds 200 tasks"
+        )
     prefix = (overrides or {}).get("divisionTagPrefix", "")
     if not isinstance(prefix, str):
         raise ValueError(f"divisionTagPrefix must be text, not {prefix!r}")

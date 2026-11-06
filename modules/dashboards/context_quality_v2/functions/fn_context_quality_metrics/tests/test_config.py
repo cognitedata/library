@@ -7,7 +7,7 @@ from typing import Any
 
 import handler
 import pytest
-from cq.config import DEFAULT_CONFIG, build_config
+from cq.config import DEFAULT_CONFIG, MAX_SHARDS_LIMIT, build_config
 from cq.metrics import compute
 from parity_dataset import build_dataset
 from sample_rules import SAMPLE_RULES
@@ -98,6 +98,16 @@ def test_the_sample_rules_are_available_by_passing_them_explicitly() -> None:
     assert cfg["tierByTypeCode"]["pump"] == 1
     assert cfg["exclusions"]["decommissionedTags"] == ["lifecycle:decommissioned"]
     assert cfg["retiredTag"] == "lifecycle:retired"
+
+
+def test_a_shard_limit_a_workflow_run_cannot_hold_is_rejected() -> None:
+    assert build_config({"maxShards": MAX_SHARDS_LIMIT})["maxShards"] == MAX_SHARDS_LIMIT
+    with pytest.raises(ValueError, match="maxShards must be at most"):
+        build_config({"maxShards": MAX_SHARDS_LIMIT + 1})
+
+
+def test_the_default_shard_limit_is_within_the_allowed_range() -> None:
+    assert DEFAULT_CONFIG["maxShards"] <= MAX_SHARDS_LIMIT
 
 
 def test_the_overrides_are_not_changed_or_shared_with_the_result() -> None:
