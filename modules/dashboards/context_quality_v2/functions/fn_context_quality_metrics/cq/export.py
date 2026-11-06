@@ -410,9 +410,11 @@ def _build_workbook(
         sheet.set_column(4, 5, 36)
         sheet.set_column(6, 7, 16)
     totals: dict[tuple[str, str, str], list[int]] = defaultdict(lambda: [0, 0, 0])
-    outs = {dimension: _DimensionOut(folder, dimension, run_id) for dimension in everything if dimension in this_run}
-    for out in outs.values():
-        cleanup.callback(out.close)
+    outs: dict[str, _DimensionOut] = {}
+    for dimension in everything:
+        if dimension in this_run:
+            outs[dimension] = _DimensionOut(folder, dimension, run_id)
+            cleanup.callback(outs[dimension].close)
 
     def take(row: list[str], out: _DimensionOut | None) -> None:
         if row[0] == ITEM:
@@ -467,7 +469,8 @@ def _build_workbook(
         metadata={"runId": run_id, "missingPieces": json.dumps(missing), "measured": json.dumps(sorted(this_run))},
     )
     os.remove(path)
-    client.files.delete(external_id=list(present), ignore_unknown_ids=True)
+    if present:
+        client.files.delete(external_id=list(present), ignore_unknown_ids=True)
     replaced = [
         file.external_id
         for file in every_dimension_file
