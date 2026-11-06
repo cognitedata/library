@@ -136,6 +136,40 @@
       nullable: true
       autoIncrement: false
       name: Pipeline updated time
+    sourceCreatedTime:
+      type:
+        list: false
+        type: timestamp
+      immutable: false
+      nullable: true
+      autoIncrement: false
+      name: Created time
+    sourceUpdatedTime:
+      type:
+        list: false
+        type: timestamp
+      immutable: false
+      nullable: true
+      autoIncrement: false
+      name: Last updated time
+    sourceCreatedUser:
+      type:
+        list: false
+        type: text
+        collation: ucs_basic
+      immutable: false
+      nullable: true
+      autoIncrement: false
+      name: Created by
+    sourceUpdatedUser:
+      type:
+        list: false
+        type: text
+        collation: ucs_basic
+      immutable: false
+      nullable: true
+      autoIncrement: false
+      name: Updated by
   space: {{ annotationStateSchemaSpace }}
   usedFor: node
   indexes:

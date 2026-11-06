@@ -1,14 +1,5 @@
 - description: File Annotation State
   externalId: {{ annotationStateExternalId }}
-  implements:
-    - externalId: CogniteDescribable
-      space: cdf_cdm
-      type: view
-      version: v1
-    - externalId: CogniteSourceable
-      space: cdf_cdm
-      type: view
-      version: v1
   name: Annotation State
   properties:
     annotatedPageCount:
@@ -89,21 +80,10 @@
         space: {{ annotationStateSchemaSpace }}
         type: container
       containerPropertyIdentifier: linkedFile
-      description: File linked to annotation
+      description: >-
+        File linked to annotation. Intentionally untyped (no source view) so the file view version can
+        change without a new annotation state version; the pipeline reads the file through data.fileView.
       name: Linked file
-      source:
-        externalId: {{ fileExternalId }}
-        space: {{ fileSchemaSpace }}
-        type: view
-        version: {{ fileVersion }}
-    name:
-      container:
-        externalId: CogniteDescribable
-        space: cdf_cdm
-        type: container
-      containerPropertyIdentifier: name
-      description: Name
-      name: Name
     pageCount:
       container:
         externalId: {{ annotationStateExternalId }}
@@ -114,20 +94,36 @@
       name: Page count
     sourceCreatedTime:
       container:
-        externalId: CogniteSourceable
-        space: cdf_cdm
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
         type: container
       containerPropertyIdentifier: sourceCreatedTime
-      description: Created time
+      description: When the annotation state was created
       name: Created time
     sourceUpdatedTime:
       container:
-        externalId: CogniteSourceable
-        space: cdf_cdm
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
         type: container
       containerPropertyIdentifier: sourceUpdatedTime
-      description: Last updated time
+      description: When the annotation state was last updated
       name: Last updated time
+    sourceCreatedUser:
+      container:
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
+        type: container
+      containerPropertyIdentifier: sourceCreatedUser
+      description: External ID of the function that created the annotation state, e.g. fn_file_annotation
+      name: Created by
+    sourceUpdatedUser:
+      container:
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
+        type: container
+      containerPropertyIdentifier: sourceUpdatedUser
+      description: External ID of the function that last updated the annotation state, e.g. fn_file_annotation
+      name: Updated by
     pipelineUpdatedTime:
       container:
         externalId: {{ annotationStateExternalId }}
