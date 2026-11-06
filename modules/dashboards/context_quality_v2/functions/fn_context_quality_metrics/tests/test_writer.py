@@ -3,6 +3,7 @@
 import hashlib
 import itertools
 import json
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -251,6 +252,35 @@ def test_the_other_row_kinds_keep_their_existing_ids() -> None:
 
     assert keys(agg) == ["agg:orphanRate|sp_a|div|disc|own|1|None"]
     assert keys(excl) == ["excl:files|user:file-extension|sp_a|div|disc"]
+
+
+def _aggregate_keys(*divisions: str) -> list[str]:
+    agg = {
+        ("orphanRate", "asset-hierarchy", "sp_a", "fac", div, "disc", "own", 1, None): [3, 2, 1, 0.0]
+        for div in divisions
+    }
+    return keys(writer.aggregate_rows(agg))
+
+
+def test_values_that_hold_the_separator_cannot_make_two_keys_read_the_same() -> None:
+    first = writer.aggregate_rows({("m", "d", "sp_a", "f", "a|b", "c", "own", 1, None): [1, 1, 0, 0.0]})
+    second = writer.aggregate_rows({("m", "d", "sp_a", "f", "a", "b|c", "own", 1, None): [1, 1, 0, 0.0]})
+
+    assert keys(first) != keys(second)
+    assert all(re.fullmatch(r"agg:[0-9a-f]{32}", key) for key in keys(first) + keys(second))
+
+
+def test_a_long_value_gets_a_short_key() -> None:
+    [key] = _aggregate_keys("x" * 400)
+    excl = keys(writer.exclusion_rows({("files", "user:file-extension", "sp_a", "fac", "y" * 400, "disc"): 2}))
+
+    assert re.fullmatch(r"agg:[0-9a-f]{32}", key)
+    assert all(re.fullmatch(r"excl:[0-9a-f]{32}", k) for k in excl)
+
+
+def test_the_same_long_or_separated_key_always_gets_the_same_digest() -> None:
+    assert _aggregate_keys("a|b") == _aggregate_keys("a|b")
+    assert _aggregate_keys("x" * 400) == _aggregate_keys("x" * 400)
 
 
 def test_writing_the_same_run_twice_uses_the_same_external_ids() -> None:

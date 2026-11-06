@@ -13,6 +13,10 @@ from cq.extra_links import LinkGap
 from cq.types import DrillItem, Row, RowProps, RunConfig
 
 NO_DIM = "unknown"
+_KEY_SEPARATOR = "|"
+# A record's external id is `<run id>:<key>` plus a `|p<piece>` suffix when a space is split, within the 256 characters
+# the Records API allows. The readable form of a key stays well below that.
+_MAX_READABLE_KEY_LENGTH = 160
 
 
 def now_iso(ts: datetime | None = None) -> str:
@@ -31,6 +35,19 @@ def _digest(*logical_key: Any) -> str:
     """
     encoded = json.dumps(logical_key, separators=(",", ":"), ensure_ascii=True, default=str)
     return hashlib.sha256(encoded.encode("ascii")).hexdigest()[:32]
+
+
+def _readable_key(prefix: str, *parts: Any) -> str:
+    """A readable id from the parts of a logical key, or its digest when the readable form would not be safe.
+
+    The parts are joined with `|`. A part that holds a `|` could make two keys read the same, and a long part could take
+    the id past the length a record's external id allows, so such a key gets the digest of its parts instead.
+    """
+    texts = [str(part) for part in parts]
+    readable = _KEY_SEPARATOR.join(texts)
+    if any(_KEY_SEPARATOR in text for text in texts) or len(readable) > _MAX_READABLE_KEY_LENGTH:
+        return f"{prefix}:{_digest(prefix, *parts)}"
+    return f"{prefix}:{readable}"
 
 
 def _clean(props: RowProps) -> RowProps:
@@ -96,10 +113,9 @@ def location_rows(locations: list[dict[str, Any]]) -> list[Row]:
 def aggregate_rows(agg: dict[tuple, list[Any]]) -> list[Row]:
     out: list[Row] = []
     for (metric, dim, unit, facility, div, disc, owner, tier, sub), (elig, passing, issue, vsum) in agg.items():
-        n = "|".join(str(x) for x in (metric, unit, div, disc, owner, tier, sub))
         out.append(
             (
-                f"agg:{n}",
+                _readable_key("agg", metric, unit, div, disc, owner, tier, sub),
                 _clean(
                     {
                         "rowKind": "aggregate",
@@ -127,10 +143,9 @@ def aggregate_rows(agg: dict[tuple, list[Any]]) -> list[Row]:
 def exclusion_rows(excl: dict[tuple, int]) -> list[Row]:
     out: list[Row] = []
     for (dim, cat, unit, facility, div, disc), count in excl.items():
-        n = "|".join(str(x) for x in (dim, cat, unit, div, disc))
         out.append(
             (
-                f"excl:{n}",
+                _readable_key("excl", dim, cat, unit, div, disc),
                 _clean(
                     {
                         "rowKind": "exclusion",
