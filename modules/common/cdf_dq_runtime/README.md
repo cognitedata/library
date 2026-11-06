@@ -116,10 +116,10 @@ Prefixes and crons below match this module’s `settings.yaml` / sample `views/`
 
 | Workflow | Trigger / schedule | What it does |
 | --- | --- | --- |
-| **Instance sync-cursor** (`dq-shacl-…`) | DMS data-change trigger (batched: `trigger.batch_size` / `batch_timeout`) | Incremental SHACL on changed instances since the last cursor; writes validation records. One consolidated workflow per view (or DataProduct grouping). Does **not** run uniqueness. |
+| **Instance sync-cursor** (`wf_all_validate_instances-…`) | DMS data-change trigger (batched: `trigger.batch_size` / `batch_timeout`) | Incremental SHACL on changed instances since the last cursor; writes validation records. One consolidated workflow per view (or DataProduct grouping). Does **not** run uniqueness. |
 | **Uniqueness** (`…-uniqueness`) | Cron — from SHACL `dqs:schedule`, or view `uniqueness_cron` (sample: Equipment `0 */4 * * *`, MaintenanceOrder `2 * * * *`; default often `0 6 * * *`) | Global uniqueness checks declared in RuleSet (`dqs:uniquenessConstraint` / `dqs:unique`). Created only when SHACL has uniqueness for that view. |
 | **Edge existence** (`…-edge-existence`) | Two DMS sync triggers per rule (node + edge), no backfill | Typed-edge cardinality (`dqs:edgeExistenceConstraint`). Deploy-time triggers; baseline over in-scope nodes also runs as part of historic orchestration when rules/DP version change. |
-| **Time-series** (`dq-ts-shacl-…`) | Cron from `timeseries_config/*.yaml` (sample: `2 * * * *`) | Datapoint SHACL for filtered series; RuleSets whose `sh:targetClass` matches the timeseries view. |
+| **Time-series** (`wf_all_validate_timeseries-…`) | Cron from `timeseries_config/*.yaml` (sample: `2 * * * *`) | Datapoint SHACL for filtered series; RuleSets whose `sh:targetClass` matches the timeseries view. |
 | **`data_product_sync`** | Cron `data_product_sync_cron` (sample: `13 * * * *`) | Loads managed / external DataProducts; if version or rules changed, redeploys instance/uniqueness/edge/timeseries workflows and may **enqueue historic** jobs for affected views. |
 | **Historic queue manager** (`dq-historic-queue-manager`) | Cron ~every 5 minutes (package default) | Drains `HistoricJobQueue` **sequentially** (one orchestration at a time); starts the next job when the current completes or fails; supersedes older queued jobs for the same view when a newer DP version lands. |
 | **Historic orchestrator** (function, not a standing WF id) | Started by queue manager or `deploy_pipeline.py` / `--enqueue-historic` | Partitioned full-history SHACL for a view; then hands off to sync-cursor + a short-lived **Monitor** function schedule (~every 2 min) until orchestration finishes. |
@@ -130,7 +130,7 @@ Optional (not in this sample): **`rule_engine_result_sync`** listener workflows 
 ### Data movement (short)
 
 1. **Catalog** — Toolkit publishes RuleSets and DataProduct versions (views + `instanceSpaces` + `quality.rules`).
-2. **Wire-up** — Python deploy creates the Function, state containers in `config_space` (`dataQuality`), workflows/triggers from `external_dataproducts` + optional `views/` / `timeseries_config/` overrides, and persists `DataQualitySettings` / `ViewConfigState`.
+2. **Wire-up** — Python deploy creates the Function, state containers in `config_space` (`inst_data_quality`), workflows/triggers from `external_dataproducts` + optional `views/` / `timeseries_config/` overrides, and persists `DataQualitySettings` / `ViewConfigState`.
 3. **Steady state** — Change triggers and crons invoke the Function; it reads instances (or datapoints) and RuleSets, writes **Records** to `records.space` / `records.stream_id`, and updates cursors / orchestration state in DMS.
 4. **Version bump** — `data_product_sync` detects a new DataProduct/RuleSet version → redeploys workflows → enqueues historic → queue manager runs full revalidation, then incremental sync resumes.
 
@@ -168,11 +168,11 @@ RuleSets and DataProducts require the Toolkit [`data-products` alpha flag](https
 data-products = true
 ```
 
-The `[alpha_flags]` header must be uncommented. If only `data-products = true` is set (for example under `[plugins]`), Toolkit ignores it: `cdf build` emits only the spaces under `data_modeling/` and skips `rulesets/` / `data_products/`. Then `deploy_infrastructure.py` fails with `Data product version 'cognite-core-data-quality:1.0.0' not found` (404).
+The `[alpha_flags]` header must be uncommented. If only `data-products = true` is set (for example under `[plugins]`), Toolkit ignores it: `cdf build` emits only the spaces under `data_modeling/` and skips `rulesets/` / `data_products/`. Then `deploy_infrastructure.py` fails with `Data product version 'data_quality_core:1.0.0' not found` (404).
 
 After enabling the flag, run `cdf build && cdf deploy` so the data product version exists in CDF before the Python script.
 
-The instance space (`instanceSpace`, default `inst_location`) must already exist and contain the nodes to validate; this module does not create it. The records stream (`recordsStreamId`, default `test_stream_1`) is created by `deploy_infrastructure.py` if missing (immutable `BasicArchive` template).
+The instance space (`instanceSpace`, default `inst_location`) must already exist and contain the nodes to validate; this module does not create it. The records stream (`recordsStreamId`, default `cdf_all_validation_results`) is created by `deploy_infrastructure.py` if missing (immutable `BasicArchive` template).
 
 ### Access control
 
@@ -181,7 +181,7 @@ The identity used by `cdf deploy` and `deploy_infrastructure.py` (Toolkit `.env`
 | Capability | Needed for |
 | --- | --- |
 | `dataProductsAcl:CREATE` / `UPDATE` / `DELETE` | Create/update/delete DataProducts via `cdf deploy` |
-| `dataProductsAcl:READ` | `deploy_infrastructure.py` loading external DataProducts (for example `cognite-core-data-quality`) when deploying workflows |
+| `dataProductsAcl:READ` | `deploy_infrastructure.py` loading external DataProducts (for example `data_quality_core`) when deploying workflows |
 | `ruleSetsAcl:CREATE` / `READ` / `UPDATE` / `DELETE` | Create/update/delete RuleSets and RuleSetVersions via `cdf deploy` |
 | `streamsAcl:READ` / `CREATE` / `DELETE` | Installation: `deploy_infrastructure.py` ensuring `recordsStreamId` exists (creates with `BasicArchive` if missing); delete when cleaning up |
 | `functionsAcl:WRITE` | Bootstrap schedule identity (`functionClientId`) deleting its own Function Schedule after a successful run |
@@ -190,16 +190,16 @@ Grant these (typically all actions, scope `all`) in Fusion → Access management
 
 `deploy_infrastructure.py` verifies these capabilities (and the function runtime ones below) via `token.inspect` before deploying, and exits if any are missing.
 
-The identity used **at runtime** by the CDF Function (the service principal whose `client-id` / `client-secret` were registered via `deploy_infrastructure.py` / Toolkit `functionClientId`) must also have Streams access and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `test_stream_1`). Without these, validation fails when posting results. The same identity needs `functionsAcl:WRITE` so the bootstrap function can delete its schedule after success:
+The identity used **at runtime** by the CDF Function (the service principal whose `client-id` / `client-secret` were registered via `deploy_infrastructure.py` / Toolkit `functionClientId`) must also have Streams access and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `cdf_all_validation_results`). Without these, validation fails when posting results. The same identity needs `functionsAcl:WRITE` so the bootstrap function can delete its schedule after success:
 
 | Capability | Needed for |
 | --- | --- |
 | `streamsAcl:READ` | Resolve stream type for `recordsStreamId` |
 | `streamRecordsAcl:READ` / `WRITE` | Read/write validation result records (scope `all`, or at least `dataQualitySpace`) |
-| `functionsAcl:WRITE` | Bootstrap self-delete of Function Schedules for `dq_infrastructure_bootstrap` |
+| `functionsAcl:WRITE` | Bootstrap self-delete of Function Schedules for `fn_dataproduct_all_bootstrap_infrastructure` |
 
 ```text
-WARNING: could not resolve stream type for 'test_stream_1'; defaulting to immutable (ingest):
+WARNING: could not resolve stream type for 'cdf_all_validation_results'; defaulting to immutable (ingest):
 The user does not have the required Streams capabilities. | code: 403
 ERROR posting record for …: The user does not have stream records read or write capability. | code: 403
 ```
@@ -211,7 +211,7 @@ Common deploy-time errors:
 ```text
 CogniteAPIError: Missing capability DataProducts:READ | code: 403
 CogniteAPIError: Missing capability RuleSets:CREATE | code: 403
-Data product version 'cognite-core-data-quality:1.0.0' not found | code: 404
+Data product version 'data_quality_core:1.0.0' not found | code: 404
 ```
 
 The 404 means Toolkit has not deployed that DataProduct version yet (alpha flag off, or `cdf deploy` not run / failed).
@@ -248,13 +248,13 @@ variables:
 | `viewNotificationExternalId` | `CogniteNotification` | rulesets, data product, views | Notification view (in `secondarySchemaSpace`) |
 | `instanceSpace` | `inst_location` | rulesets, data product, views, timeseries_config | Instance space with the nodes to validate (all views). Must already exist |
 | `timeSeriesExternalIdPrefix` | `pi:` | timeseries_config | External ID prefix selecting time series for datapoint validation |
-| `dataProductSchemaSpace` | `sp_dq_data_product` | data product, data_modeling | Schema space owned exclusively by the data product. Must not be a `cdf_*` space or owned by another data product |
-| `dataProductExternalId` | `cognite-core-data-quality` | data product, settings | Data product binding views, instance spaces and rule sets |
+| `dataProductSchemaSpace` | `dm_sol_data_quality` | data product, data_modeling | Schema space owned exclusively by the data product. Must not be a `cdf_*` space or owned by another data product |
+| `dataProductExternalId` | `data_quality_core` | data product, settings | Data product binding views, instance spaces and rule sets |
 | `dataProductVersion` | `1.0.0` | data product, settings | Data product version. Bump when views, instance spaces or rule set versions change (they are immutable on an existing version) |
 | `ruleSetVersion` | `2.0.0` | rulesets, data product, timeseries_config | Version of every RuleSetVersion. Bump when you edit rule content |
-| `dataQualitySpace` | `dataQuality` | settings, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
-| `recordsStreamId` | `test_stream_1` | settings | Records stream for validation results. Created by `deploy_infrastructure.py` if missing |
-| `functionCodeDatasetExternalId` | `dq_shacl_rules` | settings | Data set for the CDF Function code file |
+| `dataQualitySpace` | `inst_data_quality` | settings, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
+| `recordsStreamId` | `cdf_all_validation_results` | settings | Records stream for validation results. Created by `deploy_infrastructure.py` if missing |
+| `functionCodeDatasetExternalId` | `ds_data_quality_all` | settings | Data set for the CDF Function code file |
 | `functionClientId` | `${IDP_CLIENT_ID}` | schedule + function secrets | Client ID for the bootstrap Function Schedule and Function secrets (`client-id`) used as workflow trigger credentials |
 | `functionClientSecret` | `${IDP_CLIENT_SECRET}` | schedule + function secrets | Client secret for the bootstrap Function Schedule and Function secrets (`client-secret`) |
 
@@ -289,7 +289,7 @@ The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space
 
 ### Bootstrap flow
 
-`cdf deploy` publishes `dq_infrastructure_bootstrap` and a five-minute
+`cdf deploy` publishes `fn_dataproduct_all_bootstrap_infrastructure` and a five-minute
 Function Schedule. Toolkit variables (`dataQualitySpace`, `recordsStreamId`,
 and related keys) are passed on `Schedule.data` because they are not
 substituted inside the function code bundle; the handler merges them into
@@ -300,7 +300,7 @@ The Function also receives `client-id` / `client-secret` secrets (from
 `dq-data-product-sync` can be upserted — schedule authentication alone does
 not expose client credentials on the in-function Cognite client.
 After a **successful** deploy, the function deletes every Function Schedule for
-`dq_infrastructure_bootstrap` (so leftover hyphen-era names cannot keep firing).
+`fn_dataproduct_all_bootstrap_infrastructure` (so leftover hyphen-era names cannot keep firing).
 Delete failures are printed to the function log (`CogniteAPIError` includes the
 HTTP code) and do not fail the deploy result. If bootstrap fails, the five-minute
 schedule stays so the next cron tick can retry. A later `cdf deploy` recreates the
@@ -365,7 +365,7 @@ Use [`scripts/manage_rulesets.ipynb`](scripts/manage_rulesets.ipynb) instead. It
 | `delete_monitor_schedules(schedule_ids, dry_run=True)` | Deletes selected monitor schedules by id (for example a stuck `Monitor YourOrgAsset validation` schedule after switching views) |
 | `list_historic_queue_jobs()` | Prints `HistoricJobQueue` nodes in `dataQualitySpace` (status, view, data product, orchestration id) |
 | `delete_historic_queue_jobs(external_ids, dry_run=True)` | Deletes selected queue jobs and linked `OrchestrationState` / matching Monitor schedules (use for stuck `hq_YourOrg*` jobs left after a view switch) |
-| `list_dq_workflows()` | Prints instance/time-series DQ workflows (`dq-shacl-*`, `dq-ts-shacl-*`) and their triggers |
+| `list_dq_workflows()` | Prints instance/time-series DQ workflows (`wf_all_validate_instances-*`, `wf_all_validate_timeseries-*`) and their triggers |
 | `delete_dq_workflows(external_ids, dry_run=True)` | Deletes selected workflows after removing every trigger that targets them (use for stale `YourOrg*` / previous data-product workflows left after a view switch) |
 
 CDF refuses to delete a rule set version that a data product version still references (`Version '1.0.0' of rule set '...' can not be deleted, because it is referenced by 1 data product version(s)`), which is why `delete_rulesets` removes those data product versions first. All delete functions only print what they would delete unless `dry_run=False`.

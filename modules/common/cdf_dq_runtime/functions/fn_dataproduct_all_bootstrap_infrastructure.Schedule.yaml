@@ -1,5 +1,5 @@
-name: dq_infrastructure_bootstrap
-functionExternalId: dq_infrastructure_bootstrap
+name: fn_dataproduct_all_bootstrap_infrastructure
+functionExternalId: fn_dataproduct_all_bootstrap_infrastructure
 description: Run the Data Quality Validation infrastructure bootstrap.
 cronExpression: "*/5 * * * *"
 authentication:

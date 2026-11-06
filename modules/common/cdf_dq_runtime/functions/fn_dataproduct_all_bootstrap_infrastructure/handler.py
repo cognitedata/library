@@ -12,11 +12,11 @@ if TYPE_CHECKING:
     from cognite.client import CogniteClient
 
 
-BOOTSTRAP_FUNCTION_EXTERNAL_ID = "dq_infrastructure_bootstrap"
-BOOTSTRAP_SCHEDULE_NAME = "dq_infrastructure_bootstrap"
+BOOTSTRAP_FUNCTION_EXTERNAL_ID = "fn_dataproduct_all_bootstrap_infrastructure"
+BOOTSTRAP_SCHEDULE_NAME = "fn_dataproduct_all_bootstrap_infrastructure"
 
 # Toolkit cannot substitute module variables inside function code bundles. Pass these via
-# Schedule.data (see dq_infrastructure_bootstrap.Schedule.yaml) so config.<env>.yaml overrides apply.
+# Schedule.data (see fn_dataproduct_all_bootstrap_infrastructure.Schedule.yaml) so config.<env>.yaml overrides apply.
 _SETTINGS_OVERRIDE_KEYS = frozenset(
     {
         "dataQualitySpace",
@@ -41,9 +41,7 @@ def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
             client.functions.schedules.list(function_external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID, limit=None)
         )
     except CogniteAPIError as e:
-        print(
-            f"Failed to list bootstrap schedules for {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | code={e.code}"
-        )
+        print(f"Failed to list bootstrap schedules for {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | code={e.code}")
         return
     except Exception as e:
         print(f"Failed to list bootstrap schedules for {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e}")
@@ -60,9 +58,7 @@ def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
             client.functions.schedules.delete(id=schedule_id)
             print(f"Deleted bootstrap schedule id={schedule_id} name={schedule_name}")
         except CogniteAPIError as e:
-            print(
-                f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e} | code={e.code}"
-            )
+            print(f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e} | code={e.code}")
         except Exception as e:
             print(f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e}")
 

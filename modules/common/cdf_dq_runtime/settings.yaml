@@ -8,7 +8,7 @@
 # Instance validation workflows (one per data product view, triggered by instance changes).
 workflow:
   # Prefix for workflow external IDs: <prefix>-<data product external ID>[-uniqueness|-edge-existence].
-  external_id_prefix: dq-shacl
+  external_id_prefix: wf_all_validate_instances
   # Workflow version written to CDF. Bump to force new workflow versions.
   version: "1"
   task:
@@ -22,7 +22,7 @@ workflow:
 # Time series datapoint validation workflows (one per file in timeseries_config/, cron scheduled).
 timeseries_workflow:
   # Prefix for time series workflow external IDs: <prefix>-<timeseries config name>.
-  external_id_prefix: dq-ts-shacl
+  external_id_prefix: wf_all_validate_timeseries
   version: "1"
   task:
     retries: 3
@@ -33,7 +33,7 @@ timeseries_workflow:
 # DMS data-change triggers that start the instance validation workflows.
 trigger:
   # Prefix for trigger external IDs: <prefix>-<data product external ID>.
-  external_id_prefix: dq-shacl-trigger
+  external_id_prefix: wf_all_validate_instances_trigger
   # Number of changed instances collected before a workflow run is started.
   batch_size: 10
   # Seconds to wait for batch_size changes before starting a run with fewer instances.

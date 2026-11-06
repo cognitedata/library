@@ -1,5 +1,5 @@
 workflow:
-  external_id_prefix: dq-shacl
+  external_id_prefix: wf_all_validate_instances
   version: "1"
   task:
     retries: 3
@@ -7,7 +7,7 @@ workflow:
     on_failure: abortWorkflow
 
 timeseries_workflow:
-  external_id_prefix: dq-ts-shacl
+  external_id_prefix: wf_all_validate_timeseries
   version: "1"
   task:
     retries: 3
@@ -16,7 +16,7 @@ timeseries_workflow:
     on_failure: abortWorkflow
 
 trigger:
-  external_id_prefix: dq-shacl-trigger
+  external_id_prefix: wf_all_validate_instances_trigger
   batch_size: 10
   batch_timeout: 60
 
@@ -25,14 +25,14 @@ trigger:
 # Schedule.data and merged by handler.py at runtime. Keep these aligned with
 # default.config.yaml defaults for cdf_dq_runtime.
 records:
-  space: dataQuality
-  stream_id: test_stream_1
+  space: inst_data_quality
+  stream_id: cdf_all_validation_results
 
-config_space: dataQuality
-function_code_dataset_external_id: dq_shacl_rules
+config_space: inst_data_quality
+function_code_dataset_external_id: ds_data_quality_all
 config_source: dataproduct
 data_product_sync_cron: "13 * * * *"
 
 external_dataproducts:
-  - external_id: cognite-core-data-quality
+  - external_id: data_quality_core
     version: "1.0.0"
