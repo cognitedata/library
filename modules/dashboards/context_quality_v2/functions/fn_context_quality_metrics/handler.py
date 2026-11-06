@@ -25,11 +25,11 @@ from collections.abc import Callable
 from typing import Any
 
 from cognite.client import CogniteClient
-from pydantic import BaseModel, ConfigDict, model_validator
 from cq.config import build_config
 from cq.resilience import begin_call, harden
 from cq.runner import compute_batch, compute_metrics, compute_shard, export_workbook, finalize, plan, validate
 from cq.types import RunConfig
+from pydantic import BaseModel, ConfigDict, model_validator
 
 ACTIONS: dict[str, Callable[[CogniteClient, RunConfig, dict[str, Any]], dict[str, Any]]] = {
     "compute_metrics": compute_metrics,
