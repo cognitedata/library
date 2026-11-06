@@ -98,6 +98,11 @@ function AppShellContent({ viewModel }: AppShellContentProps) {
     dispatch({ type: 'setConfigurationOnboardingComplete', complete: true });
   }, [dispatch, state.configurationOnboardingComplete, state.configurationOptionalSkipped, viewModel.page]);
 
+  // The document scrolls, so a new page would otherwise open at the scroll offset of the page before it.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, [viewModel.page]);
+
   useEffect(() => {
     if (viewModel.page !== 'dimensions' || state.runNotesOpen !== true) {
       return;

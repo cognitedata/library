@@ -64,6 +64,23 @@ describe('App shell state', () => {
     expect(screen.getByRole('tab', { name: 'Issues', selected: true })).toBeInTheDocument();
   });
 
+  it('shows the top of the page after switching pages, not the previous page scroll position', async () => {
+    const user = userEvent.setup();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    renderShell();
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Overview', selected: true })).toBeInTheDocument();
+    });
+    scrollTo.mockClear();
+
+    await user.click(screen.getByRole('tab', { name: 'Configuration' }));
+
+    await waitFor(() => {
+      expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0 });
+    });
+    scrollTo.mockRestore();
+  });
+
   it('hides global filters on the configuration page', async () => {
     const user = userEvent.setup();
     renderShell();
