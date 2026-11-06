@@ -4,11 +4,6 @@
 
 Publishes SHACL **RuleSets** and **DataProducts** with Cognite Toolkit (`cdf deploy`), then runs the same Python deploy path as [data-quality-validation-deploy](https://github.com/cognitedata/data-quality-validation-deploy) (`scripts/deploy_infrastructure.py`).
 
-> Draft: the bootstrap resources below depend on a released
-> `cognite-data-quality` version with the bootstrap-safe deployment entrypoint.
-> The current `requirements.txt` pin is intentionally a placeholder until that
-> package release is available.
-
 By default the module validates the **Cognite Core** (`cdf_cdm`) and **Cognite Process Industries** (`cdf_idm`) views — asset, equipment, time series, maintenance order, operation and notification — with instances in `inst_location`. All customer-specific identifiers (spaces, views, data product, rule set versions) are variables in `default.config.yaml`; see [Configuration](#configuration).
 
 | Layer | Toolkit (`cdf deploy`) | Module script (`deploy_infrastructure.py`) |
@@ -258,6 +253,8 @@ variables:
 | `dataQualitySpace` | `dataQuality` | settings, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
 | `recordsStreamId` | `test_stream_1` | settings | Records stream for validation results. Created by `deploy_infrastructure.py` if missing |
 | `functionCodeDatasetExternalId` | `dq_shacl_rules` | settings | Data set for the CDF Function code file |
+| `functionClientId` | `${IDP_CLIENT_ID}` | schedule | Client ID for the bootstrap Function Schedule |
+| `functionClientSecret` | `${IDP_CLIENT_SECRET}` | schedule | Client secret for the bootstrap Function Schedule |
 
 A data product version may only reference views in its own schema space or in a `cdf_*` system space. To validate your own enterprise views, set `dataProductSchemaSpace`, `schemaSpace` and `secondarySchemaSpace` to the enterprise schema space (when no other data product owns it).
 

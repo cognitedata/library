@@ -700,6 +700,8 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     schedule_text = schedule.read_text(encoding="utf-8")
     assert "functionExternalId: dq_infrastructure_bootstrap" in schedule_text
     assert 'cronExpression: "*/5 * * * *"' in schedule_text
+    assert 'clientId: "{{ functionClientId }}"' in schedule_text
+    assert 'clientSecret: "{{ functionClientSecret }}"' in schedule_text
     assert 'dataQualitySpace: "{{ dataQualitySpace }}"' in schedule_text
     assert 'recordsStreamId: "{{ recordsStreamId }}"' in schedule_text
     assert 'functionCodeDatasetExternalId: "{{ functionCodeDatasetExternalId }}"' in schedule_text
