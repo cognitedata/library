@@ -1,0 +1,116 @@
+workflowExternalId: "{{ metricsWorkflowExternalId }}"
+version: "{{ metricsWorkflowVersion }}"
+workflowDefinition:
+  # kept short: the workflows API rejected a 211-character description at deploy time, although it documents 500
+  description: Computes the Context Quality metrics in parallel shards, one run. Runs no seed or demo task.
+  tasks:
+    # 1. Finds the facility spaces from aggregate counts (nothing is loaded), starts the run and divides it into shards.
+    #    It returns one task definition per shard, and the run id the last task completes.
+    - externalId: plan
+      type: function
+      name: Plan the Context Quality run
+      description: Finds the facility spaces, starts the run and divides it into shards.
+      parameters:
+        function:
+          externalId: "{{ metricsFunctionExternalId }}"
+          data:
+            action: plan
+            # the function the shards call, which is this one
+            functionExternalId: "{{ metricsFunctionExternalId }}"
+            # The links of the config file a person ran the workflow with (dashboard: Configuration page). A scheduled
+            # run supplies an empty list, so it measures the built-in metrics only. See REFERENCE.md, "Running with a config file".
+            extraLinks: ${workflow.input.extraLinks}
+            # What the run is for: "all" (every dimension, what the schedule runs), "configured", or
+            # {"dimensions": [...] | "all", "configured": true | false}. See REFERENCE.md, "Running some dimensions only".
+            scope: ${workflow.input.scope}
+            # The function has no default for these three: the deployment names them (module variables).
+            # Everything below is project-specific and empty by default; nothing here is demo configuration.
+            # The plan hands this configuration on to every shard.
+            config:
+              stream: "{{ metricsStreamExternalId }}"
+              schemaSpace: "{{ metricsSchemaSpace }}"
+              instanceSpace: "{{ metricsInstanceSpace }}"
+              facilityNames: {{ metricsFacilityNames }}
+              tieringEnabled: {{ metricsTieringEnabled }}
+              tierByTypeCode: {{ metricsTierByTypeCode }}
+              divisionTagPrefix: "{{ metricsDivisionTagPrefix }}"
+              retiredTag: "{{ metricsRetiredTag }}"
+              defaultOwners: {{ metricsDefaultOwners }}
+              ownerPrefixRules: {{ metricsOwnerPrefixRules }}
+              exclusions: {{ metricsExclusions }}
+              freshnessDays: {{ metricsFreshnessDays }}
+              maxDepth: {{ metricsMaxDepth }}
+              maxShards: {{ metricsMaxShards }}
+              shardTargetEntities: {{ metricsShardTargetEntities }}
+              maxConcurrentShards: {{ metricsMaxConcurrentShards }}
+              exportDataSet: "{{ metricsDatasetExternalId }}"
+              exportRetentionDays: {{ metricsExportRetentionDays }}
+      retries: 1
+      timeout: 600
+      onFailure: abortWorkflow
+
+    # 2. One function call per shard, in parallel: the tasks the plan returned. A shard counts whole facility spaces and
+    #    appends their rows to the run. Generated tasks are not retried: a shard writes immutable records.
+    - externalId: shards
+      type: dynamic
+      name: Count the shards in parallel
+      description: Runs the shard tasks the plan returned.
+      parameters:
+        dynamic:
+          tasks: ${plan.output.response.tasks}
+      dependsOn:
+        - externalId: plan
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    # 3. When every shard has finished, completes the run: the marker is written last, with the merged warnings. If a
+    #    shard failed this task does not run, and the run is never shown.
+    - externalId: finalize
+      type: function
+      name: Complete the Context Quality run
+      description: Writes the complete marker once every shard has reported.
+      parameters:
+        function:
+          externalId: "{{ metricsFunctionExternalId }}"
+          data:
+            action: finalize
+            runId: ${plan.output.response.runId}
+            runTimestamp: ${plan.output.response.runTimestamp}
+            shardCount: ${plan.output.response.shardCount}
+            scope: ${plan.output.response.scope}
+            config:
+              stream: "{{ metricsStreamExternalId }}"
+              schemaSpace: "{{ metricsSchemaSpace }}"
+              instanceSpace: "{{ metricsInstanceSpace }}"
+      dependsOn:
+        - externalId: shards
+      retries: 1
+      timeout: 600
+      onFailure: abortWorkflow
+
+    # 4. The workbook of every unlinked item of the run, for download. Separate from finalize so that a slow or failed
+    #    export never keeps a run from completing; if it fails the run is still complete and its numbers are intact.
+    - externalId: export
+      type: function
+      name: Export the unlinked items
+      description: Builds the Excel workbook of every unlinked item of the run.
+      parameters:
+        function:
+          externalId: "{{ metricsFunctionExternalId }}"
+          data:
+            action: export
+            runId: ${plan.output.response.runId}
+            runTimestamp: ${plan.output.response.runTimestamp}
+            shardCount: ${plan.output.response.shardCount}
+            scope: ${plan.output.response.scope}
+            config:
+              stream: "{{ metricsStreamExternalId }}"
+              schemaSpace: "{{ metricsSchemaSpace }}"
+              instanceSpace: "{{ metricsInstanceSpace }}"
+              exportDataSet: "{{ metricsDatasetExternalId }}"
+              exportRetentionDays: {{ metricsExportRetentionDays }}
+      dependsOn:
+        - externalId: finalize
+      retries: 1
+      timeout: 600
+      onFailure: skipTask

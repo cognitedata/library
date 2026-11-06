@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = "==3.13.*"
 
 [manifest]
@@ -12,6 +12,7 @@ members = [
     "file-annotation-dashboard-annotation-quality",
     "file-annotation-dashboard-pipeline-health",
     "fn-ai-property-extractor",
+    "fn-context-quality-metrics",
     "fn-dm-context-aliases-update",
     "fn-dm-context-entity-matching",
     "fn-dm-context-files-annotation",
@@ -304,6 +305,7 @@ dev = [
     { name = "pyyaml" },
     { name = "streamlit" },
     { name = "tenacity" },
+    { name = "xlsxwriter" },
 ]
 
 [package.metadata]
@@ -319,6 +321,7 @@ dev = [
     { name = "pyyaml", specifier = ">=6" },
     { name = "streamlit", specifier = ">=1.40" },
     { name = "tenacity", specifier = ">=8" },
+    { name = "xlsxwriter", specifier = ">=3.1,<4" },
 ]
 
 [[package]]
@@ -645,6 +648,31 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
 ]
+
+[[package]]
+name = "fn-context-quality-metrics"
+version = "0.0.0"
+source = { virtual = "modules/dashboards/context_quality_v2/functions/fn_context_quality_metrics" }
+dependencies = [
+    { name = "cognite-sdk" },
+    { name = "pydantic" },
+    { name = "xlsxwriter" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cognite-sdk", specifier = ">=7.89.0,<8" },
+    { name = "pydantic", specifier = ">=2,<3" },
+    { name = "xlsxwriter", specifier = ">=3.1,<4" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=7.0.0" }]
 
 [[package]]
 name = "fn-dm-context-aliases-update"
@@ -1986,4 +2014,13 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/13/eb/960411c0c574535d629c16e96a2b4e5353dbe4109df8ecea859e1b5245ee/websockets-17.2-cp313-cp313-win_amd64.whl", hash = "sha256:27c7a59b5352a8f741b422820adfe89dfe47c8f2d84fb32111e76111edaa0e83", size = 218531, upload-time = "2026-10-03T14:54:23.025Z" },
     { url = "https://files.pythonhosted.org/packages/a0/1a/3ac07bb52378952eff1d52d04a7ee6e82ce84e3da319a52a4739cd9c78f5/websockets-17.2-cp313-cp313-win_arm64.whl", hash = "sha256:533b7c82bb1eafbeb921dfe131c9f88e55451ddc328d84bde1c9340ba72d2808", size = 218466, upload-time = "2026-10-03T14:54:24.857Z" },
     { url = "https://files.pythonhosted.org/packages/8a/58/835cd51934d6780fa586f275b5d9901eead6d81569b4343b3767cdbaae4c/websockets-17.2-py3-none-any.whl", hash = "sha256:6aa59f0ef92e796b2db6f5f26550c4713c0e4036899fadf02f55e2ed4db0b7ae", size = 211883, upload-time = "2026-10-03T14:56:51.898Z" },
+]
+
+[[package]]
+name = "xlsxwriter"
+version = "3.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9c/fb/31bdbf3737222d92ef7d2db4d50089b2253dbbb63ceb6d20a4447f6b7ed0/xlsxwriter-3.3.1.tar.gz", hash = "sha256:0867761912cceac76f97ffa76eeda18c623ae9217f601be8512f55b1af4bdb6e", size = 223040, upload-time = "2026-10-28T22:52:46.592Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/eb/1e6af9959a567901a7e7c7cef2e75883e487df223ed67f9a8977ff863bd8/xlsxwriter-3.3.1-py3-none-any.whl", hash = "sha256:8e2c89e59d733fe59e112317218c64fbbc276d90a8c144ebd6f7fa15e7ab184a", size = 180583, upload-time = "2026-10-28T22:52:45.048Z" },
 ]
