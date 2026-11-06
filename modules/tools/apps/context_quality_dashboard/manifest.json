@@ -1,0 +1,6 @@
+{
+  "manifestVersion": 1,
+  "permissions": {
+    "network": []
+  }
+}
