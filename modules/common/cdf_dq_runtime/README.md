@@ -253,8 +253,8 @@ variables:
 | `dataQualitySpace` | `dataQuality` | settings, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
 | `recordsStreamId` | `test_stream_1` | settings | Records stream for validation results. Created by `deploy_infrastructure.py` if missing |
 | `functionCodeDatasetExternalId` | `dq_shacl_rules` | settings | Data set for the CDF Function code file |
-| `functionClientId` | `${IDP_CLIENT_ID}` | schedule | Client ID for the bootstrap Function Schedule |
-| `functionClientSecret` | `${IDP_CLIENT_SECRET}` | schedule | Client secret for the bootstrap Function Schedule |
+| `functionClientId` | `${IDP_CLIENT_ID}` | schedule + function secrets | Client ID for the bootstrap Function Schedule and Function secrets (`client-id`) used as workflow trigger credentials |
+| `functionClientSecret` | `${IDP_CLIENT_SECRET}` | schedule + function secrets | Client secret for the bootstrap Function Schedule and Function secrets (`client-secret`) |
 
 A data product version may only reference views in its own schema space or in a `cdf_*` system space. To validate your own enterprise views, set `dataProductSchemaSpace`, `schemaSpace` and `secondarySchemaSpace` to the enterprise schema space (when no other data product owns it).
 
@@ -292,6 +292,11 @@ Function Schedule. Toolkit variables (`dataQualitySpace`, `recordsStreamId`,
 and related keys) are passed on `Schedule.data` because they are not
 substituted inside the function code bundle; the handler merges them into
 `settings.yaml` before calling the package deploy entrypoint (idempotent).
+The Function also receives `client-id` / `client-secret` secrets (from
+`functionClientId` / `functionClientSecret`); the handler maps those into
+`settings.runtime_credentials` so workflow triggers such as
+`dq-data-product-sync` can be upserted — schedule authentication alone does
+not expose client credentials on the in-function Cognite client.
 In a `finally` block, the function deletes its own schedule even when
 deployment fails; a later `cdf deploy` can recreate it. Data Quality record
 views remain owned by the package.

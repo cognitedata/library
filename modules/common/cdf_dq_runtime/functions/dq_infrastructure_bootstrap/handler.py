@@ -42,9 +42,58 @@ def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
         logger.warning(f"Failed to delete bootstrap schedule {BOOTSTRAP_SCHEDULE_NAME}: {e}")
 
 
-def _write_settings_with_overrides(settings_path: Path, data: dict[str, Any]) -> Path | None:
-    """Merge Schedule.data overrides into settings.yaml; return a temp path when overrides apply."""
-    if not _SETTINGS_OVERRIDE_KEYS.intersection(data):
+def _credential_pair(
+    secrets: dict[str, str],
+    *,
+    id_keys: tuple[str, ...],
+    secret_keys: tuple[str, ...],
+) -> dict[str, str] | None:
+    client_id = next((secrets[key] for key in id_keys if secrets.get(key)), None)
+    client_secret = next((secrets[key] for key in secret_keys if secrets.get(key)), None)
+    if client_id and client_secret:
+        return {"client_id": client_id, "client_secret": client_secret}
+    return None
+
+
+def _runtime_credentials_from_secrets(secrets: dict[str, str] | None) -> dict[str, dict[str, str]] | None:
+    """Map CDF Function secrets to settings.runtime_credentials for workflow trigger deploy.
+
+    Schedule-authenticated clients inside CDF Functions expose a token, not client_id/client_secret.
+    The package needs explicit credentials to upsert workflow triggers (data_product_sync, etc.).
+    """
+    if not secrets:
+        return None
+    functions = _credential_pair(secrets, id_keys=("client-id",), secret_keys=("client-secret",))
+    workflows = _credential_pair(
+        secrets,
+        id_keys=("workflow-client-id", "client-id"),
+        secret_keys=("workflow-client-secret", "client-secret"),
+    )
+    schedules = _credential_pair(
+        secrets,
+        id_keys=("schedule-client-id", "client-id"),
+        secret_keys=("schedule-client-secret", "client-secret"),
+    )
+    if not any((functions, workflows, schedules)):
+        return None
+    credentials: dict[str, dict[str, str]] = {}
+    if functions:
+        credentials["functions"] = functions
+    if workflows:
+        credentials["workflows"] = workflows
+    if schedules:
+        credentials["schedules"] = schedules
+    return credentials
+
+
+def _write_settings_with_overrides(
+    settings_path: Path,
+    data: dict[str, Any],
+    secrets: dict[str, str] | None = None,
+) -> Path | None:
+    """Merge Schedule.data overrides and function secrets into settings.yaml; return a temp path when needed."""
+    runtime_credentials = _runtime_credentials_from_secrets(secrets)
+    if not _SETTINGS_OVERRIDE_KEYS.intersection(data) and runtime_credentials is None:
         return None
 
     loaded = yaml.safe_load(settings_path.read_text(encoding="utf-8"))
@@ -72,6 +121,8 @@ def _write_settings_with_overrides(settings_path: Path, data: dict[str, Any]) ->
         if "dataProductVersion" in data:
             product["version"] = data["dataProductVersion"]
         settings["external_dataproducts"] = [product]
+    if runtime_credentials is not None:
+        settings["runtime_credentials"] = runtime_credentials
 
     with tempfile.NamedTemporaryFile("w", delete=False, suffix=".yaml", encoding="utf-8") as tmp:
         yaml.safe_dump(settings, tmp, sort_keys=False)
@@ -84,7 +135,7 @@ def handle(data: dict[str, Any], client: "CogniteClient", secrets: dict[str, str
     bundled_settings = config_dir / "settings.yaml"
     override_path: Path | None = None
     try:
-        override_path = _write_settings_with_overrides(bundled_settings, data)
+        override_path = _write_settings_with_overrides(bundled_settings, data, secrets)
         return deploy_validation_infrastructure(
             client=client,
             settings_path=override_path or bundled_settings,

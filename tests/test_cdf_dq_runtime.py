@@ -694,7 +694,10 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     assert (bootstrap / "config" / "settings.yaml").is_file()
     function_yaml = _MODULE / "functions" / "dq_infrastructure_bootstrap.Function.yaml"
     assert function_yaml.is_file()
-    assert "space: {{ dataQualitySpace }}" in function_yaml.read_text(encoding="utf-8")
+    function_text = function_yaml.read_text(encoding="utf-8")
+    assert "space: {{ dataQualitySpace }}" in function_text
+    assert 'client-id: "{{ functionClientId }}"' in function_text
+    assert 'client-secret: "{{ functionClientSecret }}"' in function_text
     schedule = _MODULE / "functions" / "dq_infrastructure_bootstrap.Schedule.yaml"
     assert schedule.is_file()
     schedule_text = schedule.read_text(encoding="utf-8")
@@ -833,6 +836,71 @@ def test_bootstrap_handler_applies_schedule_data_overrides(monkeypatch: pytest.M
     assert captured_settings["records"] == {"space": "customDq", "stream_id": "custom_stream"}
     assert captured_settings["function_code_dataset_external_id"] == "custom_dataset"
     assert captured_settings["external_dataproducts"] == [{"external_id": "custom-dp", "version": "9.9.9"}]
+
+
+def test_bootstrap_handler_injects_runtime_credentials_from_function_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    bundled = _MODULE / "functions" / "dq_infrastructure_bootstrap" / "config" / "settings.yaml"
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        settings_path = kwargs["settings_path"]
+        assert isinstance(settings_path, Path)
+        assert settings_path != bundled
+        captured["settings"] = yaml.safe_load(settings_path.read_text(encoding="utf-8"))
+        captured["function_secrets"] = kwargs["function_secrets"]
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    schedule_api = SimpleNamespace(list=lambda **_kwargs: [], delete=lambda *, id: None)
+    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
+    secrets = {"client-id": "runtime-id", "client-secret": "runtime-secret"}
+
+    result = handler_module.handle({}, client, secrets=secrets)
+    assert result == {"status": "completed"}
+    assert captured["function_secrets"] == secrets
+    settings = captured["settings"]
+    assert isinstance(settings, dict)
+    assert settings["runtime_credentials"] == {
+        "functions": {"client_id": "runtime-id", "client_secret": "runtime-secret"},
+        "workflows": {"client_id": "runtime-id", "client_secret": "runtime-secret"},
+        "schedules": {"client_id": "runtime-id", "client_secret": "runtime-secret"},
+    }
+
+
+def test_bootstrap_handler_prefers_specialized_workflow_secret_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_settings: dict[str, object] = {}
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        settings_path = kwargs["settings_path"]
+        assert isinstance(settings_path, Path)
+        captured_settings.update(yaml.safe_load(settings_path.read_text(encoding="utf-8")))
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    schedule_api = SimpleNamespace(list=lambda **_kwargs: [], delete=lambda *, id: None)
+    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
+
+    handler_module.handle(
+        {},
+        client,
+        secrets={
+            "client-id": "fn-id",
+            "client-secret": "fn-secret",
+            "workflow-client-id": "wf-id",
+            "workflow-client-secret": "wf-secret",
+            "schedule-client-id": "sched-id",
+            "schedule-client-secret": "sched-secret",
+        },
+    )
+    assert captured_settings["runtime_credentials"] == {
+        "functions": {"client_id": "fn-id", "client_secret": "fn-secret"},
+        "workflows": {"client_id": "wf-id", "client_secret": "wf-secret"},
+        "schedules": {"client_id": "sched-id", "client_secret": "sched-secret"},
+    }
 
 
 def _install_fake_data_quality(monkeypatch: pytest.MonkeyPatch, *, pipeline_impl: object, settings: object) -> None:

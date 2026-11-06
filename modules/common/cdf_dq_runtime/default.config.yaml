@@ -56,6 +56,6 @@ dataQualitySpace: dataQuality
 recordsStreamId: test_stream_1
 # Data set for the CDF Function code file.
 functionCodeDatasetExternalId: dq_shacl_rules
-# IdP credentials used by the bootstrap Function Schedule (Toolkit substitutes ${IDP_*}).
+# IdP credentials for the bootstrap Function Schedule and Function secrets (workflow triggers).
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
