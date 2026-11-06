@@ -182,7 +182,9 @@ type BuiltInStatusCardProps = {
 function BuiltInStatusCard({ viewModel }: BuiltInStatusCardProps) {
   const { t, builtInStatus, builtInFailureDetail } = viewModel;
   const statusLabel = t(viewModel.builtInStatusLabelKey);
-  const showRunningProgress = builtInStatus === 'running' || builtInStatus === 'pending';
+  const showRunningProgress =
+    builtInStatus === 'running' || (builtInStatus === 'pending' && viewModel.autoStartEnabled);
+  const showRunButton = (builtInStatus === 'pending' && !viewModel.autoStartEnabled) || builtInStatus === 'failed';
 
   return (
     <Card
@@ -198,8 +200,23 @@ function BuiltInStatusCard({ viewModel }: BuiltInStatusCardProps) {
                 {t('configuration.firstRunOnboarding.builtIn.cardTitle')}
               </h2>
               <p className="text-sm text-muted-foreground">
-                {t('configuration.firstRunOnboarding.builtIn.cardBody')}
+                {t(
+                  viewModel.autoStartEnabled
+                    ? 'configuration.firstRunOnboarding.builtIn.cardBody'
+                    : 'configuration.firstRunOnboarding.builtIn.cardBodyManual'
+                )}
               </p>
+              {showRunButton ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="mt-2"
+                  data-testid="first-run-built-in-run"
+                  onClick={viewModel.startBuiltIn}
+                >
+                  {t('configuration.firstRunOnboarding.builtIn.runButton')}
+                </Button>
+              ) : null}
               {builtInStatus === 'unavailable' ? (
                 <p className="text-sm text-muted-foreground" data-testid="first-run-built-in-status">
                   {t('configuration.firstRun.noRun')}

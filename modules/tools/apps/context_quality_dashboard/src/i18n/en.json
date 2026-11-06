@@ -967,5 +967,11 @@
   "run.busy.close": "Close",
   "run.busy.hint": "A run is in progress (it may be the scheduled one). Wait until it has finished before starting another.",
   "overview.measuredAt": "Measured {{date}}",
-  "common.dismiss": "Dismiss"
+  "common.dismiss": "Dismiss",
+  "configuration.firstRunOnboarding.builtIn.cardBodyManual": "Standard checks, no setup required. Run them to see your first results.",
+  "configuration.firstRunOnboarding.builtIn.runButton": "Run built-in checks",
+  "configuration.firstRunOnboarding.builtIn.statusLabel.notStarted": "Not started",
+  "configuration.firstRunOnboarding.builtIn.status.notStarted": "Built-in quality checks have not been started.",
+  "configuration.firstRunOnboarding.welcome.subtitle.notStarted": "Run the built-in checks to see your first results. Add custom checks to measure more of your data models.",
+  "configuration.firstRunOnboarding.skip.body.notStarted": "Built-in quality checks have not been started. You can run them anytime from the Configuration tab."
 }

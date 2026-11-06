@@ -804,5 +804,11 @@
   "run.busy.close": "閉じる",
   "run.busy.hint": "実行が進行中です（スケジュールされた実行の可能性があります）。終了してから別の実行を開始してください。",
   "overview.measuredAt": "測定日時 {{date}}",
-  "common.dismiss": "閉じる"
+  "common.dismiss": "閉じる",
+  "configuration.firstRunOnboarding.builtIn.cardBodyManual": "標準チェックです。設定は不要です。実行すると最初の結果が表示されます。",
+  "configuration.firstRunOnboarding.builtIn.runButton": "組み込みチェックを実行",
+  "configuration.firstRunOnboarding.builtIn.statusLabel.notStarted": "未開始",
+  "configuration.firstRunOnboarding.builtIn.status.notStarted": "組み込み品質チェックはまだ開始されていません。",
+  "configuration.firstRunOnboarding.welcome.subtitle.notStarted": "組み込みチェックを実行すると最初の結果が表示されます。カスタムチェックを追加して、データモデルをさらに測定できます。",
+  "configuration.firstRunOnboarding.skip.body.notStarted": "組み込み品質チェックはまだ開始されていません。設定タブからいつでも実行できます。"
 }

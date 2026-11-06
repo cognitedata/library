@@ -110,7 +110,8 @@ describe('first-run onboarding page', () => {
     localStorage.setItem('context-quality-dashboard.language', 'en');
   });
 
-  it('auto-starts a built-in run with empty extra links on first visit', async () => {
+  it('does not start a run by itself on first visit, and starts the built-in checks from the button', async () => {
+    const user = userEvent.setup();
     const services = cdfServices(backendFetch([]));
     if (services.runService === null) {
       throw new Error('Expected run service');
@@ -120,6 +121,9 @@ describe('first-run onboarding page', () => {
     renderOverview(<ProductShell hostInitialState={JSON.stringify({ page: 'configuration' })} />, { services });
 
     await screen.findByTestId('first-run-onboarding');
+    expect(start).not.toHaveBeenCalled();
+
+    await user.click(await screen.findByTestId('first-run-built-in-run'));
 
     await waitFor(() => {
       expect(start).toHaveBeenCalledWith({
@@ -127,7 +131,30 @@ describe('first-run onboarding page', () => {
         scope: { dimensions: 'all', configured: false },
       });
     });
-    expect(screen.queryByTestId('first-run-run-built-in')).not.toBeInTheDocument();
+  });
+
+  it('starts a built-in run with empty extra links on first visit when the build enables auto-start', async () => {
+    vi.stubEnv('VITE_CQ_AUTO_START_FIRST_RUN', 'true');
+    try {
+      const services = cdfServices(backendFetch([]));
+      if (services.runService === null) {
+        throw new Error('Expected run service');
+      }
+      const start = vi.spyOn(services.runService, 'start');
+
+      renderOverview(<ProductShell hostInitialState={JSON.stringify({ page: 'configuration' })} />, { services });
+
+      await screen.findByTestId('first-run-onboarding');
+
+      await waitFor(() => {
+        expect(start).toHaveBeenCalledWith({
+          extraLinks: [],
+          scope: { dimensions: 'all', configured: false },
+        });
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('hides page tabs while onboarding is shown', async () => {

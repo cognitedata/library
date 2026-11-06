@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  isBuiltInAutoStartEnabled,
   isFirstRunOnboardingPreview,
   shouldShowFirstRunOnboarding,
 } from './firstRunOnboardingMode';
@@ -20,5 +21,13 @@ describe(shouldShowFirstRunOnboarding.name, () => {
       true
     );
     expect(shouldShowFirstRunOnboarding(false, { DEV: true })).toBe(false);
+  });
+});
+
+describe(isBuiltInAutoStartEnabled.name, () => {
+  it('is off unless the build sets the flag to true', () => {
+    expect(isBuiltInAutoStartEnabled({})).toBe(false);
+    expect(isBuiltInAutoStartEnabled({ VITE_CQ_AUTO_START_FIRST_RUN: 'false' })).toBe(false);
+    expect(isBuiltInAutoStartEnabled({ VITE_CQ_AUTO_START_FIRST_RUN: 'true' })).toBe(true);
   });
 });

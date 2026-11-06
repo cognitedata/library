@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { useAppState } from '../../app/state/useAppState';
 import { isBackendError } from '../../services/cdf/backendErrors';
+import { isBuiltInAutoStartEnabled } from '../shell/firstRunOnboardingMode';
 import { useQualityOperations } from '../shell/useQualityOperations';
 
 import {
@@ -23,6 +24,8 @@ export type FirstRunOnboardingViewModel = {
   builtInFailureDetail: { key: string; message: string } | null;
   skip: () => void;
   goToOverview: () => void;
+  autoStartEnabled: boolean;
+  startBuiltIn: () => void;
   runAdditionalChecks: () => void;
   runAdditionalEnabled: boolean;
   runAdditionalInProgress: boolean;
@@ -33,7 +36,7 @@ export type FirstRunOnboardingViewModel = {
   viewBuiltInResults: () => void;
 };
 
-function builtInStatusLabelKey(status: BuiltInOnboardingStatus): string {
+function builtInStatusLabelKey(status: BuiltInOnboardingStatus, autoStartEnabled: boolean): string {
   switch (status) {
     case 'running':
       return 'configuration.firstRunOnboarding.builtIn.statusLabel.running';
@@ -44,14 +47,19 @@ function builtInStatusLabelKey(status: BuiltInOnboardingStatus): string {
     case 'unavailable':
       return 'configuration.firstRunOnboarding.builtIn.statusLabel.unavailable';
     case 'pending':
-      return 'configuration.firstRunOnboarding.builtIn.statusLabel.pending';
+      return autoStartEnabled
+        ? 'configuration.firstRunOnboarding.builtIn.statusLabel.pending'
+        : 'configuration.firstRunOnboarding.builtIn.statusLabel.notStarted';
   }
 }
 
-function welcomeSubtitleKey(status: BuiltInOnboardingStatus): string {
+function welcomeSubtitleKey(status: BuiltInOnboardingStatus, autoStartEnabled: boolean): string {
   switch (status) {
-    case 'running':
     case 'pending':
+      return autoStartEnabled
+        ? 'configuration.firstRunOnboarding.welcome.subtitle.running'
+        : 'configuration.firstRunOnboarding.welcome.subtitle.notStarted';
+    case 'running':
       return 'configuration.firstRunOnboarding.welcome.subtitle.running';
     case 'completed':
       return 'configuration.firstRunOnboarding.welcome.subtitle.completed';
@@ -62,7 +70,7 @@ function welcomeSubtitleKey(status: BuiltInOnboardingStatus): string {
   }
 }
 
-function builtInStatusMessageKey(status: BuiltInOnboardingStatus): string {
+function builtInStatusMessageKey(status: BuiltInOnboardingStatus, autoStartEnabled: boolean): string {
   switch (status) {
     case 'running':
       return 'configuration.firstRunOnboarding.builtIn.status.running';
@@ -73,18 +81,23 @@ function builtInStatusMessageKey(status: BuiltInOnboardingStatus): string {
     case 'unavailable':
       return 'configuration.firstRun.noRun';
     case 'pending':
-      return 'configuration.firstRunOnboarding.builtIn.status.pending';
+      return autoStartEnabled
+        ? 'configuration.firstRunOnboarding.builtIn.status.pending'
+        : 'configuration.firstRunOnboarding.builtIn.status.notStarted';
   }
 }
 
-function skipConfirmationBodyKey(status: BuiltInOnboardingStatus): string {
+function skipConfirmationBodyKey(status: BuiltInOnboardingStatus, autoStartEnabled: boolean): string {
   switch (status) {
+    case 'pending':
+      return autoStartEnabled
+        ? 'configuration.firstRunOnboarding.skip.body.running'
+        : 'configuration.firstRunOnboarding.skip.body.notStarted';
     case 'completed':
       return 'configuration.firstRunOnboarding.skip.body.completed';
     case 'failed':
       return 'configuration.firstRunOnboarding.skip.body.failed';
     case 'running':
-    case 'pending':
       return 'configuration.firstRunOnboarding.skip.body.running';
     case 'unavailable':
       return 'configuration.firstRunOnboarding.skip.body.unavailable';
@@ -125,15 +138,21 @@ export function useFirstRunOnboardingViewModel(): FirstRunOnboardingViewModel {
 
   const builtInStatus = useMemo(() => deriveBuiltInOnboardingStatus(statusInput), [statusInput]);
 
+  const autoStartEnabled = isBuiltInAutoStartEnabled();
   const autoStartIssued = useRef(false);
   useEffect(() => {
-    if (autoStartIssued.current || !shouldAutoStartBuiltInRun(statusInput)) {
+    if (!autoStartEnabled || autoStartIssued.current || !shouldAutoStartBuiltInRun(statusInput)) {
       return;
     }
     autoStartIssued.current = true;
     dispatch({ type: 'setBuiltInAutoRunAttempted', attempted: true });
     fileViewModel.runBuiltIn();
-  }, [dispatch, fileViewModel, statusInput]);
+  }, [autoStartEnabled, dispatch, fileViewModel, statusInput]);
+
+  const startBuiltIn = useCallback(() => {
+    dispatch({ type: 'setBuiltInAutoRunAttempted', attempted: true });
+    fileViewModel.runBuiltIn();
+  }, [dispatch, fileViewModel]);
 
   const completeOnboarding = useCallback(() => {
     dispatch({ type: 'setConfigurationOnboardingComplete', complete: true });
@@ -177,16 +196,18 @@ export function useFirstRunOnboardingViewModel(): FirstRunOnboardingViewModel {
     step: 'welcome',
     optionalChecksSkipped,
     builtInStatus,
-    builtInStatusMessageKey: builtInStatusMessageKey(builtInStatus),
-    builtInStatusLabelKey: builtInStatusLabelKey(builtInStatus),
-    welcomeSubtitleKey: welcomeSubtitleKey(builtInStatus),
+    builtInStatusMessageKey: builtInStatusMessageKey(builtInStatus, autoStartEnabled),
+    builtInStatusLabelKey: builtInStatusLabelKey(builtInStatus, autoStartEnabled),
+    welcomeSubtitleKey: welcomeSubtitleKey(builtInStatus, autoStartEnabled),
     builtInFailureDetail,
     skip,
     goToOverview,
+    autoStartEnabled,
+    startBuiltIn,
     runAdditionalChecks,
     runAdditionalEnabled,
     runAdditionalInProgress,
-    skipConfirmationBodyKey: skipConfirmationBodyKey(builtInStatus),
+    skipConfirmationBodyKey: skipConfirmationBodyKey(builtInStatus, autoStartEnabled),
     fileViewModel,
     t: fileViewModel.t,
     openRunDetails,

@@ -60,7 +60,7 @@ Terms:
 ### Prerequisites
 
 - The backend [`context_quality_v2`](../../../dashboards/context_quality_v2/README.md) is deployed and has completed
-  at least one run (until then the app shows first-run guidance).
+  at least one run. Until then the app shows a first-run screen where you start one (see "Start a run").
 - Node.js 20+ and npm.
 - A Fusion user in the target project with the backend's `gp_context_quality_dashboard_users` group (read access
   to the stream, schema and the workbook files). To start runs from the app, the user also needs permission to run workflows
@@ -93,6 +93,7 @@ in the backend's `config.<env>.yaml`.
 | `VITE_CQ_SCHEMA_SPACE` | `sp_context_quality_metrics` | the schema space (`metricsSchemaSpace`) |
 | `VITE_CQ_WORKFLOW_ID`, `VITE_CQ_WORKFLOW_VERSION` | `wf_context_quality_metrics`, `v1` | the workflow behind **Run with this file**. Leave both out for a read-only app |
 | `VITE_CQ_WINDOW_DAYS` | stream limit, max 90 | most days of history to read |
+| `VITE_CQ_AUTO_START_FIRST_RUN` | off | `true` starts the built-in checks by itself on the first visit |
 
 Vite inlines these at build time, so they must be set when you run `npm run dev` or deploy. For several
 environments, create `.env.<name>` and run `vite --mode <name>`.
@@ -115,7 +116,25 @@ npm run dev                         # https://localhost:3004, opens your project
 | "Connection timed out" in Fusion | Keep `npm run dev` running; run `setup-https`; use the URL it printed |
 | Port 3004 in use | Stop the other process; the port is fixed because Fusion embeds it in the URL |
 | Configuration screen instead of the app | `.env.local` is missing or `VITE_CQ_*` are empty |
-| "No run yet" | The backend has not completed a run; start the workflow in CDF |
+| "No run yet" | No completed run exists. Start one from the dashboard (see "Start a run") or in CDF |
+| A run failed right after deploying the backend | The function was still building. Wait until it shows as ready in Fusion, then run again |
+
+### Start a run
+
+The dashboard never starts a run by itself. The app needs `VITE_CQ_WORKFLOW_ID` and `VITE_CQ_WORKFLOW_VERSION`
+(set in `.env.example`) and a user who may run workflows.
+
+- **First run:** on a project with no completed run, the Configuration tab opens a first-run screen. Press
+  **Run built-in checks**. The status shows *Running*, and the results appear in Overview when it completes.
+- **Later runs:** on the Overview and Dimensions pages, **Refresh** re-reads the latest results; use the run button on a
+  dimension page to re-measure that dimension. In **Configuration**, upload a YAML or JSON file of your own
+  `space:externalId:version` models and `View.property` links, then press **Run with this file**.
+- **If it fails:** open **Run notes** for the reason. A run started right after deploying the backend can fail
+  because the function is still building; wait until it is ready and press **Run built-in checks** again.
+
+The run executes as you, so you need `workflowOrchestrationAcl` write and `sessionsAcl` create, plus
+what the backend's function group holds (see the backend README, "Running with a config file").
+Set `VITE_CQ_AUTO_START_FIRST_RUN=true` only if you want the first visit to start the built-in checks itself.
 
 ### 3. Deploy and publish to a CDF project
 
