@@ -10,6 +10,8 @@ import type {
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 
+import { DEFAULT_FONT_SIZE } from "./constants";
+
 export interface LabelNodeData {
 	text: string;
 	fontSize?: number;
@@ -33,7 +35,7 @@ export const LabelNode: React.FC<NodeComponentProps<LabelNodeData>> = ({
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [isEditing, setIsEditing] = useState(false);
 
-	const fontSize = data.fontSize || 14;
+	const fontSize = data.fontSize || DEFAULT_FONT_SIZE;
 	const fontWeight = data.fontWeight || "normal";
 	const textColor = data.textColor || "#333";
 	const backgroundColor = data.backgroundColor || "#ffffff";
@@ -160,7 +162,7 @@ export const LabelPlaceholder: React.FC<PlaceholderProps<LabelNodeData>> = ({
 		>
 			<span
 				style={{
-					fontSize: data.fontSize || 14,
+					fontSize: data.fontSize || DEFAULT_FONT_SIZE,
 					fontWeight: data.fontWeight || "normal",
 					color: data.textColor || "#333",
 					textAlign: "center",

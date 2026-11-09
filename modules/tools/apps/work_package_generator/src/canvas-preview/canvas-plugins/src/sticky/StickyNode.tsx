@@ -10,6 +10,7 @@ import type {
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 
+import { DEFAULT_FONT_SIZE, STICKY_COLORS, STICKY_PADDING } from "./constants";
 import { useAutoSizedFont } from "./useAutoSizedFont";
 
 export interface StickyNodeData {
@@ -21,31 +22,6 @@ export interface StickyNodeData {
 	borderWidth?: number;
 	borderRadius?: number;
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-/** Padding inside the sticky note */
-const STICKY_PADDING = 12;
-
-/** Default font size when no content */
-const DEFAULT_FONT_SIZE = 14;
-
-// ============================================================================
-// Component
-// ============================================================================
-
-const STICKY_COLORS = [
-	"#fff59d", // Yellow (default)
-	"#ffcc80", // Orange
-	"#ef9a9a", // Red
-	"#ce93d8", // Purple
-	"#90caf9", // Blue
-	"#a5d6a7", // Green
-	"#bcaaa4", // Brown
-	"#ffffff", // White
-];
 
 export const StickyNode: React.FC<NodeComponentProps<StickyNodeData>> = ({
 	data,
@@ -240,5 +216,3 @@ export const StickyPlaceholder: React.FC<PlaceholderProps<StickyNodeData>> = ({
 		</div>
 	);
 };
-
-export { STICKY_COLORS };

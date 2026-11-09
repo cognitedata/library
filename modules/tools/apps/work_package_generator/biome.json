@@ -30,7 +30,8 @@
 		}
 	},
 	"formatter": {
-		"enabled": true
+		"enabled": true,
+		"lineEnding": "auto"
 	},
 	"javascript": {
 		"formatter": {

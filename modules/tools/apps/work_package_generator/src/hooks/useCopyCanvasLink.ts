@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { showManualCopyDialog } from "@/components/work-package/canvas-creation/ManualCopyDialog";
 import { copyToClipboard } from "@/utils/clipboard";
+import { logError } from "@/utils/logger";
 
 /** Duration in milliseconds for showing the "copied" confirmation message */
 export const COPY_CONFIRMATION_DURATION_MS = 2000;
@@ -59,7 +60,11 @@ export function useCopyCanvasLink(
 				showManualCopy(canvasLink);
 			}
 
-			console.error("Copy failed:", error);
+			logError({
+				scope: "useCopyCanvasLink",
+				message: "Copy failed",
+				cause: error,
+			});
 		}
 	};
 

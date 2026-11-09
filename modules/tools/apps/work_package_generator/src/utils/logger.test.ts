@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { logError } from "./logger";
+import { logError, logWarn } from "./logger";
 
 describe("logError", () => {
 	afterEach(() => {
@@ -30,5 +30,23 @@ describe("logError", () => {
 			spy.mock.calls[spy.mock.calls.length - 1][0] as string
 		);
 		expect(noCause.error).toBeUndefined();
+	});
+});
+
+describe("logWarn", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("writes a warn-level JSON line", () => {
+		const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		logWarn({ scope: "dms", message: "truncated", context: { cap: 3 } });
+
+		const entry = JSON.parse(spy.mock.calls[0][0] as string);
+		expect(entry.level).toBe("warn");
+		expect(entry.scope).toBe("dms");
+		expect(entry.message).toBe("truncated");
+		expect(entry.context).toEqual({ cap: 3 });
 	});
 });

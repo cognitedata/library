@@ -38,7 +38,7 @@ export {
 	USER_FACING_ERROR_FALLBACK,
 } from "./errors";
 export { formatPropertyValue, getColumnTitle } from "./format";
-export { logError, type StructuredErrorLog } from "./logger";
+export { logError, logWarn, type StructuredErrorLog } from "./logger";
 export { generateUuid } from "./uuid";
 export { SEARCH_WORK_ORDER_TO_BEGIN } from "./workflow-copy";
 export {

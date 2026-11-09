@@ -6,14 +6,14 @@ import {
 	type AppConfig,
 	getResourceConfigs,
 	resolveAppConfig,
-} from "../../app-config";
+} from "@/app-config";
 import type {
 	Asset,
 	CanvasConfig,
 	CanvasItem,
 	ResourceInstance,
 	WorkOrder,
-} from "../../types";
+} from "@/types";
 
 const CARD_W = 280;
 const CARD_H = 120;

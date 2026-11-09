@@ -2,6 +2,8 @@
  * Cursor pagination helpers for DMS reads with hard caps on total items.
  */
 
+import { logWarn } from "./logger";
+
 export interface FetchPageResult<T> {
 	items: T[];
 	nextCursor?: string;
@@ -24,7 +26,7 @@ export function readOptionalNextCursor(response: unknown): string | undefined {
  */
 export async function fetchPagesWithItemCap<T>(options: {
 	maxTotalItems: number;
-	/** Shown in console.warn when results are truncated (e.g. "getAssetResourcesGeneric:file"). */
+	/** Shown when results are truncated (e.g. "getAssetResourcesGeneric:file"). */
 	warnContext: string;
 	fetchPage: (cursor: string | undefined) => Promise<FetchPageResult<T>>;
 }): Promise<{ items: T[]; truncated: boolean }> {
@@ -33,9 +35,10 @@ export async function fetchPagesWithItemCap<T>(options: {
 	let truncated = false;
 
 	const warnTruncated = () => {
-		console.warn(
-			`[dms] ${options.warnContext}: truncated at ${options.maxTotalItems} items (more data available)`
-		);
+		logWarn({
+			scope: "dms",
+			message: `${options.warnContext}: truncated at ${options.maxTotalItems} items (more data available)`,
+		});
 	};
 
 	while (true) {

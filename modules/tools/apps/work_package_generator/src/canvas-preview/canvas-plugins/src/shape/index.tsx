@@ -5,6 +5,7 @@
 import type { NodeTypePlugin } from "@dune-canvas/canvas-lib";
 import type React from "react";
 
+import { DEFAULT_STROKE_WIDTH } from "./constants";
 import { ShapeNode, type ShapeNodeData, ShapePlaceholder } from "./ShapeNode";
 
 const ShapeIcon: React.FC<{ size?: number }> = ({ size = 24 }) => (
@@ -38,7 +39,7 @@ export const shapePlugin: NodeTypePlugin<ShapeNodeData> = {
 		shape: "rectangle",
 		fill: "transparent",
 		stroke: "#000000",
-		strokeWidth: 2,
+		strokeWidth: DEFAULT_STROKE_WIDTH,
 	}),
 	icon: ShapeIcon,
 };

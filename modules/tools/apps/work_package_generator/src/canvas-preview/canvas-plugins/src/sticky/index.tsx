@@ -5,8 +5,8 @@ import React from 'react';
 
 import type { NodeTypePlugin } from "@dune-canvas/canvas-lib";
 
+import { DEFAULT_FONT_SIZE, STICKY_COLORS } from "./constants";
 import {
-	STICKY_COLORS,
 	StickyNode,
 	type StickyNodeData,
 	StickyPlaceholder,
@@ -44,7 +44,7 @@ export const stickyPlugin: NodeTypePlugin<StickyNodeData> = {
 		content: "",
 		backgroundColor: STICKY_COLORS[0],
 		textColor: "#333",
-		fontSize: 14,
+		fontSize: DEFAULT_FONT_SIZE,
 	}),
 	icon: StickyIcon,
 };

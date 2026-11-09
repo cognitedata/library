@@ -2,6 +2,8 @@
  * Clipboard Utilities
  */
 
+import { logError } from "./logger";
+
 /**
  * Copy text to the clipboard. Uses the modern Clipboard API with a
  * `document.execCommand` fallback for environments that don't support it.
@@ -32,7 +34,11 @@ export async function copyToClipboard(text: string): Promise<void> {
 			throw new Error("Failed to copy text using fallback method");
 		}
 	} catch (error) {
-		console.error("Failed to copy text to clipboard:", error);
+		logError({
+			scope: "clipboard",
+			message: "Failed to copy text to clipboard",
+			cause: error,
+		});
 		throw error;
 	}
 }

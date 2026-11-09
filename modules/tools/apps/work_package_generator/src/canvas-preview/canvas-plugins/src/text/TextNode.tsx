@@ -10,6 +10,8 @@ import type {
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 
+import { DEFAULT_FONT_SIZE } from "./constants";
+
 export interface TextNodeData {
 	content: string;
 	fontSize?: number;
@@ -70,7 +72,7 @@ export const TextNode: React.FC<NodeComponentProps<TextNodeData>> = ({
 	};
 
 	const styles: React.CSSProperties = {
-		fontSize: data.fontSize || 16,
+		fontSize: data.fontSize || DEFAULT_FONT_SIZE,
 		fontFamily: data.fontFamily || "sans-serif",
 		fontWeight: data.fontWeight || "normal",
 		fontStyle: data.fontStyle || "normal",
@@ -143,7 +145,7 @@ export const TextPlaceholder: React.FC<PlaceholderProps<TextNodeData>> = ({
 		>
 			<span
 				style={{
-					fontSize: data.fontSize || 16,
+					fontSize: data.fontSize || DEFAULT_FONT_SIZE,
 					color: data.color || "#666",
 					textAlign: "center",
 					overflow: "hidden",

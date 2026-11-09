@@ -6,6 +6,8 @@
 import type { Size } from "@dune-canvas/canvas-lib";
 import { useMemo } from "react";
 
+import { DEFAULT_FONT_SIZE } from "./constants";
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -18,9 +20,6 @@ const MIN_RELATIVE_FONT_SIZE = 0.02;
 
 /** Binary search accuracy for font size */
 const FONT_SIZE_SEARCH_ACCURACY = 0.5;
-
-/** Default font size fallback */
-const DEFAULT_FONT_SIZE = 14;
 
 /** Maximum cache size for font calculations */
 const MAX_CACHE_SIZE = 1000;

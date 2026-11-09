@@ -8,7 +8,7 @@ const APP_ID = "work-package-generator";
 
 export type StructuredErrorLog = {
 	app: typeof APP_ID;
-	level: "error";
+	level: "error" | "warn";
 	timestamp: string;
 	scope: string;
 	message: string;
@@ -38,19 +38,17 @@ function serializeCause(cause: unknown): StructuredErrorLog["error"] {
 	return { name: "Unknown", message: String(cause) };
 }
 
-/**
- * Logs an error with a fixed schema. Uses console.error with a JSON line so
- * aggregators and grep stay predictable; omit sensitive fields from context.
- */
-export function logError(params: {
+type LogParams = {
 	scope: string;
 	message: string;
 	context?: Record<string, unknown>;
 	cause?: unknown;
-}): void {
+};
+
+function writeLog(level: StructuredErrorLog["level"], params: LogParams): void {
 	const entry: StructuredErrorLog = {
 		app: APP_ID,
-		level: "error",
+		level,
 		timestamp: new Date().toISOString(),
 		scope: params.scope,
 		message: params.message,
@@ -61,5 +59,23 @@ export function logError(params: {
 			? { error: serializeCause(params.cause) }
 			: {}),
 	};
-	console.error(JSON.stringify(entry));
+	const line = JSON.stringify(entry);
+	if (level === "warn") {
+		console.warn(line);
+		return;
+	}
+	console.error(line);
+}
+
+/**
+ * Logs an error with a fixed schema. Uses console.error with a JSON line so
+ * aggregators and grep stay predictable; omit sensitive fields from context.
+ */
+export function logError(params: LogParams): void {
+	writeLog("error", params);
+}
+
+/** Same schema as {@link logError}, written with console.warn. */
+export function logWarn(params: LogParams): void {
+	writeLog("warn", params);
 }

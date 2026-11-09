@@ -19,15 +19,10 @@ import type { TimeseriesDataPoint } from "@dune-canvas/canvas-plugins/timeseries
  * Reference to an FDM instance
  */
 export interface FdmReference {
-	/** Instance space */
 	space: string;
-	/** Instance external ID */
 	externalId: string;
-	/** View space (optional - for typed access) */
 	viewSpace?: string;
-	/** View external ID (optional) */
 	viewExternalId?: string;
-	/** View version (optional) */
 	viewVersion?: string;
 }
 

@@ -5,6 +5,7 @@
 import type { NodeTypePlugin } from "@dune-canvas/canvas-lib";
 import type React from "react";
 
+import { DEFAULT_FONT_SIZE } from "./constants";
 import { TextNode, type TextNodeData, TextPlaceholder } from "./TextNode";
 
 const TextIcon: React.FC<{ size?: number }> = ({ size = 24 }) => (
@@ -38,7 +39,7 @@ export const textPlugin: NodeTypePlugin<TextNodeData> = {
 	defaultSize: { width: 200, height: 100 },
 	defaultData: () => ({
 		content: "",
-		fontSize: 16,
+		fontSize: DEFAULT_FONT_SIZE,
 		fontFamily: "sans-serif",
 		fontWeight: "normal",
 		fontStyle: "normal",

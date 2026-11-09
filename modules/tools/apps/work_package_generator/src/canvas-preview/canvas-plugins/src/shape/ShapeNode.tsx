@@ -10,6 +10,8 @@ import type {
 } from "@dune-canvas/canvas-lib";
 import type React from "react";
 
+import { DEFAULT_STROKE_WIDTH } from "./constants";
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -34,7 +36,7 @@ export const ShapeNode: React.FC<NodeComponentProps<ShapeNodeData>> = ({
 		shape,
 		fill = "transparent",
 		stroke = "#000000",
-		strokeWidth = 2,
+		strokeWidth = DEFAULT_STROKE_WIDTH,
 		points,
 	} = data;
 
@@ -120,7 +122,7 @@ export const ShapePlaceholder: React.FC<PlaceholderProps<ShapeNodeData>> = ({
 		shape,
 		fill = "transparent",
 		stroke = "#000",
-		strokeWidth = 2,
+		strokeWidth = DEFAULT_STROKE_WIDTH,
 		points,
 	} = data;
 

@@ -4,6 +4,7 @@
 
 import type { NodeTypePlugin } from "@dune-canvas/canvas-lib";
 
+import { DEFAULT_FONT_SIZE } from "./constants";
 import { LabelNode, type LabelNodeData, LabelPlaceholder } from "./LabelNode";
 
 const LabelIcon: React.FC<{ size?: number }> = ({ size = 24 }) => (
@@ -36,7 +37,7 @@ export const labelPlugin: NodeTypePlugin<LabelNodeData> = {
 	defaultSize: { width: 120, height: 36 },
 	defaultData: () => ({
 		text: "",
-		fontSize: 14,
+		fontSize: DEFAULT_FONT_SIZE,
 		fontWeight: "normal",
 		textColor: "#333",
 		backgroundColor: "#ffffff",
