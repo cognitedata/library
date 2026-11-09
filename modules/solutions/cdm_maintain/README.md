@@ -212,6 +212,16 @@ Modify `cdf_maintain_location` to match your organization:
 - Adjust node structure in `nodes/`
 - Customize hierarchy for your needs
 
+## 🩺 Troubleshooting
+
+### Asset tab in the activity inspector is empty
+
+The Asset tab opens the asset referenced by the activity's `mainAsset` property (from `CogniteMaintenanceOrder`). Check that:
+
+- `mainAsset` is populated on the activity. Populating only `assets` is not enough.
+- The referenced node has data in the `CogniteAsset` view (`cdf_cdm`).
+- The asset lives in the instance space configured as `sourceDataInstanceSpace` in `rootLocationConfigurations` (defaults to `sourceDataSpace`, i.e. `maintain_source_data`). Assets ingested into a different instance space will not be found.
+
 ## 📄 License
 
 This module is part of the [Cognite library](https://github.com/cognitedata/library) repository and follows the same licensing terms.
