@@ -184,19 +184,19 @@ The identity used by `cdf deploy` and `deploy_infrastructure.py` (Toolkit `.env`
 | `dataProductsAcl:READ` | `deploy_infrastructure.py` loading external DataProducts (for example `data_quality_core`) when deploying workflows |
 | `ruleSetsAcl:CREATE` / `READ` / `UPDATE` / `DELETE` | Create/update/delete RuleSets and RuleSetVersions via `cdf deploy` |
 | `streamsAcl:READ` / `CREATE` / `DELETE` | Installation: `deploy_infrastructure.py` ensuring `recordsStreamId` exists (creates with `BasicArchive` if missing); delete when cleaning up |
-| `functionsAcl:WRITE` | Bootstrap schedule identity (`functionClientId`) deleting its own Function Schedule after a successful run |
+| `functionsAcl:READ` / `WRITE` | Bootstrap schedule identity (`functionClientId`) resolving the function and deleting its Function Schedule after a successful run |
 
 Grant these (typically all actions, scope `all`) in Fusion → Access management on the group linked to that identity — for Toolkit this is often `cognite_toolkit_service_principal`.
 
 `deploy_infrastructure.py` verifies these capabilities (and the function runtime ones below) via `token.inspect` before deploying, and exits if any are missing.
 
-The identity used **at runtime** by the CDF Function (the service principal whose `client-id` / `client-secret` were registered via `deploy_infrastructure.py` / Toolkit `functionClientId`) must also have Streams access and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `cdf_all_validation_results`). Without these, validation fails when posting results. The same identity needs `functionsAcl:WRITE` so the bootstrap function can delete its schedule after success:
+The identity used **at runtime** by the CDF Function (the service principal whose `client-id` / `client-secret` were registered via `deploy_infrastructure.py` / Toolkit `functionClientId`) must also have Streams access and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `cdf_all_validation_results`). Without these, validation fails when posting results. The same identity needs `functionsAcl:READ` / `WRITE` so the bootstrap function can resolve itself and delete its schedule after success:
 
 | Capability | Needed for |
 | --- | --- |
 | `streamsAcl:READ` | Resolve stream type for `recordsStreamId` |
 | `streamRecordsAcl:READ` / `WRITE` | Read/write validation result records (scope `all`, or at least `dataQualitySpace`) |
-| `functionsAcl:WRITE` | Bootstrap self-delete of Function Schedules for `fn_dataproduct_all_bootstrap_infrastructure` |
+| `functionsAcl:READ` / `WRITE` | Bootstrap self-delete of Function Schedules for `fn_dataproduct_all_bootstrap_infrastructure` |
 
 ```text
 WARNING: could not resolve stream type for 'cdf_all_validation_results'; defaulting to immutable (ingest):
@@ -302,15 +302,17 @@ and `dq-data-product-sync`) can be upserted. Schedule authentication alone
 exposes a token, not `client_id`/`client_secret`, and
 `cognite-data-quality` 0.5.x does not forward Function secrets into the
 external DataProduct workflow deploy path.
-After a **successful** deploy, the function deletes every Function Schedule for
-`fn_dataproduct_all_bootstrap_infrastructure` (so leftover hyphen-era names cannot keep firing).
-Delete failures are printed to the function log (`CogniteAPIError` includes the
-HTTP code) and do not fail the deploy result. If bootstrap fails, the five-minute
-schedule stays so the next cron tick can retry. A later `cdf deploy` recreates the
-schedule when needed. The schedule identity needs `functionsAcl:WRITE` to delete
-schedules (403 in the logs means grant WRITE). Stuck schedules can also be removed
-in Fusion or via `manage_rulesets.ipynb`. Data Quality record views remain owned by
-the package.
+After a **successful** deploy, the function resolves
+`fn_dataproduct_all_bootstrap_infrastructure` by external id and deletes every
+Function Schedule for that numeric `functionId` (Toolkit authenticated schedules
+are stored under `functionId`, not `functionExternalId`). Delete failures are
+printed to the function log (`CogniteAPIError` includes the HTTP code) and do not
+fail the deploy result. If bootstrap fails, the five-minute schedule stays so the
+next cron tick can retry. A later `cdf deploy` recreates the schedule when needed.
+The schedule identity needs `functionsAcl:READ` / `WRITE` to look up the function
+and delete schedules (403 in the logs means grant those actions). Stuck schedules
+can also be removed in Fusion or via `manage_rulesets.ipynb`. Data Quality record
+views remain owned by the package.
 
 ### Local
 

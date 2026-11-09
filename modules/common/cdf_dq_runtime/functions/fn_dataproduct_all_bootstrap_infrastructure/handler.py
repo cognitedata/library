@@ -31,24 +31,37 @@ _SETTINGS_OVERRIDE_KEYS = frozenset(
 def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
     """Delete Toolkit bootstrap schedules after a successful deploy.
 
-    Deletes every schedule for this function external id (not only an exact name match) so
-    leftover hyphen-era schedules cannot keep firing. Never raises — delete failures must not
-    mask a successful deploy result. Requires functionsAcl:WRITE on the schedule identity.
+    Authenticated Toolkit schedules are stored under numeric functionId (session/nonce create
+    path); listing by function_external_id returns nothing. Resolve the function, then delete
+    every schedule for that function_id. Never raises — delete failures must not mask a
+    successful deploy result. Requires functionsAcl:READ + WRITE on the schedule identity.
     """
-    schedules: list[Any] = []
     try:
-        schedules = list(
-            client.functions.schedules.list(function_external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID, limit=None)
-        )
+        function = client.functions.retrieve(external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID)
     except CogniteAPIError as e:
-        print(f"Failed to list bootstrap schedules for {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | code={e.code}")
+        print(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | code={e.code}")
         return
     except Exception as e:
-        print(f"Failed to list bootstrap schedules for {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e}")
+        print(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e}")
+        return
+
+    if function is None:
+        print(f"Bootstrap function not found: {BOOTSTRAP_FUNCTION_EXTERNAL_ID}")
+        return
+
+    function_id = function.id
+    schedules: list[Any] = []
+    try:
+        schedules = list(client.functions.schedules.list(function_id=function_id, limit=None))
+    except CogniteAPIError as e:
+        print(f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={e.code}")
+        return
+    except Exception as e:
+        print(f"Failed to list bootstrap schedules for function_id={function_id}: {e}")
         return
 
     if not schedules:
-        print(f"No bootstrap schedules found for {BOOTSTRAP_FUNCTION_EXTERNAL_ID}")
+        print(f"No bootstrap schedules found for {BOOTSTRAP_FUNCTION_EXTERNAL_ID} (function_id={function_id})")
         return
 
     for schedule in schedules:

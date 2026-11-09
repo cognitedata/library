@@ -747,10 +747,31 @@ def _load_bootstrap_handler(monkeypatch: pytest.MonkeyPatch, deploy_impl: object
     return module
 
 
+def _bootstrap_client(
+    *,
+    schedules: list[SimpleNamespace] | None = None,
+    delete: object | None = None,
+    retrieve: object | None = None,
+    credentials: object | None = None,
+) -> SimpleNamespace:
+    """Minimal CogniteClient stub for bootstrap handler schedule self-delete."""
+    schedule_api = SimpleNamespace(
+        list=lambda **_kwargs: list(schedules or []),
+        delete=delete or (lambda *, id: None),
+    )
+    functions_api = SimpleNamespace(
+        retrieve=retrieve or (lambda *, external_id: SimpleNamespace(id=42, external_id=external_id)),
+        schedules=schedule_api,
+    )
+    if credentials is None:
+        return SimpleNamespace(functions=functions_api)
+    return SimpleNamespace(functions=functions_api, config=SimpleNamespace(credentials=credentials))
+
+
 def test_bootstrap_handler_deletes_all_schedules_for_function_on_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls: list[dict[str, object]] = []
+    list_calls: list[dict[str, object]] = []
     deleted: list[int] = []
 
     def deploy(**_kwargs: object) -> dict[str, object]:
@@ -761,15 +782,37 @@ def test_bootstrap_handler_deletes_all_schedules_for_function_on_success(
         SimpleNamespace(id=1, name="fn_dataproduct_all_bootstrap_infrastructure"),
         SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME),
     ]
-    schedule_api = SimpleNamespace(
-        list=lambda **kwargs: calls.append(kwargs) or schedules,
+    # Toolkit creates authenticated schedules with functionId (nonce/session). Filtering by
+    # function_external_id returns nothing; resolve the function then list by function_id.
+    client = _bootstrap_client(
+        schedules=schedules,
         delete=lambda *, id: deleted.append(id),
     )
-    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
+    original_list = client.functions.schedules.list
+
+    def tracking_list(**kwargs: object) -> list[SimpleNamespace]:
+        list_calls.append(kwargs)
+        return original_list(**kwargs)
+
+    client.functions.schedules.list = tracking_list
 
     assert handler_module.handle({}, client) == {"status": "completed"}
-    assert calls == [{"function_external_id": handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID, "limit": None}]
+    assert list_calls == [{"function_id": 42, "limit": None}]
     assert deleted == [1, 2]
+
+
+def test_bootstrap_handler_logs_when_bootstrap_function_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client(retrieve=lambda *, external_id: None)
+
+    assert handler_module.handle({}, client) == {"status": "completed"}
+    assert f"Bootstrap function not found: {handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID}" in capsys.readouterr().out
 
 
 def test_bootstrap_handler_keeps_schedule_when_deployment_fails(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -779,11 +822,10 @@ def test_bootstrap_handler_keeps_schedule_when_deployment_fails(monkeypatch: pyt
         raise RuntimeError("temporary deployment failure")
 
     handler_module = _load_bootstrap_handler(monkeypatch, deploy)
-    schedule_api = SimpleNamespace(
-        list=lambda **_kwargs: [SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME)],
+    client = _bootstrap_client(
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME)],
         delete=lambda *, id: deleted.append(id),
     )
-    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
 
     with pytest.raises(RuntimeError, match="temporary deployment failure"):
         handler_module.handle({}, client)
@@ -804,11 +846,10 @@ def test_bootstrap_handler_logs_schedule_delete_failure_without_failing_deploy(
     def delete_forbidden(*, id: int) -> None:
         raise CogniteAPIError(message="missing capability", code=403, x_request_id="req")
 
-    schedule_api = SimpleNamespace(
-        list=lambda **_kwargs: [SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME)],
+    client = _bootstrap_client(
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME)],
         delete=delete_forbidden,
     )
-    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
 
     assert handler_module.handle({}, client) == {"status": "completed"}
     captured = capsys.readouterr().out
@@ -828,8 +869,7 @@ def test_bootstrap_handler_applies_schedule_data_overrides(monkeypatch: pytest.M
         return {"status": "completed"}
 
     handler_module = _load_bootstrap_handler(monkeypatch, deploy)
-    schedule_api = SimpleNamespace(list=lambda **_kwargs: [], delete=lambda *, id: None)
-    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
+    client = _bootstrap_client()
 
     result = handler_module.handle(
         {
@@ -863,8 +903,7 @@ def test_bootstrap_handler_injects_runtime_credentials_from_function_secrets(
         return {"status": "completed"}
 
     handler_module = _load_bootstrap_handler(monkeypatch, deploy)
-    schedule_api = SimpleNamespace(list=lambda **_kwargs: [], delete=lambda *, id: None)
-    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
+    client = _bootstrap_client()
     secrets = {"client-id": "runtime-id", "client-secret": "runtime-secret"}
 
     result = handler_module.handle({}, client, secrets=secrets)
@@ -891,8 +930,7 @@ def test_bootstrap_handler_prefers_specialized_workflow_secret_keys(
         return {"status": "completed"}
 
     handler_module = _load_bootstrap_handler(monkeypatch, deploy)
-    schedule_api = SimpleNamespace(list=lambda **_kwargs: [], delete=lambda *, id: None)
-    client = SimpleNamespace(functions=SimpleNamespace(schedules=schedule_api))
+    client = _bootstrap_client()
 
     handler_module.handle(
         {},
@@ -929,12 +967,8 @@ def test_bootstrap_handler_overlays_client_credentials_for_workflow_triggers(
         return {"status": "completed"}
 
     handler_module = _load_bootstrap_handler(monkeypatch, deploy)
-    schedule_api = SimpleNamespace(list=lambda **_kwargs: [], delete=lambda *, id: None)
     token_creds = SimpleNamespace(authorization_header=lambda: ("Authorization", "Bearer tok"))
-    client = SimpleNamespace(
-        functions=SimpleNamespace(schedules=schedule_api),
-        config=SimpleNamespace(credentials=token_creds),
-    )
+    client = _bootstrap_client(credentials=token_creds)
 
     handler_module.handle(
         {},
