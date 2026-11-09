@@ -1,0 +1,5 @@
+[module]
+title = "Maintain Sample Data"
+is_selected_by_default = false
+id = "dp:cdm_maintain:cdf_sample_data"
+package_id = "dp:cdm_maintain"

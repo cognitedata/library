@@ -1,0 +1,53 @@
+space: {{schemaSpace}}
+externalId: MaintainCanvas
+usedFor: node
+properties:
+  name:
+    type:
+      type: text
+      list: false
+    nullable: true
+  canvasData:
+    type:
+      type: json
+      list: false
+    nullable: true
+  createdAt:
+    type:
+      type: timestamp
+      list: false
+    nullable: true
+  updatedAt:
+    type:
+      type: timestamp
+      list: false
+    nullable: true
+  metadata:
+    type:
+      type: json
+      list: false
+    nullable: true
+  version:
+    type:
+      type: int32
+      list: false
+    nullable: true
+  owner:
+    type:
+      type: direct
+      container:
+        type: container
+        space: cdf_apps_shared
+        externalId: CDF_User
+
+indexes:
+  owner:
+    properties:
+      - owner
+    indexType: btree
+    cursorable: false
+  version:
+    properties:
+      - version
+    indexType: btree
+    cursorable: false

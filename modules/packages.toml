@@ -115,6 +115,19 @@ modules = [
     "solutions/cdf_infield/cdf_infield_location",
 ]
 
+[packages.cdm_maintain]
+id = "dp:cdm_maintain"
+title = "CDM Maintain"
+description = "Full Maintain deployment: data models, locations, and sample data."
+canCherryPick = false
+modules = [
+    "solutions/cdm_maintain/cdf_maintain_config_base",
+    "solutions/cdm_maintain/cdf_maintain_location",
+    "solutions/cdm_maintain/cdf_maintain_solution_model",
+    "solutions/cdm_maintain/cdf_maintain_source_data_model",
+    "solutions/cdm_maintain/cdf_sample_data",
+]
+
 [packages.dashboards]
 id = "dp:dashboards"
 title = "Dashboards"
@@ -122,6 +135,7 @@ description = "Dashboards for data quality and reporting."
 canCherryPick = true
 modules = [
     "dashboards/context_quality",
+    "dashboards/context_quality_v2",
 ]
 
 [packages.data_quality]
@@ -141,6 +155,7 @@ canCherryPick = true
 modules = [
     "tools/apps/qualitizer",
     "tools/apps/work_package_generator",
+    "tools/apps/context_quality_dashboard",
 ]
 
 [packages.custom]

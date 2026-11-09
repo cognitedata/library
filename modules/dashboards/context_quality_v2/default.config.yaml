@@ -1,0 +1,71 @@
+creator_email: name@company.com
+
+# Used in /data_modeling and /streams. The Context Quality metrics backend writes an immutable run log
+# (see REFERENCE.md, "The run log"). Container and view external ids are fixed by it and are not variables.
+metricsSchemaSpace: sp_context_quality_metrics
+metricsInstanceSpace: sp_dat_context_quality_metrics
+metricsVersion: v1
+
+# The Records stream that holds the run log. A stream's template cannot be changed after the stream is created,
+# so when you deploy into a project that already has this stream, set the same template it was created with.
+# BasicArchive keeps records without an expiry and allows filter windows of up to 365 days.
+metricsStreamExternalId: context_quality_metrics
+metricsStreamTemplate: BasicArchive
+
+# The metrics function and the data set that holds its code. The function's folder under functions/ is named after
+# its external id, so rename the folder together with the variable.
+metricsFunctionExternalId: fn_context_quality_metrics
+metricsDatasetExternalId: ds_context_quality
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The production workflow. It runs the metrics function and nothing else (no seed or demo task).
+metricsWorkflowExternalId: wf_context_quality_metrics
+metricsWorkflowVersion: v1
+metricsTriggerExternalId: wf_context_quality_metrics_schedule
+# When the trigger starts a run (UNIX cron, evaluated in the time zone below). Deploying the module creates the trigger,
+# so the first scheduled run follows the deployment.
+metricsWorkflowSchedule: "0 4 * * *"
+metricsWorkflowScheduleTimezone: UTC
+
+# What the function is given in its task `config`. The resource names above are passed as stream, schemaSpace and
+# instanceSpace. Everything below is project-specific and empty by default; an empty one means the rule is not applied.
+# Toolkit reads a variable whose value is a mapping as a nested namespace, so the mappings are written as JSON text.
+metricsFacilityNames: '{}'                  # {"instance space": "display id"}
+metricsTieringEnabled: false                # tiering is off by default; true also needs metricsTierByTypeCode
+metricsTierByTypeCode: '{}'                 # {"asset type code": 1, 2 or 3}, used only while tiering is on
+metricsDivisionTagPrefix: ""                # a tag with this prefix names an asset's division; empty derives none
+metricsRetiredTag: ""                       # assets with this tag are retired; empty switches the check off
+metricsDefaultOwners: '{}'                  # {"dimension id": "owner id"}
+metricsOwnerPrefixRules: '[]'               # [{"prefix": "...", "ownerId": "..."}]
+# Replaces the function's whole exclusion setting. decommissionedTags lists the tags that mark equipment decommissioned.
+metricsExclusions: '{"syntheticTsPrefixes": [], "locationCentricFileCategories": [], "excludedFileExtensions": [], "decommissionedTags": []}'
+metricsFreshnessDays: 30
+metricsMaxDepth: 8
+# How a run is divided into parallel function calls. A facility space is never split: a shard holds whole spaces.
+# maxShards stays below the 200 tasks a workflow execution may hold (plan, dynamic task and finalize count too);
+# small spaces share a shard until it holds shardTargetEntities entities.
+metricsMaxShards: 150
+metricsShardTargetEntities: 100000
+# How many of those calls run at the same time: 0 is all at once (up to the 50 tasks a project runs concurrently),
+# 1 is one after the other. A call that fails stops the ones after it.
+metricsMaxConcurrentShards: 2
+# The Excel workbook of every unlinked item of a run is kept in Cognite Files, in the module's data set, for this many
+# days. See REFERENCE.md, "The workbook of unlinked items".
+metricsExportRetentionDays: 30
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Access. REQUIRED before deployment: the identity-provider values below come from your environment (.env) and are
+# deliberately not defaulted to anything. Nothing secret is stored in this repository.
+metricsFunctionGroupName: gp_context_quality_function
+metricsDashboardGroupName: gp_context_quality_dashboard_users
+# The identity provider's id of the group whose members get each Toolkit group's capabilities.
+metricsFunctionGroupSourceId: ${CQ_FUNCTION_GROUP_SOURCE_ID}
+metricsDashboardGroupSourceId: ${CQ_DASHBOARD_GROUP_SOURCE_ID}
+# The client credentials the scheduled run executes as. The client must be a member of the function group.
+metricsFunctionClientId: ${CQ_FUNCTION_CLIENT_ID}
+metricsFunctionClientSecret: ${CQ_FUNCTION_CLIENT_SECRET}
+# The instance spaces that hold the entities to measure (the function group may read exactly these, plus the system
+# spaces). The default only lets the function read the system spaces, so a new deployment must add its own.
+metricsSourceSpaces:
+  - cdf_cdm
+  - cdf_idm

@@ -46,6 +46,22 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     # What to keep when several patterns match one name: every alias they yield, or only
     # the longest - the most specific reading of the name.
     alias_selection: Literal["all", "longest"] = "all"
+    # Only instances whose filterProperty holds one of filterValues are read. Either one
+    # left empty reads every instance of the view.
+    filter_property: str | None = None
+    filter_values: list[str] | None = None
+
+    @field_validator("filter_property", mode="before")
+    @classmethod
+    def blank_property_is_unset(cls, value: object) -> object:
+        return value.strip() or None if isinstance(value, str) else value
+
+    @field_validator("filter_values", mode="before")
+    @classmethod
+    def normalise_filter_values(cls, value: object) -> object:
+        if isinstance(value, str):
+            value = [value] if value.strip() else []
+        return value or None
 
     @field_validator("instance_spaces", mode="before")
     @classmethod
@@ -80,10 +96,10 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
 
 
 class JobConfig(BaseModel, alias_generator=to_camel):
-    timeseries_view: ViewPropertyConfig
-    asset_view: ViewPropertyConfig
-    # Optional so a configuration written before file support existed still loads; file
-    # metadata is then skipped rather than failing the run.
+    # Each view is optional: only the configured ones are processed, and a view left out is
+    # skipped rather than failing the run.
+    timeseries_view: ViewPropertyConfig | None = None
+    asset_view: ViewPropertyConfig | None = None
     file_view: ViewPropertyConfig | None = None
 
 
@@ -106,6 +122,8 @@ def _format_view_block(label: str, view: ViewPropertyConfig | None) -> list[str]
         f"      instanceSpace: {view.instance_spaces}",
         f"      aliasPattern: {pattern_display}",
         f"      aliasSelection: {view.alias_selection}",
+        f"      filterProperty: {view.filter_property}",
+        f"      filterValues: {view.filter_values}",
     ]
 
 

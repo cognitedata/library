@@ -1,0 +1,5 @@
+[module]
+title = "Maintain Config Base"
+is_selected_by_default = true
+id = "dp:cdm_maintain:cdf_maintain_config_base"
+package_id = "dp:cdm_maintain"

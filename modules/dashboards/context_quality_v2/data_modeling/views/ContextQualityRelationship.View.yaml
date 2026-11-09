@@ -1,0 +1,279 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: ContextQualityRelationship
+version: "{{ metricsVersion }}"
+name: Context quality relationship
+streamId:
+  - "{{ metricsStreamExternalId }}"
+properties:
+  runId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: runId
+    name: Run id
+    description: "Identifier of the run that wrote the row"
+  runTimestamp:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: runTimestamp
+    name: Run timestamp
+    description: "When the run started"
+  rowKind:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: rowKind
+    name: Row kind
+    description: "What the row holds: run, aggregate, exclusion, drilldown, classification, extraLink, extraLinkGap, location or runPart"
+  metricId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: metricId
+    name: Metric id
+    description: "Identifier of the metric the row counts"
+  dimensionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: dimensionId
+    name: Dimension id
+    description: "Identifier of the quality dimension the metric belongs to"
+  reportingUnitId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: reportingUnitId
+    name: Reporting unit id
+    description: "Identifier of the lowest reporting level the counts are for"
+  facilityId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: facilityId
+    name: Facility id
+    description: "Identifier of the facility the counts are for"
+  divisionId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: divisionId
+    name: Division id
+    description: "Identifier of the division derived from the asset's tags"
+  disciplineId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: disciplineId
+    name: Discipline id
+    description: "Identifier of the discipline the counts are for"
+  ownerId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: ownerId
+    name: Owner id
+    description: "Identifier of the owner of the dimension"
+  tier:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: tier
+    name: Tier
+    description: "Tier (1, 2 or 3) of the asset grain; empty when tiering is off"
+  ruleSetVersion:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: ruleSetVersion
+    name: Rule set version
+    description: "Version of the rule set the run measured with"
+  eligibleCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: eligibleCount
+    name: Eligible count
+    description: "Number of entities the metric applies to"
+  passingCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: passingCount
+    name: Passing count
+    description: "Number of eligible entities that pass the metric"
+  issueCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: issueCount
+    name: Issue count
+    description: "Number of issues found for the metric"
+  valueSum:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: valueSum
+    name: Value sum
+    description: "Sum of the measured values, for metrics that average"
+  notApplicable:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: notApplicable
+    name: Not applicable
+    description: "True when the metric does not apply to this grain"
+  matchType:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: matchType
+    name: Match type
+    description: "How the entity matched, for metrics that distinguish match types"
+  subKey:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: subKey
+    name: Sub key
+    description: "Sub-key that splits the metric further, such as a type or class"
+  exclusionCategory:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: exclusionCategory
+    name: Exclusion category
+    description: "Category an entity was excluded under"
+  excludedCount:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: excludedCount
+    name: Excluded count
+    description: "Number of entities excluded under the category"
+  entityId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: entityId
+    name: Entity id
+    description: "External id of the entity a drilldown row describes"
+  entityLabel:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: entityLabel
+    name: Entity label
+    description: "Display label of the entity a drilldown row describes"
+  entityRef:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: entityRef
+    name: Entity ref
+    description: "Reference (space and external id) of the entity a drilldown row describes"
+  detail:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: detail
+    name: Detail
+    description: "Why the entity has a gap"
+  cellsJson:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: cellsJson
+    name: Cells json
+    description: "JSON of the cells of a part or drilldown row"
+  matched:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: matched
+    name: Matched
+    description: "Whether the entity matched"
+  status:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: status
+    name: Status
+    description: "Status of a run marker: started or complete"
+  scope:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: scope
+    name: Scope
+    description: "Scope of the run: the dimensions it measured"
+  warnings:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: warnings
+    name: Warnings
+    description: "JSON list of warnings the run raised"
+  rowsWritten:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: rowsWritten
+    name: Rows written
+    description: "Number of rows the run wrote, set on the complete marker"
+  classificationKind:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: classificationKind
+    name: Classification kind
+    description: "Kind of classification counted, such as type, class or category"
+  classificationId:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: classificationId
+    name: Classification id
+    description: "Identifier of the classification"
+  classificationName:
+    container:
+      space: "{{ metricsSchemaSpace }}"
+      externalId: ContextQualityRelationship
+      type: container
+    containerPropertyIdentifier: classificationName
+    name: Classification name
+    description: "Display name of the classification"

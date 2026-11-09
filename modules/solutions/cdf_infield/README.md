@@ -19,7 +19,7 @@ cdf_infield/
     └── locations/                 # Fusion LocationFilter (optional)
 ```
 
-Naming pattern: solution folder `cdf_infield`, module folder `cdf_infield_<purpose>` (here `cdf_infield_location`), and resource files prefixed with the module slug (for example `infield_location.LocationFilter.yaml`).
+Naming follows the same pattern as [`cdm_maintain`](../cdm_maintain/): solution folder `cdf_infield`, module folder `cdf_infield_<purpose>` (here `cdf_infield_location`), and resource files prefixed with the module slug (for example `infield_location.LocationFilter.yaml`).
 
 ## Multiple locations
 

@@ -1,0 +1,5 @@
+externalId: "{{ metricsWorkflowExternalId }}"
+description: Computes the Context Quality metrics and appends them to the metrics stream as one run.
+dataSetExternalId: "{{ metricsDatasetExternalId }}"
+# one run at a time: a second run would only duplicate the first one's rows
+maxConcurrentExecutions: 1
