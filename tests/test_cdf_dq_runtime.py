@@ -913,6 +913,42 @@ def test_bootstrap_handler_prefers_specialized_workflow_secret_keys(
     }
 
 
+def test_bootstrap_handler_overlays_client_credentials_for_workflow_triggers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Package 0.5.x drops function_secrets for external DataProduct workflows.
+
+    ``_build_trigger_credentials`` then only reads client_id/client_secret from
+    ``client.config.credentials``. Schedule auth is token-only, so the handler must
+    overlay Function secrets onto the client before deploy.
+    """
+    captured_client: dict[str, object] = {}
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        captured_client["client"] = kwargs["client"]
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    schedule_api = SimpleNamespace(list=lambda **_kwargs: [], delete=lambda *, id: None)
+    token_creds = SimpleNamespace(authorization_header=lambda: ("Authorization", "Bearer tok"))
+    client = SimpleNamespace(
+        functions=SimpleNamespace(schedules=schedule_api),
+        config=SimpleNamespace(credentials=token_creds),
+    )
+
+    handler_module.handle(
+        {},
+        client,
+        secrets={"client-id": "runtime-id", "client-secret": "runtime-secret"},
+    )
+    deploy_client = captured_client["client"]
+    assert deploy_client is client
+    creds = client.config.credentials
+    assert creds.client_id == "runtime-id"
+    assert creds.client_secret == "runtime-secret"
+    assert creds.authorization_header() == ("Authorization", "Bearer tok")
+
+
 def _install_fake_data_quality(monkeypatch: pytest.MonkeyPatch, *, pipeline_impl: object, settings: object) -> None:
     fake_cdq = types.ModuleType("cognite_data_quality")
     fake_cdq.deploy_validation_pipeline = pipeline_impl

@@ -296,9 +296,12 @@ substituted inside the function code bundle; the handler merges them into
 `settings.yaml` before calling the package deploy entrypoint (idempotent).
 The Function also receives `client-id` / `client-secret` secrets (from
 `functionClientId` / `functionClientSecret`); the handler maps those into
-`settings.runtime_credentials` so workflow triggers such as
-`dq-data-product-sync` can be upserted — schedule authentication alone does
-not expose client credentials on the in-function Cognite client.
+`settings.runtime_credentials` and overlays them onto the in-function
+Cognite client so workflow triggers (external DataProduct instance workflows
+and `dq-data-product-sync`) can be upserted. Schedule authentication alone
+exposes a token, not `client_id`/`client_secret`, and
+`cognite-data-quality` 0.5.x does not forward Function secrets into the
+external DataProduct workflow deploy path.
 After a **successful** deploy, the function deletes every Function Schedule for
 `fn_dataproduct_all_bootstrap_infrastructure` (so leftover hyphen-era names cannot keep firing).
 Delete failures are printed to the function log (`CogniteAPIError` includes the
@@ -365,12 +368,14 @@ Use [`scripts/manage_rulesets.ipynb`](scripts/manage_rulesets.ipynb) instead. It
 | `delete_monitor_schedules(schedule_ids, dry_run=True)` | Deletes selected monitor schedules by id (for example a stuck `Monitor YourOrgAsset validation` schedule after switching views) |
 | `list_historic_queue_jobs()` | Prints `HistoricJobQueue` nodes in `dataQualitySpace` (status, view, data product, orchestration id) |
 | `delete_historic_queue_jobs(external_ids, dry_run=True)` | Deletes selected queue jobs and linked `OrchestrationState` / matching Monitor schedules (use for stuck `hq_YourOrg*` jobs left after a view switch) |
-| `list_dq_workflows()` | Prints instance/time-series DQ workflows (`wf_all_validate_instances-*`, `wf_all_validate_timeseries-*`) and their triggers |
-| `delete_dq_workflows(external_ids, dry_run=True)` | Deletes selected workflows after removing every trigger that targets them (use for stale `YourOrg*` / previous data-product workflows left after a view switch) |
+| `list_dq_workflows()` | Prints DQ workflows (`wf_all_validate_instances-*`, `wf_all_validate_timeseries-*`, plus shared `dq-data-product-sync`, `dq-historic-queue-manager`, `dq-stream-retention-guard`) and their triggers |
+| `delete_dq_workflows(external_ids, dry_run=True)` | Deletes selected workflows after removing every trigger that targets them (use for stale `YourOrg*` / previous data-product workflows, or shared `dq-*` workflows when tearing down the runtime) |
+| `list_dq_functions()` | Prints DQ CDF Functions present in the project (`data-quality-validation`, `fn_dataproduct_all_bootstrap_infrastructure`) with schedule counts |
+| `delete_dq_functions(external_ids, dry_run=True)` | Deletes selected functions after removing every schedule that targets them (use when tearing down or re-bootstrapping the runtime) |
 
 CDF refuses to delete a rule set version that a data product version still references (`Version '1.0.0' of rule set '...' can not be deleted, because it is referenced by 1 data product version(s)`), which is why `delete_rulesets` removes those data product versions first. All delete functions only print what they would delete unless `dry_run=False`.
 
-The notebook lists rule sets, data products, stuck `Monitor …` function schedules, historic queue jobs, and DQ validation workflows as selection lists (requires `ipywidgets`: `pip install ipywidgets`). Select what to delete, click **Delete selected** with **Dry run** checked to review, uncheck **Dry run** and click again; the lists then refresh from CDF. Afterwards run `cdf deploy` to recreate the rule sets and this module's data product version. If `deploy_infrastructure.py` had deployed workflows for a deleted data product, or monitor schedules / old workflows still point at previous views, rerun it afterwards (`--force-workflows`) so the workflows match the data products that still exist. Do not delete `dq-data-product-sync` or `dq-historic-queue-manager` unless you intend to tear down the runtime.
+The notebook lists rule sets, data products, stuck `Monitor …` function schedules, historic queue jobs, DQ validation workflows, and DQ functions as selection lists (requires `ipywidgets`: `pip install ipywidgets`). Select what to delete, click **Delete selected** with **Dry run** checked to review, uncheck **Dry run** and click again; the lists then refresh from CDF. Afterwards run `cdf deploy` to recreate the rule sets and this module's data product version. If `deploy_infrastructure.py` had deployed workflows for a deleted data product, or monitor schedules / old workflows still point at previous views, rerun it afterwards (`--force-workflows`) so the workflows match the data products that still exist. Deleting shared `dq-*` workflows or DQ functions tears down the runtime — recreate with `cdf deploy` (bootstrap function) and/or `deploy_infrastructure.py` (validation function and workflows).
 
 ### Inspecting validation content
 

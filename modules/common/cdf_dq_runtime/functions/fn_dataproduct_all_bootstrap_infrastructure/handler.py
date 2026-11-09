@@ -107,6 +107,46 @@ def _runtime_credentials_from_secrets(secrets: dict[str, str] | None) -> dict[st
     return credentials
 
 
+class _CredentialsWithClientSecret:
+    """Credential provider proxy that exposes client_id/client_secret for trigger upsert.
+
+    cognite-data-quality 0.5.x does not forward ``function_secrets`` into
+    ``_deploy_external_dataproduct_workflows``. ``_build_trigger_credentials`` then only
+    reads ``client.config.credentials.client_id`` / ``client_secret``. Schedule auth is
+    token-only, so overlay Function secrets while keeping the original provider for API calls.
+    """
+
+    __slots__ = ("_base", "client_id", "client_secret")
+
+    def __init__(self, base: object, client_id: str, client_secret: str) -> None:
+        object.__setattr__(self, "_base", base)
+        object.__setattr__(self, "client_id", client_id)
+        object.__setattr__(self, "client_secret", client_secret)
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._base, name)
+
+
+def _overlay_client_credentials_from_secrets(client: "CogniteClient", secrets: dict[str, str] | None) -> None:
+    """Attach client_id/client_secret from Function secrets onto the in-function CogniteClient."""
+    workflows = _credential_pair(
+        secrets or {},
+        id_keys=("workflow-client-id", "client-id"),
+        secret_keys=("workflow-client-secret", "client-secret"),
+    )
+    if workflows is None:
+        return
+    config = getattr(client, "config", None)
+    if config is None:
+        return
+    existing = getattr(config, "credentials", None)
+    if existing is None:
+        return
+    if getattr(existing, "client_id", None) and getattr(existing, "client_secret", None):
+        return
+    config.credentials = _CredentialsWithClientSecret(existing, workflows["client_id"], workflows["client_secret"])
+
+
 def _write_settings_with_overrides(
     settings_path: Path,
     data: dict[str, Any],
@@ -156,6 +196,7 @@ def handle(data: dict[str, Any], client: "CogniteClient", secrets: dict[str, str
     bundled_settings = config_dir / "settings.yaml"
     override_path: Path | None = None
     try:
+        _overlay_client_credentials_from_secrets(client, secrets)
         override_path = _write_settings_with_overrides(bundled_settings, data, secrets)
         result = deploy_validation_infrastructure(
             client=client,
