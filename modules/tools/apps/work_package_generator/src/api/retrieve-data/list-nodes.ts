@@ -132,8 +132,8 @@ export async function listInstanceNodesWithCap(
 		pageSize?: number;
 		config?: AppConfig;
 	}
-): Promise<unknown[]> {
-	const { items } = await fetchPagesWithItemCap({
+): Promise<{ items: unknown[]; truncated: boolean }> {
+	return fetchPagesWithItemCap({
 		maxTotalItems: options.maxTotalItems,
 		warnContext: options.warnContext,
 		fetchPage: (cursor) =>
@@ -146,5 +146,4 @@ export async function listInstanceNodesWithCap(
 				cursor,
 			}),
 	});
-	return items;
 }

@@ -14,6 +14,8 @@ describe("TemplateCanvasCard", () => {
 					name: "Pump pack",
 					visibility: "public",
 					space: "s",
+					createdBy: "ada",
+					updatedAt: "2024-06-01",
 				}}
 				isSelected
 				isAiRecommended
@@ -29,7 +31,11 @@ describe("TemplateCanvasCard", () => {
 				onSelect={onSelect}
 			/>
 		);
+		const card = screen.getByRole("button", { name: /pump pack/i });
+		expect(card).toHaveAttribute("aria-pressed", "true");
+		expect(card).toHaveAccessibleName(/AI pick/i);
 		expect(screen.getByText("AI Pick")).toBeInTheDocument();
+		expect(screen.getByText(/owner ada/i)).toBeInTheDocument();
 		expect(screen.getByText("Manual")).toBeInTheDocument();
 		await user.click(screen.getByRole("button", { name: /pump pack/i }));
 		expect(onSelect).toHaveBeenCalledWith("tpl");

@@ -45,7 +45,7 @@ describe("retrieve-data/template-canvases", () => {
 	});
 
 	describe("listTemplateCanvases", () => {
-		it("filters by template prefix, skips invalid nodes, and keeps newest per name", async () => {
+		it("filters by template prefix and skips invalid nodes", async () => {
 			query.mockResolvedValueOnce({
 				items: {
 					nodes: [
@@ -68,17 +68,82 @@ describe("retrieve-data/template-canvases", () => {
 				},
 			});
 			const result = await listTemplateCanvases(client);
-			expect(result).toHaveLength(1);
-			expect(result[0].externalId).toBe("new");
-			expect(result[0].visibility).toBe("public");
-			expect(query.mock.calls[0][0].with.nodes.nodes.filter).toEqual({
-				hasData: [CANVAS_VIEW_ID],
-			});
+			expect(result.map((canvas) => canvas.externalId).sort()).toEqual([
+				"new",
+				"old",
+			]);
+			expect(
+				result.find((canvas) => canvas.externalId === "new")?.visibility
+			).toBe("public");
+			expect(
+				JSON.stringify(query.mock.calls[0][0].with.nodes.nodes.filter)
+			).toContain("hasData");
 		});
 
-		it("returns [] on error", async () => {
+		it("N13: throws when the template list read fails", async () => {
 			query.mockRejectedValueOnce(new Error("fail"));
-			await expect(listTemplateCanvases(client)).resolves.toEqual([]);
+			await expect(listTemplateCanvases(client)).rejects.toThrow("fail");
+		});
+
+		it("B-D4: lists every template with the same name", async () => {
+			query.mockResolvedValueOnce({
+				items: {
+					nodes: [
+						makeNode("old", "s", CANVAS_VIEW_ID.space, canvasKey, {
+							name: "template_pump",
+							visibility: "public",
+							updatedAt: "2024-01-01",
+							createdBy: "a",
+							isArchived: false,
+						}),
+						makeNode("new", "s", CANVAS_VIEW_ID.space, canvasKey, {
+							name: "template_pump",
+							visibility: "public",
+							updatedAt: "2024-06-01",
+							createdBy: "b",
+							isArchived: false,
+						}),
+					],
+				},
+			});
+			const result = await listTemplateCanvases(client);
+			expect(result.map((canvas) => canvas.externalId).sort()).toEqual([
+				"new",
+				"old",
+			]);
+			expect(result.every((canvas) => canvas.createdBy)).toBe(true);
+		});
+
+		it("N10: lists public canvases and only the current user's private ones", async () => {
+			query.mockResolvedValueOnce({
+				items: {
+					nodes: [
+						makeNode("pub", "s", CANVAS_VIEW_ID.space, canvasKey, {
+							name: "template_public",
+							visibility: "public",
+							createdBy: "someone-else",
+						}),
+						makeNode("mine", "s", CANVAS_VIEW_ID.space, canvasKey, {
+							name: "template_mine",
+							visibility: "private",
+							createdBy: "work-package-generator",
+						}),
+						makeNode("theirs", "s", CANVAS_VIEW_ID.space, canvasKey, {
+							name: "template_theirs",
+							visibility: "private",
+							createdBy: "other-user",
+						}),
+					],
+				},
+			});
+			const result = await listTemplateCanvases(client);
+			expect(result.map((canvas) => canvas.externalId).sort()).toEqual([
+				"mine",
+				"pub",
+			]);
+			const filter = query.mock.calls[0][0].with.nodes.nodes.filter;
+			expect(JSON.stringify(filter)).toContain("isArchived");
+			expect(JSON.stringify(filter)).toContain("template");
 		});
 	});
 
@@ -106,9 +171,9 @@ describe("retrieve-data/template-canvases", () => {
 			expect(result[0].visibility).toBe("private");
 		});
 
-		it("returns [] on error", async () => {
+		it("N13: throws when the name lookup fails", async () => {
 			query.mockRejectedValueOnce(new Error("fail"));
-			await expect(findCanvasesByName(client, "x")).resolves.toEqual([]);
+			await expect(findCanvasesByName(client, "x")).rejects.toThrow("fail");
 		});
 	});
 
@@ -129,13 +194,24 @@ describe("retrieve-data/template-canvases", () => {
 			});
 			const result = await getTemplateCanvasInstances(client, "tmpl");
 			expect(result).toHaveLength(1);
+			expect(result[0].id).toBe("i1");
 			expect(result[0].label).toBe("Main asset");
 			expect(result[0].x).toBe(10);
+			expect(
+				query.mock.calls[0][0].with.nodes.nodes.filter.and[1].prefix.value
+			).toBe("tmpl_");
 			expect(result[0].width).toBe(DEFAULT_CANVAS_DIMENSIONS.width);
 		});
 
-		it("returns [] on error", async () => {
+		it("N13: throws when the instance read fails", async () => {
 			query.mockRejectedValueOnce(new Error("fail"));
+			await expect(getTemplateCanvasInstances(client, "t")).rejects.toThrow(
+				"fail"
+			);
+		});
+
+		it("returns [] when the template has no instances", async () => {
+			query.mockResolvedValueOnce({ items: { nodes: [] } });
 			await expect(getTemplateCanvasInstances(client, "t")).resolves.toEqual(
 				[]
 			);
@@ -155,6 +231,7 @@ describe("retrieve-data/template-canvases", () => {
 							annotationKey,
 							{
 								annotationType: "note",
+								containerId: "shape-1",
 							}
 						),
 					],
@@ -163,12 +240,14 @@ describe("retrieve-data/template-canvases", () => {
 			const result = await getTemplateCanvasAnnotations(client, "tmpl");
 			expect(result).toHaveLength(1);
 			expect(result[0].type).toBe("note");
+			expect(result[0].id).toBe("a1");
+			expect(result[0].containerId).toBe("shape-1");
 		});
 
-		it("returns [] on error", async () => {
+		it("C20: throws when the annotation read fails", async () => {
 			query.mockRejectedValueOnce(new Error("fail"));
-			await expect(getTemplateCanvasAnnotations(client, "t")).resolves.toEqual(
-				[]
+			await expect(getTemplateCanvasAnnotations(client, "t")).rejects.toThrow(
+				"fail"
 			);
 		});
 	});

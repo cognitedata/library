@@ -1,4 +1,9 @@
 import { Check, Sparkles } from "lucide-react";
+import { useSyncExternalStore } from "react";
+import {
+	getTemplateReadNotices,
+	subscribeTemplateReadNotices,
+} from "@/api/retrieve-data/template-canvases";
 import { Badge, Loader } from "@/components/ui";
 import type { TemplateSlot } from "@/hooks";
 import type { TemplateCanvas } from "@/types";
@@ -21,10 +26,26 @@ export function TemplateCanvasCard({
 	slotsLoading,
 	onSelect,
 }: TemplateCanvasCardProps) {
+	const notices = useSyncExternalStore(
+		subscribeTemplateReadNotices,
+		getTemplateReadNotices,
+		getTemplateReadNotices
+	);
+	const childTruncated = notices.truncatedChildIds.includes(
+		template.externalId
+	);
+	const accessibleName = [
+		template.name,
+		isAiRecommended ? "AI pick" : undefined,
+	]
+		.filter(Boolean)
+		.join(", ");
+
 	return (
 		<button
 			type="button"
-			aria-label={template.name}
+			aria-pressed={isSelected}
+			aria-label={accessibleName}
 			onClick={() => onSelect(template.externalId)}
 			className={`relative text-left rounded-lg border-2 p-3 transition-all flex flex-col gap-2 ${
 				isSelected
@@ -49,19 +70,40 @@ export function TemplateCanvasCard({
 				</div>
 			</div>
 
+			<p className="text-xs text-neutral-800 dark:text-neutral-100">
+				{template.updatedAt
+					? `Updated ${template.updatedAt}`
+					: "Updated date unknown"}
+				{template.createdBy ? ` · owner ${template.createdBy}` : ""}
+			</p>
+
+			{(notices.catalogTruncated || childTruncated) && (
+				<p
+					role="status"
+					className="text-xs text-neutral-900 dark:text-neutral-50"
+				>
+					{childTruncated
+						? "This template was cut off at 5,000 items."
+						: "The template list was cut off. Some templates are not shown."}
+				</p>
+			)}
+
 			{(isAiRecommended || isSelected) && (
 				<div className="flex gap-1 flex-wrap">
 					{isAiRecommended && (
 						<Badge
 							variant="secondary"
-							className="text-[10px] px-1.5 py-0 bg-blue-600 hover:bg-blue-600"
+							className="text-xs px-1.5 py-0 bg-blue-800 text-white hover:bg-blue-800 dark:bg-blue-200 dark:text-blue-950"
 						>
 							<Sparkles className="h-2.5 w-2.5 mr-0.5" />
 							AI Pick
 						</Badge>
 					)}
 					{isSelected && !isAiRecommended && (
-						<Badge variant="success" className="text-[10px] px-1.5 py-0">
+						<Badge
+							variant="success"
+							className="text-xs px-1.5 py-0 bg-emerald-800 text-white hover:bg-emerald-800 dark:bg-emerald-200 dark:text-emerald-950"
+						>
 							<Check className="h-2.5 w-2.5 mr-0.5" />
 							Selected
 						</Badge>
@@ -70,7 +112,7 @@ export function TemplateCanvasCard({
 			)}
 
 			{slotsLoading ? (
-				<div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+				<div className="flex items-center gap-1 text-xs text-neutral-800 dark:text-neutral-100">
 					<Loader size={10} />
 					Loading...
 				</div>
@@ -79,16 +121,16 @@ export function TemplateCanvasCard({
 					{slots.map((slot) => (
 						<div
 							key={`${slot.viewExternalId}:${slot.label}:${slot.category}:${slot.populatedBy}`}
-							className="flex items-center gap-1 text-[10px]"
+							className="flex items-center gap-1 text-xs"
 						>
 							<SlotIcon category={slot.category} />
-							<span className="text-muted-foreground truncate flex-1 min-w-0">
+							<span className="text-neutral-800 dark:text-neutral-100 truncate flex-1 min-w-0">
 								{slot.label}
 							</span>
 							<Badge
 								variant="gray"
 								outline
-								className="text-[9px] px-1 py-0 shrink-0"
+								className="text-xs px-1 py-0 shrink-0 bg-neutral-200 text-neutral-900 border-neutral-500 dark:bg-neutral-200 dark:text-neutral-950"
 							>
 								{slot.populatedBy === "auto" ? "auto" : "AI"}
 							</Badge>
@@ -96,7 +138,7 @@ export function TemplateCanvasCard({
 					))}
 				</div>
 			) : slots && slots.length === 0 ? (
-				<p className="text-[10px] text-muted-foreground mt-auto border-t border-muted/40 pt-2">
+				<p className="text-xs text-neutral-800 dark:text-neutral-100 mt-auto border-t border-muted/40 pt-2">
 					No slots
 				</p>
 			) : null}

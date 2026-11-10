@@ -67,7 +67,7 @@ describe("listInstanceNodesWithCap", () => {
 				items: { nodes: [{ externalId: "b" }] },
 			});
 
-		const items = await listInstanceNodesWithCap(client, {
+		const { items } = await listInstanceNodesWithCap(client, {
 			sources: [
 				{
 					source: {
@@ -107,7 +107,7 @@ describe("listInstanceNodesWithCap", () => {
 
 		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-		const items = await listInstanceNodesWithCap(client, {
+		const { items } = await listInstanceNodesWithCap(client, {
 			sources: [
 				{
 					source: {

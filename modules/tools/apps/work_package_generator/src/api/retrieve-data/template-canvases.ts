@@ -2,7 +2,7 @@
  * Template canvas listing and child instance/annotation fetches.
  */
 
-import type { CogniteClient } from "@cognite/sdk";
+import type { CogniteClient, ViewReference } from "@cognite/sdk";
 import {
 	type AppConfig,
 	canvasAnnotationView,
@@ -16,6 +16,7 @@ import type {
 	TemplateCanvas,
 	TemplateInstance,
 } from "../../types";
+import { resolveCanvasUserId } from "../../utils/canvas-user";
 import {
 	extractInstanceProperties,
 	getNumberProp,
@@ -23,8 +24,74 @@ import {
 	getStringProp,
 	toCdfNode,
 } from "../../utils/cdf-helpers";
-import { resolveApiRuntime } from "../runtime-deps";
 import { listInstanceNodesWithCap } from "./list-nodes";
+
+/** Annotation row plus the node id and container the builder writes back. */
+export interface TemplateAnnotationItem extends TemplateAnnotation {
+	id: string;
+	containerId: string;
+}
+
+export interface TemplateReadNotices {
+	catalogTruncated: boolean;
+	truncatedChildIds: readonly string[];
+}
+
+let catalogTruncated = false;
+const truncatedChildIds = new Set<string>();
+const noticeListeners = new Set<() => void>();
+let templateReadNotices: TemplateReadNotices = {
+	catalogTruncated: false,
+	truncatedChildIds: [],
+};
+
+function emitTemplateReadNotices(): void {
+	templateReadNotices = {
+		catalogTruncated,
+		truncatedChildIds: [...truncatedChildIds],
+	};
+	for (const listener of noticeListeners) listener();
+}
+
+/** Subscribe to truncation notices for template reads. */
+export function subscribeTemplateReadNotices(listener: () => void): () => void {
+	noticeListeners.add(listener);
+	return () => {
+		noticeListeners.delete(listener);
+	};
+}
+
+/** Latest truncation state for template catalog and child reads. */
+export function getTemplateReadNotices(): TemplateReadNotices {
+	return templateReadNotices;
+}
+
+/** Test-only reset for truncation notices. */
+export function resetTemplateReadNotices(): void {
+	catalogTruncated = false;
+	truncatedChildIds.clear();
+	emitTemplateReadNotices();
+}
+
+function markCatalogTruncated(truncated: boolean): void {
+	catalogTruncated = truncated;
+	emitTemplateReadNotices();
+}
+
+function markChildTruncated(templateId: string, truncated: boolean): void {
+	if (!truncated) return;
+	truncatedChildIds.add(templateId);
+	emitTemplateReadNotices();
+}
+
+function propertyPath(view: ViewReference, property: string): string[] {
+	return [view.space, `${view.externalId}/${view.version}`, property];
+}
+
+/** Child nodes are stored as `${canvasId}_…`, so the prefix needs the separator. */
+function childExternalIdPrefix(templateId: string): string {
+	return `${templateId}_`;
+}
 
 /** Map a canvas node + its extracted properties to a TemplateCanvas. */
 function mapNodeToTemplateCanvas(
@@ -45,60 +112,76 @@ function mapNodeToTemplateCanvas(
 	};
 }
 
+function isVisibleTemplate(
+	canvas: TemplateCanvas,
+	prefix: string,
+	userId: string,
+	isArchived: boolean
+): boolean {
+	if (isArchived) return false;
+	if (!canvas.name.toLowerCase().startsWith(prefix.toLowerCase())) return false;
+	if (canvas.visibility === "public") return true;
+	return canvas.createdBy === userId;
+}
+
 /**
- * List all template canvases (names starting with the configured template prefix).
- * Paginates until all results are collected, then deduplicates by name,
- * keeping the most recently updated version and sorting newest-first.
+ * List every visible template canvas. Name, archive, and visibility filters
+ * are applied on the server; the same rules are checked on each row.
+ * Newest canvases are sorted first. Same names are all kept.
  */
 export async function listTemplateCanvases(
 	client: CogniteClient,
 	config?: AppConfig
 ): Promise<TemplateCanvas[]> {
-	try {
-		const resolvedConfig = resolveAppConfig(config);
-		const schemaView = canvasSchemaView(resolvedConfig);
-		const prefix = resolvedConfig.templates.namePrefix.toLowerCase();
+	const resolvedConfig = resolveAppConfig(config);
+	const schemaView = canvasSchemaView(resolvedConfig);
+	const prefix = resolvedConfig.templates.namePrefix;
+	const userId = await resolveCanvasUserId(client, resolvedConfig);
+	const namePath = propertyPath(schemaView, "name");
+	const visibilityPath = propertyPath(schemaView, "visibility");
+	const createdByPath = propertyPath(schemaView, "createdBy");
+	const archivedPath = propertyPath(schemaView, "isArchived");
 
-		const pageItems = await listInstanceNodesWithCap(client, {
+	const { items: pageItems, truncated } = await listInstanceNodesWithCap(
+		client,
+		{
 			sources: [viewIdToSource(schemaView)],
+			filter: {
+				and: [
+					{ prefix: { property: namePath, value: prefix } },
+					{ not: { equals: { property: archivedPath, value: true } } },
+					{
+						or: [
+							{ equals: { property: visibilityPath, value: "public" } },
+							{ equals: { property: createdByPath, value: userId } },
+						],
+					},
+				],
+			},
 			maxTotalItems: resolvedConfig.limits.maxCanvasListScanItems,
 			warnContext: "listTemplateCanvases",
 			config: resolvedConfig,
-		});
-
-		const all: TemplateCanvas[] = [];
-		for (const item of pageItems) {
-			const node = toCdfNode(item);
-			if (!node) continue;
-
-			const props = extractInstanceProperties(node, schemaView);
-			const name = getStringProp(props, "name");
-
-			if (name.toLowerCase().startsWith(prefix)) {
-				all.push(mapNodeToTemplateCanvas(node, props, name));
-			}
 		}
+	);
+	markCatalogTruncated(truncated);
 
-		// Keep most recently updated version per name
-		const byName: Record<string, TemplateCanvas> = {};
-		for (const canvas of all) {
-			const existing = byName[canvas.name];
-			if (!existing || (canvas.updatedAt ?? "") > (existing.updatedAt ?? "")) {
-				byName[canvas.name] = canvas;
-			}
+	const all: TemplateCanvas[] = [];
+	for (const item of pageItems) {
+		const node = toCdfNode(item);
+		if (!node) continue;
+
+		const props = extractInstanceProperties(node, schemaView);
+		const name = getStringProp(props, "name");
+		const canvas = mapNodeToTemplateCanvas(node, props, name);
+		const archived = props.isArchived === true;
+		if (isVisibleTemplate(canvas, prefix, userId, archived)) {
+			all.push(canvas);
 		}
-
-		return Object.values(byName).sort((a, b) =>
-			(b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")
-		);
-	} catch (error) {
-		resolveApiRuntime().logError({
-			scope: "retrieve-data.listTemplateCanvases",
-			message: "Failed to list template canvases",
-			cause: error,
-		});
-		return [];
 	}
+
+	return all.sort((a, b) =>
+		(b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")
+	);
 }
 
 /**
@@ -118,43 +201,33 @@ export async function findCanvasesByName(
 		"name",
 	];
 
-	try {
-		const pageItems = await listInstanceNodesWithCap(client, {
-			sources: [viewIdToSource(canvasSchemaView(config))],
-			filter: {
-				equals: {
-					property: canvasNamePropPath,
-					value: trimmedTarget,
-				},
+	const { items: pageItems } = await listInstanceNodesWithCap(client, {
+		sources: [viewIdToSource(canvasSchemaView(config))],
+		filter: {
+			equals: {
+				property: canvasNamePropPath,
+				value: trimmedTarget,
 			},
-			maxTotalItems: resolveAppConfig(config).limits.findCanvasByNameMaxItems,
-			warnContext: `findCanvasesByName:${trimmedTarget}`,
-			config,
-		});
+		},
+		maxTotalItems: resolveAppConfig(config).limits.findCanvasByNameMaxItems,
+		warnContext: `findCanvasesByName:${trimmedTarget}`,
+		config,
+	});
 
-		const matches: TemplateCanvas[] = [];
-		for (const item of pageItems) {
-			const node = toCdfNode(item);
-			if (!node) continue;
+	const matches: TemplateCanvas[] = [];
+	for (const item of pageItems) {
+		const node = toCdfNode(item);
+		if (!node) continue;
 
-			const props = extractInstanceProperties(node, canvasSchemaView(config));
-			const name = getStringProp(props, "name").trim();
+		const props = extractInstanceProperties(node, canvasSchemaView(config));
+		const name = getStringProp(props, "name").trim();
 
-			if (name === trimmedTarget) {
-				matches.push(mapNodeToTemplateCanvas(node, props, name));
-			}
+		if (name === trimmedTarget) {
+			matches.push(mapNodeToTemplateCanvas(node, props, name));
 		}
-
-		return matches;
-	} catch (error) {
-		resolveApiRuntime().logError({
-			scope: "retrieve-data.findCanvasesByName",
-			message: "Failed to find canvases by name",
-			cause: error,
-			context: { nameLen: trimmedTarget.length },
-		});
-		return [];
 	}
+
+	return matches;
 }
 
 /**
@@ -165,87 +238,71 @@ export async function getTemplateCanvasInstances(
 	templateId: string,
 	config?: AppConfig
 ): Promise<TemplateInstance[]> {
-	try {
-		const items = await listInstanceNodesWithCap(client, {
-			sources: [viewIdToSource(canvasInstanceView(config))],
-			filter: {
-				prefix: {
-					property: ["node", "externalId"],
-					value: templateId,
-				},
+	const { items, truncated } = await listInstanceNodesWithCap(client, {
+		sources: [viewIdToSource(canvasInstanceView(config))],
+		filter: {
+			prefix: {
+				property: ["node", "externalId"],
+				value: childExternalIdPrefix(templateId),
 			},
-			maxTotalItems:
-				resolveAppConfig(config).limits.maxTemplateCanvasChildItems,
-			warnContext: `getTemplateCanvasInstances:${templateId}`,
-			config,
-		});
+		},
+		maxTotalItems: resolveAppConfig(config).limits.maxTemplateCanvasChildItems,
+		warnContext: `getTemplateCanvasInstances:${templateId}`,
+		config,
+	});
+	markChildTruncated(templateId, truncated);
 
-		const mapped = items
-			.map((item) => {
-				const node = toCdfNode(item);
-				if (!node) return null;
+	const mapped = items
+		.map((item) => {
+			const node = toCdfNode(item);
+			if (!node) return null;
 
-				const props = extractInstanceProperties(
-					node,
-					canvasInstanceView(config)
-				);
+			const props = extractInstanceProperties(node, canvasInstanceView(config));
 
-				return {
-					id: node.externalId,
-					label: getStringProp(props, "label", "Unlabeled"),
-					viewExternalId: getStringProp(props, "viewExternalId"),
-					viewSpace: getStringProp(props, "viewSpace"),
-					viewVersion: getStringProp(props, "viewVersion", "v1"),
-					instanceExternalId: getOptionalStringProp(
-						props,
-						"instanceExternalId"
-					),
-					instanceSpace: getOptionalStringProp(props, "instanceSpace"),
-					description: getOptionalStringProp(props, "description"),
-					x: getNumberProp(
-						props,
-						"x",
-						resolveAppConfig(config).canvas.dimensions.x
-					),
-					y: getNumberProp(
-						props,
-						"y",
-						resolveAppConfig(config).canvas.dimensions.y
-					),
-					width: getNumberProp(
-						props,
-						"width",
-						resolveAppConfig(config).canvas.dimensions.width
-					),
-					height: getNumberProp(
-						props,
-						"height",
-						resolveAppConfig(config).canvas.dimensions.height
-					),
-					maxWidth: getNumberProp(
-						props,
-						"maxWidth",
-						resolveAppConfig(config).canvas.dimensions.maxWidth
-					),
-					maxHeight: getNumberProp(
-						props,
-						"maxHeight",
-						resolveAppConfig(config).canvas.dimensions.maxHeight
-					),
-					properties: (props.properties as Record<string, unknown>) || {},
-				} as TemplateInstance;
-			})
-			.filter((item): item is TemplateInstance => item !== null);
-		return mapped;
-	} catch (error) {
-		resolveApiRuntime().logError({
-			scope: "retrieve-data.getTemplateCanvasInstances",
-			message: "Failed to get template canvas instances",
-			cause: error,
-			context: { templateIdLen: templateId.length },
-		});
-		return [];
-	}
+			return {
+				id: node.externalId,
+				label: getStringProp(props, "label", "Unlabeled"),
+				viewExternalId: getStringProp(props, "viewExternalId"),
+				viewSpace: getStringProp(props, "viewSpace"),
+				viewVersion: getStringProp(props, "viewVersion", "v1"),
+				instanceExternalId: getOptionalStringProp(props, "instanceExternalId"),
+				instanceSpace: getOptionalStringProp(props, "instanceSpace"),
+				description: getOptionalStringProp(props, "description"),
+				x: getNumberProp(
+					props,
+					"x",
+					resolveAppConfig(config).canvas.dimensions.x
+				),
+				y: getNumberProp(
+					props,
+					"y",
+					resolveAppConfig(config).canvas.dimensions.y
+				),
+				width: getNumberProp(
+					props,
+					"width",
+					resolveAppConfig(config).canvas.dimensions.width
+				),
+				height: getNumberProp(
+					props,
+					"height",
+					resolveAppConfig(config).canvas.dimensions.height
+				),
+				maxWidth: getNumberProp(
+					props,
+					"maxWidth",
+					resolveAppConfig(config).canvas.dimensions.maxWidth
+				),
+				maxHeight: getNumberProp(
+					props,
+					"maxHeight",
+					resolveAppConfig(config).canvas.dimensions.maxHeight
+				),
+				properties: (props.properties as Record<string, unknown>) || {},
+			} as TemplateInstance;
+		})
+		.filter((item): item is TemplateInstance => item !== null);
+	return mapped;
 }
 
 /**
@@ -255,45 +312,37 @@ export async function getTemplateCanvasAnnotations(
 	client: CogniteClient,
 	templateId: string,
 	config?: AppConfig
-): Promise<TemplateAnnotation[]> {
-	try {
-		const items = await listInstanceNodesWithCap(client, {
-			sources: [viewIdToSource(canvasAnnotationView(config))],
-			filter: {
-				prefix: {
-					property: ["node", "externalId"],
-					value: templateId,
-				},
+): Promise<TemplateAnnotationItem[]> {
+	const { items, truncated } = await listInstanceNodesWithCap(client, {
+		sources: [viewIdToSource(canvasAnnotationView(config))],
+		filter: {
+			prefix: {
+				property: ["node", "externalId"],
+				value: childExternalIdPrefix(templateId),
 			},
-			maxTotalItems:
-				resolveAppConfig(config).limits.maxTemplateCanvasChildItems,
-			warnContext: `getTemplateCanvasAnnotations:${templateId}`,
-			config,
-		});
+		},
+		maxTotalItems: resolveAppConfig(config).limits.maxTemplateCanvasChildItems,
+		warnContext: `getTemplateCanvasAnnotations:${templateId}`,
+		config,
+	});
+	markChildTruncated(templateId, truncated);
 
-		return items
-			.map((item) => {
-				const node = toCdfNode(item);
-				if (!node) return null;
+	return items
+		.map((item) => {
+			const node = toCdfNode(item);
+			if (!node) return null;
 
-				const props = extractInstanceProperties(
-					node,
-					canvasAnnotationView(config)
-				);
+			const props = extractInstanceProperties(
+				node,
+				canvasAnnotationView(config)
+			);
 
-				return {
-					type: getStringProp(props, "annotationType", "Unknown"),
-					properties: (props.properties as Record<string, unknown>) || {},
-				};
-			})
-			.filter((item): item is TemplateAnnotation => item !== null);
-	} catch (error) {
-		resolveApiRuntime().logError({
-			scope: "retrieve-data.getTemplateCanvasAnnotations",
-			message: "Failed to get template canvas annotations",
-			cause: error,
-			context: { templateIdLen: templateId.length },
-		});
-		return [];
-	}
+			return {
+				id: node.externalId,
+				containerId: getStringProp(props, "containerId", ""),
+				type: getStringProp(props, "annotationType", "Unknown"),
+				properties: (props.properties as Record<string, unknown>) || {},
+			};
+		})
+		.filter((item): item is TemplateAnnotationItem => item !== null);
 }

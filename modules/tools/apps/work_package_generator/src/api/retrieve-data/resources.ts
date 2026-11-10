@@ -45,26 +45,15 @@ export async function getAssetResourcesGeneric(
 		? { containsAny: { property: propPath, values: [assetRef] } }
 		: { equals: { property: propPath, value: assetRef } };
 
-	try {
-		const rawItems = await listInstanceNodesWithCap(client, {
-			sources: [viewIdToSource(viewId)],
-			filter,
-			maxTotalItems:
-				resolveAppConfig(appConfig).limits.maxResourceInstancesTotal,
-			warnContext: `getAssetResourcesGeneric:${resourceType}`,
-			config: appConfig,
-		});
+	const { items: rawItems } = await listInstanceNodesWithCap(client, {
+		sources: [viewIdToSource(viewId)],
+		filter,
+		maxTotalItems: resolveAppConfig(appConfig).limits.maxResourceInstancesTotal,
+		warnContext: `getAssetResourcesGeneric:${resourceType}`,
+		config: appConfig,
+	});
 
-		return itemsToResourceInstances(rawItems, viewId);
-	} catch (error) {
-		resolveApiRuntime().logError({
-			scope: "retrieve-data.getAssetResourcesGeneric",
-			message: "Failed to fetch asset-linked resources",
-			cause: error,
-			context: { resourceType },
-		});
-		return [];
-	}
+	return itemsToResourceInstances(rawItems, viewId);
 }
 
 /**
@@ -93,74 +82,63 @@ export async function getActivityResourcesGeneric(
 		version: viewId.version,
 	};
 
-	try {
-		const { items: rawItems } = await fetchPagesWithItemCap({
-			maxTotalItems:
-				resolveAppConfig(appConfig).limits.maxResourceInstancesTotal,
-			warnContext: `getActivityResourcesGeneric:${resourceType}`,
-			fetchPage: async (cursor) => {
-				const result = await resolveApiRuntime().schedule(() =>
-					client.instances.query({
-						with: {
-							startNode: {
-								nodes: {
-									filter: {
-										and: [
-											{
-												equals: {
-													property: ["node", "externalId"],
-													value: activityExternalId,
-												},
+	const { items: rawItems } = await fetchPagesWithItemCap({
+		maxTotalItems: resolveAppConfig(appConfig).limits.maxResourceInstancesTotal,
+		warnContext: `getActivityResourcesGeneric:${resourceType}`,
+		fetchPage: async (cursor) => {
+			const result = await resolveApiRuntime().schedule(() =>
+				client.instances.query({
+					with: {
+						startNode: {
+							nodes: {
+								filter: {
+									and: [
+										{
+											equals: {
+												property: ["node", "externalId"],
+												value: activityExternalId,
 											},
-											{
-												equals: {
-													property: ["node", "space"],
-													value: activitySpace,
-												},
-											},
-										],
-									},
-								},
-							},
-							direct: {
-								limit: resolveAppConfig(appConfig).limits.instancePageSize,
-								nodes: {
-									from: "startNode",
-									filter: { hasData: [viewSource] },
-									through: {
-										source: {
-											type: "container",
-											space: activityContainer.space,
-											externalId: activityContainer.externalId,
 										},
-										identifier: activityContainerIdentifier,
-									},
-									direction: "outwards",
+										{
+											equals: {
+												property: ["node", "space"],
+												value: activitySpace,
+											},
+										},
+									],
 								},
 							},
 						},
-						select: {
-							direct: { sources: [{ source: viewSource, properties: ["*"] }] },
+						direct: {
+							limit: resolveAppConfig(appConfig).limits.instancePageSize,
+							nodes: {
+								from: "startNode",
+								filter: { hasData: [viewSource] },
+								through: {
+									source: {
+										type: "container",
+										space: activityContainer.space,
+										externalId: activityContainer.externalId,
+									},
+									identifier: activityContainerIdentifier,
+								},
+								direction: "outwards",
+							},
 						},
-						cursors: cursor ? { direct: cursor } : {},
-					})
-				);
+					},
+					select: {
+						direct: { sources: [{ source: viewSource, properties: ["*"] }] },
+					},
+					cursors: cursor ? { direct: cursor } : {},
+				})
+			);
 
-				return {
-					items: result?.items?.direct ?? [],
-					nextCursor: result?.nextCursor?.direct,
-				};
-			},
-		});
+			return {
+				items: result?.items?.direct ?? [],
+				nextCursor: result?.nextCursor?.direct,
+			};
+		},
+	});
 
-		return itemsToResourceInstances(rawItems, viewId);
-	} catch (error) {
-		resolveApiRuntime().logError({
-			scope: "retrieve-data.getActivityResourcesGeneric",
-			message: "Failed to fetch activity-linked resources",
-			cause: error,
-			context: { resourceType },
-		});
-		return [];
-	}
+	return itemsToResourceInstances(rawItems, viewId);
 }

@@ -176,15 +176,28 @@ export function useAllTemplateSlots(templates: TemplateCanvas[]) {
 	const {
 		getTemplateCanvasInstances: getTemplateInstances,
 		useCdfClientInfo: useCdfClient,
+		useWorkPackageStore: useStore,
 	} = useContext(UseTemplatesContext);
 	const { client } = useCdfClient();
 	const appConfig = useAppConfig();
+	const { templateCanvasId, aiSelectedCanvasId } = useStore();
 
-	// Exclude the synthetic base template — it has no canvas instances to fetch.
-	// Filtering (vs enabled: false) avoids a permanently pending query observer.
+	const activeTemplateIds = useMemo(() => {
+		const ids = new Set<string>();
+		if (templateCanvasId) ids.add(templateCanvasId);
+		if (aiSelectedCanvasId) ids.add(aiSelectedCanvasId);
+		return ids;
+	}, [templateCanvasId, aiSelectedCanvasId]);
+
+	// Load bodies only for the selected canvas and the AI pick.
 	const fetchableTemplates = useMemo(
-		() => templates.filter((t) => !isBaseTemplateId(t.externalId, appConfig)),
-		[templates, appConfig]
+		() =>
+			templates.filter(
+				(template) =>
+					!isBaseTemplateId(template.externalId, appConfig) &&
+					activeTemplateIds.has(template.externalId)
+			),
+		[templates, appConfig, activeTemplateIds]
 	);
 
 	const queries = useQueries({
