@@ -163,7 +163,7 @@ describe("WorkOrderFiltersSection", () => {
 		expect(screen.getByText(/Refreshing…/i)).toBeInTheDocument();
 	});
 
-	it("hides Refresh after a search has been performed", () => {
+	it("N05: keeps Refresh visible after a search has been performed", () => {
 		render(
 			<WorkOrderFiltersSection
 				filters={{}}
@@ -177,7 +177,7 @@ describe("WorkOrderFiltersSection", () => {
 			/>
 		);
 		expect(
-			screen.queryByRole("button", { name: /Refresh work orders list/i })
-		).not.toBeInTheDocument();
+			screen.getByRole("button", { name: /Refresh work orders list/i })
+		).toBeInTheDocument();
 	});
 });

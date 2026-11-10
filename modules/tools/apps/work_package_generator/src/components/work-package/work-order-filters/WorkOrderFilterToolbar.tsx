@@ -8,7 +8,7 @@ export function WorkOrderFilterToolbar({
 	setShowFilters,
 	hasActiveFilters,
 	activeFiltersCount,
-	hasSearched,
+	hasSearched: _hasSearched,
 	isFetchingRecent,
 	onRefetchRecent,
 	onClearFilters,
@@ -54,30 +54,28 @@ export function WorkOrderFilterToolbar({
 				</Button>
 			)}
 
-			{!hasSearched && (
-				<Button
-					type="button"
-					size="sm"
-					variant="ghost"
-					className="ml-auto"
-					onClick={() => onRefetchRecent()}
-					disabled={isFetchingRecent}
-					aria-busy={isFetchingRecent}
-					aria-label={
-						isFetchingRecent
-							? "Refreshing work orders"
-							: "Refresh work orders list"
-					}
-				>
-					<RotateCcw
-						className={cn(
-							"h-3.5 w-3.5 shrink-0",
-							isFetchingRecent && "animate-spin"
-						)}
-					/>
-					{isFetchingRecent ? "Refreshing…" : "Refresh"}
-				</Button>
-			)}
+			<Button
+				type="button"
+				size="sm"
+				variant="ghost"
+				className="ml-auto"
+				onClick={() => onRefetchRecent()}
+				disabled={isFetchingRecent}
+				aria-busy={isFetchingRecent}
+				aria-label={
+					isFetchingRecent
+						? "Refreshing work orders"
+						: "Refresh work orders list"
+				}
+			>
+				<RotateCcw
+					className={cn(
+						"h-3.5 w-3.5 shrink-0",
+						isFetchingRecent && "animate-spin"
+					)}
+				/>
+				{isFetchingRecent ? "Refreshing…" : "Refresh"}
+			</Button>
 		</div>
 	);
 }
