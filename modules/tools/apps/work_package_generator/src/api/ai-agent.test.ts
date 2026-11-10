@@ -133,7 +133,17 @@ describe("ai-agent", () => {
 			}
 		});
 
-		it("B-D2: updates the agent and logs the config diff", async () => {
+		it("returns existing agent id when create returns 409", async () => {
+			cdfApiFetch
+				.mockResolvedValueOnce({ ok: false, status: 404 })
+				.mockResolvedValueOnce({ ok: false, status: 409 });
+			await expect(getOrCreateAgent(client, "proj")).resolves.toBe(
+				"proj_work_package_generator_helper_agent"
+			);
+			expect(cdfApiFetch).toHaveBeenCalledTimes(2);
+		});
+
+		it("B-D2: updates the agent via POST /ai/agents and logs the config diff", async () => {
 			const config = createMockAppConfig();
 			config.agent = { ...config.agent, model: "configured-model" };
 			const logError = vi.fn();
@@ -156,13 +166,27 @@ describe("ai-agent", () => {
 				"proj_work_package_generator_helper_agent"
 			);
 			expect(cdfApiFetch).toHaveBeenCalledTimes(2);
-			const updateCall = cdfApiFetch.mock.calls[1];
-			if (!updateCall) throw new Error("Expected an agent update call");
-			expect(String(updateCall[1])).toContain("/ai/agents/update");
-			const body = JSON.parse((updateCall[2] as { body: string }).body) as {
-				items: Array<{ model: string }>;
-			};
-			expect(body.items[0]?.model).toBe("configured-model");
+			expect(cdfApiFetch).toHaveBeenNthCalledWith(
+				2,
+				client,
+				"https://cluster.cognitedata.com/api/v1/projects/proj/ai/agents",
+				{
+					method: "POST",
+					body: JSON.stringify({
+						items: [
+							{
+								externalId: "proj_work_package_generator_helper_agent",
+								name: config.agent.name,
+								description: config.agent.description,
+								instructions: config.agent.instructions,
+								model: "configured-model",
+								runtimeVersion: config.agent.runtimeVersion,
+								tools: config.agent.tools,
+							},
+						],
+					}),
+				}
+			);
 			expect(logError).toHaveBeenCalledWith(
 				expect.objectContaining({
 					scope: "ai-agent.syncAgentConfig",

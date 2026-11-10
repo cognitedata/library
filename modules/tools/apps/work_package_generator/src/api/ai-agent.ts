@@ -265,6 +265,10 @@ type LiveAgent = {
 	tools?: unknown;
 };
 
+function agentsUrl(client: CogniteClient, project: string): string {
+	return `${client.getBaseUrl()}/api/v1/projects/${project}/ai/agents`;
+}
+
 function agentWriteBody(
 	agentExternalId: string,
 	agent: AppConfig["agent"]
@@ -327,8 +331,8 @@ async function syncLiveAgent(
 		message: "Live agent config differs from app config",
 		context: diff,
 	});
-	const updateUrl = `${client.getBaseUrl()}/api/v1/projects/${project}/ai/agents/update`;
-	const updateResponse = await cdfApiFetch(client, updateUrl, {
+	// POST /ai/agents creates or updates (upserts) Atlas AI agents; there is no /ai/agents/update endpoint.
+	const updateResponse = await cdfApiFetch(client, agentsUrl(client, project), {
 		method: "POST",
 		body: agentWriteBody(agentExternalId, agent),
 	});
@@ -401,10 +405,9 @@ async function getOrCreateAgentUnlocked(
 			);
 		}
 
-		const agentsUrl = `${client.getBaseUrl()}/api/v1/projects/${project}/ai/agents`;
 		const createResponse = await resolveApiRuntime().cdfApiFetch(
 			client,
-			agentsUrl,
+			agentsUrl(client, project),
 			{
 				method: "POST",
 				body: agentWriteBody(agentExternalId, agent),
