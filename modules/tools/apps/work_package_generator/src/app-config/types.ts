@@ -106,6 +106,11 @@ export interface AgentToolConfig {
 	[key: string]: unknown;
 }
 
+export interface ViewCapabilities {
+	hasStatus: boolean;
+	hasPriority: boolean;
+}
+
 export interface AppConfig {
 	dataModel: {
 		views: Record<DataModelViewKey, ViewIdConfig> &
@@ -150,6 +155,8 @@ export interface AppConfig {
 		fallbackOrganization?: string;
 	};
 	workOrderProperties: WorkOrderPropertyNames;
+	/** When false, Status or Priority filters and columns stay hidden. */
+	viewCapabilities: ViewCapabilities;
 	prompts: {
 		resourceSelection: string;
 		templateSelection: string;

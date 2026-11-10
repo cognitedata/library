@@ -30,6 +30,13 @@ export function getViewKey(viewId: ViewReference): string {
 	return `${viewId.externalId}/${viewId.version}`;
 }
 
+export function getViewCapabilities(config?: AppConfig): {
+	hasStatus: boolean;
+	hasPriority: boolean;
+} {
+	return config?.viewCapabilities ?? { hasStatus: true, hasPriority: true };
+}
+
 export function getResourceConfigs(
 	config: AppConfig
 ): Record<string, ResourceConfig> {

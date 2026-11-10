@@ -9,6 +9,7 @@ export { AppConfigProvider, useAppConfig } from "./context";
 export {
 	fusionOrganizationFromHostname,
 	fusionOrganizationFromRuntime,
+	getViewCapabilities,
 	getViewKey,
 	toViewReference,
 	viewIdToSource,
@@ -39,5 +40,6 @@ export type {
 	AppConfig,
 	ClusterSettings,
 	ResourceTypeConfig,
+	ViewCapabilities,
 	ViewIdConfig,
 } from "./types";

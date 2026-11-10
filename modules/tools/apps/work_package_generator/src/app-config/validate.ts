@@ -38,6 +38,7 @@ export interface ParsedConfigNode {
 	clusterSettings: ClusterSettings;
 	fusion: AppConfig["fusion"];
 	workOrderProperties: AppConfig["workOrderProperties"];
+	viewCapabilities: AppConfig["viewCapabilities"];
 	prompts: AppConfig["prompts"];
 	ui: AppConfig["ui"];
 }
@@ -109,6 +110,7 @@ export function parseConfigNode(raw: unknown): ParsedConfigNode {
 		clusterSettings,
 		fusion,
 		workOrderProperties,
+		viewCapabilities: { hasStatus: true, hasPriority: true },
 		prompts,
 		ui,
 	};

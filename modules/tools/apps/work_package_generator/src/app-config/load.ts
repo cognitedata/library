@@ -22,6 +22,7 @@ export function loadAppConfig(raw: unknown): AppConfig {
 		clusterSettings: parsed.clusterSettings,
 		fusion: parsed.fusion,
 		workOrderProperties: parsed.workOrderProperties,
+		viewCapabilities: parsed.viewCapabilities,
 		prompts: parsed.prompts,
 		ui: parsed.ui,
 	};
