@@ -23,6 +23,7 @@ import type {
 } from "../types";
 import { workPackageSolutionTagInstanceRef } from "../utils/canvas-solution-tags";
 import { resetCanvasUserIdCache } from "../utils/canvas-user";
+import { generateUuid } from "../utils/uuid";
 
 const tmpl = {
 	...DEFAULT_CANVAS_DIMENSIONS,
@@ -539,6 +540,133 @@ describe("createCanvasFromTemplateAndSelections / updateCanvasFromTemplateAndSel
 				templateReads
 			)
 		).rejects.toThrow("No template instances");
+	});
+
+	it("C10: remaps annotation anchors onto copied item ids and drops missing ones", async () => {
+		let nextId = 0;
+		vi.mocked(generateUuid).mockImplementation(() => `id-${nextId++}`);
+		getTemplateCanvasInstances.mockResolvedValue([
+			{
+				id: "old-asset",
+				label: "Main asset",
+				viewExternalId: "CogniteAsset",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+			{
+				id: "old-diagram",
+				label: "Diagram",
+				viewExternalId: "NotAResource",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+			{
+				id: "old-file",
+				label: "P&ID",
+				viewExternalId: "CogniteFile",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+		]);
+		getTemplateCanvasAnnotations.mockResolvedValue([
+			{
+				id: "old-arrow",
+				type: "polylineAnnotation",
+				containerId: "old-asset",
+				properties: {
+					fromId: "old-asset",
+					toId: "old-diagram",
+					vertices: [{ x: 0, y: 0 }],
+				},
+			},
+			{
+				id: "old-note",
+				type: "note",
+				containerId: "old-file",
+				properties: { fromId: "old-file", toId: "missing-item", text: "x" },
+			},
+		]);
+
+		const upsert = vi.fn().mockResolvedValue(undefined);
+		const client = cdfClientTestDouble({
+			instances: {
+				upsert,
+				list: vi.fn().mockResolvedValue({ items: [], nextCursor: undefined }),
+				query: vi.fn().mockResolvedValue({
+					items: { nodes: [], edges: [] },
+					nextCursor: {},
+				}),
+				delete: vi.fn(),
+				retrieve: vi
+					.fn()
+					.mockResolvedValue({ items: [{ externalId: "wpg-work-package" }] }),
+			},
+			profiles: { me: vi.fn().mockResolvedValue({ displayName: "u" }) },
+			getBaseUrl: () => "https://x",
+		});
+
+		try {
+			await createCanvasFromTemplateAndSelections(
+				client,
+				config,
+				"Canvas",
+				"tpl",
+				{},
+				{ assetExternalId: "a", space: "s" },
+				{ externalId: "w", space: "s" },
+				undefined,
+				undefined,
+				templateReads
+			);
+
+			const written = upsert.mock.calls.flatMap(
+				(call) =>
+					(
+						call[0] as {
+							items: Array<{
+								sources?: Array<{ properties: Record<string, unknown> }>;
+							}>;
+						}
+					).items
+			);
+			const annotations = written.filter(
+				(item) => item.sources?.[0]?.properties.annotationType
+			);
+			const instances = written.filter(
+				(item) =>
+					item.sources?.[0]?.properties.containerReferenceType === "fdmInstance"
+			);
+			const assetId = instances.find(
+				(item) => item.sources?.[0]?.properties.instanceExternalId === "a"
+			)?.sources?.[0]?.properties.id;
+			const diagramId = instances.find(
+				(item) =>
+					item.sources?.[0]?.properties.viewExternalId === "NotAResource"
+			)?.sources?.[0]?.properties.id;
+
+			const arrow = annotations.find(
+				(item) =>
+					item.sources?.[0]?.properties.annotationType === "polylineAnnotation"
+			)?.sources?.[0]?.properties;
+			const note = annotations.find(
+				(item) => item.sources?.[0]?.properties.annotationType === "note"
+			)?.sources?.[0]?.properties;
+			const arrowProps = arrow?.properties as Record<string, unknown>;
+			const noteProps = note?.properties as Record<string, unknown>;
+
+			expect(arrow?.containerId).toBe(assetId);
+			expect(arrowProps.fromId).toBe(assetId);
+			expect(arrowProps.toId).toBe(diagramId);
+			expect(note?.containerId).toBeUndefined();
+			expect(noteProps.fromId).toBeUndefined();
+			expect(noteProps.toId).toBeUndefined();
+			expect(noteProps.text).toBe("x");
+		} finally {
+			vi.mocked(generateUuid).mockReturnValue("uuid-fixed");
+		}
 	});
 
 	it("creates canvas from template data", async () => {
