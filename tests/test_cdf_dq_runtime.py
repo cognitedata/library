@@ -174,8 +174,7 @@ def test_customer_overrides_flow_into_rules_and_views(cli: types.ModuleType, tmp
     assert "pi:160245" not in ts_rules
     assert "sh:targetNode" not in ts_rules
     assert not any(
-        path.name.startswith("maintenance_order_rule_logic_test")
-        for path in (dest / "rulesets").glob("*.yaml")
+        path.name.startswith("maintenance_order_rule_logic_test") for path in (dest / "rulesets").glob("*.yaml")
     )
 
 
