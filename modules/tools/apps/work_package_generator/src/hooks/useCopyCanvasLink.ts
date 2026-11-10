@@ -8,13 +8,11 @@ export const COPY_CONFIRMATION_DURATION_MS = 2000;
 
 type CopyCanvasLinkDeps = {
 	copyText: (text: string) => Promise<void>;
-	confirm: (message: string) => boolean;
 	showManualCopy: (canvasLink: string) => void;
 };
 
 const defaultDeps: CopyCanvasLinkDeps = {
 	copyText: copyToClipboard,
-	confirm: (message) => window.confirm(message),
 	showManualCopy: showManualCopyDialog,
 };
 
@@ -22,7 +20,7 @@ export function useCopyCanvasLink(
 	canvasLink: string,
 	overrides?: Partial<CopyCanvasLinkDeps>
 ) {
-	const { copyText, confirm, showManualCopy } = {
+	const { copyText, showManualCopy } = {
 		...defaultDeps,
 		...overrides,
 	};
@@ -50,15 +48,7 @@ export function useCopyCanvasLink(
 				setCopied(false);
 			}, COPY_CONFIRMATION_DURATION_MS);
 		} catch (error) {
-			const userWantsManualCopy = confirm(
-				`Automatic copy failed due to browser restrictions.\n\n` +
-					`Would you like to manually copy the link?\n\n` +
-					`Click OK to see the link in a dialog where you can select and copy it manually.`
-			);
-
-			if (userWantsManualCopy) {
-				showManualCopy(canvasLink);
-			}
+			showManualCopy(canvasLink);
 
 			logError({
 				scope: "useCopyCanvasLink",

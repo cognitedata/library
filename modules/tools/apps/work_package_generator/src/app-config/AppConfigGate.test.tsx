@@ -13,6 +13,11 @@ import {
 	type AppConfigLoaderContextType,
 } from "./useAppConfigLoaderViewModel";
 
+function StoreWatcher() {
+	const space = useWorkPackageStore((state) => state.config.canvasSpaceCanvas);
+	return <span data-testid="canvas-config-version">{space}</span>;
+}
+
 describe(AppConfigGate.name, () => {
 	let service: AppConfigService;
 	let queryClient: QueryClient;
@@ -26,6 +31,25 @@ describe(AppConfigGate.name, () => {
 
 	afterEach(() => {
 		installAppConfig(createMockAppConfig());
+	});
+
+	it("C33a: writes canvas config after render, not during it", async () => {
+		const mockConfig = createMockAppConfig();
+		useWorkPackageStore.setState({ config: PLACEHOLDER_CANVAS_CONFIG });
+		vi.mocked(service.load).mockResolvedValue(mockConfig);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		renderGate(<p>Ready</p>);
+
+		expect(await screen.findByText("Ready")).toBeInTheDocument();
+		expect(useWorkPackageStore.getState().config).toEqual(
+			toCanvasConfig(mockConfig)
+		);
+		const warning = errorSpy.mock.calls
+			.map((args) => args.map(String).join(" "))
+			.join("\n");
+		expect(warning).not.toContain("Cannot update a component");
+		errorSpy.mockRestore();
 	});
 
 	it("renders children after the config loads", async () => {
@@ -65,6 +89,7 @@ describe(AppConfigGate.name, () => {
 		return render(
 			<QueryClientProvider client={queryClient}>
 				<AppConfigLoaderContext.Provider value={context}>
+					<StoreWatcher />
 					<AppConfigGate>{children}</AppConfigGate>
 				</AppConfigLoaderContext.Provider>
 			</QueryClientProvider>

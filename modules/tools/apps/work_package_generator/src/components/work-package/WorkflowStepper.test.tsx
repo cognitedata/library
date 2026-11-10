@@ -48,6 +48,36 @@ describe("WorkflowStepper", () => {
 		expect(onStepClick).toHaveBeenCalledWith(1);
 	});
 
+	it("N19: the Create pill does not announce the current step while Selections is active", () => {
+		renderStepper(
+			<WorkflowStepper
+				workflowStep={6}
+				activeStep={3}
+				orientation="vertical"
+				onStepClick={() => undefined}
+			/>
+		);
+		expect(
+			screen.getByRole("button", { name: "Selections, current step" })
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Create, pending" })
+		).not.toHaveAttribute("aria-current");
+	});
+
+	it("sets aria-disabled on horizontal steps that cannot be opened yet", () => {
+		renderStepper(
+			<WorkflowStepper workflowStep={0} onStepClick={() => undefined} />
+		);
+		expect(screen.getByRole("button", { name: /Create,/ })).toHaveAttribute(
+			"aria-disabled",
+			"true"
+		);
+		expect(
+			screen.getByRole("button", { name: /Work Order,/ })
+		).not.toHaveAttribute("aria-disabled", "true");
+	});
+
 	it("uses activeStep override in vertical mode for styling", () => {
 		const { container } = renderStepper(
 			<WorkflowStepper

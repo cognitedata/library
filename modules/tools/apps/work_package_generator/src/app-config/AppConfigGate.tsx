@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { Button, Loader } from "@/components/ui";
 import { useWorkPackageStore } from "@/store";
 import type { AppConfigLoadError } from "./AppConfigService";
@@ -11,12 +11,15 @@ import { SUPPORTED_CONFIG_SCHEMA_VERSION } from "./validate";
 export function AppConfigGate({ children }: { children: ReactNode }) {
 	const { isLoading, config, error, retry } = useAppConfigLoaderViewModel();
 
+	useEffect(() => {
+		if (!config) return;
+		useWorkPackageStore.getState().setCanvasConfig(toCanvasConfig(config));
+	}, [config]);
+
 	if (isLoading || !config) {
 		if (error) return <ConfigSetupScreen error={error} onRetry={retry} />;
 		return <ConfigLoadingScreen />;
 	}
-
-	useWorkPackageStore.getState().setCanvasConfig(toCanvasConfig(config));
 
 	return <AppConfigProvider value={config}>{children}</AppConfigProvider>;
 }

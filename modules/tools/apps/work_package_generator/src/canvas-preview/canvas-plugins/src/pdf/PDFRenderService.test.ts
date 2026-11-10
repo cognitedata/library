@@ -31,6 +31,7 @@ vi.mock("pdfjs-dist/build/pdf.worker.min.mjs?url", () => ({
 
 import * as pdfjsLib from "pdfjs-dist";
 import {
+	capPdfRenderScale,
 	getPageCount,
 	getPageDimensions,
 	PDFRenderService,
@@ -166,5 +167,12 @@ describe("PDFRenderService", () => {
 		await expect(
 			getPageCount("https://files.example.test/missing-count.pdf")
 		).resolves.toBeNull();
+	});
+});
+
+describe("capPdfRenderScale", () => {
+	it("C35: caps a 4x page so the longest edge stays within 4096px", () => {
+		expect(capPdfRenderScale(4, 2000, 3000)).toBeCloseTo(4096 / 3000);
+		expect(capPdfRenderScale(1, 200, 300)).toBe(1);
 	});
 });

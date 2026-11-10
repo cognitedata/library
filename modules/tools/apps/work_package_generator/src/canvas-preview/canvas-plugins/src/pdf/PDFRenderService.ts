@@ -26,6 +26,26 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export type RenderPriority = "high" | "normal" | "low";
 
+/** Longest canvas edge. A 4× zoom must not allocate an unbounded bitmap. */
+export const MAX_PDF_CANVAS_EDGE_PX = 4096;
+
+/**
+ * Shrink a render scale so the page bitmap stays within `maxEdge` on its longest side.
+ */
+export function capPdfRenderScale(
+	scale: number,
+	pageWidth: number,
+	pageHeight: number,
+	maxEdge: number = MAX_PDF_CANVAS_EDGE_PX
+): number {
+	if (!(scale > 0) || !(pageWidth > 0) || !(pageHeight > 0) || !(maxEdge > 0)) {
+		return scale;
+	}
+	const longest = Math.max(pageWidth, pageHeight) * scale;
+	if (longest <= maxEdge) return scale;
+	return maxEdge / Math.max(pageWidth, pageHeight);
+}
+
 export interface RenderRequest {
 	id: string;
 	url: string;
@@ -298,8 +318,13 @@ class PDFRenderServiceImpl {
 
 			onProgress?.("rendering");
 
-			// Calculate viewport
-			const viewport = pdfPage.getViewport({ scale });
+			const unitViewport = pdfPage.getViewport({ scale: 1 });
+			const safeScale = capPdfRenderScale(
+				scale,
+				unitViewport.width,
+				unitViewport.height
+			);
+			const viewport = pdfPage.getViewport({ scale: safeScale });
 
 			// Set canvas size
 			canvas.width = viewport.width;

@@ -49,11 +49,10 @@ export class ErrorBoundary extends Component<
 					<p className="text-lg font-semibold text-destructive">
 						Something went wrong
 					</p>
-					{this.state.error && (
-						<pre className="max-w-xl text-sm text-muted-foreground whitespace-pre-wrap break-words">
-							{this.state.error.message}
-						</pre>
-					)}
+					<p className="max-w-md text-sm text-muted-foreground">
+						This page ran into a problem and could not finish loading. Try
+						again. If it keeps happening, reload the page.
+					</p>
 					<Button
 						type="button"
 						variant="outline"
