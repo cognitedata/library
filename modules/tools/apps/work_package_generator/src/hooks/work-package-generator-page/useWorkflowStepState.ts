@@ -42,6 +42,8 @@ export type WorkflowStepStateInput = {
 	canvasResult: CanvasResult;
 	isFindingWorkOrder: boolean;
 	isSelectingWorkOrder: boolean;
+	/** True only while an asset lookup is still in flight. */
+	assetLookupPending?: boolean;
 	isLoadingTemplates: boolean;
 	isLoadingResources: boolean;
 	isRunningAiCanvasRecommendation: boolean;
@@ -69,6 +71,7 @@ export function useWorkflowStepState({
 	canvasResult,
 	isFindingWorkOrder,
 	isSelectingWorkOrder,
+	assetLookupPending = false,
 	isLoadingTemplates,
 	isLoadingResources,
 	isRunningAiCanvasRecommendation,
@@ -82,6 +85,30 @@ export function useWorkflowStepState({
 	setTemplateFieldsLoadedFrom,
 }: WorkflowStepStateInput) {
 	const appConfig = useAppConfig();
+	const workOrderKey = workOrder
+		? `${workOrder.space}/${workOrder.externalId}`
+		: null;
+	const [aiSelectionSettled, setAiSelectionSettled] = useState(false);
+	const wasRunningAiSelection = useRef(false);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: a new work order or template starts a new AI run
+	useEffect(() => {
+		setAiSelectionSettled(false);
+		wasRunningAiSelection.current = false;
+	}, [workOrderKey, templateCanvasId]);
+
+	useEffect(() => {
+		if (isRunningAiSelection) {
+			wasRunningAiSelection.current = true;
+			setAiSelectionSettled(false);
+			return;
+		}
+		if (wasRunningAiSelection.current) {
+			wasRunningAiSelection.current = false;
+			setAiSelectionSettled(true);
+		}
+	}, [isRunningAiSelection]);
+
 	const workflowStatus = useMemo(() => {
 		if (!workOrder) return { step: 0, message: SEARCH_WORK_ORDER_TO_BEGIN };
 		if (isFindingWorkOrder || isSelectingWorkOrder)
@@ -91,7 +118,15 @@ export function useWorkflowStepState({
 					? "Loading work order..."
 					: "Finding work order...",
 			};
-		if (!asset) return { step: 1, message: "Resolving asset..." };
+		if (!asset) {
+			if (assetLookupPending || isSelectingWorkOrder || isFindingWorkOrder) {
+				return { step: 1, message: "Resolving asset..." };
+			}
+			return {
+				step: 1,
+				message: "No linked asset for this work order.",
+			};
+		}
 		if (isLoadingTemplates || isLoadingResources)
 			return { step: 2, message: "Loading templates and resources..." };
 		if (isRunningAiCanvasRecommendation)
@@ -112,7 +147,11 @@ export function useWorkflowStepState({
 			return { step: 5, message: "Loading template fields..." };
 		if (isRunningAiSelection)
 			return { step: 5, message: "AI selecting resources..." };
-		if (Object.keys(aiSelections).length === 0 && templateFields.length > 0)
+		if (
+			!aiSelectionSettled &&
+			Object.keys(aiSelections).length === 0 &&
+			templateFields.length > 0
+		)
 			return { step: 5, message: "Waiting for AI selection..." };
 		if (canvasResult) {
 			if (canvasResult.validation.success) {
@@ -141,9 +180,11 @@ export function useWorkflowStepState({
 		resourcesStepConfirmed,
 		isLoadingFields,
 		isRunningAiSelection,
+		aiSelectionSettled,
 		aiSelections,
 		templateFields,
 		canvasResult,
+		assetLookupPending,
 	]);
 
 	const [activeStep, setActiveStep] = useState<WorkflowStepIndex>(0);
@@ -151,10 +192,6 @@ export function useWorkflowStepState({
 		useState(false);
 	const [automationReviewAcknowledged, setAutomationReviewAcknowledged] =
 		useState(false);
-
-	const workOrderKey = workOrder
-		? `${workOrder.space}/${workOrder.externalId}`
-		: null;
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: reset when selected work order identity (workOrderKey) changes
 	useEffect(() => {
@@ -218,7 +255,8 @@ export function useWorkflowStepState({
 				templateCanvasId &&
 				(isBaseTemplateId(templateCanvasId, appConfig) ||
 					templateFields.length === 0 ||
-					Object.keys(aiSelections).length > 0)
+					Object.keys(aiSelections).length > 0 ||
+					(aiSelectionSettled && !isRunningAiSelection))
 			),
 		[
 			workOrder,
@@ -226,6 +264,8 @@ export function useWorkflowStepState({
 			templateCanvasId,
 			templateFields.length,
 			aiSelections,
+			aiSelectionSettled,
+			isRunningAiSelection,
 			appConfig,
 		]
 	);
@@ -366,7 +406,12 @@ export function useWorkflowStepState({
 
 	const stepperMessage = useMemo(() => {
 		if (workOrder && !hasCommittedWorkPackageStart) {
-			if (isFindingWorkOrder || isSelectingWorkOrder || !asset) {
+			if (
+				isFindingWorkOrder ||
+				isSelectingWorkOrder ||
+				assetLookupPending ||
+				!asset
+			) {
 				return workflowStatus.message;
 			}
 			return "Review the work order and asset, then click Continue with AI suggestions to begin.";
@@ -377,6 +422,7 @@ export function useWorkflowStepState({
 		hasCommittedWorkPackageStart,
 		isFindingWorkOrder,
 		isSelectingWorkOrder,
+		assetLookupPending,
 		asset,
 		workflowStatus.message,
 	]);

@@ -153,9 +153,53 @@ describe("useWorkflowStepState", () => {
 		);
 
 		const resolving = renderHook(() =>
-			useHarness({ asset: null, templateCanvasId: null })
+			useHarness({
+				asset: null,
+				templateCanvasId: null,
+				assetLookupPending: true,
+			})
 		);
 		expect(resolving.result.current.stepperMessage).toBe("Resolving asset...");
+	});
+
+	it("treats a missing asset and a failed lookup as settled", () => {
+		const missing = renderHook(() =>
+			useHarness({ asset: null, templateCanvasId: null })
+		);
+		expect(missing.result.current.stepperMessage).toBe(
+			"No linked asset for this work order."
+		);
+		expect(missing.result.current.stepperMessage).not.toBe(
+			"Resolving asset..."
+		);
+	});
+
+	it("N17: allows continue after the AI selection run finishes without matches", () => {
+		const { result } = renderHook(() => {
+			const [isRunningAiSelection, setIsRunningAiSelection] = useState(true);
+			const state = useHarness({
+				templateStepConfirmed: true,
+				resourcesStepConfirmed: true,
+				isRunningAiSelection,
+				aiSelections: {},
+			});
+			return { state, setIsRunningAiSelection };
+		});
+		expect(result.current.state.isReady).toBe(false);
+		act(() => {
+			result.current.setIsRunningAiSelection(false);
+		});
+		expect(result.current.state.isReady).toBe(true);
+	});
+
+	it("C25: a template with no AI slots is ready", () => {
+		const { result } = renderHook(() =>
+			useHarness({
+				templateFields: [],
+				aiSelections: {},
+			})
+		);
+		expect(result.current.isReady).toBe(true);
 	});
 
 	it("caps the stepper at work-order until the user commits to generating", () => {

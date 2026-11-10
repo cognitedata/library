@@ -97,6 +97,35 @@ describe("useAiCanvasRecommendation", () => {
 		);
 	});
 
+	it("C02: discards a late template recommendation after the template changes", async () => {
+		let resolveBest: (value: string) => void = () => {};
+		mockBest.mockReturnValue(
+			new Promise((resolve) => {
+				resolveBest = resolve;
+			})
+		);
+		const { result } = renderHook(() => useAiCanvasRecommendation(), {
+			wrapper: makeWrapper(),
+		});
+		act(() => {
+			useWorkPackageStore.setState({
+				templateCanvasId: "initial",
+				aiSelectedCanvasId: null,
+			});
+			result.current.mutate(undefined);
+		});
+		await waitFor(() => expect(mockBest).toHaveBeenCalled());
+		act(() => {
+			useWorkPackageStore.setState({ templateCanvasId: "user-pick" });
+		});
+		await act(async () => {
+			resolveBest("canvas-1");
+		});
+		await waitFor(() => expect(result.current.isPending).toBe(false));
+		expect(useWorkPackageStore.getState().templateCanvasId).toBe("user-pick");
+		expect(useWorkPackageStore.getState().aiSelectedCanvasId).toBeNull();
+	});
+
 	it("handles error", async () => {
 		mockAgent.mockRejectedValueOnce(new Error("e"));
 		const { result } = renderHook(() => useAiCanvasRecommendation(), {
@@ -193,6 +222,139 @@ describe("useAiSelection", () => {
 		});
 		await waitFor(() =>
 			expect(useWorkPackageStore.getState().aiSelections.Doc).toBeDefined()
+		);
+	});
+
+	it("C01: discards a late selection after the work order changes", async () => {
+		let resolveSelection: (value: {
+			externalId: string;
+			space: string;
+			name: string;
+		}) => void = () => {};
+		mockSelectRes.mockReturnValue(
+			new Promise((resolve) => {
+				resolveSelection = resolve;
+			})
+		);
+		const { result } = renderHook(() => useAiSelection(), {
+			wrapper: makeWrapper(),
+		});
+		act(() => {
+			useWorkPackageStore.setState({ aiSelections: {} });
+			result.current.mutate(undefined);
+		});
+		await waitFor(() => expect(mockSelectRes).toHaveBeenCalled());
+		act(() => {
+			useWorkPackageStore.setState({
+				workOrder: { externalId: "other", space: "s" },
+			});
+		});
+		await act(async () => {
+			resolveSelection({ externalId: "r1", space: "s", name: "R" });
+		});
+		await waitFor(() => expect(result.current.isPending).toBe(false));
+		expect(useWorkPackageStore.getState().aiSelections.Doc).toBeUndefined();
+	});
+
+	it("C03: keeps the other slots when one slot fails", async () => {
+		mockSelectRes
+			.mockResolvedValueOnce({ externalId: "r1", space: "s", name: "One" })
+			.mockRejectedValueOnce(new Error("slot failed"))
+			.mockResolvedValueOnce({ externalId: "r3", space: "s", name: "Three" });
+		useWorkPackageStore.setState({
+			templateFields: [
+				{ type: "file", label: "One", viewExternalId: "CogniteFile" },
+				{ type: "file", label: "Two", viewExternalId: "CogniteFile" },
+				{ type: "file", label: "Three", viewExternalId: "CogniteFile" },
+			],
+		});
+		const { result } = renderHook(() => useAiSelection(), {
+			wrapper: makeWrapper(),
+		});
+		await act(async () => {
+			await result.current.mutateAsync(undefined);
+		});
+		const selections = useWorkPackageStore.getState().aiSelections;
+		expect(selections.One?.externalId).toBe("r1");
+		expect(selections.Three?.externalId).toBe("r3");
+		expect(selections.Two).toBeNull();
+		expect(result.current.isError).toBe(false);
+	});
+
+	it("C16: records a per-slot error result without failing the run", async () => {
+		mockSelectRes.mockResolvedValueOnce({
+			kind: "error",
+			status: 503,
+			retryable: true,
+		});
+		const { result } = renderHook(() => useAiSelection(), {
+			wrapper: makeWrapper(),
+		});
+		await act(async () => {
+			await result.current.mutateAsync(undefined);
+		});
+		expect(useWorkPackageStore.getState().aiSelections.Doc).toBeNull();
+		expect(result.current.isError).toBe(false);
+	});
+
+	it("C23: re-runs one slot without clearing the others", async () => {
+		useWorkPackageStore.setState({
+			templateFields: [
+				{ type: "file", label: "One", viewExternalId: "CogniteFile" },
+				{ type: "file", label: "Two", viewExternalId: "CogniteFile" },
+			],
+			aiSelections: {
+				One: { externalId: "keep", space: "s", name: "Keep" },
+				Two: null,
+			},
+		});
+		mockSelectRes.mockResolvedValueOnce({
+			externalId: "fresh",
+			space: "s",
+			name: "Fresh",
+		});
+		const { result } = renderHook(() => useAiSelection(), {
+			wrapper: makeWrapper(),
+		});
+		await act(async () => {
+			await result.current.mutateAsync({ slotKey: "Two" });
+		});
+		const selections = useWorkPackageStore.getState().aiSelections;
+		expect(selections.One?.externalId).toBe("keep");
+		expect(selections.Two?.externalId).toBe("fresh");
+	});
+
+	it("C28: keeps a manual pick made while AI selection is running", async () => {
+		let resolveSelection: (value: {
+			externalId: string;
+			space: string;
+			name: string;
+		}) => void = () => {};
+		mockSelectRes.mockReturnValue(
+			new Promise((resolve) => {
+				resolveSelection = resolve;
+			})
+		);
+		const { result } = renderHook(() => useAiSelection(), {
+			wrapper: makeWrapper(),
+		});
+		act(() => {
+			result.current.mutate(undefined);
+		});
+		await waitFor(() => expect(mockSelectRes).toHaveBeenCalled());
+		act(() => {
+			useWorkPackageStore.getState().setSlotSelection("Doc", {
+				externalId: "manual",
+				space: "s",
+				name: "Manual",
+			});
+		});
+		await act(async () => {
+			resolveSelection({ externalId: "r1", space: "s", name: "AI" });
+		});
+		await waitFor(() => expect(result.current.isPending).toBe(false));
+		expect(useWorkPackageStore.getState().aiSelections.Doc?.externalId).toBe(
+			"manual"
 		);
 	});
 

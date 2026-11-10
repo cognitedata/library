@@ -136,6 +136,20 @@ describe("useCanvasDraftPreview", () => {
 		);
 	});
 
+	it("C25: previews a template that has no AI slots", async () => {
+		useWorkPackageStore.setState({
+			templateCanvasId: "tpl",
+			templateFields: [],
+			templateFieldsLoadedFrom: "tpl",
+			aiSelections: {},
+		});
+		const { result } = renderHook(() => useCanvasDraftPreview(true), {
+			wrapper: makeWrapper(),
+		});
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(mockInstances).toHaveBeenCalled();
+	});
+
 	it("includes a cleared selection in the preview query", async () => {
 		useWorkPackageStore.setState({
 			aiSelections: {
