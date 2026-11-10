@@ -672,6 +672,103 @@ describe("useWorkPackageGeneratorPage", () => {
 		expect(useWorkPackageStore.getState().error).toBeNull();
 	});
 
+	it("C07: clears canvas result on a new search and when starting a new work order", () => {
+		const resetCanvasCreation = vi.fn();
+		mockUseWorkPackageGenerator.mockImplementation(() =>
+			buildVm({
+				workOrder: sampleWo,
+				resetCanvasCreation,
+			})
+		);
+		useWorkPackageStore.setState({ workOrder: sampleWo, asset: sampleAsset });
+		const { result } = renderHook(() => useWorkPackageGeneratorPage(), {
+			wrapper,
+		});
+
+		act(() => result.current.setSearchInput("pump"));
+		act(() => result.current.onSearch(searchFormEvent()));
+		expect(resetCanvasCreation).toHaveBeenCalledTimes(1);
+
+		act(() => result.current.onChangeWorkOrder());
+		expect(resetCanvasCreation).toHaveBeenCalledTimes(2);
+	});
+
+	it("N02: pushes one history entry per workflow step and restores it on back", () => {
+		const pushState = vi.spyOn(window.history, "pushState");
+		useWorkPackageStore.setState({
+			workOrder: sampleWo,
+			asset: sampleAsset,
+			templateCanvasId: "t1",
+		});
+		mockUseWorkPackageGenerator.mockImplementation(() => buildVm());
+		const { result } = renderHook(() => useWorkPackageGeneratorPage(), {
+			wrapper,
+		});
+
+		act(() => result.current.onGenerateWorkPackage());
+		act(() => result.current.onContinueFromTemplate());
+		expect(pushState).toHaveBeenCalledTimes(2);
+		expect(result.current.activeStep).toBe(2);
+
+		act(() => {
+			window.dispatchEvent(
+				new PopStateEvent("popstate", { state: { wpgStep: 1 } })
+			);
+		});
+		expect(result.current.activeStep).toBe(1);
+		expect(pushState).toHaveBeenCalledTimes(2);
+		pushState.mockRestore();
+	});
+
+	it("N02: warns before leaving the page while a work order is in progress", () => {
+		useWorkPackageStore.setState({ workOrder: sampleWo, asset: sampleAsset });
+		mockUseWorkPackageGenerator.mockImplementation(() =>
+			buildVm({ workOrder: sampleWo, canvasResult: undefined })
+		);
+		renderHook(() => useWorkPackageGeneratorPage(), { wrapper });
+
+		const event = new Event("beforeunload", { cancelable: true });
+		window.dispatchEvent(event);
+		expect(event.defaultPrevented).toBe(true);
+	});
+
+	it("N05: clearing the search box returns to recent work orders and filters search results", () => {
+		const openOrder: WorkOrder = {
+			...sampleWo,
+			externalId: "open-1",
+			status: "open",
+		};
+		const closedOrder: WorkOrder = {
+			...sampleWo,
+			externalId: "closed-1",
+			status: "closed",
+		};
+		mockUseWorkPackageGenerator.mockImplementation(() =>
+			buildVm({ searchResults: [openOrder, closedOrder] })
+		);
+		const { result } = renderHook(() => useWorkPackageGeneratorPage(), {
+			wrapper,
+		});
+
+		act(() => result.current.setSearchInput("pump"));
+		act(() => result.current.onSearch(searchFormEvent()));
+		expect(result.current.hasSearched).toBe(true);
+
+		act(() => result.current.onWorkOrderFiltersChange({ status: "open" }));
+		expect(
+			result.current.searchResults.map((order) => order.externalId)
+		).toEqual(["open-1"]);
+		expect(mockUseWorkPackageGenerator).toHaveBeenCalledWith(
+			expect.objectContaining({
+				recentWorkOrderFilters: { status: "open" },
+			})
+		);
+
+		act(() => result.current.setSearchInput("  "));
+		expect(result.current.hasSearched).toBe(false);
+		expect(resetSearch).toHaveBeenCalled();
+	});
+
 	it("onRemoveResource drops the candidate from the store", () => {
 		useWorkPackageStore
 			.getState()

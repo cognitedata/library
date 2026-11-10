@@ -39,6 +39,15 @@ describe("useWorkPackageGenerator", () => {
 		});
 	});
 
+	it("C07: canvasResult is canvas mutation data with a reset", async () => {
+		const { result } = renderHook(() => useWorkPackageGenerator(), {
+			wrapper,
+		});
+		await waitFor(() => expect(result.current.isLoadingTemplates).toBe(false));
+		expect(result.current.canvasResult).toBeUndefined();
+		expect(typeof result.current.resetCanvasCreation).toBe("function");
+	});
+
 	it("exposes query refetch helpers and search reset", async () => {
 		const { result } = renderHook(() => useWorkPackageGenerator(), {
 			wrapper,

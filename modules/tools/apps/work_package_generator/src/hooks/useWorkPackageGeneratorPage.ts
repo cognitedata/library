@@ -8,12 +8,14 @@ import {
 	type FormEvent,
 	useCallback,
 	useContext,
+	useEffect,
 	useMemo,
+	useRef,
 	useState,
 } from "react";
 import { getResourceConfigs, useAppConfig } from "@/app-config";
 import { useWorkPackageStore } from "@/store";
-import type { WorkOrderFilters } from "@/types";
+import type { WorkOrder, WorkOrderFilters } from "@/types";
 import { getErrorMessage, toUserFacingErrorMessage } from "@/utils/errors";
 import { useAiAutoTriggers } from "./useAiAutoTriggers";
 import { useMobileLayout } from "./useMobileLayout";
@@ -119,7 +121,7 @@ export function useWorkPackageGeneratorPage() {
 		recentCurrentPage,
 	} = useWorkPackage({
 		templateFieldsQueryEnabled: templateStepConfirmed,
-		recentWorkOrderFilters: hasSearched ? undefined : workOrderFilters,
+		recentWorkOrderFilters: workOrderFilters,
 	});
 
 	const {
@@ -193,16 +195,33 @@ export function useWorkPackageGeneratorPage() {
 		runAiSelection,
 	});
 
+	const handleSearchInputChange = useCallback(
+		(value: string) => {
+			setSearchInput(value);
+			if (value.trim()) return;
+			setHasSearched(false);
+			resetSearch();
+		},
+		[resetSearch]
+	);
+
 	const handleSearch = useCallback(
 		(e: FormEvent) => {
 			e.preventDefault();
 			const trimmed = searchInput.trim();
 			if (!trimmed) return;
+			resetCanvasCreation();
 			if (workOrder) resetForNewWorkOrder();
 			setHasSearched(true);
 			searchWorkOrders(trimmed);
 		},
-		[searchInput, workOrder, resetForNewWorkOrder, searchWorkOrders]
+		[
+			searchInput,
+			workOrder,
+			resetCanvasCreation,
+			resetForNewWorkOrder,
+			searchWorkOrders,
+		]
 	);
 
 	const { resetCanvasNameForm } = canvasForm;
@@ -225,7 +244,58 @@ export function useWorkPackageGeneratorPage() {
 		resetWorkflowForNewPackage,
 	]);
 
+	const handleStartNewWorkOrder = useCallback(() => {
+		resetCanvasCreation();
+		resetForNewWorkOrder();
+	}, [resetCanvasCreation, resetForNewWorkOrder]);
+
 	const handleDismissError = useCallback(() => setError(null), [setError]);
+
+	const filteredSearchResults = useMemo(
+		() => filterWorkOrders(searchResults, workOrderFilters),
+		[searchResults, workOrderFilters]
+	);
+
+	const hasUnsavedProgress = workOrder != null && canvasResult == null;
+	const activeStep = workflow.activeStep;
+	const onStepClick = workflow.onStepClick;
+	const lastHistoryStepRef = useRef(activeStep);
+	const skipNextHistoryPushRef = useRef(false);
+
+	useEffect(() => {
+		if (lastHistoryStepRef.current === activeStep) {
+			skipNextHistoryPushRef.current = false;
+			return;
+		}
+		if (skipNextHistoryPushRef.current) {
+			skipNextHistoryPushRef.current = false;
+			lastHistoryStepRef.current = activeStep;
+			return;
+		}
+		window.history.pushState({ wpgStep: activeStep }, "");
+		lastHistoryStepRef.current = activeStep;
+	}, [activeStep]);
+
+	useEffect(() => {
+		const onPopState = (event: PopStateEvent) => {
+			const step = readHistoryStep(event.state);
+			if (step == null) return;
+			skipNextHistoryPushRef.current = true;
+			onStepClick(step);
+		};
+		window.addEventListener("popstate", onPopState);
+		return () => window.removeEventListener("popstate", onPopState);
+	}, [onStepClick]);
+
+	useEffect(() => {
+		if (!hasUnsavedProgress) return;
+		const onBeforeUnload = (event: BeforeUnloadEvent) => {
+			event.preventDefault();
+			event.returnValue = "";
+		};
+		window.addEventListener("beforeunload", onBeforeUnload);
+		return () => window.removeEventListener("beforeunload", onBeforeUnload);
+	}, [hasUnsavedProgress]);
 
 	const handleRetrySearch = useCallback(() => {
 		resetSearch();
@@ -311,11 +381,11 @@ export function useWorkPackageGeneratorPage() {
 		asset,
 		client,
 		searchInput,
-		setSearchInput,
+		setSearchInput: handleSearchInputChange,
 		onSearch: handleSearch,
 		isSearchingWorkOrders,
 		isSearchFetching,
-		searchResults,
+		searchResults: filteredSearchResults,
 		hasSearched,
 		searchErrorMessage,
 		onRetrySearch: handleRetrySearch,
@@ -386,10 +456,38 @@ export function useWorkPackageGeneratorPage() {
 		onUpdateCanvas: canvasForm.onUpdateCanvas,
 		recheckCanvasName: canvasForm.recheckCanvasName,
 		onCreateAnotherWorkPackage: handleCreateAnotherWorkPackage,
-		onChangeWorkOrder: resetForNewWorkOrder,
+		onChangeWorkOrder: handleStartNewWorkOrder,
 	};
 }
 
 export type WorkPackageGeneratorPageViewModel = ReturnType<
 	typeof useWorkPackageGeneratorPage
 >;
+
+function filterWorkOrders(
+	orders: WorkOrder[],
+	filters: WorkOrderFilters
+): WorkOrder[] {
+	return orders.filter((order) => {
+		if (filters.status && order.status !== filters.status) return false;
+		if (filters.priority && order.priority !== filters.priority) return false;
+		const scheduledDay = order.scheduledStartTime?.slice(0, 10);
+		if (filters.dateFrom || filters.dateTo) {
+			if (!scheduledDay) return false;
+			if (filters.dateFrom && scheduledDay < filters.dateFrom) return false;
+			if (filters.dateTo && scheduledDay > filters.dateTo) return false;
+		}
+		return true;
+	});
+}
+
+function readHistoryStep(state: unknown): 0 | 1 | 2 | 3 | 4 | null {
+	if (typeof state !== "object" || state == null || !("wpgStep" in state)) {
+		return null;
+	}
+	const step = state.wpgStep;
+	if (step === 0 || step === 1 || step === 2 || step === 3 || step === 4) {
+		return step;
+	}
+	return null;
+}
