@@ -248,6 +248,12 @@ def _write_settings_with_overrides(
             elif target_id is not None:
                 product = {}
                 products.append(product)
+            elif target_version is not None:
+                raise ValueError(
+                    "Cannot apply dataProductVersion override: "
+                    f"found {len(products)} external data products in settings, "
+                    "but dataProductExternalId was not specified to disambiguate."
+                )
         if product is not None:
             if target_id is not None:
                 product["external_id"] = target_id
