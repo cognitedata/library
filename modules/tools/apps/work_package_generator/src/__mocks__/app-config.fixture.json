@@ -80,35 +80,35 @@
 		"activity": {
 			"displayName": "Activities",
 			"view": "activity",
-			"properties": ["name", "description", "externalId"],
+			"properties": ["name", "description"],
 			"assetRelationProperty": "assets",
 			"assetRelationIsArray": true
 		},
 		"asset": {
 			"displayName": "Assets",
 			"view": "asset",
-			"properties": ["name", "description", "externalId"],
+			"properties": ["name", "description"],
 			"assetRelationProperty": "parent",
 			"assetRelationIsArray": false
 		},
 		"equipment": {
 			"displayName": "Equipment",
 			"view": "equipment",
-			"properties": ["name", "description", "externalId"],
+			"properties": ["name", "description"],
 			"assetRelationProperty": "asset",
 			"assetRelationIsArray": false
 		},
 		"file": {
 			"displayName": "Files",
 			"view": "file",
-			"properties": ["name", "description", "externalId"],
+			"properties": ["name", "description"],
 			"assetRelationProperty": "assets",
 			"assetRelationIsArray": true
 		},
 		"timeseries": {
 			"displayName": "Time Series",
 			"view": "timeSeries",
-			"properties": ["name", "description", "externalId"],
+			"properties": ["name", "description"],
 			"assetRelationProperty": "assets",
 			"assetRelationIsArray": true,
 			"activityContainerIdentifier": "timeSeries"

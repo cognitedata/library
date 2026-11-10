@@ -87,6 +87,7 @@ describe(createDmsAppConfigService.name, () => {
 			createDmsAppConfigService(client).load()
 		).rejects.toMatchObject({
 			kind: "notFound",
+			message: expect.stringMatching(/was not found/),
 		});
 	});
 

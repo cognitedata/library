@@ -1,3 +1,4 @@
+# rules: ignore[UNRESOLVED-VARIABLE]
 space: inst_wpg_app_config
 externalId: wpg_config
 sources:
@@ -69,7 +70,7 @@ sources:
           borderColor: "rgba(83, 88, 127, 0.24)"
           borderWidth: 2
           borderRadius: 4
-      resourceTypes: {"activity":{"displayName":"Activities","view":"activity","properties":["name","description","externalId"],"assetRelationProperty":"assets","assetRelationIsArray":true},"asset":{"displayName":"Assets","view":"asset","properties":["name","description","externalId"],"assetRelationProperty":"parent","assetRelationIsArray":false},"equipment":{"displayName":"Equipment","view":"equipment","properties":["name","description","externalId"],"assetRelationProperty":"asset","assetRelationIsArray":false},"file":{"displayName":"Files","view":"file","properties":["name","description","externalId"],"assetRelationProperty":"assets","assetRelationIsArray":true},"timeseries":{"displayName":"Time Series","view":"timeSeries","properties":["name","description","externalId"],"assetRelationProperty":"assets","assetRelationIsArray":true,"activityContainerIdentifier":"timeSeries"}}
+      resourceTypes: {"activity":{"displayName":"Activities","view":"activity","properties":["name","description"],"assetRelationProperty":"assets","assetRelationIsArray":true},"asset":{"displayName":"Assets","view":"asset","properties":["name","description"],"assetRelationProperty":"parent","assetRelationIsArray":false},"equipment":{"displayName":"Equipment","view":"equipment","properties":["name","description"],"assetRelationProperty":"asset","assetRelationIsArray":false},"file":{"displayName":"Files","view":"file","properties":["name","description"],"assetRelationProperty":"assets","assetRelationIsArray":true},"timeseries":{"displayName":"Time Series","view":"timeSeries","properties":["name","description"],"assetRelationProperty":"assets","assetRelationIsArray":true,"activityContainerIdentifier":"timeSeries"}}
       context: {"workOrder":{"properties":["name","description","type","status","priority","category","workOrderType","maintenanceType","scheduledStartTime","scheduledEndTime","estimatedDuration","actualStartTime","actualEndTime","workOrderNumber","requester","assignedTo","location","equipment","system","frequency","criticality"]},"asset":{"properties":["name","description","type","category","subcategory","assetType","criticality","status","location","parentAsset","parentAssetExternalId","hierarchy","specifications","manufacturer","model","serialNumber","installationDate","operatingConditions","capacity","powerRating","pressureRating","temperatureRating","flowRate","dimensions","weight","material","system","process","area","zone","building","floor","room"]}}
       agent:
         model: "{{ wpg_agent_model }}"

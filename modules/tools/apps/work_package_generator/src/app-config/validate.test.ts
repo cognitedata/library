@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import rawConfig from "../__mocks__/app-config.fixture.json";
 import { AppConfigError } from "./errors";
 import { parseConfigNode } from "./validate";
@@ -138,5 +138,65 @@ describe(parseConfigNode.name, () => {
 			fusion: { ...rawConfig.fusion, fallbackOrganization: "cog-demo" },
 		});
 		expect(parsed.fusion.fallbackOrganization).toBe("cog-demo");
+	});
+
+	it("N04: sets status and priority only when those property names are on the work-order list", () => {
+		const present = parseConfigNode(rawConfig);
+		expect(present.viewCapabilities).toEqual({
+			hasStatus: true,
+			hasPriority: true,
+		});
+
+		const raw = structuredClone(rawConfig);
+		raw.context.workOrder.properties = raw.context.workOrder.properties.filter(
+			(name) => name !== "status" && name !== "priority"
+		);
+		const missing = parseConfigNode(raw);
+		expect(missing.viewCapabilities).toEqual({
+			hasStatus: false,
+			hasPriority: false,
+		});
+	});
+
+	it("N04: warns when status or priority options do nothing", () => {
+		const raw = structuredClone(rawConfig);
+		raw.context.workOrder.properties = raw.context.workOrder.properties.filter(
+			(name) => name !== "priority"
+		);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseConfigNode(raw);
+		expect(parsed.viewCapabilities.hasPriority).toBe(false);
+		expect(warn).toHaveBeenCalledWith(
+			expect.stringMatching(/workOrderPriorityOptions: no effect/)
+		);
+		warn.mockRestore();
+	});
+
+	it("C34: rejects a search result limit above 1000", () => {
+		const raw = structuredClone(rawConfig);
+		raw.limits.searchResultLimit = 1001;
+		expect(() => parseConfigNode(raw)).toThrow(
+			/WPGConfig\.limits\.searchResultLimit/
+		);
+	});
+
+	it("C34: rejects an unknown prompt placeholder name", () => {
+		const raw = structuredClone(rawConfig);
+		raw.prompts.resourceSelection = `${raw.prompts.resourceSelection}\n{{notAToken}}`;
+		expect(() => parseConfigNode(raw)).toThrow(
+			/unknown placeholder \{\{notAToken\}\}/
+		);
+	});
+
+	it("N16: drops externalId from resource type property lists", () => {
+		const raw = structuredClone(rawConfig);
+		for (const resourceType of Object.values(raw.resourceTypes)) {
+			resourceType.properties = [...resourceType.properties, "externalId"];
+		}
+		const parsed = parseConfigNode(raw);
+		for (const resourceType of Object.values(parsed.resourceTypes)) {
+			expect(resourceType.properties).not.toContain("externalId");
+			expect(resourceType.properties).toContain("name");
+		}
 	});
 });
