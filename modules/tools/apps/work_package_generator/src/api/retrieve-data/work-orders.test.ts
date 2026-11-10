@@ -69,9 +69,9 @@ describe("retrieve-data/work-orders", () => {
 			});
 			const result = await searchWorkOrders(client, "wo");
 			expect(result.items.map((item) => item.externalId)).toEqual([
+				"name-hit",
 				"WO-1",
 				"wo-12",
-				"name-hit",
 			]);
 			const filter = query.mock.calls[0][0].with.nodes.nodes.filter;
 			expect(JSON.stringify(filter)).toContain("wo");

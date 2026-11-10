@@ -694,7 +694,9 @@ describe("useWorkPackageGeneratorPage", () => {
 	});
 
 	it("N02: pushes one history entry per workflow step and restores it on back", () => {
+		window.history.replaceState(null, "");
 		const pushState = vi.spyOn(window.history, "pushState");
+		const replaceState = vi.spyOn(window.history, "replaceState");
 		useWorkPackageStore.setState({
 			workOrder: sampleWo,
 			asset: sampleAsset,
@@ -708,6 +710,7 @@ describe("useWorkPackageGeneratorPage", () => {
 		act(() => result.current.onGenerateWorkPackage());
 		act(() => result.current.onContinueFromTemplate());
 		expect(pushState).toHaveBeenCalledTimes(2);
+		expect(replaceState).toHaveBeenCalledWith({ wpgStep: 0 }, "");
 		expect(result.current.activeStep).toBe(2);
 
 		act(() => {
@@ -718,6 +721,7 @@ describe("useWorkPackageGeneratorPage", () => {
 		expect(result.current.activeStep).toBe(1);
 		expect(pushState).toHaveBeenCalledTimes(2);
 		pushState.mockRestore();
+		replaceState.mockRestore();
 	});
 
 	it("N02: warns before leaving the page while a work order is in progress", () => {

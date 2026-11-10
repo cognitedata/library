@@ -3,6 +3,7 @@ import {
 	createContext,
 	useContext,
 	useEffect,
+	useRef,
 	useSyncExternalStore,
 } from "react";
 import {
@@ -193,11 +194,13 @@ export function useAiCanvasRecommendation() {
 		};
 	}, [workOrder?.externalId, workOrder?.space, templateCanvasId, setLoading]);
 
+	const recommendationAttemptRef = useRef({ generation: 0, runKey: "" });
 	const mutation = useMutation({
 		mutationFn: async () => {
 			const generation = recommendationGeneration;
 			const state = useStore.getState();
 			const runKey = aiRunKey(state);
+			recommendationAttemptRef.current = { generation, runKey };
 			const aiTemplates = getAiSelectableTemplates(
 				state.candidateTemplates,
 				appConfig
@@ -257,6 +260,13 @@ export function useAiCanvasRecommendation() {
 			setLoading(false);
 		},
 		onError: (error) => {
+			const attempt = recommendationAttemptRef.current;
+			if (
+				attempt.generation !== recommendationGeneration ||
+				aiRunKey(useStore.getState()) !== attempt.runKey
+			) {
+				return;
+			}
 			publishAiRunUi({ recommendationFailed: true });
 			setError(
 				`AI canvas recommendation failed: ${toUserFacingErrorMessage(getErrorMessage(error))}`
@@ -298,6 +308,7 @@ export function useAiSelection() {
 		};
 	}, [workOrder?.externalId, workOrder?.space, templateCanvasId, setLoading]);
 
+	const selectionAttemptRef = useRef({ generation: 0, runKey: "" });
 	const mutation = useMutation<SelectionRunResult, Error, AiSelectionVariables>(
 		{
 			mutationFn: async (variables) => {
@@ -305,6 +316,7 @@ export function useAiSelection() {
 				const generation = selectionGeneration;
 				const state = useStore.getState();
 				const runKey = aiRunKey(state);
+				selectionAttemptRef.current = { generation, runKey };
 				const snapshot = { ...state.aiSelections };
 				const discarded = (): SelectionRunResult => ({
 					discarded: true,
@@ -472,6 +484,13 @@ export function useAiSelection() {
 				setLoading(false);
 			},
 			onError: (error) => {
+				const attempt = selectionAttemptRef.current;
+				if (
+					attempt.generation !== selectionGeneration ||
+					aiRunKey(useStore.getState()) !== attempt.runKey
+				) {
+					return;
+				}
 				publishAiRunUi({ selectionFailed: true });
 				setError(
 					`AI selection failed: ${toUserFacingErrorMessage(getErrorMessage(error))}`

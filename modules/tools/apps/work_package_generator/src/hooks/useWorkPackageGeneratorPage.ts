@@ -263,6 +263,9 @@ export function useWorkPackageGeneratorPage() {
 	const skipNextHistoryPushRef = useRef(false);
 
 	useEffect(() => {
+		if (readHistoryStep(window.history.state) == null) {
+			window.history.replaceState({ wpgStep: lastHistoryStepRef.current }, "");
+		}
 		if (lastHistoryStepRef.current === activeStep) {
 			skipNextHistoryPushRef.current = false;
 			return;

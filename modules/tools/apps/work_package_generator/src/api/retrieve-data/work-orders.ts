@@ -103,7 +103,7 @@ function mergeWorkOrders(
 ): WorkOrder[] {
 	const seen = new Set<string>();
 	const merged: WorkOrder[] = [];
-	for (const workOrder of [...idMatches, ...nameMatches]) {
+	for (const workOrder of [...nameMatches, ...idMatches]) {
 		const key = `${workOrder.space}/${workOrder.externalId}`;
 		if (seen.has(key)) continue;
 		seen.add(key);
