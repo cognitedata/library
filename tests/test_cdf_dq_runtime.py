@@ -790,7 +790,7 @@ def test_bootstrap_handler_deletes_all_schedules_for_function_on_success(
 
 def test_bootstrap_handler_logs_when_bootstrap_function_missing(
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     def deploy(**_kwargs: object) -> dict[str, object]:
         return {"status": "completed"}
@@ -798,8 +798,9 @@ def test_bootstrap_handler_logs_when_bootstrap_function_missing(
     handler_module = _load_bootstrap_handler(monkeypatch, deploy)
     client = _bootstrap_client(retrieve=lambda *, external_id: None)
 
-    assert handler_module.handle({}, client) == {"status": "completed"}
-    assert f"Bootstrap function not found: {handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID}" in capsys.readouterr().out
+    with caplog.at_level("WARNING"):
+        assert handler_module.handle({}, client) == {"status": "completed"}
+    assert f"Bootstrap function not found: {handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID}" in caplog.text
 
 
 def test_bootstrap_handler_keeps_schedule_when_deployment_fails(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -821,7 +822,7 @@ def test_bootstrap_handler_keeps_schedule_when_deployment_fails(monkeypatch: pyt
 
 def test_bootstrap_handler_logs_schedule_delete_failure_without_failing_deploy(
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     from cognite.client.exceptions import CogniteAPIError
 
@@ -838,10 +839,10 @@ def test_bootstrap_handler_logs_schedule_delete_failure_without_failing_deploy(
         delete=delete_forbidden,
     )
 
-    assert handler_module.handle({}, client) == {"status": "completed"}
-    captured = capsys.readouterr().out
-    assert "Failed to delete bootstrap schedule id=2" in captured
-    assert "code=403" in captured
+    with caplog.at_level("WARNING"):
+        assert handler_module.handle({}, client) == {"status": "completed"}
+    assert "Failed to delete bootstrap schedule id=2" in caplog.text
+    assert "code=403" in caplog.text
 
 
 def test_bootstrap_handler_applies_schedule_data_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
