@@ -851,11 +851,12 @@ def test_bootstrap_handler_deletes_all_schedules_for_function_on_success(
 
     handler_module = _load_bootstrap_handler(monkeypatch, deploy)
     schedules = [
-        SimpleNamespace(id=1, name="fn_dataproduct_all_bootstrap_infrastructure"),
-        SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME),
+        SimpleNamespace(id=1, name="fn_dataproduct_all_bootstrap_infrastructure", function_id=42),
+        SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42),
+        SimpleNamespace(id=3, name="other-function-schedule", function_id=99),
     ]
-    # Toolkit creates authenticated schedules with functionId (nonce/session). Filtering by
-    # function_external_id returns nothing; resolve the function then list by function_id.
+    # Toolkit creates authenticated schedules with functionId (nonce/session). The SDK cannot
+    # filter by function_id, so the handler lists all schedules and filters in Python.
     client = _bootstrap_client(
         schedules=schedules,
         delete=lambda *, id: deleted.append(id),
@@ -869,7 +870,7 @@ def test_bootstrap_handler_deletes_all_schedules_for_function_on_success(
     client.functions.schedules.list = tracking_list
 
     assert handler_module.handle({}, client) == {"status": "completed"}
-    assert list_calls == [{"function_id": 42, "limit": None}]
+    assert list_calls == [{"limit": None}]
     assert deleted == [1, 2]
 
 

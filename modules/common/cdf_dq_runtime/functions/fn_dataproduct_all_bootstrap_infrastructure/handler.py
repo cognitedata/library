@@ -57,7 +57,8 @@ def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionL
 
     function_id = function.id
     try:
-        schedules = client.functions.schedules.list(function_id=function_id, limit=None)
+        # SDK/API cannot filter schedules by function_id; list all and filter in Python.
+        schedules = [s for s in client.functions.schedules.list(limit=None) if s.function_id == function_id]
     except CogniteAPIError as e:
         logger.warning(f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={e.code}")
         return
