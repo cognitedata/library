@@ -3,7 +3,10 @@ import { useAppConfig } from "@/app-config";
 import { Button } from "@/components/ui";
 import type { Asset, WorkOrder } from "@/types";
 import { WorkOrderSearchBar } from "./WorkOrderSearchBar";
-import { TargetAssetPanel } from "./work-order-detail/TargetAssetPanel";
+import {
+	type AssetLookupState,
+	TargetAssetPanel,
+} from "./work-order-detail/TargetAssetPanel";
 import { WorkOrderFields } from "./work-order-detail/WorkOrderFields";
 
 interface WorkOrderDetailStepProps {
@@ -22,6 +25,8 @@ interface WorkOrderDetailStepProps {
 	assetErrorMessage?: string | null;
 	/** Retry callback for asset resolution */
 	onRetryAssetResolution?: () => void;
+	/** loading, none, or failed. Omitted values are derived from the other props. */
+	assetLookupState?: AssetLookupState;
 }
 
 export function WorkOrderDetailStep({
@@ -36,15 +41,20 @@ export function WorkOrderDetailStep({
 	onChangeWorkOrder,
 	assetErrorMessage = null,
 	onRetryAssetResolution,
+	assetLookupState,
 }: WorkOrderDetailStepProps) {
 	const workOrderTerm = useAppConfig().ui.terms.workOrder;
-	const isGenerateDisabled = isSearching || !asset || !!assetErrorMessage;
+	const lookupState: AssetLookupState =
+		assetLookupState ??
+		(isSearching ? "loading" : assetErrorMessage ? "failed" : "none");
+	const isGenerateDisabled =
+		isSearching || lookupState === "loading" || lookupState === "failed";
 	const disabledHint = isSearching
 		? "Loading work order details…"
-		: assetErrorMessage
-			? "Asset resolution failed"
-			: !asset
-				? "Resolving target asset…"
+		: lookupState === "loading"
+			? "Resolving target asset…"
+			: lookupState === "failed"
+				? "Asset lookup failed. Change the work order or retry."
 				: null;
 
 	return (
@@ -80,8 +90,10 @@ export function WorkOrderDetailStep({
 				<WorkOrderFields workOrder={workOrder} />
 				<TargetAssetPanel
 					asset={asset}
+					assetLookupState={lookupState}
 					assetErrorMessage={assetErrorMessage}
 					onRetryAssetResolution={onRetryAssetResolution}
+					onChangeWorkOrder={onChangeWorkOrder}
 				/>
 			</div>
 

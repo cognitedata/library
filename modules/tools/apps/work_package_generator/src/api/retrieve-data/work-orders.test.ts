@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	ACTIVITY_VIEW_ID,
 	ASSET_VIEW_ID,
+	createMockAppConfig,
 	EQUIPMENT_VIEW_ID,
 } from "@/__mocks__/app-config";
 import { cdfClientTestDouble } from "@/__mocks__/cdf-client-test-double";
@@ -11,6 +12,7 @@ import {
 	findWorkOrder,
 	getAssetForWorkOrder,
 	listRecentWorkOrders,
+	localDayBoundIso,
 	searchWorkOrders,
 } from "./work-orders";
 
@@ -53,13 +55,31 @@ describe("retrieve-data/work-orders", () => {
 			expect(query).not.toHaveBeenCalled();
 		});
 
-		it("returns exact match on first page", async () => {
+		it("N06 returns every case-insensitive externalId prefix match and name matches", async () => {
 			query.mockResolvedValueOnce({
-				items: { nodes: [activityNode("wo-1")] },
+				items: {
+					nodes: [
+						activityNode("WO-1", { name: "Alpha" }),
+						activityNode("wo-12", { name: "Beta" }),
+					],
+				},
 			});
-			const result = await searchWorkOrders(client, "wo-1");
-			expect(result.items[0].externalId).toBe("wo-1");
-			expect(search).not.toHaveBeenCalled();
+			search.mockResolvedValueOnce({
+				items: [activityNode("name-hit", { name: "wo pump" })],
+			});
+			const result = await searchWorkOrders(client, "wo");
+			expect(result.items.map((item) => item.externalId)).toEqual([
+				"WO-1",
+				"wo-12",
+				"name-hit",
+			]);
+			const filter = query.mock.calls[0][0].with.nodes.nodes.filter;
+			expect(JSON.stringify(filter)).toContain("wo");
+			expect(JSON.stringify(filter)).toContain("WO");
+			expect(search.mock.calls[0][0].properties).toEqual([
+				"name",
+				"description",
+			]);
 		});
 
 		it("skips exact match when cursor is provided", async () => {
@@ -131,6 +151,31 @@ describe("retrieve-data/work-orders", () => {
 			expect(result.nextCursor).toBe("c");
 		});
 
+		it("C12 uses local start and end of day for an injected time zone", async () => {
+			query.mockResolvedValueOnce({ items: { nodes: [] } });
+			const timeZone = "Pacific/Auckland";
+			await listRecentWorkOrders(
+				client,
+				{ dateFrom: "2024-01-01", dateTo: "2024-01-01" },
+				undefined,
+				undefined,
+				timeZone
+			);
+			const filter = JSON.stringify(
+				query.mock.calls[0][0].with.nodes.nodes.filter
+			);
+			expect(filter).toContain(
+				localDayBoundIso("2024-01-01", "start", timeZone)
+			);
+			expect(filter).toContain(localDayBoundIso("2024-01-01", "end", timeZone));
+			expect(localDayBoundIso("2024-01-01", "start", "UTC")).toBe(
+				"2024-01-01T00:00:00.000Z"
+			);
+			expect(localDayBoundIso("2024-01-01", "start", timeZone)).not.toBe(
+				"2024-01-01T00:00:00.000Z"
+			);
+		});
+
 		it("rethrows list failures instead of returning empty items", async () => {
 			query.mockRejectedValueOnce(new Error("fail"));
 			await expect(listRecentWorkOrders(client, {})).rejects.toThrow("fail");
@@ -142,6 +187,7 @@ describe("retrieve-data/work-orders", () => {
 			query.mockResolvedValueOnce({
 				items: { nodes: [activityNode("wo-1")] },
 			});
+			search.mockResolvedValueOnce({ items: [] });
 			await expect(findWorkOrder(client, "wo-1")).resolves.toMatchObject({
 				externalId: "wo-1",
 			});
@@ -172,20 +218,62 @@ describe("retrieve-data/work-orders", () => {
 			).resolves.toBeNull();
 		});
 
-		it("throws a user-facing error for multi-asset work orders", async () => {
-			retrieve.mockResolvedValueOnce({
-				items: [
-					activityNode("wo", {
-						assets: [
-							{ externalId: "a1", space: "s" },
-							{ externalId: "a2", space: "s" },
-						],
-					}),
-				],
-			});
+		it("C06 uses the first asset when a work order has several", async () => {
+			retrieve
+				.mockResolvedValueOnce({
+					items: [
+						activityNode("wo", {
+							assets: [
+								{ externalId: "a1", space: "s" },
+								{ externalId: "a2", space: "s" },
+							],
+						}),
+					],
+				})
+				.mockResolvedValueOnce({
+					items: [
+						{
+							externalId: "a1",
+							space: "s",
+							properties: {
+								[ASSET_VIEW_ID.space]: { [assetKey]: { name: "First" } },
+							},
+						},
+					],
+				});
 			await expect(
 				getAssetForWorkOrder(client, { externalId: "wo", space: "s" })
-			).rejects.toThrow(/only single-asset/i);
+			).resolves.toMatchObject({ assetExternalId: "a1", assetName: "First" });
+		});
+
+		it("C13 reads the asset link property from workOrderProperties", async () => {
+			const config = createMockAppConfig();
+			config.workOrderProperties = {
+				...config.workOrderProperties,
+				assets: "equipmentLinks",
+			};
+			retrieve
+				.mockResolvedValueOnce({
+					items: [
+						activityNode("wo", {
+							equipmentLinks: [{ externalId: "a1", space: "s" }],
+						}),
+					],
+				})
+				.mockResolvedValueOnce({
+					items: [
+						{
+							externalId: "a1",
+							space: "s",
+							properties: {
+								[ASSET_VIEW_ID.space]: { [assetKey]: { name: "Linked" } },
+							},
+						},
+					],
+				});
+			await expect(
+				getAssetForWorkOrder(client, { externalId: "wo", space: "s" }, config)
+			).resolves.toMatchObject({ assetExternalId: "a1", assetName: "Linked" });
 		});
 
 		it("resolves an asset, then equipment fallback, then null", async () => {
@@ -236,11 +324,11 @@ describe("retrieve-data/work-orders", () => {
 			).resolves.toBeNull();
 		});
 
-		it("swallows technical errors", async () => {
+		it("C05 throws when asset lookup fails so the caller can leave the loading state", async () => {
 			retrieve.mockRejectedValueOnce(new Error("network"));
 			await expect(
 				getAssetForWorkOrder(client, { externalId: "wo", space: "s" })
-			).resolves.toBeNull();
+			).rejects.toThrow("network");
 		});
 	});
 });

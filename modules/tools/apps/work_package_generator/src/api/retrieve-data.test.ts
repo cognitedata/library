@@ -136,6 +136,7 @@ describe("searchWorkOrders", () => {
 	it("returns exact match on first page when found", async () => {
 		const node = activityNode("wo-1");
 		queryMock.mockResolvedValue({ items: { nodes: [node] } });
+		searchMock.mockResolvedValue({ items: [] });
 
 		const result = await searchWorkOrders(client, "wo-1");
 		expect(result.items).toHaveLength(1);
@@ -269,6 +270,7 @@ describe("findWorkOrder", () => {
 
 	it("returns first match when found", async () => {
 		queryMock.mockResolvedValue({ items: { nodes: [activityNode("wo-1")] } });
+		searchMock.mockResolvedValue({ items: [] });
 		const result = await findWorkOrder(client, "wo-1");
 		expect(result?.externalId).toBe("wo-1");
 	});
@@ -327,7 +329,7 @@ describe("getAssetForWorkOrder", () => {
 		expect(result).toBeNull();
 	});
 
-	it("throws user-facing error for multi-asset work orders", async () => {
+	it("C06 uses the first asset when several are linked", async () => {
 		const node = makeNode("wo-multi", "s", {
 			[ACTIVITY_VIEW_KEY]: {
 				[ACTIVITY_PROP_KEY]: {
@@ -338,10 +340,14 @@ describe("getAssetForWorkOrder", () => {
 				},
 			},
 		});
-		retrieveMock.mockResolvedValueOnce({ items: [node] });
-		await expect(
-			getAssetForWorkOrder(client, { externalId: "wo-multi", space: "s" })
-		).rejects.toThrow(/only single-asset/i);
+		retrieveMock
+			.mockResolvedValueOnce({ items: [node] })
+			.mockResolvedValueOnce({ items: [assetNode("a1")] });
+		const result = await getAssetForWorkOrder(client, {
+			externalId: "wo-multi",
+			space: "s",
+		});
+		expect(result?.assetExternalId).toBe("a1");
 	});
 
 	it("returns asset from ASSET view when found", async () => {
@@ -385,13 +391,14 @@ describe("getAssetForWorkOrder", () => {
 		expect(result).toBeNull();
 	});
 
-	it("swallows technical errors and returns null", async () => {
+	it("C05 rejects a failed asset lookup instead of hanging on an empty result", async () => {
 		retrieveMock.mockRejectedValue(new Error("network timeout"));
-		const result = await getAssetForWorkOrder(client, {
-			externalId: "wo-err",
-			space: "s",
-		});
-		expect(result).toBeNull();
+		await expect(
+			getAssetForWorkOrder(client, {
+				externalId: "wo-err",
+				space: "s",
+			})
+		).rejects.toThrow("network timeout");
 	});
 });
 

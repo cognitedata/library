@@ -4,16 +4,22 @@ import type { Asset } from "@/types";
 import { formatDate } from "@/utils/datetime";
 import { BadgeRow, Row } from "../detail-row";
 
+export type AssetLookupState = "loading" | "none" | "failed";
+
 interface TargetAssetPanelProps {
 	asset: Asset | null;
+	assetLookupState: AssetLookupState;
 	assetErrorMessage: string | null;
 	onRetryAssetResolution?: () => void;
+	onChangeWorkOrder?: () => void;
 }
 
 export function TargetAssetPanel({
 	asset,
+	assetLookupState,
 	assetErrorMessage,
 	onRetryAssetResolution,
+	onChangeWorkOrder,
 }: TargetAssetPanelProps) {
 	return (
 		<div>
@@ -56,25 +62,44 @@ export function TargetAssetPanel({
 					<Row label="Op. Conditions" value={asset.operatingConditions} />
 					<Row label="Specs" value={asset.specifications} />
 				</dl>
-			) : assetErrorMessage ? (
+			) : assetLookupState === "failed" ? (
 				<div className="flex flex-col gap-2 rounded-lg border border-dashed p-4 text-xs text-destructive">
-					<p className="leading-snug">{assetErrorMessage}</p>
-					{onRetryAssetResolution && (
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={onRetryAssetResolution}
-						>
-							<RotateCcw className="h-3.5 w-3.5 shrink-0" />
-							Retry asset resolution
-						</Button>
-					)}
+					<p className="leading-snug">
+						{assetErrorMessage ??
+							"Couldn't load the linked asset. Change the work order or retry."}
+					</p>
+					<div className="flex flex-wrap gap-2">
+						{onChangeWorkOrder && (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={onChangeWorkOrder}
+							>
+								Change work order
+							</Button>
+						)}
+						{onRetryAssetResolution && (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={onRetryAssetResolution}
+							>
+								<RotateCcw className="h-3.5 w-3.5 shrink-0" />
+								Retry
+							</Button>
+						)}
+					</div>
 				</div>
-			) : (
+			) : assetLookupState === "loading" ? (
 				<div className="flex items-center gap-2 rounded-lg border border-dashed p-4 text-xs text-muted-foreground">
 					<Clock className="h-4 w-4 shrink-0" />
 					Resolving asset...
+				</div>
+			) : (
+				<div className="rounded-lg border border-dashed p-4 text-xs text-muted-foreground">
+					No linked asset.
 				</div>
 			)}
 		</div>

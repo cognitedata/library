@@ -55,10 +55,14 @@ export function WorkOrderDetailStepPanel({
 			searchInput={vm.searchInput}
 			onSearchInputChange={vm.setSearchInput}
 			onSearch={vm.onSearch}
-			isSearching={vm.isFindingWorkOrder}
+			isSearching={vm.isFindingWorkOrder || vm.isSelectingWorkOrder}
 			isClientAvailable={!!vm.client}
 			onGenerateWorkPackage={vm.onGenerateWorkPackage}
 			onChangeWorkOrder={vm.onChangeWorkOrder}
+			assetErrorMessage={vm.asset ? null : vm.error}
+			onRetryAssetResolution={() => {
+				if (vm.workOrder) vm.selectWorkOrder(vm.workOrder);
+			}}
 		/>
 	);
 }

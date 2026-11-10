@@ -1,3 +1,4 @@
+import { getViewCapabilities, useAppConfig } from "@/app-config";
 import {
 	Loader,
 	Table,
@@ -36,6 +37,11 @@ export function WorkOrderResultsTable({
 	emptyMessage,
 	pagination,
 }: WorkOrderResultsTableProps) {
+	const { hasStatus } = getViewCapabilities(useAppConfig());
+	const selectRow = (wo: WorkOrder) => {
+		if (!isConfirming) onSelect(wo);
+	};
+
 	if (rows.length === 0 && !pagination?.isLoading) {
 		return (
 			<div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
@@ -61,9 +67,11 @@ export function WorkOrderResultsTable({
 							<TableHead className="text-xs whitespace-nowrap sticky top-0 bg-background z-10">
 								Name
 							</TableHead>
-							<TableHead className="text-xs whitespace-nowrap sticky top-0 bg-background z-10">
-								Status
-							</TableHead>
+							{hasStatus && (
+								<TableHead className="text-xs whitespace-nowrap sticky top-0 bg-background z-10">
+									Status
+								</TableHead>
+							)}
 							<TableHead className="text-xs whitespace-nowrap sticky top-0 bg-background z-10">
 								Scheduled Start
 							</TableHead>
@@ -76,32 +84,43 @@ export function WorkOrderResultsTable({
 						{rows.map((wo) => (
 							<TableRow
 								key={`${wo.space}/${wo.externalId}`}
+								role="button"
+								tabIndex={isConfirming ? -1 : 0}
+								aria-label={`Select work order ${wo.externalId} in ${wo.space}`}
 								className={cn(
 									"transition-colors",
 									isConfirming
 										? "cursor-not-allowed opacity-70"
 										: "cursor-pointer hover:bg-muted/50"
 								)}
-								onClick={() => !isConfirming && onSelect(wo)}
+								onClick={() => selectRow(wo)}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									selectRow(wo);
+								}}
 							>
 								<TableCell className="font-mono text-xs py-2 whitespace-nowrap">
 									{isConfirming ? (
 										<Loader size={12} className="inline mr-1.5" />
 									) : null}
-									{wo.externalId}
+									<span>{wo.externalId}</span>
+									<span className="ml-2 text-muted-foreground">{wo.space}</span>
 								</TableCell>
 								<TableCell className="text-xs py-2 whitespace-nowrap">
 									{wo.name ?? "—"}
 								</TableCell>
-								<TableCell className="text-xs py-2 whitespace-nowrap">
-									{wo.status ? (
-										<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground">
-											{wo.status}
-										</span>
-									) : (
-										"—"
-									)}
-								</TableCell>
+								{hasStatus && (
+									<TableCell className="text-xs py-2 whitespace-nowrap">
+										{wo.status ? (
+											<span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground">
+												{wo.status}
+											</span>
+										) : (
+											"—"
+										)}
+									</TableCell>
+								)}
 								<TableCell className="text-xs py-2 whitespace-nowrap text-muted-foreground">
 									{formatDate(wo.scheduledStartTime) ?? "—"}
 								</TableCell>

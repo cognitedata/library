@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { useAppConfig } from "@/app-config";
+import { getViewCapabilities, useAppConfig } from "@/app-config";
 import {
 	Input,
 	Select,
@@ -19,7 +19,9 @@ export function WorkOrderFilterFields({
 	setFilters: Dispatch<SetStateAction<WorkOrderFilters>>;
 	showFilters: boolean;
 }) {
-	const { ui } = useAppConfig();
+	const config = useAppConfig();
+	const { ui } = config;
+	const { hasStatus, hasPriority } = getViewCapabilities(config);
 	const statusOptions = ui.workOrderStatusOptions;
 	const priorityOptions = ui.workOrderPriorityOptions;
 
@@ -76,59 +78,63 @@ export function WorkOrderFilterFields({
 				/>
 			</div>
 
-			<div className="flex flex-col gap-1">
-				<span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-					Status
-				</span>
-				<Select
-					value={filters.status ?? ""}
-					onValueChange={(val) =>
-						setFilters((f) => ({
-							...f,
-							status: val === "__all__" ? undefined : val,
-						}))
-					}
-				>
-					<SelectTrigger className="h-8 text-xs">
-						<SelectValue placeholder="Any status" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="__all__">Any status</SelectItem>
-						{statusOptions.map((s) => (
-							<SelectItem key={s} value={s}>
-								{s}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-			</div>
+			{hasStatus && (
+				<div className="flex flex-col gap-1">
+					<span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+						Status
+					</span>
+					<Select
+						value={filters.status ?? ""}
+						onValueChange={(val) =>
+							setFilters((f) => ({
+								...f,
+								status: val === "__all__" ? undefined : val,
+							}))
+						}
+					>
+						<SelectTrigger className="h-8 text-xs" aria-label="Status">
+							<SelectValue placeholder="Any status" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="__all__">Any status</SelectItem>
+							{statusOptions.map((s) => (
+								<SelectItem key={s} value={s}>
+									{s}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+			)}
 
-			<div className="flex flex-col gap-1">
-				<span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-					Priority
-				</span>
-				<Select
-					value={filters.priority ?? ""}
-					onValueChange={(val) =>
-						setFilters((f) => ({
-							...f,
-							priority: val === "__all__" ? undefined : val,
-						}))
-					}
-				>
-					<SelectTrigger className="h-8 text-xs">
-						<SelectValue placeholder="Any priority" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="__all__">Any priority</SelectItem>
-						{priorityOptions.map((p) => (
-							<SelectItem key={p} value={p}>
-								{p}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-			</div>
+			{hasPriority && (
+				<div className="flex flex-col gap-1">
+					<span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+						Priority
+					</span>
+					<Select
+						value={filters.priority ?? ""}
+						onValueChange={(val) =>
+							setFilters((f) => ({
+								...f,
+								priority: val === "__all__" ? undefined : val,
+							}))
+						}
+					>
+						<SelectTrigger className="h-8 text-xs" aria-label="Priority">
+							<SelectValue placeholder="Any priority" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="__all__">Any priority</SelectItem>
+							{priorityOptions.map((p) => (
+								<SelectItem key={p} value={p}>
+									{p}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+			)}
 		</section>
 	);
 }

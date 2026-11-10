@@ -99,14 +99,17 @@ export function WorkOrderSearchResults({
 
 	if (!hasSearched && recentError) {
 		return (
-			<div className="flex items-center gap-2 py-6 text-xs text-destructive">
-				<RotateCcw
-					size={14}
-					className="cursor-pointer shrink-0"
+			<div className="flex flex-col gap-2 py-6 text-xs text-destructive">
+				<p className="leading-snug">Couldn't load recent work orders.</p>
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
 					onClick={() => onRefetchRecent()}
-					aria-label="Retry"
-				/>
-				Failed to load recent work orders. Click to retry.
+				>
+					<RotateCcw className="h-3.5 w-3.5 shrink-0" />
+					Retry
+				</Button>
 			</div>
 		);
 	}

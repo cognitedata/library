@@ -4,6 +4,7 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
+	useRef,
 	useState,
 } from "react";
 import {
@@ -32,6 +33,15 @@ export const UseWorkOrdersContext = createContext<UseWorkOrdersContextType>(
 	defaultWorkOrdersDeps
 );
 
+type RequestTagged = { requestId?: number };
+
+function tagRequest(error: unknown, requestId: number): Error & RequestTagged {
+	const tagged =
+		error instanceof Error ? error : new Error(getErrorMessage(error));
+	(tagged as Error & RequestTagged).requestId = requestId;
+	return tagged;
+}
+
 export function useFindWorkOrder() {
 	const {
 		findWorkOrder: findWorkOrderFn,
@@ -42,28 +52,55 @@ export function useFindWorkOrder() {
 	const { client } = useCdfClient();
 	const appConfig = useAppConfig();
 	const { setWorkOrder, setAsset, setError, resetForNewWorkOrder } = useStore();
+	const requestRef = useRef(0);
 
 	return useMutation({
 		mutationFn: async (identifier: string) => {
-			if (!client) throw new Error("CDF client not available");
-
-			const workOrder = await findWorkOrderFn(client, identifier, appConfig);
-			if (!workOrder) {
-				throw new Error("No work order found. Try a different identifier.");
+			const requestId = ++requestRef.current;
+			if (!client) {
+				throw tagRequest(new Error("CDF client not available"), requestId);
 			}
 
-			const asset = await getAssetForWorkOrderFn(client, workOrder, appConfig);
-			return { workOrder, asset };
+			const workOrder = await findWorkOrderFn(
+				client,
+				identifier,
+				appConfig
+			).catch((error: unknown) => {
+				throw tagRequest(error, requestId);
+			});
+			if (!workOrder) {
+				throw tagRequest(
+					new Error("No work order found. Try a different identifier."),
+					requestId
+				);
+			}
+
+			try {
+				const asset = await getAssetForWorkOrderFn(
+					client,
+					workOrder,
+					appConfig
+				);
+				return { workOrder, asset, requestId };
+			} catch (error) {
+				if (requestId === requestRef.current) {
+					setWorkOrder(workOrder);
+					setAsset(null);
+				}
+				throw tagRequest(error, requestId);
+			}
 		},
 		onMutate: () => {
 			resetForNewWorkOrder();
 			setError(null);
 		},
-		onSuccess: ({ workOrder, asset }) => {
+		onSuccess: ({ workOrder, asset, requestId }) => {
+			if (requestId !== requestRef.current) return;
 			setWorkOrder(workOrder);
-			if (asset) setAsset(asset);
+			setAsset(asset ?? null);
 		},
 		onError: (error) => {
+			if ((error as RequestTagged).requestId !== requestRef.current) return;
 			const message = getErrorMessage(error);
 			if (message.includes("No work order found")) {
 				setError(message);
@@ -226,22 +263,40 @@ export function useSelectWorkOrder() {
 	const { client } = useCdfClient();
 	const appConfig = useAppConfig();
 	const { setWorkOrder, setAsset, setError, resetForNewWorkOrder } = useStore();
+	const requestRef = useRef(0);
 
 	return useMutation({
 		mutationFn: async (workOrder: WorkOrder) => {
-			if (!client) throw new Error("CDF client not available");
-			const asset = await getAssetForWorkOrderFn(client, workOrder, appConfig);
-			return { workOrder, asset };
+			const requestId = ++requestRef.current;
+			if (!client) {
+				throw tagRequest(new Error("CDF client not available"), requestId);
+			}
+			try {
+				const asset = await getAssetForWorkOrderFn(
+					client,
+					workOrder,
+					appConfig
+				);
+				return { workOrder, asset, requestId };
+			} catch (error) {
+				if (requestId === requestRef.current) {
+					setWorkOrder(workOrder);
+					setAsset(null);
+				}
+				throw tagRequest(error, requestId);
+			}
 		},
 		onMutate: () => {
 			resetForNewWorkOrder();
 			setError(null);
 		},
-		onSuccess: ({ workOrder, asset }) => {
+		onSuccess: ({ workOrder, asset, requestId }) => {
+			if (requestId !== requestRef.current) return;
 			setWorkOrder(workOrder);
-			if (asset) setAsset(asset);
+			setAsset(asset ?? null);
 		},
 		onError: (error) => {
+			if ((error as RequestTagged).requestId !== requestRef.current) return;
 			setError(
 				`Failed to load work order: ${toUserFacingErrorMessage(getErrorMessage(error))}`
 			);

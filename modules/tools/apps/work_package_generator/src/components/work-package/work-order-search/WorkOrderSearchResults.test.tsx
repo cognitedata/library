@@ -170,7 +170,7 @@ describe("WorkOrderSearchResults", () => {
 				pagination={pagination}
 			/>
 		);
-		fireEvent.click(screen.getByLabelText("Retry"));
+		fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 		expect(onRefetchRecent).toHaveBeenCalled();
 	});
 

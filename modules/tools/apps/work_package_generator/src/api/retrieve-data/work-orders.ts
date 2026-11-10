@@ -25,6 +25,94 @@ export type PaginatedWorkOrders = {
 	nextCursor?: string;
 };
 
+/**
+ * Inclusive local-day bound for a `YYYY-MM-DD` filter.
+ * `timeZone` is injectable so tests do not depend on the host time zone.
+ */
+export function localDayBoundIso(
+	dateOnly: string,
+	bound: "start" | "end",
+	timeZone: string = Intl.DateTimeFormat().resolvedOptions().timeZone
+): string {
+	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOnly);
+	if (!match) return new Date(dateOnly).toISOString();
+
+	const year = Number(match[1]);
+	const month = Number(match[2]);
+	const day = Number(match[3]);
+	const wallAsUtc = Date.UTC(
+		year,
+		month - 1,
+		day,
+		bound === "end" ? 23 : 0,
+		bound === "end" ? 59 : 0,
+		bound === "end" ? 59 : 0,
+		bound === "end" ? 999 : 0
+	);
+
+	let utcMillis = wallAsUtc;
+	for (let attempt = 0; attempt < 3; attempt++) {
+		const offset = timeZoneOffsetMs(new Date(utcMillis), timeZone);
+		const next = wallAsUtc - offset;
+		if (next === utcMillis) break;
+		utcMillis = next;
+	}
+	return new Date(utcMillis).toISOString();
+}
+
+function timeZoneOffsetMs(instant: Date, timeZone: string): number {
+	const parts = new Intl.DateTimeFormat("en-US", {
+		timeZone,
+		hourCycle: "h23",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+	}).formatToParts(instant);
+	const value: Record<string, string> = {};
+	for (const part of parts) {
+		if (part.type !== "literal") value[part.type] = part.value;
+	}
+	const asUtc = Date.UTC(
+		Number(value.year),
+		Number(value.month) - 1,
+		Number(value.day),
+		Number(value.hour) % 24,
+		Number(value.minute),
+		Number(value.second)
+	);
+	return asUtc - Math.floor(instant.getTime() / 1000) * 1000;
+}
+
+function externalIdPrefixFilter(value: string): unknown {
+	const variants = Array.from(
+		new Set([value, value.toLowerCase(), value.toUpperCase()])
+	);
+	const clauses = variants.map((variant) => ({
+		prefix: { property: ["node", "externalId"], value: variant },
+	}));
+	return clauses.length === 1 ? clauses[0] : { or: clauses };
+}
+
+function mergeWorkOrders(
+	idMatches: WorkOrder[],
+	nameMatches: WorkOrder[],
+	limit: number
+): WorkOrder[] {
+	const seen = new Set<string>();
+	const merged: WorkOrder[] = [];
+	for (const workOrder of [...idMatches, ...nameMatches]) {
+		const key = `${workOrder.space}/${workOrder.externalId}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		merged.push(workOrder);
+		if (merged.length >= limit) break;
+	}
+	return merged;
+}
+
 function mapNodeToWorkOrder(
 	item: unknown,
 	config?: AppConfig
@@ -68,29 +156,25 @@ export async function searchWorkOrders(
 	if (!query.trim()) return { items: [] };
 	try {
 		const trimmed = query.trim();
+		const appConfig = resolveAppConfig(config);
+		const limit = appConfig.limits.searchResultLimit;
+		const idMatches: WorkOrder[] = [];
 
-		// Only attempt exact-ID match on the first page (no cursor)
+		// ID prefix matches are collected on the first page, then merged with name search.
 		if (!cursor) {
-			const exactMatchResponse = await queryInstanceNodesPage(client, {
+			const prefixResponse = await queryInstanceNodesPage(client, {
 				sources: [viewIdToSource(dataModelView("activity", config))],
-				filter: {
-					equals: {
-						property: ["node", "externalId"],
-						value: trimmed,
-					},
-				},
-				limit: 1,
+				filter: externalIdPrefixFilter(trimmed),
+				limit,
 			});
-
-			const exactItems = exactMatchResponse.items ?? [];
-			if (exactItems.length > 0) {
-				const wo = mapNodeToWorkOrder(exactItems[0], config);
-				return { items: wo ? [wo] : [] };
+			for (const item of prefixResponse.items ?? []) {
+				const wo = mapNodeToWorkOrder(item, config);
+				if (wo) idMatches.push(wo);
 			}
 		}
 
 		const activityView = dataModelView("activity", config);
-		const fields = resolveAppConfig(config).workOrderProperties;
+		const fields = appConfig.workOrderProperties;
 		// SearchRequestV3 includes `operator` but not the request cursor the API accepts.
 		const searchRequest: Parameters<typeof client.instances.search>[0] & {
 			cursor?: string;
@@ -104,7 +188,7 @@ export async function searchWorkOrders(
 			},
 			query: trimmed,
 			properties: [fields.name, fields.description],
-			limit: resolveAppConfig(config).limits.searchResultLimit,
+			limit,
 			operator: "OR",
 			...(cursor ? { cursor } : {}),
 		};
@@ -113,13 +197,15 @@ export async function searchWorkOrders(
 		);
 
 		const out: WorkOrder[] = [];
-		for (const item of searchResponse.items ?? []) {
+		for (const item of searchResponse?.items ?? []) {
 			const wo = mapNodeToWorkOrder(item, config);
 			if (wo) out.push(wo);
 		}
 		return {
-			items: out,
-			nextCursor: readOptionalNextCursor(searchResponse),
+			items: mergeWorkOrders(idMatches, out, limit),
+			nextCursor: searchResponse
+				? readOptionalNextCursor(searchResponse)
+				: undefined,
 		};
 	} catch (error) {
 		resolveApiRuntime().logError({
@@ -141,7 +227,8 @@ export async function listRecentWorkOrders(
 	client: CogniteClient,
 	filters?: WorkOrderFilters,
 	cursor?: string,
-	config?: AppConfig
+	config?: AppConfig,
+	timeZone?: string
 ): Promise<PaginatedWorkOrders> {
 	const appConfig = resolveAppConfig(config);
 	const fields = appConfig.workOrderProperties;
@@ -172,12 +259,11 @@ export async function listRecentWorkOrders(
 
 	if (filters?.dateFrom || filters?.dateTo) {
 		const rangeFilter: Record<string, string> = {};
-		if (filters.dateFrom)
-			rangeFilter.gte = new Date(filters.dateFrom).toISOString();
+		if (filters.dateFrom) {
+			rangeFilter.gte = localDayBoundIso(filters.dateFrom, "start", timeZone);
+		}
 		if (filters.dateTo) {
-			const endDate = new Date(filters.dateTo);
-			endDate.setHours(23, 59, 59, 999);
-			rangeFilter.lte = endDate.toISOString();
+			rangeFilter.lte = localDayBoundIso(filters.dateTo, "end", timeZone);
 		}
 		filterClauses.push({
 			range: {
@@ -288,23 +374,13 @@ export async function getAssetForWorkOrder(
 			woNode,
 			dataModelView("activity", config)
 		);
+		const assetProperty = resolveAppConfig(config).workOrderProperties.assets;
 		const assets = getArrayProp<{ externalId: string; space?: string }>(
 			woProps,
-			"assets"
+			assetProperty
 		);
 
 		if (assets.length === 0) return null;
-
-		if (assets.length > 1) {
-			// Multi-asset work orders are not a supported use case in this app.
-			// Instead of silently falling back to the first asset, we inform the user.
-			const error = new Error(
-				`This work order references ${assets.length} assets, but only single-asset work orders are supported. Please use a work order that references only one asset.`
-			);
-			// Mark this as a user-facing error that should be re-thrown
-			(error as Error & { isUserFacing?: boolean }).isUserFacing = true;
-			throw error;
-		}
 
 		const assetRef = assets[0];
 		const assetExt = assetRef.externalId;
@@ -343,22 +419,12 @@ export async function getAssetForWorkOrder(
 			type: getOptionalStringProp(assetProps, "type"),
 		};
 	} catch (error) {
-		// Re-throw user-facing errors (like multi-asset validation)
-		if (
-			error &&
-			typeof error === "object" &&
-			(error as Error & { isUserFacing?: boolean }).isUserFacing
-		) {
-			throw error;
-		}
-
-		// Log and swallow technical/network errors
 		resolveApiRuntime().logError({
 			scope: "retrieve-data.getAssetForWorkOrder",
 			message: "Failed to resolve asset for work order",
 			cause: error,
 			context: { workOrderExternalId: workOrder.externalId },
 		});
-		return null;
+		throw error;
 	}
 }
