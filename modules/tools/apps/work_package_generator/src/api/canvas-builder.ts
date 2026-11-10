@@ -296,8 +296,7 @@ export async function createCanvasFromItems(
 		await upsertTracked(client, itemNodes, appConfig, written);
 		await upsertTracked(client, edges, appConfig, written);
 	} catch (error) {
-		await deleteWrittenInstances(client, written, appConfig);
-		throw error;
+		return rollbackWrittenInstances(client, written, error, appConfig);
 	}
 
 	return canvasId;
@@ -330,7 +329,7 @@ async function upsertTracked(
 	}
 }
 
-async function deleteWrittenInstances(
+async function deleteCanvasInstances(
 	client: CogniteClient,
 	items: DeleteItem[],
 	appConfig?: AppConfig
@@ -338,26 +337,40 @@ async function deleteWrittenInstances(
 	if (items.length === 0) return;
 	const edges = items.filter((item) => item.instanceType === "edge");
 	const nodes = items.filter((item) => item.instanceType === "node");
-	try {
-		for (const group of [edges, nodes]) {
-			for (const batch of chunk(
-				group,
-				resolveAppConfig(appConfig).limits.deleteBatchSize
-			)) {
-				if (batch.length === 0) continue;
-				await resolveApiRuntime().scheduleDelete(() =>
-					client.instances.delete(batch)
-				);
-			}
+	for (const group of [edges, nodes]) {
+		for (const batch of chunk(
+			group,
+			resolveAppConfig(appConfig).limits.deleteBatchSize
+		)) {
+			if (batch.length === 0) continue;
+			await resolveApiRuntime().scheduleDelete(() =>
+				client.instances.delete(batch)
+			);
 		}
-	} catch (error) {
+	}
+}
+
+async function rollbackWrittenInstances(
+	client: CogniteClient,
+	items: DeleteItem[],
+	originalError: unknown,
+	appConfig?: AppConfig
+): Promise<never> {
+	try {
+		await deleteCanvasInstances(client, items, appConfig);
+	} catch (rollbackError) {
 		resolveApiRuntime().logError({
 			scope: "canvas-builder",
 			message: "Failed to delete canvas instances written before an error",
 			context: { count: items.length },
-			cause: error,
+			cause: rollbackError,
 		});
+		throw new Error(
+			`${getErrorMessage(originalError)} (rollback also failed: ${getErrorMessage(rollbackError)})`,
+			{ cause: originalError }
+		);
 	}
+	throw originalError;
 }
 
 /**
@@ -671,12 +684,10 @@ export async function updateCanvasFromTemplateAndSelections(
 	try {
 		await upsertTracked(client, itemNodes, appConfig, written);
 		await upsertTracked(client, edges, appConfig, written);
+		await deleteCanvasInstances(client, previousChildren, appConfig);
 	} catch (error) {
-		await deleteWrittenInstances(client, written, appConfig);
-		throw error;
+		return rollbackWrittenInstances(client, written, error, appConfig);
 	}
-
-	await deleteWrittenInstances(client, previousChildren, appConfig);
 
 	const canvasNode = {
 		instanceType: "node" as const,

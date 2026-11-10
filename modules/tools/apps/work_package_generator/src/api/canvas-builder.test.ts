@@ -469,6 +469,55 @@ describe("createCanvasFromItems", () => {
 		expect(deletedIds.some((id) => id.startsWith("uuid-fixed_"))).toBe(true);
 	});
 
+	it("C09: surfaces both errors when a create batch fails and rollback also fails", async () => {
+		const upsert = vi
+			.fn()
+			.mockResolvedValueOnce(undefined)
+			.mockResolvedValueOnce(undefined)
+			.mockRejectedValueOnce(new Error("edge write failed"));
+		const deleteFn = vi
+			.fn()
+			.mockRejectedValue(new Error("rollback delete failed"));
+		const client = cdfClientTestDouble({
+			instances: {
+				upsert,
+				list: vi.fn(),
+				delete: deleteFn,
+				retrieve: vi
+					.fn()
+					.mockResolvedValue({ items: [{ externalId: "wpg-work-package" }] }),
+			},
+			profiles: {
+				me: vi.fn().mockResolvedValue({ userIdentifier: "principal-123" }),
+			},
+			getBaseUrl: () => "https://x",
+		});
+
+		await expect(
+			createCanvasFromItems(
+				client,
+				config,
+				"My",
+				buildCanvasItemsFromTemplate(
+					[
+						{
+							label: "Main asset",
+							viewExternalId: "CogniteAsset",
+							viewSpace: "cdf_cdm",
+							viewVersion: "v1",
+							...tmpl,
+						},
+					],
+					[],
+					{},
+					{ assetExternalId: "a", space: "s" },
+					{ externalId: "w", space: "s" },
+					config
+				)
+			)
+		).rejects.toThrow(/edge write failed[\s\S]*rollback delete failed/);
+	});
+
 	it("uses profile fallbacks for user id", async () => {
 		const upsert = vi.fn().mockResolvedValue(undefined);
 		const client = cdfClientTestDouble({
@@ -949,6 +998,196 @@ describe("updateCanvasFromTemplateAndSelections", () => {
 			return batch.map((item) => item.externalId);
 		});
 		expect(deletedIds).not.toContain("existing-id_old");
+	});
+
+	it("C09: rolls back new items and throws when deleting previous children fails", async () => {
+		getTemplateCanvasInstances.mockResolvedValue([
+			{
+				label: "Main asset",
+				viewExternalId: "CogniteAsset",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+		]);
+		getTemplateCanvasAnnotations.mockResolvedValue([]);
+
+		const upsert = vi.fn().mockResolvedValue(undefined);
+		const deleteFn = vi
+			.fn()
+			.mockRejectedValueOnce(new Error("old child delete failed"))
+			.mockResolvedValue(undefined);
+		const query = vi.fn().mockResolvedValue({
+			items: {
+				nodes: [
+					{
+						externalId: "existing-id_old",
+						space: config.canvasSpaceInstance,
+					},
+				],
+				edges: [],
+			},
+			nextCursor: {},
+		});
+		const client = cdfClientTestDouble({
+			instances: {
+				upsert,
+				list: vi.fn(),
+				query,
+				delete: deleteFn,
+				retrieve: vi.fn().mockResolvedValue({ items: [{ externalId: "tag" }] }),
+			},
+			profiles: { me: vi.fn().mockResolvedValue({ displayName: "u" }) },
+			getBaseUrl: () => "https://x",
+		});
+
+		await expect(
+			updateCanvasFromTemplateAndSelections(
+				client,
+				config,
+				"existing-id",
+				"Renamed",
+				"tpl",
+				{},
+				{ assetExternalId: "a", space: "s" },
+				{ externalId: "w", space: "s" },
+				{},
+				undefined,
+				templateReads
+			)
+		).rejects.toThrow(/old child delete failed/);
+
+		const rollbackIds = deleteFn.mock.calls.slice(1).flatMap((call) => {
+			const batch = call[0] as Array<{ externalId: string }>;
+			return batch.map((item) => item.externalId);
+		});
+		expect(rollbackIds).toContain("existing-id_uuid-fixed");
+		expect(rollbackIds).toContain("existing-id_existing-id_uuid-fixed");
+		expect(rollbackIds).not.toContain("existing-id_old");
+		expect(canvasRootProperties(upsert)).toBeUndefined();
+	});
+
+	it("C09: reports both errors when deleting previous children and rolling back new items both fail", async () => {
+		getTemplateCanvasInstances.mockResolvedValue([
+			{
+				label: "Main asset",
+				viewExternalId: "CogniteAsset",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+		]);
+		getTemplateCanvasAnnotations.mockResolvedValue([]);
+
+		const upsert = vi.fn().mockResolvedValue(undefined);
+		const deleteFn = vi
+			.fn()
+			.mockRejectedValueOnce(new Error("old child delete failed"))
+			.mockRejectedValueOnce(new Error("rollback failed"));
+		const query = vi.fn().mockResolvedValue({
+			items: {
+				nodes: [
+					{
+						externalId: "existing-id_old",
+						space: config.canvasSpaceInstance,
+					},
+				],
+				edges: [],
+			},
+			nextCursor: {},
+		});
+		const client = cdfClientTestDouble({
+			instances: {
+				upsert,
+				list: vi.fn(),
+				query,
+				delete: deleteFn,
+				retrieve: vi.fn().mockResolvedValue({ items: [{ externalId: "tag" }] }),
+			},
+			profiles: { me: vi.fn().mockResolvedValue({ displayName: "u" }) },
+			getBaseUrl: () => "https://x",
+		});
+
+		await expect(
+			updateCanvasFromTemplateAndSelections(
+				client,
+				config,
+				"existing-id",
+				"Renamed",
+				"tpl",
+				{},
+				{ assetExternalId: "a", space: "s" },
+				{ externalId: "w", space: "s" },
+				{},
+				undefined,
+				templateReads
+			)
+		).rejects.toThrow(/old child delete failed[\s\S]*rollback failed/);
+	});
+
+	it("C09: keeps the new items if the final root upsert fails after old children are deleted", async () => {
+		getTemplateCanvasInstances.mockResolvedValue([
+			{
+				label: "Main asset",
+				viewExternalId: "CogniteAsset",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+		]);
+		getTemplateCanvasAnnotations.mockResolvedValue([]);
+
+		const upsert = vi
+			.fn()
+			.mockResolvedValueOnce(undefined)
+			.mockResolvedValueOnce(undefined)
+			.mockRejectedValueOnce(new Error("root update failed"));
+		const deleteFn = vi.fn().mockResolvedValue(undefined);
+		const query = vi.fn().mockResolvedValue({
+			items: {
+				nodes: [
+					{
+						externalId: "existing-id_old",
+						space: config.canvasSpaceInstance,
+					},
+				],
+				edges: [],
+			},
+			nextCursor: {},
+		});
+		const client = cdfClientTestDouble({
+			instances: {
+				upsert,
+				list: vi.fn(),
+				query,
+				delete: deleteFn,
+				retrieve: vi.fn().mockResolvedValue({ items: [{ externalId: "tag" }] }),
+			},
+			profiles: { me: vi.fn().mockResolvedValue({ displayName: "u" }) },
+			getBaseUrl: () => "https://x",
+		});
+
+		await expect(
+			updateCanvasFromTemplateAndSelections(
+				client,
+				config,
+				"existing-id",
+				"Renamed",
+				"tpl",
+				{},
+				{ assetExternalId: "a", space: "s" },
+				{ externalId: "w", space: "s" },
+				{},
+				undefined,
+				templateReads
+			)
+		).rejects.toThrow(/root update failed/);
+
+		const deletedIds = deleteFn.mock.calls.flatMap((call) => {
+			const batch = call[0] as Array<{ externalId: string }>;
+			return batch.map((item) => item.externalId);
+		});
+		expect(deletedIds).toEqual(["existing-id_old"]);
 	});
 
 	it("C18: keeps visibility and merges solution tags on update", async () => {
