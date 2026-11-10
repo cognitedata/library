@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { createMockAppConfig } from "@/__mocks__/app-config";
+import { AppConfigProvider } from "@/app-config";
 import type { WorkOrder } from "@/types";
 import { WorkOrderResultsTable } from "./WorkOrderResultsTable";
 
@@ -77,7 +79,7 @@ describe("WorkOrderResultsTable", () => {
 				}}
 			/>
 		);
-		expect(screen.getByText("Showing 11–12")).toBeInTheDocument();
+		expect(screen.getByText("Showing 11–12 of 10+")).toBeInTheDocument();
 		expect(screen.getByText("Page 2")).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("button", { name: "Next page" }));
 		fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
@@ -107,5 +109,86 @@ describe("WorkOrderResultsTable", () => {
 		expect(
 			screen.getByRole("button", { name: "Previous page" })
 		).toBeDisabled();
+	});
+
+	it("N01 shows an exact total when there is no further page", () => {
+		render(
+			<WorkOrderResultsTable
+				rows={rows}
+				isConfirming={false}
+				onSelect={vi.fn()}
+				pagination={{
+					hasNextPage: false,
+					hasPrevPage: false,
+					onNextPage: vi.fn(),
+					onPrevPage: vi.fn(),
+					currentPage: 1,
+					pageSize: 20,
+				}}
+			/>
+		);
+		expect(screen.getByText("Showing 1–2 of 2")).toBeInTheDocument();
+	});
+
+	it("N01 shows 20+ when another page exists", () => {
+		render(
+			<WorkOrderResultsTable
+				rows={rows}
+				isConfirming={false}
+				onSelect={vi.fn()}
+				pagination={{
+					hasNextPage: true,
+					hasPrevPage: false,
+					onNextPage: vi.fn(),
+					onPrevPage: vi.fn(),
+					currentPage: 1,
+					pageSize: 20,
+				}}
+			/>
+		);
+		expect(screen.getByText("Showing 1–2 of 20+")).toBeInTheDocument();
+	});
+
+	it("N11 shows the work order space", () => {
+		render(
+			<WorkOrderResultsTable
+				rows={rows}
+				isConfirming={false}
+				onSelect={vi.fn()}
+			/>
+		);
+		expect(screen.getAllByText("s").length).toBeGreaterThan(0);
+	});
+
+	it("C27 selects a work order row from the keyboard", () => {
+		const onSelect = vi.fn();
+		render(
+			<WorkOrderResultsTable
+				rows={rows}
+				isConfirming={false}
+				onSelect={onSelect}
+			/>
+		);
+		const row = screen.getByRole("button", {
+			name: "Select work order wo-1 in s",
+		});
+		fireEvent.keyDown(row, { key: "Enter" });
+		expect(onSelect).toHaveBeenCalledWith(rows[0]);
+	});
+
+	it("N04 hides the status column when the view has no status", () => {
+		const config = createMockAppConfig();
+		config.viewCapabilities = { hasStatus: false, hasPriority: false };
+		render(
+			<AppConfigProvider value={config}>
+				<WorkOrderResultsTable
+					rows={rows}
+					isConfirming={false}
+					onSelect={vi.fn()}
+				/>
+			</AppConfigProvider>
+		);
+		expect(screen.queryByRole("columnheader", { name: "Status" })).toBeNull();
+		expect(screen.queryByText("open")).toBeNull();
 	});
 });

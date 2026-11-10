@@ -22,7 +22,9 @@ export function WorkOrderResultsPagination({
 						Loading...
 					</span>
 				) : rowCount > 0 ? (
-					`Showing ${firstItem}–${lastItem}`
+					`Showing ${firstItem}–${lastItem} of ${
+						pagination.hasNextPage ? `${pagination.pageSize}+` : lastItem
+					}`
 				) : null}
 			</span>
 			<div className="flex items-center gap-1">

@@ -535,6 +535,45 @@ describe("useWorkOrders hooks", () => {
 		queryClient.clear();
 	});
 
+	it("C24 keeps the newer work order when a slower response finishes last", async () => {
+		let releaseFirst: (value: { externalId: string; space: string }) => void =
+			() => undefined;
+		mockFindWorkOrder.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					releaseFirst = resolve;
+				})
+		);
+		mockFindWorkOrder.mockResolvedValueOnce({
+			externalId: "second",
+			space: "s",
+		});
+		mockGetAsset.mockResolvedValue({ assetExternalId: "a", space: "s" });
+
+		const { wrapper, queryClient } = makeWrapper();
+		const { result, unmount } = renderHook(() => useFindWorkOrder(), {
+			wrapper,
+		});
+
+		let firstRequest: Promise<unknown> = Promise.resolve();
+		act(() => {
+			firstRequest = result.current.mutateAsync("first");
+		});
+		await act(async () => {
+			await result.current.mutateAsync("second");
+		});
+		expect(useWorkPackageStore.getState().workOrder?.externalId).toBe("second");
+
+		releaseFirst({ externalId: "first", space: "s" });
+		await act(async () => {
+			await firstRequest;
+		});
+		expect(useWorkPackageStore.getState().workOrder?.externalId).toBe("second");
+
+		unmount();
+		queryClient.clear();
+	});
+
 	it("useSelectWorkOrder fails when the CDF client is unavailable", async () => {
 		const wo = { externalId: "w", space: "s" };
 		const { wrapper, queryClient } = makeWrapper(noClientRuntime);

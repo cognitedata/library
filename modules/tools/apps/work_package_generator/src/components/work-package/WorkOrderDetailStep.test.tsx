@@ -202,11 +202,20 @@ describe("WorkOrderDetailStep", () => {
 	});
 
 	describe("Asset States", () => {
-		it("shows loading state when asset is null and no error", () => {
+		it("C05 shows no linked asset when lookup finished without an asset", () => {
 			render(<WorkOrderDetailStep {...defaultProps} asset={null} />);
 
-			expect(screen.getByText("Resolving asset...")).toBeInTheDocument();
+			expect(screen.getByText("No linked asset.")).toBeInTheDocument();
+			expect(screen.queryByText("Resolving asset...")).not.toBeInTheDocument();
 			expect(screen.queryByText("Primary Water Pump")).not.toBeInTheDocument();
+		});
+
+		it("C05 shows a loading state only while lookup is in progress", () => {
+			render(
+				<WorkOrderDetailStep {...defaultProps} asset={null} isSearching />
+			);
+
+			expect(screen.getByText("Resolving asset...")).toBeInTheDocument();
 		});
 
 		it("shows asset details when asset is provided", () => {
@@ -254,9 +263,7 @@ describe("WorkOrderDetailStep", () => {
 				/>
 			);
 
-			const retryButton = screen.getByRole("button", {
-				name: /retry asset resolution/i,
-			});
+			const retryButton = screen.getByRole("button", { name: "Retry" });
 			expect(retryButton).toBeInTheDocument();
 
 			fireEvent.click(retryButton);
@@ -276,7 +283,7 @@ describe("WorkOrderDetailStep", () => {
 
 			expect(screen.getByText(errorMessage)).toBeInTheDocument();
 			expect(
-				screen.queryByRole("button", { name: /retry asset resolution/i })
+				screen.queryByRole("button", { name: "Retry" })
 			).not.toBeInTheDocument();
 		});
 	});
@@ -300,14 +307,16 @@ describe("WorkOrderDetailStep", () => {
 			).toBeInTheDocument();
 		});
 
-		it("disables continue button when asset is null", () => {
+		it("C05 keeps continue available when no asset is linked", () => {
 			render(<WorkOrderDetailStep {...defaultProps} asset={null} />);
 
 			const continueButton = screen.getByRole("button", {
 				name: /continue with ai suggestions/i,
 			});
-			expect(continueButton).toBeDisabled();
-			expect(screen.getByText("Resolving target asset…")).toBeInTheDocument();
+			expect(continueButton).toBeEnabled();
+			expect(
+				screen.queryByText("Resolving target asset…")
+			).not.toBeInTheDocument();
 		});
 
 		it("disables continue button when asset error is present", () => {
@@ -323,7 +332,9 @@ describe("WorkOrderDetailStep", () => {
 				name: /continue with ai suggestions/i,
 			});
 			expect(continueButton).toBeDisabled();
-			expect(screen.getByText("Asset resolution failed")).toBeInTheDocument();
+			expect(
+				screen.getByText("Asset lookup failed. Change the work order or retry.")
+			).toBeInTheDocument();
 		});
 
 		it("enables continue button when asset is available and not searching", () => {
@@ -486,9 +497,7 @@ describe("WorkOrderDetailStep", () => {
 				/>
 			);
 
-			const retryButton = screen.getByRole("button", {
-				name: /retry asset resolution/i,
-			});
+			const retryButton = screen.getByRole("button", { name: "Retry" });
 			expect(retryButton).toBeInTheDocument();
 		});
 	});

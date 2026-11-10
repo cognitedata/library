@@ -2,6 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
+import { createMockAppConfig } from "@/__mocks__/app-config";
+import { AppConfigProvider } from "@/app-config";
 import type { WorkOrderFilters } from "@/types";
 import { WorkOrderFilterFields } from "./WorkOrderFilterFields";
 
@@ -59,6 +61,28 @@ describe("WorkOrderFilterFields", () => {
 		await user.click(priority);
 		await user.click(screen.getByRole("option", { name: "Any priority" }));
 		expect(priority).toHaveTextContent("Any priority");
+	});
+
+	it("N04 hides Status and Priority when the view does not have them", () => {
+		const config = createMockAppConfig();
+		config.viewCapabilities = { hasStatus: false, hasPriority: false };
+		render(
+			<AppConfigProvider value={config}>
+				<Harness />
+			</AppConfigProvider>
+		);
+		expect(screen.queryByRole("combobox", { name: "Status" })).toBeNull();
+		expect(screen.queryByRole("combobox", { name: "Priority" })).toBeNull();
+	});
+
+	it("C27 labels the status and priority selects", () => {
+		render(<Harness />);
+		expect(
+			screen.getByRole("combobox", { name: "Status" })
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("combobox", { name: "Priority" })
+		).toBeInTheDocument();
 	});
 
 	it("hides the panel when filters are collapsed", () => {

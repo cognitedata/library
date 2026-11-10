@@ -111,7 +111,7 @@ describe("WorkOrderSearchPanel", () => {
 		).toBeInTheDocument();
 	});
 
-	it("shows recent load error and refetches on retry icon click", () => {
+	it("C27 retries recent work orders from a button", () => {
 		render(
 			<WorkOrderSearchPanel
 				{...defaultRecentProps}
@@ -119,9 +119,9 @@ describe("WorkOrderSearchPanel", () => {
 			/>
 		);
 		expect(
-			screen.getByText(/Failed to load recent work orders/i)
+			screen.getByText(/Couldn't load recent work orders/i)
 		).toBeInTheDocument();
-		fireEvent.click(screen.getByLabelText("Retry"));
+		fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 		expect(refetchRecent).toHaveBeenCalled();
 	});
 
