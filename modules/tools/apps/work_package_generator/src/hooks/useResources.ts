@@ -18,12 +18,26 @@ import { useCdfClientInfo } from "./useClientInfo";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-/** Deduplicate resource instances by externalId. */
+function resourceKey(resource: { externalId: string; space: string }): string {
+	return getRefKey(resource.externalId, resource.space);
+}
+
+function isRemovedResource(
+	resource: { externalId: string; space: string },
+	removedIds: ReadonlySet<string>
+): boolean {
+	return (
+		removedIds.has(resource.externalId) || removedIds.has(resourceKey(resource))
+	);
+}
+
+/** Deduplicate resource instances by space and externalId. */
 function dedupeResources(resources: ResourceInstance[]): ResourceInstance[] {
 	const seen = new Set<string>();
 	return resources.filter((r) => {
-		if (seen.has(r.externalId)) return false;
-		seen.add(r.externalId);
+		const key = resourceKey(r);
+		if (seen.has(key)) return false;
+		seen.add(key);
 		return true;
 	});
 }
@@ -38,10 +52,10 @@ export function mergeFetchedCandidates(
 	removedIds: readonly string[]
 ): ResourceInstance[] {
 	const removed = new Set(removedIds);
-	const fetchedKept = fetched.filter((r) => !removed.has(r.externalId));
-	const fetchedIds = new Set(fetched.map((r) => r.externalId));
+	const fetchedKept = fetched.filter((r) => !isRemovedResource(r, removed));
+	const fetchedIds = new Set(fetched.map(resourceKey));
 	const manualOnly = existing.filter(
-		(r) => !fetchedIds.has(r.externalId) && !removed.has(r.externalId)
+		(r) => !fetchedIds.has(resourceKey(r)) && !isRemovedResource(r, removed)
 	);
 	return [...fetchedKept, ...manualOnly];
 }
@@ -73,6 +87,7 @@ function buildUniqueAssetRefs(
 		add(ref.externalId, ref.space ?? asset?.space ?? "");
 	}
 
+	if (refs.length > 1) return refs.slice(0, 1);
 	return refs;
 }
 
@@ -147,6 +162,7 @@ export function useAssetResources() {
 		setCandidatesGeneric,
 		setLoading,
 		candidatesByType,
+		removedCandidateIdsByType,
 	} = useStore();
 
 	const allAssetRefs = buildUniqueAssetRefs(asset, workOrder);
@@ -245,14 +261,14 @@ export function useAssetResources() {
 			const state = useStore.getState();
 			for (const [typeKey, fetched] of Object.entries(query.data)) {
 				const existing = state.candidatesByType[typeKey] ?? [];
-				const removedIds = state.removedCandidateIdsByType?.[typeKey] ?? [];
+				const removedIds = removedCandidateIdsByType?.[typeKey] ?? [];
 				setCandidatesGeneric(
 					typeKey,
 					mergeFetchedCandidates(fetched, existing, removedIds)
 				);
 			}
 		}
-	}, [query.data, setCandidatesGeneric, useStore]);
+	}, [query.data, removedCandidateIdsByType, setCandidatesGeneric, useStore]);
 
 	return {
 		resources: candidatesByType,

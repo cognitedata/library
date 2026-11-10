@@ -16,6 +16,7 @@ import type {
 	WorkflowStep,
 	WorkOrder,
 } from "./types";
+import { getRefKey } from "./utils/cdf-helpers";
 
 // ============================================================================
 // Store State Interface
@@ -55,7 +56,12 @@ interface WorkPackageActions {
 
 	setCandidatesGeneric: (typeKey: string, items: ResourceInstance[]) => void;
 	addCandidateToType: (typeKey: string, item: ResourceInstance) => void;
-	removeCandidateFromType: (typeKey: string, externalId: string) => void;
+	removeCandidateFromType: (
+		typeKey: string,
+		externalId: string,
+		space?: string
+	) => void;
+	restoreRemovedCandidates: () => void;
 	setCachedAssetId: (id: string | null) => void;
 
 	setTemplateCanvasId: (id: string) => void;
@@ -139,14 +145,20 @@ export const useWorkPackageStore = create<
 				set(
 					(state) => {
 						const existing = state.candidatesByType[typeKey] ?? [];
+						const removedKey = getRefKey(item.externalId, item.space);
 						const removedIds = (
 							state.removedCandidateIdsByType?.[typeKey] ?? []
-						).filter((id) => id !== item.externalId);
+						).filter((id) => id !== item.externalId && id !== removedKey);
 						const nextRemoved = {
 							...state.removedCandidateIdsByType,
 							[typeKey]: removedIds,
 						};
-						if (existing.some((r) => r.externalId === item.externalId)) {
+						if (
+							existing.some(
+								(r) =>
+									r.externalId === item.externalId && r.space === item.space
+							)
+						) {
 							return { removedCandidateIdsByType: nextRemoved };
 						}
 						return {
@@ -161,14 +173,17 @@ export const useWorkPackageStore = create<
 					"addCandidateToType"
 				),
 
-			removeCandidateFromType: (typeKey, externalId) =>
+			removeCandidateFromType: (typeKey, externalId, space) =>
 				set(
 					(state) => {
 						const existing = state.candidatesByType[typeKey] ?? [];
 						const removedIds = state.removedCandidateIdsByType?.[typeKey] ?? [];
-						const nextRemovedIds = removedIds.includes(externalId)
+						const removedKey = space
+							? getRefKey(externalId, space)
+							: externalId;
+						const nextRemovedIds = removedIds.includes(removedKey)
 							? removedIds
-							: [...removedIds, externalId];
+							: [...removedIds, removedKey];
 						const nextSelections = { ...state.aiSelections };
 						let selectionsChanged = false;
 						for (const [slot, selection] of Object.entries(nextSelections)) {
@@ -180,7 +195,11 @@ export const useWorkPackageStore = create<
 						return {
 							candidatesByType: {
 								...state.candidatesByType,
-								[typeKey]: existing.filter((r) => r.externalId !== externalId),
+								[typeKey]: existing.filter((r) =>
+									space
+										? r.externalId !== externalId || r.space !== space
+										: r.externalId !== externalId
+								),
 							},
 							removedCandidateIdsByType: {
 								...state.removedCandidateIdsByType,
@@ -193,11 +212,27 @@ export const useWorkPackageStore = create<
 					"removeCandidateFromType"
 				),
 
+			restoreRemovedCandidates: () =>
+				set(
+					{ removedCandidateIdsByType: {} },
+					false,
+					"restoreRemovedCandidates"
+				),
+
 			setCachedAssetId: (id) =>
 				set({ cachedAssetId: id }, false, "setCachedAssetId"),
 
 			setTemplateCanvasId: (id) =>
-				set({ templateCanvasId: id }, false, "setTemplateCanvasId"),
+				set(
+					(state) => ({
+						templateCanvasId: id,
+						...(state.templateCanvasId === id
+							? {}
+							: { removedCandidateIdsByType: {} }),
+					}),
+					false,
+					"setTemplateCanvasId"
+				),
 
 			setCandidateTemplates: (templates) =>
 				set({ candidateTemplates: templates }, false, "setCandidateTemplates"),

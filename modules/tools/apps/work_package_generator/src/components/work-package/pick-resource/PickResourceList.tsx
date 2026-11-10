@@ -2,6 +2,7 @@ import { Check, Search } from "lucide-react";
 import { useMemo } from "react";
 import { Button, Input } from "@/components/ui";
 import type { AiSelections, ResourceInstance } from "@/types";
+import { getRefKey } from "@/utils/cdf-helpers";
 
 function matchesFilter(item: ResourceInstance, filter: string): boolean {
 	const q = filter.trim().toLowerCase();
@@ -73,7 +74,7 @@ export function PickResourceList({
 
 						return (
 							<li
-								key={item.externalId}
+								key={getRefKey(item.externalId, item.space)}
 								className={`flex items-center justify-between gap-2 px-3 py-2 text-xs ${
 									isCurrent ? "bg-primary/10" : "hover:bg-muted/40"
 								}`}

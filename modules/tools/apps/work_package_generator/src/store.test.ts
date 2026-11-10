@@ -155,6 +155,56 @@ describe("useWorkPackageStore", () => {
 		).toEqual([]);
 	});
 
+	it("C29: add and remove keep the same externalId in another space", () => {
+		const inS1 = { externalId: "r1", space: "s1", properties: {} };
+		const inS2 = { externalId: "r1", space: "s2", properties: {} };
+		useWorkPackageStore.getState().addCandidateToType("file", inS1);
+		useWorkPackageStore.getState().addCandidateToType("file", inS2);
+		expect(useWorkPackageStore.getState().candidatesByType.file).toEqual([
+			inS1,
+			inS2,
+		]);
+		useWorkPackageStore.getState().removeCandidateFromType("file", "r1", "s1");
+		expect(useWorkPackageStore.getState().candidatesByType.file).toEqual([
+			inS2,
+		]);
+		expect(
+			useWorkPackageStore.getState().removedCandidateIdsByType.file
+		).toEqual(["r1:s1"]);
+	});
+
+	it("N14: restoreRemovedCandidates clears every removed id", () => {
+		useWorkPackageStore
+			.getState()
+			.setCandidatesGeneric("file", [
+				{ externalId: "r1", space: "s", properties: {} },
+			]);
+		useWorkPackageStore.getState().removeCandidateFromType("file", "r1");
+		useWorkPackageStore.getState().restoreRemovedCandidates();
+		expect(useWorkPackageStore.getState().removedCandidateIdsByType).toEqual(
+			{}
+		);
+	});
+
+	it("N14: setTemplateCanvasId resets removals when the template changes", () => {
+		useWorkPackageStore.setState({ templateCanvasId: "old" });
+		useWorkPackageStore
+			.getState()
+			.setCandidatesGeneric("file", [
+				{ externalId: "r1", space: "s", properties: {} },
+			]);
+		useWorkPackageStore.getState().removeCandidateFromType("file", "r1");
+		useWorkPackageStore.getState().setTemplateCanvasId("old");
+		expect(
+			useWorkPackageStore.getState().removedCandidateIdsByType.file
+		).toEqual(["r1"]);
+		useWorkPackageStore.getState().setTemplateCanvasId("new");
+		expect(useWorkPackageStore.getState().removedCandidateIdsByType).toEqual(
+			{}
+		);
+		expect(useWorkPackageStore.getState().templateCanvasId).toBe("new");
+	});
+
 	it("resetForNewWorkOrder clears removed candidate ids", () => {
 		useWorkPackageStore
 			.getState()
