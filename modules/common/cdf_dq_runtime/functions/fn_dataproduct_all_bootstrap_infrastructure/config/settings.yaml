@@ -26,7 +26,7 @@ trigger:
 # default.config.yaml defaults for cdf_dq_runtime.
 records:
   space: inst_data_quality
-  stream_id: cdf_all_validation_results
+  stream_id: dq_all_validation_results
 
 config_space: inst_data_quality
 function_code_dataset_external_id: ds_data_quality_all

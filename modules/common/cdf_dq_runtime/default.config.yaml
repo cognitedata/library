@@ -51,8 +51,9 @@ ruleSetVersion: "1.0.0"  # was: "1.0.0" (rules targeted the YourOrg views)
 # Space for data quality state (settings, cursors, historic queue) and record containers.
 dataQualitySpace: inst_data_quality  # was: dataQuality
 # Records stream receiving validation results. Bootstrap creates it if missing
-# (immutable BasicArchive template).
-recordsStreamId: cdf_all_validation_results  # was: test_stream_1
+# (immutable BasicArchive template). Must not use a cdf_* / cognite_* prefix —
+# those are reserved for Cognite system streams ("Access to system streams is denied").
+recordsStreamId: dq_all_validation_results  # was: cdf_all_validation_results / test_stream_1
 # Data set for the CDF Function code file.
 functionCodeDatasetExternalId: ds_data_quality_all  # was: dq_shacl_rules
 # IdP credentials for the bootstrap Function Schedule and Function secrets (workflow triggers).

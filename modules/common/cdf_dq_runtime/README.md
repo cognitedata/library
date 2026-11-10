@@ -184,7 +184,7 @@ The `[alpha_flags]` header must be uncommented. If only `data-products = true` i
 
 After enabling the flag, run `cdf build && cdf deploy` so the data product version exists in CDF before (or in the same deploy as) the bootstrap Function. The five-minute bootstrap schedule retries until the catalog is present.
 
-The instance space (`instanceSpace`, default `inst_location`) must already exist and contain the nodes to validate; this module does not create it. The records stream (`recordsStreamId`, default `cdf_all_validation_results`) is created by bootstrap if missing (immutable `BasicArchive` template).
+The instance space (`instanceSpace`, default `inst_location`) must already exist and contain the nodes to validate; this module does not create it. The records stream (`recordsStreamId`, default `dq_all_validation_results`) is created by bootstrap if missing (immutable `BasicArchive` template). Do not use a `cdf_*` / `cognite_*` stream ID — those prefixes are reserved for Cognite system streams and yield `Access to system streams is denied` (404) at runtime.
 
 ### Access control
 
@@ -200,7 +200,7 @@ The identity used by `cdf deploy` (Toolkit `.env` / `IDP_*` service principal or
 
 Grant these (typically all actions, scope `all`) in Fusion → Access management on the group linked to that identity — for Toolkit this is often `cognite_toolkit_service_principal`.
 
-The identity used **at runtime** by the CDF Functions (the service principal whose `client-id` / `client-secret` were registered via Toolkit `functionClientId` / `functionClientSecret`) must also have Streams access and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `cdf_all_validation_results`). Without these, validation fails when posting results. The same identity needs `functionsAcl:READ` / `WRITE` so the bootstrap function can resolve itself and delete its schedule after success:
+The identity used **at runtime** by the CDF Functions (the service principal whose `client-id` / `client-secret` were registered via Toolkit `functionClientId` / `functionClientSecret`) must also have Streams access and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `dq_all_validation_results`). Without these, validation fails when posting results. The same identity needs `functionsAcl:READ` / `WRITE` so the bootstrap function can resolve itself and delete its schedule after success:
 
 | Capability | Needed for |
 | --- | --- |
@@ -209,7 +209,7 @@ The identity used **at runtime** by the CDF Functions (the service principal who
 | `functionsAcl:READ` / `WRITE` | Bootstrap self-delete of Function Schedules for `fn_dataproduct_all_bootstrap_infrastructure` |
 
 ```text
-WARNING: could not resolve stream type for 'cdf_all_validation_results'; defaulting to immutable (ingest):
+WARNING: could not resolve stream type for 'dq_all_validation_results'; defaulting to immutable (ingest):
 The user does not have the required Streams capabilities. | code: 403
 ERROR posting record for …: The user does not have stream records read or write capability. | code: 403
 ```
@@ -263,7 +263,7 @@ variables:
 | `dataProductVersion` | `1.0.0` | data product, settings / Schedule.data | Data product version. Bump when views, instance spaces or rule set versions change (they are immutable on an existing version) |
 | `ruleSetVersion` | `1.0.0` | rulesets, data product, timeseries_config | Version of every RuleSetVersion. Bump when you edit rule content |
 | `dataQualitySpace` | `inst_data_quality` | settings / Schedule.data, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
-| `recordsStreamId` | `cdf_all_validation_results` | settings / Schedule.data | Records stream for validation results. Created by bootstrap if missing |
+| `recordsStreamId` | `dq_all_validation_results` | settings / Schedule.data | Records stream for validation results. Created by bootstrap if missing. Must not use `cdf_*` / `cognite_*` (system-reserved) |
 | `functionCodeDatasetExternalId` | `ds_data_quality_all` | settings / Schedule.data | Data set for the CDF Function code file |
 | `functionClientId` | `${IDP_CLIENT_ID}` | schedule + function secrets | Client ID for the bootstrap Function Schedule and Function secrets (`client-id`) used as workflow trigger credentials |
 | `functionClientSecret` | `${IDP_CLIENT_SECRET}` | schedule + function secrets | Client secret for the bootstrap Function Schedule and Function secrets (`client-secret`) |

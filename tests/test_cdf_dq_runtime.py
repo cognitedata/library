@@ -188,7 +188,7 @@ def test_load_settings_raw_returns_typed_runtime_settings(cli: types.ModuleType,
                 "data_product_sync_cron: '15 * * * *'",
                 "records:",
                 "  space: inst_data_quality",
-                "  stream_id: cdf_all_validation_results",
+                "  stream_id: dq_all_validation_results",
                 "",
             ]
         ),
@@ -201,7 +201,7 @@ def test_load_settings_raw_returns_typed_runtime_settings(cli: types.ModuleType,
     assert settings.data_product_sync_cron == "15 * * * *"
     assert settings.records is not None
     assert settings.records.space == "inst_data_quality"
-    assert settings.records.stream_id == "cdf_all_validation_results"
+    assert settings.records.stream_id == "dq_all_validation_results"
     assert settings.effective_config_space == "inst_data_quality"
 
 
@@ -214,7 +214,7 @@ def test_data_quality_space_from_settings(cli: types.ModuleType, tmp_path: Path)
 def test_data_quality_space_falls_back_to_records_space(cli: types.ModuleType, tmp_path: Path) -> None:
     settings = tmp_path / "settings.yaml"
     settings.write_text(
-        "records:\n  space: fromRecords\n  stream_id: cdf_all_validation_results\n",
+        "records:\n  space: fromRecords\n  stream_id: dq_all_validation_results\n",
         encoding="utf-8",
     )
     assert cli.data_quality_space(cli.load_settings_raw(settings)) == "fromRecords"
@@ -223,10 +223,10 @@ def test_data_quality_space_falls_back_to_records_space(cli: types.ModuleType, t
 def test_records_stream_id_from_settings(cli: types.ModuleType, tmp_path: Path) -> None:
     settings = tmp_path / "settings.yaml"
     settings.write_text(
-        "records:\n  space: inst_data_quality\n  stream_id: cdf_all_validation_results\n",
+        "records:\n  space: inst_data_quality\n  stream_id: dq_all_validation_results\n",
         encoding="utf-8",
     )
-    assert cli.records_stream_id(cli.load_settings_raw(settings)) == "cdf_all_validation_results"
+    assert cli.records_stream_id(cli.load_settings_raw(settings)) == "dq_all_validation_results"
 
 
 def test_ensure_records_stream_skips_when_exists(cli: types.ModuleType) -> None:
@@ -234,13 +234,13 @@ def test_ensure_records_stream_skips_when_exists(cli: types.ModuleType) -> None:
         config = SimpleNamespace(project="demo")
 
         def get(self, url: str):
-            assert url.endswith("/streams/cdf_all_validation_results")
+            assert url.endswith("/streams/dq_all_validation_results")
             return SimpleNamespace(status_code=200)
 
         def post(self, *_args, **_kwargs):
             raise AssertionError("must not create when stream exists")
 
-    assert cli.ensure_records_stream(_Client(), "cdf_all_validation_results") == "exists"
+    assert cli.ensure_records_stream(_Client(), "dq_all_validation_results") == "exists"
 
 
 def test_ensure_records_stream_url_encodes_stream_id(cli: types.ModuleType) -> None:
@@ -278,12 +278,12 @@ def test_ensure_records_stream_creates_when_missing(cli: types.ModuleType) -> No
             posted["json"] = json
             return SimpleNamespace(status_code=200)
 
-    assert cli.ensure_records_stream(_Client(), "cdf_all_validation_results") == "created"
+    assert cli.ensure_records_stream(_Client(), "dq_all_validation_results") == "created"
     assert posted["url"] == "/api/v1/projects/demo/streams"
     assert posted["json"] == {
         "items": [
             {
-                "externalId": "cdf_all_validation_results",
+                "externalId": "dq_all_validation_results",
                 "settings": {"template": {"name": "BasicArchive"}},
             }
         ]
@@ -302,7 +302,7 @@ def test_ensure_records_stream_dry_run_does_not_create(cli: types.ModuleType) ->
         def post(self, *_args, **_kwargs):
             raise AssertionError("must not create during dry-run")
 
-    assert cli.ensure_records_stream(_Client(), "cdf_all_validation_results", dry_run=True) == "would_create"
+    assert cli.ensure_records_stream(_Client(), "dq_all_validation_results", dry_run=True) == "would_create"
 
 
 def test_ensure_records_stream_forbidden_raises_permission_error(cli: types.ModuleType) -> None:
@@ -315,7 +315,7 @@ def test_ensure_records_stream_forbidden_raises_permission_error(cli: types.Modu
             raise CogniteAPIError("The user does not have the required Streams capabilities.", code=403)
 
     with pytest.raises(PermissionError, match="streamsAcl:READ"):
-        cli.ensure_records_stream(_Client(), "cdf_all_validation_results")
+        cli.ensure_records_stream(_Client(), "dq_all_validation_results")
 
 
 def test_collect_granted_actions_from_token_dump(cli: types.ModuleType) -> None:
