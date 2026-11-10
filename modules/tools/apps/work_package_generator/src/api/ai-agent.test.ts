@@ -470,6 +470,89 @@ describe("ai-agent", () => {
 			expect(prompt).not.toContain("res-110");
 		});
 
+		it("C17: ranks a slot-label match into the top 100 out of 2,000 candidates when context shares no words", async () => {
+			const instances = Array.from({ length: 2000 }, (_, index) => ({
+				externalId: `res-${String(index).padStart(4, "0")}`,
+				space: "s",
+				name: index < 150 ? "Centrifugal pump maintenance note" : "Generic doc",
+				description: "standard attachment",
+				properties: {},
+			}));
+			const target = instances[1999];
+			if (!target) throw new Error("Expected candidate at index 1999");
+			target.name = "M-301 Wiring diagram.pdf";
+			cdfApiFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+			parseJsonResponse.mockResolvedValueOnce({
+				messages: [{ role: "assistant", content: target.externalId }],
+			});
+
+			const sel = await aiSelectResource(
+				client,
+				"p",
+				"a",
+				instances,
+				"file",
+				"Wiring diagram",
+				{
+					workOrder: {
+						externalId: "wo-1",
+						space: "s",
+						name: "Replace mechanical seal",
+					},
+					asset: {
+						assetExternalId: "p-101",
+						space: "s",
+						assetName: "Centrifugal pump",
+					},
+				},
+				new Set()
+			);
+			expect(selectedExternalId(sel)).toBe("res-1999");
+			const call = cdfApiFetch.mock.calls[0];
+			if (!call) throw new Error("Expected a CDF API call");
+			const body = JSON.parse((call[2] as { body: string }).body) as {
+				messages: { content: { text: string } }[];
+			};
+			const prompt = body.messages[0]?.content.text ?? "";
+			expect(prompt).toContain("res-1999");
+			expect(prompt.match(/External ID:/g)?.length).toBe(100);
+		});
+
+		it("C17: promotes a candidate past position 100 under context-only ranking when it matches the slot label", async () => {
+			const instances = Array.from({ length: 160 }, (_, index) => ({
+				externalId: `res-${String(index).padStart(3, "0")}`,
+				space: "s",
+				name: "Boiler overhaul checklist",
+				description: "boiler overhaul",
+				properties: {},
+			}));
+			const target = instances[150];
+			if (!target) throw new Error("Expected candidate at index 150");
+			target.description = "boiler overhaul vibration spectrum";
+			cdfApiFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+			parseJsonResponse.mockResolvedValueOnce({
+				messages: [{ role: "assistant", content: target.externalId }],
+			});
+
+			const sel = await aiSelectResource(
+				client,
+				"p",
+				"a",
+				instances,
+				"timeseries",
+				"Vibration spectrum",
+				{
+					workOrder: {
+						externalId: "wo-1",
+						space: "s",
+						name: "Boiler overhaul",
+					},
+				},
+				new Set()
+			);
+			expect(selectedExternalId(sel)).toBe("res-150");
+		});
+
 		it("returns null when AI picks unknown id", async () => {
 			cdfApiFetch.mockResolvedValue({ ok: true });
 			parseJsonResponse.mockResolvedValue({
@@ -626,6 +709,42 @@ describe("ai-agent", () => {
 				{ file: [] }
 			);
 			expect(id).toBe("c2");
+		});
+
+		it("C17: ranks templates using work order and asset text without a slot label", async () => {
+			const canvases = Array.from({ length: 120 }, (_, index) => ({
+				externalId: `tpl-${String(index).padStart(3, "0")}`,
+				space: "s",
+				name: "template generic inspection",
+				visibility: "public" as const,
+			}));
+			const target = canvases[119];
+			if (!target) throw new Error("Expected template at index 119");
+			target.name = "template compressor alignment";
+			cdfApiFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+			parseJsonResponse.mockResolvedValueOnce({
+				messages: [{ role: "assistant", content: target.externalId }],
+			});
+			const id = await aiSelectBestCanvasTemplate(
+				client,
+				"p",
+				"ag",
+				canvases,
+				{
+					externalId: "wo",
+					space: "s",
+					name: "Routine check",
+					description: "Check alignment tolerances",
+				},
+				{
+					assetExternalId: "a",
+					space: "s",
+					assetName: "Main unit",
+					description: "Rotary screw compressor",
+				},
+				{}
+			);
+			expect(id).toBe("tpl-119");
 		});
 	});
 });

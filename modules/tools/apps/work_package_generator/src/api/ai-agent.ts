@@ -183,28 +183,52 @@ function contextSearchText(context: AgentContext): string {
 	return JSON.stringify(context).toLowerCase();
 }
 
+const RANK_STOP_TOKENS = new Set(["the", "and", "for", "with", "from"]);
+
+function tokenizeSearchText(text: string): string[] {
+	return Array.from(
+		new Set(
+			text
+				.toLowerCase()
+				.split(/[^a-z0-9]+/)
+				.filter((token) => token.length > 2 && !RANK_STOP_TOKENS.has(token))
+		)
+	);
+}
+
 function rankAndCap<T extends { externalId: string }>(
 	items: T[],
 	contextText: string,
-	haystack: (item: T) => string
+	haystack: (item: T) => string,
+	label?: string
 ): T[] {
-	const tokens = contextText
-		.split(/[^a-z0-9]+/)
-		.filter((token) => token.length > 2);
-	const score = (item: T): number => {
-		const text = haystack(item);
-		return tokens.reduce(
-			(total, token) => total + (text.includes(token) ? 1 : 0),
-			0
-		);
-	};
-	return [...items]
+	const contextTokens = tokenizeSearchText(contextText);
+	const normalizedLabel = label?.trim().toLowerCase() ?? "";
+	const labelTokens = tokenizeSearchText(normalizedLabel);
+	const labelWeight = contextTokens.length + 1;
+
+	return items
+		.map((item) => {
+			const text = haystack(item);
+			let score = 0;
+			if (normalizedLabel.length > 2 && text.includes(normalizedLabel)) {
+				score += labelWeight;
+			}
+			for (const token of labelTokens) {
+				if (text.includes(token)) score += labelWeight;
+			}
+			for (const token of contextTokens) {
+				if (text.includes(token)) score += 1;
+			}
+			return { item, score };
+		})
 		.sort(
 			(left, right) =>
-				score(right) - score(left) ||
-				left.externalId.localeCompare(right.externalId)
+				right.score - left.score ||
+				left.item.externalId.localeCompare(right.item.externalId)
 		)
-		.slice(0, CANDIDATE_LIMIT);
+		.slice(0, CANDIDATE_LIMIT)
+		.map((entry) => entry.item);
 }
 
 /**
@@ -634,7 +658,8 @@ export async function aiSelectResource(
 		availableInstances,
 		contextSearchText(context),
 		(inst) =>
-			`${inst.externalId} ${inst.name} ${inst.description ?? ""} ${JSON.stringify(inst.properties)}`.toLowerCase()
+			`${inst.externalId} ${inst.name} ${inst.description ?? ""} ${JSON.stringify(inst.properties)}`.toLowerCase(),
+		label
 	);
 
 	// Format options and build prompt
@@ -696,15 +721,24 @@ export async function aiSelectBestCanvasTemplate(
 		return null;
 	}
 
-	const rankedCanvases = rankAndCap(
-		canvasList,
-		`${workOrder.name ?? ""} ${asset.assetName ?? ""}`.toLowerCase(),
-		(canvas) => `${canvas.externalId} ${canvas.name}`.toLowerCase()
-	);
-
 	// Build context
 	const woContext = extractWorkOrderContext(workOrder, appConfig);
 	const assetContext = extractAssetContext(asset, appConfig);
+
+	const rankedCanvases = rankAndCap(
+		canvasList,
+		[
+			...Object.values(woContext),
+			...Object.values(assetContext),
+			workOrder.name ?? "",
+			workOrder.description ?? "",
+			workOrder.type ?? "",
+			asset.assetName ?? "",
+			asset.description ?? "",
+			asset.type ?? "",
+		].join(" "),
+		(canvas) => `${canvas.externalId} ${canvas.name}`.toLowerCase()
+	);
 
 	// Build available resources section
 	const resourceConfigs = getResourceConfigs(appConfig);
