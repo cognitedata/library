@@ -50,9 +50,6 @@ def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionL
     except CogniteAPIError as e:
         logger.warning(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | code={e.code}")
         return
-    except Exception as e:
-        logger.warning(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e}")
-        return
 
     if function is None:
         logger.warning(f"Bootstrap function not found: {BOOTSTRAP_FUNCTION_EXTERNAL_ID}")
@@ -63,9 +60,6 @@ def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionL
         schedules = client.functions.schedules.list(function_id=function_id, limit=None)
     except CogniteAPIError as e:
         logger.warning(f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={e.code}")
-        return
-    except Exception as e:
-        logger.warning(f"Failed to list bootstrap schedules for function_id={function_id}: {e}")
         return
 
     if not schedules:
@@ -82,8 +76,6 @@ def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionL
             logger.warning(
                 f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e} | code={e.code}"
             )
-        except Exception as e:
-            logger.warning(f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e}")
 
 
 def _credential_pair(
