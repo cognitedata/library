@@ -69,6 +69,16 @@ const defaultTemplateReads: TemplateCanvasReadDeps = {
 	getTemplateCanvasAnnotations: defaultGetTemplateCanvasAnnotations,
 };
 
+/** Source canvas item externalId for a copied item, used to remap annotation anchors. */
+const sourceItemIds = new WeakMap<CanvasItem, string>();
+/** Annotation containerId from the template, before it is rewritten to a new item id. */
+const sourceAnnotationContainerIds = new WeakMap<CanvasItem, string>();
+
+type TemplateAnnotationSource = TemplateAnnotation & {
+	id?: string;
+	containerId?: string;
+};
+
 function resolveTemplateReads(
 	overrides?: Partial<TemplateCanvasReadDeps>
 ): TemplateCanvasReadDeps {
@@ -88,6 +98,66 @@ type EdgeDeleteItem = DeleteItem & { instanceType: "edge" };
 // Canvas Building Functions
 // ============================================================================
 
+function rememberSourceItem(
+	item: CanvasItem,
+	sourceId: string | undefined
+): CanvasItem {
+	const id = sourceId?.trim();
+	if (id) sourceItemIds.set(item, id);
+	return item;
+}
+
+function nodeProperties(
+	node: NodeWrite | undefined
+): Record<string, unknown> | undefined {
+	const properties = node?.sources?.[0]?.properties;
+	if (!properties || typeof properties !== "object") return undefined;
+	return properties as Record<string, unknown>;
+}
+
+/**
+ * Point copied annotations at the new item ids. References to items that
+ * were not copied are removed so they do not keep pointing at the template.
+ */
+function remapAnnotationAnchors(
+	items: readonly CanvasItem[],
+	nodes: readonly NodeWrite[]
+): void {
+	const newIdBySource = new Map<string, string>();
+	for (let index = 0; index < items.length; index++) {
+		const sourceId = sourceItemIds.get(items[index]);
+		const props = nodeProperties(nodes[index]);
+		const newId = props?.id;
+		if (!sourceId || typeof newId !== "string" || !newId) continue;
+		newIdBySource.set(sourceId, newId);
+	}
+
+	for (let index = 0; index < items.length; index++) {
+		const item = items[index];
+		if (item?.type !== "CanvasAnnotation") continue;
+		const props = nodeProperties(nodes[index]);
+		if (!props) continue;
+
+		const anchor = sourceAnnotationContainerIds.get(item);
+		if (anchor) {
+			const mapped = newIdBySource.get(anchor);
+			if (mapped) props.containerId = mapped;
+		}
+
+		const nested = props.properties;
+		if (!nested || typeof nested !== "object") continue;
+		const record = nested as Record<string, unknown>;
+		for (const key of ["fromId", "toId"] as const) {
+			if (!(key in record)) continue;
+			const current = record[key];
+			const mapped =
+				typeof current === "string" ? newIdBySource.get(current) : undefined;
+			if (mapped) record[key] = mapped;
+			else delete record[key];
+		}
+	}
+}
+
 /**
  * Build canvas items from template with replacements
  */
@@ -104,13 +174,18 @@ export function buildCanvasItemsFromTemplate(
 	const resourceConfigs = getResourceConfigs(appConfig);
 
 	// Add annotations first
-	for (const ann of templateAnnotations) {
-		items.push({
+	for (const source of templateAnnotations) {
+		const ann = source as TemplateAnnotationSource;
+		const item: CanvasItem = {
 			type: "CanvasAnnotation",
 			containerId: config.canvasAnnotationContainerId,
 			annotationType: ann.type,
-			properties: ann.properties,
-		});
+			properties: { ...(ann.properties ?? {}) },
+		};
+		rememberSourceItem(item, ann.id);
+		const anchor = ann.containerId?.trim();
+		if (anchor) sourceAnnotationContainerIds.set(item, anchor);
+		items.push(item);
 	}
 
 	// Process instances
@@ -137,16 +212,25 @@ export function buildCanvasItemsFromTemplate(
 
 		// Apply replacements based on instance type
 		if (isMainAsset(inst, appConfig)) {
-			items.push(applyAssetReplacement(item, asset));
+			items.push(
+				rememberSourceItem(applyAssetReplacement(item, asset), inst.id)
+			);
 		} else if (isMainWorkOrder(inst, appConfig)) {
-			items.push(applyWorkOrderReplacement(item, workOrder));
+			items.push(
+				rememberSourceItem(applyWorkOrderReplacement(item, workOrder), inst.id)
+			);
 		} else {
 			const replacement = selections[selectionSlotKey(inst)];
 			if (replacement) {
-				items.push(applySelectionReplacement(item, replacement));
+				items.push(
+					rememberSourceItem(
+						applySelectionReplacement(item, replacement),
+						inst.id
+					)
+				);
 			} else if (!isSelectableResourceSlot(inst, appConfig, resourceConfigs)) {
 				// Auto template items (not user/AI-filled slots) stay on the canvas
-				items.push(item);
+				items.push(rememberSourceItem(item, inst.id));
 			}
 			// Selectable slots with no resource chosen are left empty
 		}
@@ -204,6 +288,7 @@ export async function createCanvasFromItems(
 		canvasId,
 		config
 	);
+	remapAnnotationAnchors(items, itemNodes);
 
 	const written: DeleteItem[] = [];
 	try {
@@ -580,6 +665,7 @@ export async function updateCanvasFromTemplateAndSelections(
 		canvasId,
 		config
 	);
+	remapAnnotationAnchors(items, itemNodes);
 
 	const written: DeleteItem[] = [];
 	try {
