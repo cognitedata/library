@@ -896,7 +896,7 @@ def test_bootstrap_handler_keeps_schedule_when_deployment_fails(monkeypatch: pyt
 
     handler_module = _load_bootstrap_handler(monkeypatch, deploy)
     client = _bootstrap_client(
-        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME)],
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42)],
         delete=lambda *, id: deleted.append(id),
     )
 
@@ -920,7 +920,7 @@ def test_bootstrap_handler_logs_schedule_delete_failure_without_failing_deploy(
         raise CogniteAPIError(message="missing capability", code=403, x_request_id="req")
 
     client = _bootstrap_client(
-        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME)],
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42)],
         delete=delete_forbidden,
     )
 
