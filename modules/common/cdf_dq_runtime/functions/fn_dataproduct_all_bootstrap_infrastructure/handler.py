@@ -245,13 +245,14 @@ def _write_settings_with_overrides(
         if product is None:
             if len(products) == 1 and isinstance(products[0], dict):
                 product = products[0]
-            else:
+            elif target_id is not None:
                 product = {}
                 products.append(product)
-        if target_id is not None:
-            product["external_id"] = target_id
-        if target_version is not None:
-            product["version"] = target_version
+        if product is not None:
+            if target_id is not None:
+                product["external_id"] = target_id
+            if target_version is not None:
+                product["version"] = target_version
     if runtime_credentials is not None:
         settings["runtime_credentials"] = runtime_credentials
 
