@@ -19,6 +19,13 @@ import {
 } from "./ai-agent";
 import { patchApiRuntimeDeps } from "./runtime-deps";
 
+function selectedExternalId(
+	value: Awaited<ReturnType<typeof aiSelectResource>>
+): string | undefined {
+	if (!value || "kind" in value) return undefined;
+	return value.externalId;
+}
+
 const cdfApiFetch = vi.fn();
 const parseJsonResponse = vi.fn();
 
@@ -381,7 +388,7 @@ describe("ai-agent", () => {
 				{ workOrder: { externalId: "w", space: "s" } },
 				new Set()
 			);
-			expect(sel?.externalId).toBe("r1");
+			expect(selectedExternalId(sel)).toBe("r1");
 		});
 
 		it("matches case-insensitive and strips quotes", async () => {
@@ -399,7 +406,7 @@ describe("ai-agent", () => {
 				{},
 				new Set()
 			);
-			expect(sel?.externalId).toBe("r1");
+			expect(selectedExternalId(sel)).toBe("r1");
 		});
 
 		it("C17: ranks and caps the prompt at about 100 candidates", async () => {
@@ -427,7 +434,7 @@ describe("ai-agent", () => {
 				{ workOrder: { externalId: "w", space: "s", name: "Boiler overhaul" } },
 				new Set()
 			);
-			expect(sel?.externalId).toBe(ranked.externalId);
+			expect(selectedExternalId(sel)).toBe(ranked.externalId);
 			const call = cdfApiFetch.mock.calls[0];
 			if (!call) throw new Error("Expected a CDF API call");
 			const body = JSON.parse((call[2] as { body: string }).body) as {
