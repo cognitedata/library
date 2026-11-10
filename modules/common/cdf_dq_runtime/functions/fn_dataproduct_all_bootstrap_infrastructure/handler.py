@@ -50,9 +50,8 @@ def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
         return
 
     function_id = function.id
-    schedules: list[Any] = []
     try:
-        schedules = list(client.functions.schedules.list(function_id=function_id, limit=None))
+        schedules = client.functions.schedules.list(function_id=function_id, limit=None)
     except CogniteAPIError as e:
         print(f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={e.code}")
         return
@@ -178,26 +177,32 @@ def _write_settings_with_overrides(
     if "dataQualitySpace" in data:
         space = data["dataQualitySpace"]
         settings["config_space"] = space
-        records = settings.setdefault("records", {})
-        if isinstance(records, dict):
-            records["space"] = space
+        records = settings.get("records")
+        if not isinstance(records, dict):
+            records = {}
+            settings["records"] = records
+        records["space"] = space
     if "recordsStreamId" in data:
-        records = settings.setdefault("records", {})
-        if isinstance(records, dict):
-            records["stream_id"] = data["recordsStreamId"]
+        records = settings.get("records")
+        if not isinstance(records, dict):
+            records = {}
+            settings["records"] = records
+        records["stream_id"] = data["recordsStreamId"]
     if "functionCodeDatasetExternalId" in data:
         settings["function_code_dataset_external_id"] = data["functionCodeDatasetExternalId"]
     if "dataProductExternalId" in data or "dataProductVersion" in data:
-        products = settings.setdefault("external_dataproducts", [])
-        if isinstance(products, list):
-            if not products:
-                products.append({})
-            product = products[0]
-            if isinstance(product, dict):
-                if "dataProductExternalId" in data:
-                    product["external_id"] = data["dataProductExternalId"]
-                if "dataProductVersion" in data:
-                    product["version"] = data["dataProductVersion"]
+        products = settings.get("external_dataproducts")
+        if not isinstance(products, list):
+            products = []
+            settings["external_dataproducts"] = products
+        if not products:
+            products.append({})
+        product = products[0]
+        if isinstance(product, dict):
+            if "dataProductExternalId" in data:
+                product["external_id"] = data["dataProductExternalId"]
+            if "dataProductVersion" in data:
+                product["version"] = data["dataProductVersion"]
     if runtime_credentials is not None:
         settings["runtime_credentials"] = runtime_credentials
 
