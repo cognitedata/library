@@ -1,9 +1,9 @@
-# Runtime settings for deploy_validation_infrastructure() (scripts/deploy_infrastructure.py).
+# Runtime settings for deploy_validation_infrastructure() (bootstrap Function).
 #
-# Not deployed by Toolkit. The deploy script substitutes the placeholders below with values
-# from default.config.yaml / config.<env>.yaml, then passes this file to cognite-data-quality.
-# Customer identifiers belong in default.config.yaml; the literal values below are runtime
-# behaviour defaults that rarely need changing.
+# Not deployed by Toolkit as a resource. The bootstrap Function ships a bundled copy under
+# functions/fn_dataproduct_all_bootstrap_infrastructure/config/ and merges Schedule.data
+# overrides (dataQualitySpace, recordsStreamId, …) at runtime. Customer identifiers belong
+# in default.config.yaml; the behaviour keys below rarely need changing.
 
 # Instance validation workflows (one per data product view, triggered by instance changes).
 workflow:
@@ -41,9 +41,9 @@ trigger:
 
 # Where validation results (DataQualityValidationRecord / RuleEngineResult) are written.
 records:
-  # Space of the record containers and views (created by the deploy script).
+  # Space of the record containers and views (created by bootstrap).
   space: {{ dataQualitySpace }}
-  # Records stream ID. Created by deploy_infrastructure.py if missing (BasicArchive).
+  # Records stream ID. Created by bootstrap if missing (BasicArchive).
   stream_id: {{ recordsStreamId }}
 
 # Space for DataQualitySettings, sync cursors, orchestration state and HistoricJobQueue.
@@ -63,7 +63,7 @@ timeseries:
   # Folder (relative to this file) with time series validation configs.
   config_dir: timeseries_config
 
-# Data products published by Toolkit (data_products/). Listed here so the deploy script wires
+# Data products published by Toolkit (data_products/). Listed here so bootstrap wires
 # workflows for them without republishing.
 external_dataproducts:
   - external_id: {{ dataProductExternalId }}

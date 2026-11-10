@@ -1,10 +1,9 @@
 # Customer / project identifiers for the Data Quality Validation module.
 #
 # Override these in config.<env>.yaml under variables.modules.common.cdf_dq_runtime.
-# Toolkit (`cdf build`) substitutes them into rulesets/, data_products/ and data_modeling/;
-# scripts/deploy_infrastructure.py substitutes the same values into settings.yaml, views/
-# and timeseries_config/ before deploying workflows. Defaults target the Cognite Core (cdf_cdm) and
-# Cognite Process Industries (cdf_idm) views with instances in inst_location.
+# Toolkit (`cdf build`) substitutes them into rulesets/, data_products/ and data_modeling/,
+# and into the bootstrap Function secrets / Schedule.data. Defaults target the Cognite Core
+# (cdf_cdm) and Cognite Process Industries (cdf_idm) views with instances in inst_location.
 #
 # Trailing "# was: ..." comments show the value used by the original cog-ai YourOrg sample
 # (data-quality-validation-deploy). Keys without such a comment are unchanged.
@@ -51,7 +50,7 @@ ruleSetVersion: "1.0.0"  # was: "1.0.0" (rules targeted the YourOrg views)
 # --- Runtime -----------------------------------------------------------------------------
 # Space for data quality state (settings, cursors, historic queue) and record containers.
 dataQualitySpace: inst_data_quality  # was: dataQuality
-# Records stream receiving validation results. deploy_infrastructure.py creates it if missing
+# Records stream receiving validation results. Bootstrap creates it if missing
 # (immutable BasicArchive template).
 recordsStreamId: cdf_all_validation_results  # was: test_stream_1
 # Data set for the CDF Function code file.

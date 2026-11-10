@@ -1,4 +1,8 @@
-"""Shared CLI helpers for the Data Quality Toolkit module scripts."""
+"""Shared helpers for Data Quality Toolkit module notebooks and pack tests.
+
+Local ``deploy_infrastructure.py`` / ``deploy_pipeline.py`` were removed; install is via the
+Toolkit bootstrap Function. This module remains for notebook credentials and pack materialize.
+"""
 
 from __future__ import annotations
 
@@ -216,7 +220,7 @@ class RecordsConfig:
 
 @dataclass(frozen=True)
 class RuntimeSettings:
-    """Typed subset of settings.yaml used by the deploy scripts."""
+    """Typed subset of settings.yaml used by notebook helpers and pack tests."""
 
     records: RecordsConfig | None = None
     config_space: str | None = None
@@ -271,7 +275,7 @@ def _streams_capability_error(stream_id: str, action: str, exc: CogniteAPIError)
     return PermissionError(
         f"Cannot {action} records stream '{stream_id}': deploy identity lacks Streams capabilities. "
         f"Grant streamsAcl:READ and streamsAcl:CREATE (scope all) on the group for the "
-        f"credentials in .env / IDP_* used by deploy_infrastructure.py. Original error: {exc}"
+        f"credentials in .env / IDP_* used by Toolkit / notebooks. Original error: {exc}"
     )
 
 
@@ -410,7 +414,7 @@ def verify_dq_access(
     """Check install and function-runtime identities against README Access control.
 
     Args:
-        install_client: Client used by ``deploy_infrastructure.py`` (``.env`` / ``IDP_*``).
+        install_client: Client used for Toolkit install checks (``.env`` / ``IDP_*``).
         function_secrets: Function secrets dict with ``client-id`` / ``client-secret``.
         runtime_client: Optional pre-built client for the function identity (tests).
         deploy_client_id: Optional deploy client id for same-identity detection (tests).
@@ -794,7 +798,7 @@ def print_verbose_results(results: dict[str, object]) -> None:
 
 
 def add_common_args(parser: argparse.ArgumentParser) -> None:
-    """Add flags shared by deploy_infrastructure.py and deploy_pipeline.py."""
+    """Add shared argparse flags (kept for pack/materialize helper tests)."""
     parser.add_argument(
         "--env-file",
         default=None,
