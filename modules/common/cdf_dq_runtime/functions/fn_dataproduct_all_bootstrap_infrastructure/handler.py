@@ -234,14 +234,24 @@ def _write_settings_with_overrides(
         if not isinstance(products, list):
             products = []
             settings["external_dataproducts"] = products
-        if not products:
-            products.append({})
-        product = products[0]
-        if isinstance(product, dict):
-            if data.get("dataProductExternalId") is not None:
-                product["external_id"] = data["dataProductExternalId"]
-            if data.get("dataProductVersion") is not None:
-                product["version"] = data["dataProductVersion"]
+        target_id = data.get("dataProductExternalId")
+        target_version = data.get("dataProductVersion")
+        product = None
+        if target_id is not None:
+            product = next(
+                (p for p in products if isinstance(p, dict) and p.get("external_id") == target_id),
+                None,
+            )
+        if product is None:
+            if len(products) == 1 and isinstance(products[0], dict):
+                product = products[0]
+            else:
+                product = {}
+                products.append(product)
+        if target_id is not None:
+            product["external_id"] = target_id
+        if target_version is not None:
+            product["version"] = target_version
     if runtime_credentials is not None:
         settings["runtime_credentials"] = runtime_credentials
 

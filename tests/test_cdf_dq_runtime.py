@@ -638,8 +638,12 @@ def test_print_infrastructure_summary_formats_external_dataproducts(
                 "workflows": [
                     {
                         "workflow_external_id": "wf_all_validate_instances-enterprise-process-industry",
-                        "uniqueness_workflow_external_id": "wf_all_validate_instances-enterprise-process-industry-uniqueness",
-                        "edge_existence_workflow_external_id": "wf_all_validate_instances-enterprise-process-industry-edge-existence",
+                        "uniqueness_workflow_external_id": (
+                            "wf_all_validate_instances-enterprise-process-industry-uniqueness"
+                        ),
+                        "edge_existence_workflow_external_id": (
+                            "wf_all_validate_instances-enterprise-process-industry-edge-existence"
+                        ),
                     }
                 ],
             }
@@ -990,8 +994,9 @@ def test_write_settings_overrides_preserve_other_external_dataproducts(
         override_path.unlink(missing_ok=True)
 
     assert loaded["external_dataproducts"] == [
-        {"external_id": "dp-override", "version": "3.0.0"},
+        {"external_id": "dp-primary", "version": "1.0.0"},
         {"external_id": "dp-secondary", "version": "2.0.0"},
+        {"external_id": "dp-override", "version": "3.0.0"},
     ]
 
 
