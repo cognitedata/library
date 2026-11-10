@@ -198,9 +198,16 @@ def _write_settings_with_overrides(
     if runtime_credentials is not None:
         settings["runtime_credentials"] = runtime_credentials
 
-    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".yaml", encoding="utf-8") as tmp:
-        yaml.safe_dump(settings, tmp, sort_keys=False)
-        return Path(tmp.name)
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".yaml", encoding="utf-8") as tmp:
+            tmp_path = Path(tmp.name)
+            yaml.safe_dump(settings, tmp, sort_keys=False)
+            return tmp_path
+    except Exception:
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
+        raise
 
 
 def handle(data: dict[str, Any], client: "CogniteClient", secrets: dict[str, str] | None = None) -> dict[str, object]:
