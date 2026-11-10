@@ -3,7 +3,7 @@ externalId: fn_dataproduct_all_bootstrap_infrastructure
 owner: Anonymous
 description: Bootstraps Data Quality Validation infrastructure from the pinned PyPI package.
 functionPath: handler.py
-runtime: py312
+runtime: py313
 space: {{ dataQualitySpace }}
 # Required for workflow trigger upsert (data_product_sync). Schedule auth alone yields a
 # token client without client_id/client_secret; the handler maps these into settings.runtime_credentials.

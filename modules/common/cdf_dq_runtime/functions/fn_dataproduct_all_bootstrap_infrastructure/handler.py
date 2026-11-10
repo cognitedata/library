@@ -128,6 +128,10 @@ class _CredentialsWithClientSecret:
     token-only, so overlay Function secrets while keeping the original provider for API calls.
     """
 
+    _base: object
+    client_id: str
+    client_secret: str
+
     __slots__ = ("_base", "client_id", "client_secret")
 
     def __init__(self, base: object, client_id: str, client_secret: str) -> None:
