@@ -153,6 +153,15 @@ describe("CDF 429 / transient retry", () => {
 		);
 	});
 
+	it("C35: caps a one-hour Retry-After at 30 seconds", () => {
+		expect(readRetryAfterMs({ headers: { "Retry-After": "3600" } })).toBe(
+			30_000
+		);
+		expect(
+			computeRetryDelayMs(0, { retryAfterMs: 3_600_000, random: () => 0 })
+		).toBe(30_000);
+	});
+
 	it("honors Retry-After before applying jitter", () => {
 		expect(
 			computeRetryDelayMs(0, { retryAfterMs: 1000, random: () => 0.4 })

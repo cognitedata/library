@@ -5,14 +5,24 @@
 import { logError } from "./logger";
 
 /**
- * Copy text to the clipboard. Uses the modern Clipboard API with a
- * `document.execCommand` fallback for environments that don't support it.
+ * Copy text to the clipboard. Uses the Clipboard API first, then
+ * `document.execCommand` when that API is missing or rejected.
  */
 export async function copyToClipboard(text: string): Promise<void> {
-	// Always use fallback method in restrictive environments like Fusion/Flows iframes
-	// where permissions policies may block the modern Clipboard API
+	if (navigator.clipboard?.writeText) {
+		try {
+			await navigator.clipboard.writeText(text);
+			return;
+		} catch (error) {
+			logError({
+				scope: "clipboard",
+				message: "Clipboard API rejected the write; trying execCommand",
+				cause: error,
+			});
+		}
+	}
+
 	try {
-		// Enhanced fallback method using document.execCommand
 		const el = document.createElement("textarea");
 		el.value = text;
 		el.style.position = "fixed";
@@ -22,7 +32,6 @@ export async function copyToClipboard(text: string): Promise<void> {
 		el.setAttribute("readonly", "");
 		document.body.appendChild(el);
 
-		// Focus and select the text
 		el.focus();
 		el.select();
 		el.setSelectionRange(0, el.value.length);

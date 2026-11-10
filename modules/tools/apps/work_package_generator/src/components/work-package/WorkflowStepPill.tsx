@@ -27,13 +27,17 @@ export function WorkflowStep({
 	const isActive =
 		activeStep !== undefined ? activeStep === stepIndex : isCurrent;
 
+	const isDisabled = !onStepClick || (!isVertical && !completed && !isCurrent);
+
 	return (
 		<li key={stepIndex} className={isVertical ? "w-full" : undefined}>
 			<button
 				type="button"
 				onClick={() => onStepClick?.(stepIndex)}
+				disabled={isDisabled}
+				aria-disabled={isDisabled}
 				aria-current={isActive ? "step" : undefined}
-				aria-label={`${label}${completed ? ", completed" : isCurrent ? ", current step" : ", pending"}`}
+				aria-label={`${label}, ${isActive ? "current step" : completed ? "completed" : "pending"}`}
 				className={cn(
 					"inline-flex items-center gap-2 text-xs font-medium transition-all",
 					"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",

@@ -46,14 +46,12 @@ describe(useCopyCanvasLink.name, () => {
 		expect(result.current.copied).toBe(false);
 	});
 
-	it("should offer a manual copy dialog when clipboard write fails and the user confirms", async () => {
+	it("C32: shows the link in the manual copy dialog when clipboard write fails", async () => {
 		const copyText = vi.fn(() => Promise.reject(new Error("blocked")));
-		const confirm = vi.fn(() => true);
 		const showManualCopy = vi.fn();
 		const { result } = renderHook(() =>
 			useCopyCanvasLink("https://example.test/c", {
 				copyText,
-				confirm,
 				showManualCopy,
 			})
 		);
@@ -62,28 +60,7 @@ describe(useCopyCanvasLink.name, () => {
 			await result.current.copyLink();
 		});
 
-		expect(confirm).toHaveBeenCalled();
 		expect(showManualCopy).toHaveBeenCalledWith("https://example.test/c");
-		expect(result.current.copied).toBe(false);
-	});
-
-	it("should not show a manual dialog when the user cancels after copy failure", async () => {
-		const copyText = vi.fn(() => Promise.reject(new Error("blocked")));
-		const confirm = vi.fn(() => false);
-		const showManualCopy = vi.fn();
-		const { result } = renderHook(() =>
-			useCopyCanvasLink("https://example.test/c", {
-				copyText,
-				confirm,
-				showManualCopy,
-			})
-		);
-
-		await act(async () => {
-			await result.current.copyLink();
-		});
-
-		expect(showManualCopy).not.toHaveBeenCalled();
 		expect(result.current.copied).toBe(false);
 	});
 
@@ -134,7 +111,6 @@ describe(useCopyCanvasLink.name, () => {
 		const { result } = renderHook(() =>
 			useCopyCanvasLink("https://example.test/c", {
 				copyText,
-				confirm: () => true,
 			})
 		);
 
@@ -158,7 +134,6 @@ describe(useCopyCanvasLink.name, () => {
 		const { result } = renderHook(() =>
 			useCopyCanvasLink(canvasLink, {
 				copyText,
-				confirm: () => true,
 			})
 		);
 
@@ -178,7 +153,6 @@ describe(useCopyCanvasLink.name, () => {
 		const { result } = renderHook(() =>
 			useCopyCanvasLink("https://example.test/c", {
 				copyText,
-				confirm: () => true,
 			})
 		);
 
@@ -195,7 +169,7 @@ describe(useCopyCanvasLink.name, () => {
 		expect(document.querySelector("#manual-copy-text")).toBeNull();
 	});
 
-	it("should not open the default dialog when the user cancels confirm", async () => {
+	it("C32: opens the manual copy dialog without window.confirm when copy fails", async () => {
 		const copyText = vi.fn(() => Promise.reject(new Error("blocked")));
 		window.confirm = vi.fn(() => false);
 		const { result } = renderHook(() =>
@@ -206,8 +180,11 @@ describe(useCopyCanvasLink.name, () => {
 			await result.current.copyLink();
 		});
 
-		expect(window.confirm).toHaveBeenCalled();
-		expect(document.querySelector("#manual-copy-text")).toBeNull();
+		expect(window.confirm).not.toHaveBeenCalled();
+		const textarea = document.querySelector(
+			"#manual-copy-text"
+		) as HTMLTextAreaElement | null;
+		expect(textarea?.value).toBe("https://example.test/c");
 		expect(result.current.copied).toBe(false);
 	});
 });

@@ -21,6 +21,8 @@ const DEFAULT_MAX_RETRIES = 5;
 const DEFAULT_BASE_DELAY_MS = 250;
 const DEFAULT_MAX_DELAY_MS = 8_000;
 const RETRY_AFTER_JITTER_MS = 250;
+/** A Retry-After of 3600 must not stall a request for an hour. */
+const MAX_RETRY_AFTER_MS = 30_000;
 
 export type CdfRetryOptions = {
 	maxRetries?: number;
@@ -78,11 +80,11 @@ export function readRetryAfterMs(error: unknown): number | undefined {
 
 	const asSeconds = Number(raw);
 	if (Number.isFinite(asSeconds) && asSeconds >= 0) {
-		return asSeconds * 1000;
+		return Math.min(asSeconds * 1000, MAX_RETRY_AFTER_MS);
 	}
 	const asDate = Date.parse(raw);
 	if (!Number.isNaN(asDate)) {
-		return Math.max(0, asDate - Date.now());
+		return Math.min(MAX_RETRY_AFTER_MS, Math.max(0, asDate - Date.now()));
 	}
 	return undefined;
 }
@@ -108,7 +110,8 @@ export function computeRetryDelayMs(
 ): number {
 	const random = options.random ?? Math.random;
 	if (options.retryAfterMs !== undefined && options.retryAfterMs >= 0) {
-		return options.retryAfterMs + Math.floor(random() * RETRY_AFTER_JITTER_MS);
+		const capped = Math.min(options.retryAfterMs, MAX_RETRY_AFTER_MS);
+		return capped + Math.floor(random() * RETRY_AFTER_JITTER_MS);
 	}
 	const base = options.baseDelayMs ?? DEFAULT_BASE_DELAY_MS;
 	const max = options.maxDelayMs ?? DEFAULT_MAX_DELAY_MS;

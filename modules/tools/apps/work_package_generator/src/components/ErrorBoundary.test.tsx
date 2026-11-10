@@ -25,7 +25,8 @@ describe("ErrorBoundary", () => {
 			</ErrorBoundary>
 		);
 		expect(screen.getByRole("alert")).toHaveTextContent("Something went wrong");
-		expect(screen.getByText("boom")).toBeInTheDocument();
+		expect(screen.getByRole("alert")).toHaveTextContent("Try again");
+		expect(screen.queryByText("boom")).not.toBeInTheDocument();
 		fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 		errSpy.mockRestore();
 	});

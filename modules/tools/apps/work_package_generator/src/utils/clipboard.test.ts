@@ -6,10 +6,7 @@ describe("copyToClipboard", () => {
 		vi.unstubAllGlobals();
 	});
 
-	it("uses execCommand even when navigator.clipboard is available", async () => {
-		// copyToClipboard always uses the execCommand fallback (works inside
-		// Fusion/Flows iframes where the Permissions-Policy may block the async
-		// Clipboard API).
+	it("C32: uses the Clipboard API before execCommand", async () => {
 		const writeText = vi.fn().mockResolvedValue(undefined);
 		vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
 
@@ -32,8 +29,8 @@ describe("copyToClipboard", () => {
 
 		await copyToClipboard("hello");
 
-		expect(execSpy).toHaveBeenCalledWith("copy");
-		expect(writeText).not.toHaveBeenCalled();
+		expect(writeText).toHaveBeenCalledWith("hello");
+		expect(execSpy).not.toHaveBeenCalled();
 
 		createSpy.mockRestore();
 		appendSpy.mockRestore();
@@ -42,7 +39,30 @@ describe("copyToClipboard", () => {
 		Reflect.deleteProperty(document, "execCommand");
 	});
 
+	it("C32: falls back to execCommand when the Clipboard API rejects", async () => {
+		const writeText = vi.fn().mockRejectedValue(new Error("blocked"));
+		vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+
+		const textarea = document.createElement("textarea");
+		vi.spyOn(textarea, "select").mockImplementation(() => {});
+		vi.spyOn(document, "createElement").mockReturnValue(textarea);
+		vi.spyOn(document.body, "appendChild").mockImplementation((n) => n);
+		vi.spyOn(document.body, "removeChild").mockImplementation((n) => n);
+		const execSpy = vi.fn().mockReturnValue(true);
+		Object.defineProperty(document, "execCommand", {
+			value: execSpy,
+			configurable: true,
+		});
+
+		await copyToClipboard("fallback");
+
+		expect(writeText).toHaveBeenCalledWith("fallback");
+		expect(execSpy).toHaveBeenCalledWith("copy");
+		Reflect.deleteProperty(document, "execCommand");
+	});
+
 	it("throws when execCommand returns false (copy not permitted)", async () => {
+		vi.stubGlobal("navigator", { ...navigator, clipboard: undefined });
 		const textarea = document.createElement("textarea");
 		vi.spyOn(textarea, "select").mockImplementation(() => {});
 		vi.spyOn(document, "createElement").mockReturnValue(textarea);
