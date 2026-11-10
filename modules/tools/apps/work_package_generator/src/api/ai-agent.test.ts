@@ -10,10 +10,12 @@ import {
 import { cdfClientTestDouble } from "@/__mocks__/cdf-client-test-double";
 import { installInlineApiRuntime } from "@/__mocks__/inline-api-runtime";
 import {
+	type AiSelectionResult,
 	aiSelectBestCanvasTemplate,
 	aiSelectResource,
 	getOrCreateAgent,
 	queryAiForSelection,
+	selectionIdFromResult,
 } from "./ai-agent";
 import { patchApiRuntimeDeps } from "./runtime-deps";
 
@@ -102,43 +104,238 @@ describe("ai-agent", () => {
 				"Failed to get or create agent"
 			);
 		});
+
+		it("N17: creates the agent only when retrieve returns 404", async () => {
+			cdfApiFetch
+				.mockResolvedValueOnce({ ok: false, status: 404 })
+				.mockResolvedValueOnce({ ok: true, status: 201 });
+			await expect(getOrCreateAgent(client, "proj")).resolves.toBe(
+				"proj_work_package_generator_helper_agent"
+			);
+			expect(cdfApiFetch).toHaveBeenCalledTimes(2);
+		});
+
+		it("N17: does not create the agent on 401, 403, or 500", async () => {
+			for (const status of [401, 403, 500]) {
+				cdfApiFetch.mockReset();
+				cdfApiFetch.mockResolvedValueOnce({ ok: false, status });
+				await expect(getOrCreateAgent(client, "proj")).rejects.toThrow(
+					String(status)
+				);
+				expect(cdfApiFetch).toHaveBeenCalledTimes(1);
+			}
+		});
+
+		it("B-D2: updates the agent and logs the config diff", async () => {
+			const config = createMockAppConfig();
+			config.agent = { ...config.agent, model: "configured-model" };
+			const logError = vi.fn();
+			patchApiRuntimeDeps({ cdfApiFetch, parseJsonResponse, logError });
+			cdfApiFetch
+				.mockResolvedValueOnce({ ok: true, status: 200 })
+				.mockResolvedValueOnce({ ok: true, status: 200 });
+			parseJsonResponse.mockResolvedValueOnce({
+				items: [
+					{
+						externalId: "proj_work_package_generator_helper_agent",
+						model: "live-model",
+						runtimeVersion: config.agent.runtimeVersion,
+						instructions: config.agent.instructions,
+						tools: config.agent.tools,
+					},
+				],
+			});
+			await expect(getOrCreateAgent(client, "proj", config)).resolves.toBe(
+				"proj_work_package_generator_helper_agent"
+			);
+			expect(cdfApiFetch).toHaveBeenCalledTimes(2);
+			const updateCall = cdfApiFetch.mock.calls[1];
+			if (!updateCall) throw new Error("Expected an agent update call");
+			expect(String(updateCall[1])).toContain("/ai/agents/update");
+			const body = JSON.parse((updateCall[2] as { body: string }).body) as {
+				items: Array<{ model: string }>;
+			};
+			expect(body.items[0]?.model).toBe("configured-model");
+			expect(logError).toHaveBeenCalledWith(
+				expect.objectContaining({
+					scope: "ai-agent.syncAgentConfig",
+					context: expect.objectContaining({
+						model: { from: "live-model", to: "configured-model" },
+					}),
+				})
+			);
+		});
+
+		it("B-D2: keeps the existing agent when the update is forbidden", async () => {
+			const config = createMockAppConfig();
+			config.agent = { ...config.agent, instructions: "updated instructions" };
+			const logError = vi.fn();
+			patchApiRuntimeDeps({ cdfApiFetch, parseJsonResponse, logError });
+			cdfApiFetch
+				.mockResolvedValueOnce({ ok: true, status: 200 })
+				.mockResolvedValueOnce({ ok: false, status: 403 });
+			parseJsonResponse.mockResolvedValueOnce({
+				items: [
+					{
+						externalId: "proj_work_package_generator_helper_agent",
+						model: config.agent.model,
+						runtimeVersion: config.agent.runtimeVersion,
+						instructions: "old instructions",
+						tools: [],
+					},
+				],
+			});
+			await expect(getOrCreateAgent(client, "proj", config)).resolves.toBe(
+				"proj_work_package_generator_helper_agent"
+			);
+			expect(logError).toHaveBeenCalledWith(
+				expect.objectContaining({
+					message: expect.stringMatching(/403/),
+				})
+			);
+		});
 	});
 
 	describe("queryAiForSelection", () => {
-		it("returns null when not ok", async () => {
-			cdfApiFetch.mockResolvedValueOnce({ ok: false, statusText: "x" });
-			await expect(
-				queryAiForSelection(client, "p", "agent", "prompt")
-			).resolves.toBeNull();
+		it("C16: returns an error result with the HTTP status", async () => {
+			cdfApiFetch.mockResolvedValueOnce({
+				ok: false,
+				status: 400,
+				statusText: "Bad Request",
+			});
+			const result = await queryAiForSelection(client, "p", "agent", "prompt", [
+				"id-1",
+			]);
+			expect(result).toEqual({
+				kind: "error",
+				status: 400,
+				retryable: false,
+			});
+			expect(JSON.stringify(result)).not.toContain("Bad Request");
+			expect(selectionIdFromResult(result)).toBeNull();
 		});
 
 		it("extracts text from nested response.messages", async () => {
-			cdfApiFetch.mockResolvedValueOnce({ ok: true });
+			cdfApiFetch.mockResolvedValueOnce({ ok: true, status: 200 });
 			parseJsonResponse.mockResolvedValueOnce({
 				response: {
 					messages: [{ role: "assistant", content: { text: "  id-1  " } }],
 				},
 			});
-			await expect(queryAiForSelection(client, "p", "a", "pr")).resolves.toBe(
-				"id-1"
-			);
+			await expect(
+				queryAiForSelection(client, "p", "a", "pr", ["id-1"])
+			).resolves.toEqual({ kind: "match", id: "id-1" });
 		});
 
 		it("handles flat messages and string content", async () => {
-			cdfApiFetch.mockResolvedValueOnce({ ok: true });
+			cdfApiFetch.mockResolvedValueOnce({ ok: true, status: 200 });
 			parseJsonResponse.mockResolvedValueOnce({
 				messages: [{ role: "assistant", content: "plain" }],
 			});
-			await expect(queryAiForSelection(client, "p", "a", "pr")).resolves.toBe(
-				"plain"
-			);
+			await expect(
+				queryAiForSelection(client, "p", "a", "pr", ["plain"])
+			).resolves.toEqual({ kind: "match", id: "plain" });
 		});
 
-		it("returns null on error", async () => {
+		it("C16: returns an error result when the request throws", async () => {
 			cdfApiFetch.mockRejectedValueOnce(new Error("e"));
+			const result = await queryAiForSelection(client, "p", "a", "pr", [
+				"id-1",
+			]);
+			expect(result).toEqual({ kind: "error", status: 0, retryable: true });
+			expect(selectionIdFromResult(result)).toBeNull();
+		});
+
+		it("C16: selectionIdFromResult returns only a match id", () => {
+			const match: AiSelectionResult = { kind: "match", id: "abc" };
+			const none: AiSelectionResult = { kind: "none" };
+			expect(selectionIdFromResult(match)).toBe("abc");
+			expect(selectionIdFromResult(none)).toBeNull();
+		});
+
+		it("C17: extracts one id from bold, ID prefix, or fenced JSON", async () => {
+			const candidates = ["pump-a", "valve-b"];
+			const replies = [
+				"Use **pump-a** for this work order.",
+				"ID: valve-b",
+				'```json\n{"externalId":"pump-a"}\n```',
+			];
+			for (const content of replies) {
+				cdfApiFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+				parseJsonResponse.mockResolvedValueOnce({
+					messages: [{ role: "assistant", content }],
+				});
+			}
 			await expect(
-				queryAiForSelection(client, "p", "a", "pr")
-			).resolves.toBeNull();
+				queryAiForSelection(client, "p", "a", "pr", candidates)
+			).resolves.toEqual({ kind: "match", id: "pump-a" });
+			await expect(
+				queryAiForSelection(client, "p", "a", "pr", candidates)
+			).resolves.toEqual({ kind: "match", id: "valve-b" });
+			await expect(
+				queryAiForSelection(client, "p", "a", "pr", candidates)
+			).resolves.toEqual({ kind: "match", id: "pump-a" });
+		});
+
+		it("C17: rejects a hallucinated id and more than one candidate id", async () => {
+			cdfApiFetch.mockResolvedValue({ ok: true, status: 200 });
+			parseJsonResponse.mockResolvedValueOnce({
+				messages: [{ role: "assistant", content: "ID: not-a-candidate" }],
+			});
+			await expect(
+				queryAiForSelection(client, "p", "a", "pr", ["pump-a"])
+			).resolves.toEqual({ kind: "none" });
+
+			parseJsonResponse.mockResolvedValueOnce({
+				messages: [
+					{ role: "assistant", content: "Either **pump-a** or **valve-b**." },
+				],
+			});
+			await expect(
+				queryAiForSelection(client, "p", "a", "pr", ["pump-a", "valve-b"])
+			).resolves.toEqual({ kind: "none" });
+		});
+
+		it("N17: retries 429 and 503 with backoff", async () => {
+			vi.useFakeTimers();
+			cdfApiFetch
+				.mockResolvedValueOnce({ ok: false, status: 429, statusText: "Slow" })
+				.mockResolvedValueOnce({ ok: false, status: 503, statusText: "Down" })
+				.mockResolvedValueOnce({ ok: true, status: 200 });
+			parseJsonResponse.mockResolvedValueOnce({
+				messages: [{ role: "assistant", content: "id-1" }],
+			});
+			const pending = queryAiForSelection(client, "p", "a", "pr", ["id-1"]);
+			await vi.runAllTimersAsync();
+			await expect(pending).resolves.toEqual({ kind: "match", id: "id-1" });
+			expect(cdfApiFetch).toHaveBeenCalledTimes(3);
+			vi.useRealTimers();
+		});
+
+		it("N17: runs slot calls one at a time", async () => {
+			let releaseFirst: () => void = () => undefined;
+			const gate = new Promise<void>((resolve) => {
+				releaseFirst = resolve;
+			});
+			let started = 0;
+			cdfApiFetch.mockImplementation(async () => {
+				started += 1;
+				if (started === 1) await gate;
+				return { ok: true, status: 200 };
+			});
+			parseJsonResponse.mockResolvedValue({
+				messages: [{ role: "assistant", content: "id-1" }],
+			});
+			const first = queryAiForSelection(client, "p", "a", "pr", ["id-1"]);
+			const second = queryAiForSelection(client, "p", "a", "pr", ["id-1"]);
+			await Promise.resolve();
+			expect(started).toBe(1);
+			releaseFirst();
+			await expect(Promise.all([first, second])).resolves.toEqual([
+				{ kind: "match", id: "id-1" },
+				{ kind: "match", id: "id-1" },
+			]);
+			expect(started).toBe(2);
 		});
 	});
 
@@ -203,6 +400,43 @@ describe("ai-agent", () => {
 				new Set()
 			);
 			expect(sel?.externalId).toBe("r1");
+		});
+
+		it("C17: ranks and caps the prompt at about 100 candidates", async () => {
+			const instances = Array.from({ length: 120 }, (_, index) => ({
+				externalId: `res-${String(index).padStart(3, "0")}`,
+				space: "s",
+				name: "Generic",
+				description: "d",
+				properties: {},
+			}));
+			const ranked = instances[119];
+			if (!ranked) throw new Error("Expected a ranked candidate");
+			ranked.name = "Boiler overhaul specialist";
+			cdfApiFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+			parseJsonResponse.mockResolvedValueOnce({
+				messages: [{ role: "assistant", content: ranked.externalId }],
+			});
+			const sel = await aiSelectResource(
+				client,
+				"p",
+				"a",
+				instances,
+				"file",
+				"lbl",
+				{ workOrder: { externalId: "w", space: "s", name: "Boiler overhaul" } },
+				new Set()
+			);
+			expect(sel?.externalId).toBe(ranked.externalId);
+			const call = cdfApiFetch.mock.calls[0];
+			if (!call) throw new Error("Expected a CDF API call");
+			const body = JSON.parse((call[2] as { body: string }).body) as {
+				messages: { content: { text: string } }[];
+			};
+			const prompt = body.messages[0]?.content.text ?? "";
+			expect(prompt).toContain(ranked.externalId);
+			expect(prompt.match(/External ID:/g)?.length).toBe(100);
+			expect(prompt).not.toContain("res-110");
 		});
 
 		it("returns null when AI picks unknown id", async () => {
