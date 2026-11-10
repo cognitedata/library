@@ -1,5 +1,6 @@
 """Bootstrap Data Quality Validation infrastructure from the released package."""
 
+import logging
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -11,6 +12,7 @@ from cognite_data_quality import deploy_validation_infrastructure
 if TYPE_CHECKING:
     from cognite.client import CogniteClient
 
+log = logging.getLogger(__name__)
 
 BOOTSTRAP_FUNCTION_EXTERNAL_ID = "fn_dataproduct_all_bootstrap_infrastructure"
 BOOTSTRAP_SCHEDULE_NAME = "fn_dataproduct_all_bootstrap_infrastructure"
@@ -39,28 +41,28 @@ def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
     try:
         function = client.functions.retrieve(external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID)
     except CogniteAPIError as e:
-        print(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | code={e.code}")
+        log.warning(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | code={e.code}")
         return
     except Exception as e:
-        print(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e}")
+        log.warning(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e}")
         return
 
     if function is None:
-        print(f"Bootstrap function not found: {BOOTSTRAP_FUNCTION_EXTERNAL_ID}")
+        log.warning(f"Bootstrap function not found: {BOOTSTRAP_FUNCTION_EXTERNAL_ID}")
         return
 
     function_id = function.id
     try:
         schedules = client.functions.schedules.list(function_id=function_id, limit=None)
     except CogniteAPIError as e:
-        print(f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={e.code}")
+        log.warning(f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={e.code}")
         return
     except Exception as e:
-        print(f"Failed to list bootstrap schedules for function_id={function_id}: {e}")
+        log.warning(f"Failed to list bootstrap schedules for function_id={function_id}: {e}")
         return
 
     if not schedules:
-        print(f"No bootstrap schedules found for {BOOTSTRAP_FUNCTION_EXTERNAL_ID} (function_id={function_id})")
+        log.info(f"No bootstrap schedules found for {BOOTSTRAP_FUNCTION_EXTERNAL_ID} (function_id={function_id})")
         return
 
     for schedule in schedules:
@@ -68,11 +70,13 @@ def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
         schedule_name = schedule.name or ""
         try:
             client.functions.schedules.delete(id=schedule_id)
-            print(f"Deleted bootstrap schedule id={schedule_id} name={schedule_name}")
+            log.info(f"Deleted bootstrap schedule id={schedule_id} name={schedule_name}")
         except CogniteAPIError as e:
-            print(f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e} | code={e.code}")
+            log.warning(
+                f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e} | code={e.code}"
+            )
         except Exception as e:
-            print(f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e}")
+            log.warning(f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e}")
 
 
 def _credential_pair(
