@@ -12,7 +12,7 @@ class FunctionInput(BaseModel):
     bundle). Defaults match ``default.config.yaml`` so local calls with ``{}`` still work.
     """
 
-    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    model_config: ConfigDict = ConfigDict(populate_by_name=True, extra="ignore")
 
     force: bool = False
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(default="INFO", alias="logLevel")
@@ -51,6 +51,6 @@ class FunctionInput(BaseModel):
 class FunctionOutput(BaseModel):
     """Minimal success/failure envelope; package deploy fields are preserved via ``extra``."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config: ConfigDict = ConfigDict(extra="allow")
 
     status: str
