@@ -11,7 +11,7 @@ import yaml
 from cognite.client.exceptions import CogniteAPIError
 from cognite_data_quality import deploy_validation_infrastructure
 
-sys.path.append(str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent))
 
 from logger import CogniteFunctionLogger
 from models import FunctionInput, FunctionOutput
