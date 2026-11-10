@@ -83,4 +83,37 @@ describe("fetchPagesWithItemCap", () => {
 		expect(warn).toHaveBeenCalled();
 		warn.mockRestore();
 	});
+
+	it("C35: stops when the next cursor repeats", async () => {
+		const fetchPage = vi.fn().mockResolvedValue({
+			items: [1],
+			nextCursor: "same",
+		});
+
+		const { items, truncated } = await fetchPagesWithItemCap({
+			maxTotalItems: 100,
+			warnContext: "loop",
+			fetchPage,
+		});
+
+		expect(items).toEqual([1, 1]);
+		expect(truncated).toBe(false);
+		expect(fetchPage).toHaveBeenCalledTimes(2);
+	});
+
+	it("C35: stops when a page is empty", async () => {
+		const fetchPage = vi
+			.fn()
+			.mockResolvedValueOnce({ items: [1], nextCursor: "c1" })
+			.mockResolvedValueOnce({ items: [], nextCursor: "c2" });
+
+		const { items } = await fetchPagesWithItemCap({
+			maxTotalItems: 100,
+			warnContext: "empty",
+			fetchPage,
+		});
+
+		expect(items).toEqual([1]);
+		expect(fetchPage).toHaveBeenCalledTimes(2);
+	});
 });

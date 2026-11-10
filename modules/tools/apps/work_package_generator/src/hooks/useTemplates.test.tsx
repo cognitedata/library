@@ -243,6 +243,27 @@ describe("useAllTemplateSlots", () => {
 		]);
 	});
 
+	it("N15: does not download every template body on app open", async () => {
+		useWorkPackageStore.getState().setTemplateCanvasId("");
+		useWorkPackageStore.getState().setAiSelectedCanvasId(null);
+		const templates = [
+			{
+				externalId: "tx",
+				space: "s",
+				name: "T",
+				visibility: "public" as const,
+			},
+			{
+				externalId: "ty",
+				space: "s",
+				name: "U",
+				visibility: "public" as const,
+			},
+		];
+		renderHook(() => useAllTemplateSlots(templates), { wrapper });
+		await waitFor(() => expect(mockGetInstances).not.toHaveBeenCalled());
+	});
+
 	it("resolves slots per template", async () => {
 		const templates = [
 			{
@@ -252,6 +273,7 @@ describe("useAllTemplateSlots", () => {
 				visibility: "public" as const,
 			},
 		];
+		useWorkPackageStore.getState().setTemplateCanvasId("tx");
 		const { result } = renderHook(() => useAllTemplateSlots(templates), {
 			wrapper,
 		});
@@ -269,6 +291,7 @@ describe("useAllTemplateSlots", () => {
 				visibility: "public" as const,
 			},
 		];
+		useWorkPackageStore.getState().setTemplateCanvasId("tx");
 		const { result } = renderHook(() => useAllTemplateSlots(templates), {
 			wrapper,
 		});
@@ -310,6 +333,7 @@ describe("useAllTemplateSlots", () => {
 				visibility: "public" as const,
 			},
 		];
+		useWorkPackageStore.getState().setTemplateCanvasId("tm");
 		const { result } = renderHook(() => useAllTemplateSlots(templates), {
 			wrapper,
 		});
@@ -340,6 +364,7 @@ describe("useAllTemplateSlots", () => {
 				visibility: "public" as const,
 			},
 		];
+		useWorkPackageStore.getState().setTemplateCanvasId("tm");
 		const { result } = renderHook(() => useAllTemplateSlots(templates), {
 			wrapper,
 		});
@@ -384,6 +409,7 @@ describe("useAllTemplateSlots", () => {
 			},
 			BASE_TEMPLATE_CANVAS,
 		];
+		useWorkPackageStore.getState().setTemplateCanvasId("tx");
 		const { result } = renderHook(() => useAllTemplateSlots(templates), {
 			wrapper,
 		});
@@ -409,6 +435,7 @@ describe("useAllTemplateSlots", () => {
 				visibility: "public" as const,
 			},
 		];
+		useWorkPackageStore.getState().setTemplateCanvasId("tm");
 		const { result } = renderHook(() => useAllTemplateSlots(templates), {
 			wrapper,
 		});

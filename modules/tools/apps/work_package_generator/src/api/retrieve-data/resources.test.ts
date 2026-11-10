@@ -82,11 +82,40 @@ describe("retrieve-data/resources", () => {
 			expect(out[0].externalId).toBe("f1");
 		});
 
-		it("returns [] on fetch error", async () => {
+		it("N13: throws when the asset resource read fails", async () => {
 			query.mockRejectedValueOnce(new Error("fail"));
 			await expect(
 				getAssetResourcesGeneric(client, "a", "s", "file")
-			).resolves.toEqual([]);
+			).rejects.toThrow("fail");
+		});
+
+		it("N11: returns every id match with its space", async () => {
+			const fileKey = `${FILE_VIEW_ID.externalId}/${FILE_VIEW_ID.version}`;
+			query.mockResolvedValueOnce({
+				items: {
+					nodes: [
+						{
+							externalId: "twin",
+							space: "space-a",
+							properties: {
+								[FILE_VIEW_ID.space]: { [fileKey]: { name: "Twin A" } },
+							},
+						},
+						{
+							externalId: "twin",
+							space: "space-b",
+							properties: {
+								[FILE_VIEW_ID.space]: { [fileKey]: { name: "Twin B" } },
+							},
+						},
+					],
+				},
+			});
+			const out = await getAssetResourcesGeneric(client, "a", "s", "file");
+			expect(out).toEqual([
+				expect.objectContaining({ externalId: "twin", space: "space-a" }),
+				expect.objectContaining({ externalId: "twin", space: "space-b" }),
+			]);
 		});
 	});
 
@@ -124,11 +153,11 @@ describe("retrieve-data/resources", () => {
 			expect(JSON.stringify(query.mock.calls[0][0])).toContain("timeSeries");
 		});
 
-		it("returns [] on query error", async () => {
+		it("N13: throws when the activity resource read fails", async () => {
 			query.mockRejectedValueOnce(new Error("query failed"));
 			await expect(
 				getActivityResourcesGeneric(client, "act", "s", "timeseries")
-			).resolves.toEqual([]);
+			).rejects.toThrow("query failed");
 		});
 	});
 });

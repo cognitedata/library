@@ -32,6 +32,7 @@ export async function fetchPagesWithItemCap<T>(options: {
 }): Promise<{ items: T[]; truncated: boolean }> {
 	const items: T[] = [];
 	let cursor: string | undefined;
+	const seenCursors = new Set<string>();
 	let truncated = false;
 
 	const warnTruncated = () => {
@@ -42,8 +43,14 @@ export async function fetchPagesWithItemCap<T>(options: {
 	};
 
 	while (true) {
+		if (cursor) {
+			if (seenCursors.has(cursor)) break;
+			seenCursors.add(cursor);
+		}
+
 		const page = await options.fetchPage(cursor);
 		const batch = page.items ?? [];
+		if (batch.length === 0) break;
 		const room = options.maxTotalItems - items.length;
 
 		if (room <= 0) {
