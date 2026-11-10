@@ -14,7 +14,6 @@ import {
 import {
 	fusionOrganizationFromRuntime,
 	getAppConfig,
-	isBaseTemplateId,
 	useAppConfig,
 } from "../app-config";
 import { useWorkPackageStore } from "../store";
@@ -68,11 +67,7 @@ export function useCanvasCreation() {
 	const {
 		createCanvasFromTemplateAndSelections: createCanvas,
 		updateCanvasFromTemplateAndSelections: updateCanvas,
-		validateCanvasCreation: validateCanvas,
 		generateCanvasLink: generateLink,
-		buildBaseTemplateItems: buildBaseItems,
-		getTemplateCanvasInstances: getTemplateInstances,
-		getTemplateCanvasAnnotations: getTemplateAnnotations,
 		useWorkPackageStore: useStore,
 		useCdfClientInfo: useCdfClient,
 		getOrg,
@@ -132,37 +127,6 @@ export function useCanvasCreation() {
 				);
 			}
 
-			let expectedCount: number;
-			if (isBaseTemplateId(templateCanvasId, appConfig)) {
-				expectedCount = buildBaseItems(
-					config,
-					workOrder,
-					asset,
-					candidatesByType,
-					appConfig
-				).length;
-			} else {
-				const templateInstances = await getTemplateInstances(
-					client,
-					templateCanvasId,
-					appConfig
-				);
-				const templateAnnotations = await getTemplateAnnotations(
-					client,
-					templateCanvasId,
-					appConfig
-				);
-				expectedCount = templateInstances.length + templateAnnotations.length;
-			}
-
-			const validation = await validateCanvas(
-				client,
-				config,
-				canvasId,
-				expectedCount,
-				appConfig
-			);
-
 			const canvasLink = generateLink(
 				canvasId,
 				project,
@@ -174,7 +138,15 @@ export function useCanvasCreation() {
 			return {
 				canvasId,
 				canvasLink,
-				validation,
+				validation: {
+					success: true,
+					canvasExists: true,
+					itemsCount: 0,
+					expectedItemsCount: -1,
+					itemsMatchExpected: true,
+					canvasId,
+					errors: [],
+				},
 				isUpdate: !!existingCanvasId,
 			};
 		},

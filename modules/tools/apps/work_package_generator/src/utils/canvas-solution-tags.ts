@@ -30,11 +30,42 @@ export function solutionTagView(config?: AppConfig): ViewReference {
 	return dataModelView("solutionTag", config);
 }
 
+function isForbidden(error: unknown): boolean {
+	if (!error || typeof error !== "object") return false;
+	return (error as { status?: number }).status === 403;
+}
+
+function isMissingNode(error: unknown): boolean {
+	if (!error || typeof error !== "object") return false;
+	const candidate = error as { status?: number; missing?: unknown };
+	return candidate.status === 400 && Array.isArray(candidate.missing);
+}
+
 export async function ensureWorkPackageSolutionTag(
 	client: CogniteClient,
 	config?: AppConfig
 ): Promise<void> {
 	const tag = resolveAppConfig(config).solutionTag;
+	const view = solutionTagView(config);
+	try {
+		const existing = await cdfTaskRunner.schedule(() =>
+			client.instances.retrieve({
+				items: [
+					{
+						instanceType: "node",
+						space: tag.instanceSpace,
+						externalId: tag.externalId,
+					},
+				],
+				sources: [viewIdToSource(view)],
+			} as Parameters<CogniteClient["instances"]["retrieve"]>[0])
+		);
+		if ((existing.items?.length ?? 0) > 0) return;
+	} catch (error) {
+		if (isForbidden(error)) return;
+		if (!isMissingNode(error)) throw error;
+	}
+
 	await cdfTaskRunner.schedule(() =>
 		client.instances.upsert({
 			items: [
@@ -44,7 +75,7 @@ export async function ensureWorkPackageSolutionTag(
 					externalId: tag.externalId,
 					sources: [
 						{
-							...viewIdToSource(solutionTagView(config)),
+							...viewIdToSource(view),
 							properties: { name: tag.name },
 						},
 					],

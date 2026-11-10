@@ -255,6 +255,19 @@ describe("generateCanvasLink / extractClusterFromUrl", () => {
 		expect(url).toContain("cluster=westeurope-1.cognitedata.com");
 	});
 
+	it("C35: encodes canvas link parts", () => {
+		const url = generateCanvasLink(
+			"id/a b",
+			"proj ect",
+			"west europe-1",
+			"acme"
+		);
+		expect(url).toContain("/proj%20ect/industrial-canvas/canvas?");
+		expect(url).toContain("canvasId=id%2Fa%20b");
+		expect(url).toContain("cluster=west%20europe-1.cognitedata.com");
+		expect(url).toContain("workspace=industrial-tools");
+	});
+
 	it("extracts cluster from base URL", () => {
 		expect(extractClusterFromUrl("https://foo.cognitedata.com")).toBe("foo");
 	});
@@ -340,7 +353,11 @@ function canvasRootProperties(upsert: ReturnType<typeof vi.fn>) {
 		).items;
 		for (const item of items ?? []) {
 			const props = item.sources?.[0]?.properties;
-			if (props && "visibility" in props && "createdBy" in props) {
+			if (
+				props &&
+				"visibility" in props &&
+				("createdBy" in props || "updatedBy" in props)
+			) {
 				return props;
 			}
 		}
@@ -352,7 +369,14 @@ describe("createCanvasFromItems", () => {
 	it("upserts a public canvas owned by the current user with the Work Package tag", async () => {
 		const upsert = vi.fn().mockResolvedValue(undefined);
 		const client = cdfClientTestDouble({
-			instances: { upsert, list: vi.fn(), delete: vi.fn() },
+			instances: {
+				upsert,
+				list: vi.fn(),
+				delete: vi.fn(),
+				retrieve: vi
+					.fn()
+					.mockResolvedValue({ items: [{ externalId: "wpg-work-package" }] }),
+			},
 			profiles: {
 				me: vi.fn().mockResolvedValue({
 					userIdentifier: "principal-123",
@@ -390,10 +414,71 @@ describe("createCanvasFromItems", () => {
 		expect(props?.solutionTags).toEqual([workPackageSolutionTagInstanceRef()]);
 	});
 
+	it("C09: deletes the root, items, and edges already written when a later create batch fails", async () => {
+		const upsert = vi
+			.fn()
+			.mockResolvedValueOnce(undefined)
+			.mockResolvedValueOnce(undefined)
+			.mockRejectedValueOnce(new Error("edge write failed"));
+		const deleteFn = vi.fn().mockResolvedValue(undefined);
+		const client = cdfClientTestDouble({
+			instances: {
+				upsert,
+				list: vi.fn(),
+				delete: deleteFn,
+				retrieve: vi
+					.fn()
+					.mockResolvedValue({ items: [{ externalId: "wpg-work-package" }] }),
+			},
+			profiles: {
+				me: vi.fn().mockResolvedValue({ userIdentifier: "principal-123" }),
+			},
+			getBaseUrl: () => "https://x",
+		});
+
+		await expect(
+			createCanvasFromItems(
+				client,
+				config,
+				"My",
+				buildCanvasItemsFromTemplate(
+					[
+						{
+							label: "Main asset",
+							viewExternalId: "CogniteAsset",
+							viewSpace: "cdf_cdm",
+							viewVersion: "v1",
+							...tmpl,
+						},
+					],
+					[],
+					{},
+					{ assetExternalId: "a", space: "s" },
+					{ externalId: "w", space: "s" },
+					config
+				)
+			)
+		).rejects.toThrow(/edge write failed/);
+
+		const deletedIds = deleteFn.mock.calls.flatMap((call) => {
+			const batch = call[0] as Array<{ externalId: string }>;
+			return batch.map((item) => item.externalId);
+		});
+		expect(deletedIds).toContain("uuid-fixed");
+		expect(deletedIds.some((id) => id.startsWith("uuid-fixed_"))).toBe(true);
+	});
+
 	it("uses profile fallbacks for user id", async () => {
 		const upsert = vi.fn().mockResolvedValue(undefined);
 		const client = cdfClientTestDouble({
-			instances: { upsert, list: vi.fn(), delete: vi.fn() },
+			instances: {
+				upsert,
+				list: vi.fn(),
+				delete: vi.fn(),
+				retrieve: vi
+					.fn()
+					.mockResolvedValue({ items: [{ externalId: "wpg-work-package" }] }),
+			},
 			profiles: {
 				me: vi.fn().mockRejectedValue(new Error("no profile")),
 			},
@@ -477,7 +562,15 @@ describe("createCanvasFromTemplateAndSelections / updateCanvasFromTemplateAndSel
 			nextCursor: {},
 		});
 		const client = cdfClientTestDouble({
-			instances: { upsert, list, query, delete: vi.fn() },
+			instances: {
+				upsert,
+				list,
+				query,
+				delete: vi.fn(),
+				retrieve: vi
+					.fn()
+					.mockResolvedValue({ items: [{ externalId: "wpg-work-package" }] }),
+			},
 			profiles: { me: vi.fn().mockResolvedValue({ displayName: "u" }) },
 			getBaseUrl: () => "https://x",
 		});
@@ -500,7 +593,14 @@ describe("createCanvasFromTemplateAndSelections / updateCanvasFromTemplateAndSel
 	it("routes sentinel id to base template builder without fetching template", async () => {
 		const upsert = vi.fn().mockResolvedValue(undefined);
 		const client = cdfClientTestDouble({
-			instances: { upsert, list: vi.fn(), delete: vi.fn() },
+			instances: {
+				upsert,
+				list: vi.fn(),
+				delete: vi.fn(),
+				retrieve: vi
+					.fn()
+					.mockResolvedValue({ items: [{ externalId: "wpg-work-package" }] }),
+			},
 			profiles: { me: vi.fn().mockResolvedValue({ displayName: "u" }) },
 			getBaseUrl: () => "https://x",
 		});
@@ -557,7 +657,7 @@ describe("updateCanvasFromTemplateAndSelections", () => {
 		getTemplateCanvasAnnotations.mockReset();
 	});
 
-	it("cleans content then upserts", async () => {
+	it("C09: writes new items before deleting the previous ones", async () => {
 		getTemplateCanvasInstances.mockResolvedValue([
 			{
 				label: "Main asset",
@@ -569,17 +669,70 @@ describe("updateCanvasFromTemplateAndSelections", () => {
 		]);
 		getTemplateCanvasAnnotations.mockResolvedValue([]);
 
-		const upsert = vi.fn().mockResolvedValue(undefined);
+		const calls: string[] = [];
+		const upsert = vi.fn().mockImplementation(async () => {
+			calls.push("upsert");
+		});
 		const list = vi
 			.fn()
 			.mockResolvedValue({ items: [], nextCursor: undefined });
-		const query = vi.fn().mockResolvedValue({
-			items: { nodes: [], edges: [] },
-			nextCursor: {},
+		const query = vi.fn().mockImplementation(async () => {
+			calls.push("query");
+			return {
+				items: {
+					nodes: [
+						{
+							externalId: "existing-id_old",
+							space: config.canvasSpaceInstance,
+						},
+					],
+					edges: [
+						{
+							externalId: "existing-id_existing-id_old",
+							space: config.canvasSpaceInstance,
+						},
+					],
+				},
+				nextCursor: {},
+			};
 		});
-		const deleteFn = vi.fn().mockResolvedValue(undefined);
+		const deleteFn = vi.fn().mockImplementation(async () => {
+			calls.push("delete");
+		});
+		const retrieve = vi
+			.fn()
+			.mockImplementation(
+				async (request: { items?: Array<{ externalId?: string }> }) => {
+					const externalId = request.items?.[0]?.externalId;
+					if (externalId === "existing-id") {
+						return {
+							items: [
+								{
+									externalId,
+									space: config.canvasSpaceInstance,
+									properties: {
+										cdf_industrial_canvas: {
+											"Canvas/v7": {
+												visibility: "private",
+												createdBy: "owner-1",
+												solutionTags: [
+													{
+														space: "SolutionTagsInstanceSpace",
+														externalId: "user-label",
+													},
+												],
+											},
+										},
+									},
+								},
+							],
+						};
+					}
+					return { items: [{ externalId }] };
+				}
+			);
 		const client = cdfClientTestDouble({
-			instances: { upsert, list, query, delete: deleteFn },
+			instances: { upsert, list, query, delete: deleteFn, retrieve },
 			profiles: { me: vi.fn().mockResolvedValue({ displayName: "u" }) },
 			getBaseUrl: () => "https://x",
 		});
@@ -598,7 +751,157 @@ describe("updateCanvasFromTemplateAndSelections", () => {
 			templateReads
 		);
 		expect(id).toBe("existing-id");
-		expect(query).toHaveBeenCalled();
-		expect(upsert).toHaveBeenCalled();
+		const firstDelete = calls.indexOf("delete");
+		const firstUpsert = calls.indexOf("upsert");
+		expect(firstUpsert).toBeGreaterThanOrEqual(0);
+		expect(firstDelete).toBeGreaterThan(firstUpsert);
+		const deletedIds = deleteFn.mock.calls.flatMap((call) => {
+			const batch = call[0] as Array<{ externalId: string }>;
+			return batch.map((item) => item.externalId);
+		});
+		expect(deletedIds).toContain("existing-id_old");
+		expect(deletedIds).not.toContain("existing-id");
+	});
+
+	it("C09: keeps the previous canvas when writing the replacement fails", async () => {
+		getTemplateCanvasInstances.mockResolvedValue([
+			{
+				label: "Main asset",
+				viewExternalId: "CogniteAsset",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+		]);
+		getTemplateCanvasAnnotations.mockResolvedValue([]);
+
+		const upsert = vi.fn().mockRejectedValue(new Error("write failed"));
+		const deleteFn = vi.fn().mockResolvedValue(undefined);
+		const query = vi.fn().mockResolvedValue({
+			items: {
+				nodes: [
+					{
+						externalId: "existing-id_old",
+						space: config.canvasSpaceInstance,
+					},
+				],
+				edges: [],
+			},
+			nextCursor: {},
+		});
+		const client = cdfClientTestDouble({
+			instances: {
+				upsert,
+				list: vi.fn(),
+				query,
+				delete: deleteFn,
+				retrieve: vi.fn().mockResolvedValue({ items: [{ externalId: "tag" }] }),
+			},
+			profiles: { me: vi.fn().mockResolvedValue({ displayName: "u" }) },
+			getBaseUrl: () => "https://x",
+		});
+
+		await expect(
+			updateCanvasFromTemplateAndSelections(
+				client,
+				config,
+				"existing-id",
+				"Renamed",
+				"tpl",
+				{},
+				{ assetExternalId: "a", space: "s" },
+				{ externalId: "w", space: "s" },
+				{},
+				undefined,
+				templateReads
+			)
+		).rejects.toThrow(/write failed/);
+		const deletedIds = deleteFn.mock.calls.flatMap((call) => {
+			const batch = call[0] as Array<{ externalId: string }>;
+			return batch.map((item) => item.externalId);
+		});
+		expect(deletedIds).not.toContain("existing-id_old");
+	});
+
+	it("C18: keeps visibility and merges solution tags on update", async () => {
+		getTemplateCanvasInstances.mockResolvedValue([
+			{
+				label: "Main asset",
+				viewExternalId: "CogniteAsset",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+		]);
+		getTemplateCanvasAnnotations.mockResolvedValue([]);
+
+		const upsert = vi.fn().mockResolvedValue(undefined);
+		const query = vi.fn().mockResolvedValue({
+			items: { nodes: [], edges: [] },
+			nextCursor: {},
+		});
+		const retrieve = vi
+			.fn()
+			.mockImplementation(
+				async (request: { items?: Array<{ externalId?: string }> }) => {
+					const externalId = request.items?.[0]?.externalId;
+					if (externalId === "existing-id") {
+						return {
+							items: [
+								{
+									externalId,
+									space: config.canvasSpaceInstance,
+									properties: {
+										cdf_industrial_canvas: {
+											"Canvas/v7": {
+												visibility: "private",
+												solutionTags: [
+													{
+														space: "SolutionTagsInstanceSpace",
+														externalId: "user-label",
+													},
+												],
+											},
+										},
+									},
+								},
+							],
+						};
+					}
+					return { items: [{ externalId }] };
+				}
+			);
+		const client = cdfClientTestDouble({
+			instances: {
+				upsert,
+				list: vi.fn(),
+				query,
+				delete: vi.fn().mockResolvedValue(undefined),
+				retrieve,
+			},
+			profiles: { me: vi.fn().mockResolvedValue({ userIdentifier: "u" }) },
+			getBaseUrl: () => "https://x",
+		});
+
+		await updateCanvasFromTemplateAndSelections(
+			client,
+			config,
+			"existing-id",
+			"Renamed",
+			"tpl",
+			{},
+			{ assetExternalId: "a", space: "s" },
+			{ externalId: "w", space: "s" },
+			{},
+			undefined,
+			templateReads
+		);
+
+		const root = canvasRootProperties(upsert);
+		expect(root?.visibility).toBe("private");
+		expect(root?.solutionTags).toEqual([
+			{ space: "SolutionTagsInstanceSpace", externalId: "user-label" },
+			workPackageSolutionTagInstanceRef(),
+		]);
 	});
 });

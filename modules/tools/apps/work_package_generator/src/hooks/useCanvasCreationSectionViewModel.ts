@@ -9,7 +9,7 @@ import {
 import { getCanvasCreationSubtitle } from "@/components/work-package/canvas-creation/get-canvas-creation-subtitle";
 import type { CanvasResult } from "@/components/work-package/canvas-creation/types";
 import { useCanvasDraftPreview } from "@/hooks/useCanvasDraftPreview";
-import type { AiSelections, TemplateField } from "@/types";
+import type { AiSelections, TemplateField, ValidationResult } from "@/types";
 import { getWorkflowRecoveryHints } from "@/utils";
 
 type CanvasDraftPreviewHook = (
@@ -39,6 +39,8 @@ export type CanvasCreationSectionViewModelInput = {
 	templateFields: TemplateField[];
 	aiSelections: AiSelections;
 	onCreateCanvas: () => void;
+	isCheckingExists?: boolean;
+	recheckCanvasName?: () => Promise<boolean>;
 };
 
 export function useCanvasCreationSectionViewModel({
@@ -48,34 +50,63 @@ export function useCanvasCreationSectionViewModel({
 	templateFields,
 	aiSelections,
 	onCreateCanvas,
+	isCheckingExists = false,
+	recheckCanvasName,
 }: CanvasCreationSectionViewModelInput) {
 	const { useCanvasDraftPreview: useDraftPreview } = useContext(
 		CanvasCreationSectionViewModelContext
 	);
 	const draftPreview = useDraftPreview(isReady);
 	const [existingSaveDialogOpen, setExistingSaveDialogOpen] = useState(false);
-	const isSavedSuccessfully = !!canvasResult?.validation.success;
+	const isSavedSuccessfully = canvasResult != null;
+	const savedResult = useMemo(() => {
+		if (!canvasResult) return undefined;
+		const validation: ValidationResult = {
+			success: true,
+			canvasExists: true,
+			itemsCount: 0,
+			expectedItemsCount: -1,
+			itemsMatchExpected: true,
+			canvasId: canvasResult.canvasId,
+			errors: [],
+		};
+		return { ...canvasResult, validation };
+	}, [canvasResult]);
 
 	const recoveryHints = useMemo(() => {
-		if (!canvasResult) return [];
+		if (!savedResult) return [];
 		return getWorkflowRecoveryHints({
 			templateFields,
 			aiSelections,
-			validation: canvasResult.validation,
+			validation: savedResult.validation,
 		});
-	}, [canvasResult, templateFields, aiSelections]);
+	}, [savedResult, templateFields, aiSelections]);
 
 	useEffect(() => {
 		if (!hasExistingCanvas) setExistingSaveDialogOpen(false);
 	}, [hasExistingCanvas]);
 
 	const handleSaveClick = useCallback(() => {
-		if (hasExistingCanvas) {
-			setExistingSaveDialogOpen(true);
-			return;
-		}
-		onCreateCanvas();
-	}, [hasExistingCanvas, onCreateCanvas]);
+		if (isCheckingExists) return;
+		void (async () => {
+			if (hasExistingCanvas) {
+				setExistingSaveDialogOpen(true);
+				return;
+			}
+			if (recheckCanvasName) {
+				try {
+					const exists = await recheckCanvasName();
+					if (exists) {
+						setExistingSaveDialogOpen(true);
+						return;
+					}
+				} catch {
+					return;
+				}
+			}
+			onCreateCanvas();
+		})();
+	}, [hasExistingCanvas, isCheckingExists, onCreateCanvas, recheckCanvasName]);
 
 	return {
 		draftPreview,
@@ -83,7 +114,7 @@ export function useCanvasCreationSectionViewModel({
 		setExistingSaveDialogOpen,
 		isSavedSuccessfully,
 		recoveryHints,
-		subtitle: getCanvasCreationSubtitle(isReady, canvasResult),
+		subtitle: getCanvasCreationSubtitle(isReady, savedResult),
 		handleSaveClick,
 	};
 }

@@ -121,7 +121,7 @@ describe("useCanvasCreation", () => {
 			await result.current.mutateAsync({ canvasName: "N" });
 		});
 		await waitFor(() => expect(mockCreate).toHaveBeenCalled());
-		expect(mockValidate).toHaveBeenCalled();
+		expect(mockValidate).not.toHaveBeenCalled();
 		expect(mockLink).toHaveBeenCalled();
 	});
 
@@ -181,7 +181,7 @@ describe("useCanvasCreation", () => {
 		});
 	});
 
-	it("counts base-template items without reading a stored template", async () => {
+	it("C11: does not validate the canvas after a base-template save", async () => {
 		useWorkPackageStore.setState({ templateCanvasId: BASE_TEMPLATE_ID });
 		mockBuildBase.mockReturnValue([{ id: "a" }, { id: "b" }]);
 		const { result } = renderHook(() => useCanvasCreation(), {
@@ -192,15 +192,9 @@ describe("useCanvasCreation", () => {
 			expect(created.validation.success).toBe(true);
 			expect(created.isUpdate).toBe(false);
 		});
-		expect(mockBuildBase).toHaveBeenCalled();
+		expect(mockBuildBase).not.toHaveBeenCalled();
 		expect(mockGetInstances).not.toHaveBeenCalled();
-		expect(mockValidate).toHaveBeenCalledWith(
-			expect.anything(),
-			expect.anything(),
-			"new-canvas",
-			2,
-			expect.anything()
-		);
+		expect(mockValidate).not.toHaveBeenCalled();
 	});
 
 	it("requires a CDF client", async () => {
@@ -241,7 +235,7 @@ describe("useCanvasCreation", () => {
 		});
 	});
 
-	it("counts stored template instances and annotations", async () => {
+	it("C11: does not re-read the template to verify an update", async () => {
 		mockGetInstances.mockResolvedValue([{ id: "i1" }, { id: "i2" }]);
 		mockGetAnnotations.mockResolvedValue([{ id: "a1" }]);
 		const { result } = renderHook(() => useCanvasCreation(), {
@@ -253,16 +247,11 @@ describe("useCanvasCreation", () => {
 				existingCanvasId: "ex",
 			});
 			expect(created.isUpdate).toBe(true);
+			expect(created.validation.success).toBe(true);
 		});
-		expect(mockGetInstances).toHaveBeenCalled();
-		expect(mockGetAnnotations).toHaveBeenCalled();
-		expect(mockValidate).toHaveBeenCalledWith(
-			expect.anything(),
-			expect.anything(),
-			"existing",
-			3,
-			expect.anything()
-		);
+		expect(mockGetInstances).not.toHaveBeenCalled();
+		expect(mockGetAnnotations).not.toHaveBeenCalled();
+		expect(mockValidate).not.toHaveBeenCalled();
 		expect(useWorkPackageStore.getState().isLoading).toBe(false);
 	});
 });

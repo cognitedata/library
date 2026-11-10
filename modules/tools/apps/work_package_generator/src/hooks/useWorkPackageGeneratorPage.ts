@@ -384,6 +384,7 @@ export function useWorkPackageGeneratorPage() {
 		canvasResult,
 		onCreateCanvas: canvasForm.onCreateCanvas,
 		onUpdateCanvas: canvasForm.onUpdateCanvas,
+		recheckCanvasName: canvasForm.recheckCanvasName,
 		onCreateAnotherWorkPackage: handleCreateAnotherWorkPackage,
 		onChangeWorkOrder: resetForNewWorkOrder,
 	};

@@ -88,6 +88,6 @@ describe("cleanCanvasContent cleanup limit", () => {
 			)
 		).rejects.toThrow(/cleanup limit/i);
 
-		expect(deleteFn).toHaveBeenCalled();
+		expect(deleteFn).not.toHaveBeenCalled();
 	});
 });

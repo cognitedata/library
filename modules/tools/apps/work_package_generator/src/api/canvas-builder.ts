@@ -42,10 +42,11 @@ import {
 } from "../utils/canvas-item-helpers";
 import {
 	ensureWorkPackageSolutionTag,
+	readSolutionTagsFromRootProperties,
 	withWorkPackageSolutionTag,
 } from "../utils/canvas-solution-tags";
 import { resolveCanvasUserId } from "../utils/canvas-user";
-import { toCdfNode } from "../utils/cdf-helpers";
+import { extractInstanceProperties, toCdfNode } from "../utils/cdf-helpers";
 import { chunk } from "../utils/chunk";
 import { buildBaseTemplateItems } from "./canvas-builder/base-template";
 import {
@@ -204,11 +205,29 @@ export async function createCanvasFromItems(
 		config
 	);
 
-	const nodes = [canvasNode, ...itemNodes];
+	const written: DeleteItem[] = [];
+	try {
+		await upsertTracked(client, [canvasNode], appConfig, written);
+		await upsertTracked(client, itemNodes, appConfig, written);
+		await upsertTracked(client, edges, appConfig, written);
+	} catch (error) {
+		await deleteWrittenInstances(client, written, appConfig);
+		throw error;
+	}
 
-	// Use proper SDK types instead of custom type derivation
+	return canvasId;
+}
+
+type WritableInstance = NodeWrite | EdgeWrite;
+
+async function upsertTracked(
+	client: CogniteClient,
+	items: WritableInstance[],
+	appConfig: AppConfig | undefined,
+	written: DeleteItem[]
+): Promise<void> {
 	for (const batch of chunk(
-		nodes,
+		items,
 		resolveAppConfig(appConfig).limits.upsertBatchSize
 	)) {
 		await resolveApiRuntime().schedule(() =>
@@ -216,36 +235,63 @@ export async function createCanvasFromItems(
 				items: batch as NodeWrite[],
 			})
 		);
+		for (const item of batch) {
+			written.push({
+				instanceType: item.instanceType,
+				space: item.space,
+				externalId: item.externalId,
+			});
+		}
 	}
-	for (const batch of chunk(
-		edges,
-		resolveAppConfig(appConfig).limits.upsertBatchSize
-	)) {
-		await resolveApiRuntime().schedule(() =>
-			client.instances.upsert({
-				items: batch as EdgeWrite[],
-			})
-		);
-	}
+}
 
-	return canvasId;
+async function deleteWrittenInstances(
+	client: CogniteClient,
+	items: DeleteItem[],
+	appConfig?: AppConfig
+): Promise<void> {
+	if (items.length === 0) return;
+	const edges = items.filter((item) => item.instanceType === "edge");
+	const nodes = items.filter((item) => item.instanceType === "node");
+	try {
+		for (const group of [edges, nodes]) {
+			for (const batch of chunk(
+				group,
+				resolveAppConfig(appConfig).limits.deleteBatchSize
+			)) {
+				if (batch.length === 0) continue;
+				await resolveApiRuntime().scheduleDelete(() =>
+					client.instances.delete(batch)
+				);
+			}
+		}
+	} catch (error) {
+		resolveApiRuntime().logError({
+			scope: "canvas-builder",
+			message: "Failed to delete canvas instances written before an error",
+			context: { count: items.length },
+			cause: error,
+		});
+	}
 }
 
 /**
- * Clean canvas child items (nodes and edges), preserving the canvas root node.
+ * List canvas child items (nodes and edges), preserving the canvas root node.
  * Uses `${canvasId}_` prefix so the root node (externalId === canvasId) is excluded.
+ * Does not delete anything, so a later write failure can leave the canvas unchanged.
  */
-async function cleanCanvasContent(
+async function listCanvasChildren(
 	client: CogniteClient,
 	canvasId: string,
 	appConfig?: AppConfig
-): Promise<void> {
+): Promise<DeleteItem[]> {
 	const childPrefix = `${canvasId}_`;
 	const cleanupLimit = resolveAppConfig(appConfig).limits.maxCanvasCleanupItems;
+	const children: DeleteItem[] = [];
 
 	const cleanupLimitError = (phase: string) =>
 		new Error(
-			`[canvas-builder] Canvas "${canvasId}" has more than ${cleanupLimit} child ${phase} (cleanup limit). Aborted; canvas may be in a partial state; reduce canvas size or raise config.limits.maxCanvasCleanupItems.`
+			`[canvas-builder] Canvas "${canvasId}" has more than ${cleanupLimit} child ${phase} (cleanup limit). Aborted before changing the canvas; reduce canvas size or raise config.limits.maxCanvasCleanupItems.`
 		);
 
 	try {
@@ -266,10 +312,7 @@ async function cleanCanvasContent(
 
 			const nodeBatch = nodeResponse.items || [];
 			nodesProcessed += nodeBatch.length;
-			if (
-				nodesProcessed >
-				resolveAppConfig(appConfig).limits.maxCanvasCleanupItems
-			) {
+			if (nodesProcessed > cleanupLimit) {
 				throw cleanupLimitError("nodes");
 			}
 
@@ -283,24 +326,11 @@ async function cleanCanvasContent(
 						externalId: node.externalId,
 					};
 				})
-				// Use SDK type instead of manually recreating delete item structure
 				.filter((item): item is NodeDeleteItem => item !== null);
-
-			for (const batch of chunk(
-				nodeIds,
-				resolveAppConfig(appConfig).limits.deleteBatchSize
-			)) {
-				await resolveApiRuntime().scheduleDelete(() =>
-					client.instances.delete(batch)
-				);
-			}
+			children.push(...nodeIds);
 
 			nodeCursor = nodeResponse.nextCursor;
-			if (
-				nodeCursor &&
-				nodesProcessed >=
-					resolveAppConfig(appConfig).limits.maxCanvasCleanupItems
-			) {
+			if (nodeCursor && nodesProcessed >= cleanupLimit) {
 				throw cleanupLimitError("nodes");
 			}
 		} while (nodeCursor);
@@ -331,10 +361,7 @@ async function cleanCanvasContent(
 
 			const edgeBatch: unknown[] = edgeResponse.items?.edges ?? [];
 			edgesProcessed += edgeBatch.length;
-			if (
-				edgesProcessed >
-				resolveAppConfig(appConfig).limits.maxCanvasCleanupItems
-			) {
+			if (edgesProcessed > cleanupLimit) {
 				throw cleanupLimitError("edges");
 			}
 
@@ -349,34 +376,52 @@ async function cleanCanvasContent(
 					};
 				})
 				.filter((item): item is EdgeDeleteItem => item !== null);
-
-			for (const batch of chunk(
-				edgeIds,
-				resolveAppConfig(appConfig).limits.deleteBatchSize
-			)) {
-				await resolveApiRuntime().scheduleDelete(() =>
-					client.instances.delete(batch)
-				);
-			}
+			children.push(...edgeIds);
 
 			edgeCursor = edgeResponse.nextCursor?.edges;
-			if (
-				edgeCursor &&
-				edgesProcessed >=
-					resolveAppConfig(appConfig).limits.maxCanvasCleanupItems
-			) {
+			if (edgeCursor && edgesProcessed >= cleanupLimit) {
 				throw cleanupLimitError("edges");
 			}
 		} while (edgeCursor);
 	} catch (error) {
 		resolveApiRuntime().logError({
 			scope: "canvas-builder",
-			message: "Failed to clean up canvas content for canvas",
+			message: "Failed to list canvas content for canvas",
 			context: { canvasId },
 			cause: error,
 		});
 		throw error;
 	}
+
+	return children;
+}
+
+async function readExistingCanvasPresentation(
+	client: CogniteClient,
+	config: CanvasConfig,
+	canvasId: string,
+	appConfig?: AppConfig
+): Promise<{
+	visibility: "public" | "private";
+	solutionTags: ReturnType<typeof readSolutionTagsFromRootProperties>;
+}> {
+	const fallback = resolveAppConfig(appConfig).canvas.visibility;
+	const nodes = await retrieveInstanceNodes(
+		client,
+		[{ space: config.canvasSpaceInstance, externalId: canvasId }],
+		[viewIdToSource(canvasSchemaView(appConfig))]
+	);
+	const node = toCdfNode(nodes[0]);
+	if (!node) return { visibility: fallback, solutionTags: undefined };
+	const props = extractInstanceProperties(node, canvasSchemaView(appConfig));
+	const visibility =
+		props.visibility === "private" || props.visibility === "public"
+			? props.visibility
+			: fallback;
+	return {
+		visibility,
+		solutionTags: readSolutionTagsFromRootProperties(props),
+	};
 }
 
 /**
@@ -515,13 +560,38 @@ export async function updateCanvasFromTemplateAndSelections(
 		);
 	}
 
-	await cleanCanvasContent(client, canvasId, appConfig);
-
+	const previousChildren = await listCanvasChildren(
+		client,
+		canvasId,
+		appConfig
+	);
 	await ensureWorkPackageSolutionTag(client, appConfig);
+	const existing = await readExistingCanvasPresentation(
+		client,
+		config,
+		canvasId,
+		appConfig
+	);
 	const userId = await resolveCanvasUserId(client, appConfig);
 	const timestamp = nowIsoMs();
 
-	// Update the canvas root node in-place (name + updatedAt)
+	const { nodes: itemNodes, edges } = buildCanvasNodesAndEdges(
+		items,
+		canvasId,
+		config
+	);
+
+	const written: DeleteItem[] = [];
+	try {
+		await upsertTracked(client, itemNodes, appConfig, written);
+		await upsertTracked(client, edges, appConfig, written);
+	} catch (error) {
+		await deleteWrittenInstances(client, written, appConfig);
+		throw error;
+	}
+
+	await deleteWrittenInstances(client, previousChildren, appConfig);
+
 	const canvasNode = {
 		instanceType: "node" as const,
 		space: config.canvasSpaceInstance,
@@ -535,44 +605,18 @@ export async function updateCanvasFromTemplateAndSelections(
 				},
 				properties: {
 					name: canvasName,
-					visibility: resolveAppConfig(appConfig).canvas.visibility,
+					visibility: existing.visibility,
 					updatedAt: timestamp,
 					updatedBy: userId,
-					solutionTags: withWorkPackageSolutionTag(undefined, appConfig),
+					solutionTags: withWorkPackageSolutionTag(
+						existing.solutionTags,
+						appConfig
+					),
 				},
 			},
 		],
 	};
-
-	// Build new child nodes and edges anchored to the existing canvasId
-	const { nodes: itemNodes, edges } = buildCanvasNodesAndEdges(
-		items,
-		canvasId,
-		config
-	);
-
-	const allNodes = [canvasNode, ...itemNodes];
-	// Use proper SDK types instead of custom type derivation
-	for (const batch of chunk(
-		allNodes,
-		resolveAppConfig(appConfig).limits.upsertBatchSize
-	)) {
-		await resolveApiRuntime().schedule(() =>
-			client.instances.upsert({
-				items: batch as NodeWrite[],
-			})
-		);
-	}
-	for (const batch of chunk(
-		edges,
-		resolveAppConfig(appConfig).limits.upsertBatchSize
-	)) {
-		await resolveApiRuntime().schedule(() =>
-			client.instances.upsert({
-				items: batch as EdgeWrite[],
-			})
-		);
-	}
+	await upsertTracked(client, [canvasNode], appConfig, []);
 
 	return canvasId;
 }
@@ -673,7 +717,7 @@ export function generateCanvasLink(
 	const host = `${organization}${config.fusion.hostSuffix}`;
 	const clusterHost = cdfClusterQueryHost(cluster, config);
 	const workspace = config.fusion.canvasWorkspace;
-	return `https://${host}/${project}/industrial-canvas/canvas?canvasId=${canvasId}&cluster=${clusterHost}&workspace=${workspace}`;
+	return `https://${host}/${encodeURIComponent(project)}/industrial-canvas/canvas?canvasId=${encodeURIComponent(canvasId)}&cluster=${encodeURIComponent(clusterHost)}&workspace=${encodeURIComponent(workspace)}`;
 }
 
 export { extractClusterFromUrl } from "../app-config";

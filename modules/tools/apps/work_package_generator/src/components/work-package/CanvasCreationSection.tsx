@@ -25,6 +25,7 @@ interface CanvasCreationSectionProps {
 	canvasResult?: CanvasResult;
 	onCreateCanvas: () => void;
 	onUpdateCanvas: () => void;
+	recheckCanvasName?: () => Promise<boolean>;
 	/** After a successful save, start a new work package from the beginning. */
 	onCreateAnotherWorkPackage?: () => void;
 }
@@ -44,6 +45,7 @@ export function CanvasCreationSection({
 	canvasResult,
 	onCreateCanvas,
 	onUpdateCanvas,
+	recheckCanvasName,
 	onCreateAnotherWorkPackage,
 }: CanvasCreationSectionProps) {
 	const {
@@ -61,6 +63,8 @@ export function CanvasCreationSection({
 		templateFields,
 		aiSelections,
 		onCreateCanvas,
+		isCheckingExists,
+		recheckCanvasName,
 	});
 
 	return (
@@ -93,6 +97,7 @@ export function CanvasCreationSection({
 				onSave={handleSaveClick}
 				isCreating={isCreating}
 				canvasName={canvasName}
+				isCheckingExists={isCheckingExists}
 			/>
 
 			<ExistingCanvasSaveChoiceDialog

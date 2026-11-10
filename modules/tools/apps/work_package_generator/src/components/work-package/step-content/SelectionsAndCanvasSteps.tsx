@@ -48,6 +48,7 @@ export function CanvasCreationStepPanel({
 			canvasResult={vm.canvasResult}
 			onCreateCanvas={vm.onCreateCanvas}
 			onUpdateCanvas={vm.onUpdateCanvas}
+			recheckCanvasName={vm.recheckCanvasName}
 			onCreateAnotherWorkPackage={vm.onCreateAnotherWorkPackage}
 		/>
 	);

@@ -29,13 +29,21 @@ describe(workPackageSolutionTagInstanceRef.name, () => {
 });
 
 describe(ensureWorkPackageSolutionTag.name, () => {
-	it("upserts the CogniteSolutionTag node named Work Package", async () => {
+	it("upserts the CogniteSolutionTag node named Work Package when it is missing", async () => {
 		const mockUpsert = vi.fn().mockResolvedValue({});
+		const mockRetrieve = vi.fn().mockRejectedValue(
+			Object.assign(new Error("missing"), {
+				status: 400,
+				missing: [{ externalId: WORK_PACKAGE_SOLUTION_TAG.externalId }],
+			})
+		);
 		const client = cdfClientTestDouble({
-			instances: { upsert: mockUpsert },
+			instances: { upsert: mockUpsert, retrieve: mockRetrieve },
 		});
 
 		await ensureWorkPackageSolutionTag(client);
+
+		expect(mockRetrieve).toHaveBeenCalledOnce();
 
 		expect(mockUpsert).toHaveBeenCalledOnce();
 		const { items } = mockUpsert.mock.calls[0][0] as {
@@ -57,6 +65,38 @@ describe(ensureWorkPackageSolutionTag.name, () => {
 			version: SOLUTION_TAG_VIEW.version,
 		});
 		expect(items[0]?.sources[0]?.properties).toEqual({ name: "Work Package" });
+	});
+
+	it("C21: does not create the solution tag when it already exists", async () => {
+		const mockUpsert = vi.fn().mockResolvedValue({});
+		const mockRetrieve = vi.fn().mockResolvedValue({
+			items: [
+				{
+					space: WORK_PACKAGE_SOLUTION_TAG.instanceSpace,
+					externalId: WORK_PACKAGE_SOLUTION_TAG.externalId,
+				},
+			],
+		});
+		const client = cdfClientTestDouble({
+			instances: { upsert: mockUpsert, retrieve: mockRetrieve },
+		});
+
+		await ensureWorkPackageSolutionTag(client);
+
+		expect(mockUpsert).not.toHaveBeenCalled();
+	});
+
+	it("C21: treats a 403 while reading an existing solution tag as success", async () => {
+		const mockUpsert = vi.fn().mockResolvedValue({});
+		const mockRetrieve = vi
+			.fn()
+			.mockRejectedValue(Object.assign(new Error("denied"), { status: 403 }));
+		const client = cdfClientTestDouble({
+			instances: { upsert: mockUpsert, retrieve: mockRetrieve },
+		});
+
+		await expect(ensureWorkPackageSolutionTag(client)).resolves.toBeUndefined();
+		expect(mockUpsert).not.toHaveBeenCalled();
 	});
 });
 
