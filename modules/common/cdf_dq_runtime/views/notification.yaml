@@ -6,7 +6,7 @@ instance_spaces:
   - {{ instanceSpace }}
 validation:
   auto_load_depth: 2
-  verbose: true
+  verbose: false
 partition_count: 10
 partition_field: lastUpdatedTime
 sync_batch_size: 1000

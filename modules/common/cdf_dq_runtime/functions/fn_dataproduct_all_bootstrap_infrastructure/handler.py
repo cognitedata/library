@@ -291,7 +291,7 @@ def handle(
         override_path = _write_settings_with_overrides(bundled_settings, fn_input.settings_overrides(), secrets)
         variables = fn_input.substitution_variables()
         views_dir = _materialize_config_dir(config_dir / "views", variables)
-        timeseries_dir = _materialize_config_dir(config_dir / "timeseries", variables)
+        timeseries_dir = _materialize_config_dir(config_dir / "timeseries_config", variables)
         result = deploy_validation_infrastructure(
             client=client,
             settings_path=override_path or bundled_settings,

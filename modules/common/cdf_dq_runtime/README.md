@@ -243,7 +243,7 @@ variables:
         # ... any other key from default.config.yaml
 ```
 
-`cdf build` substitutes them into `rulesets/`, `data_products/` and `data_modeling/`. Toolkit also substitutes the same module variables into the bootstrap Function secrets and Schedule `data` (spaces, stream, dataset, data product, view identifiers, `instanceSpace`, `ruleSetVersion`, `timeSeriesExternalIdPrefix`, plus `functionClientId` / `functionClientSecret`). The bootstrap handler validates Schedule `data` with Pydantic, merges settings overrides into the bundled `config/settings.yaml`, and substitutes placeholders in bundled `config/views/` and `config/timeseries/` at runtime (Toolkit cannot substitute placeholders inside the function code bundle).
+`cdf build` substitutes them into `rulesets/`, `data_products/` and `data_modeling/`. Toolkit also substitutes the same module variables into the bootstrap Function secrets and Schedule `data` (spaces, stream, dataset, data product, view identifiers, `instanceSpace`, `ruleSetVersion`, `timeSeriesExternalIdPrefix`, plus `functionClientId` / `functionClientSecret`). The bootstrap handler validates Schedule `data` with Pydantic, merges settings overrides into the bundled `config/settings.yaml`, and substitutes placeholders in bundled `config/views/` and `config/timeseries_config/` at runtime (Toolkit cannot substitute placeholders inside the function code bundle).
 
 | Variable | Default | Used in | Meaning |
 | --- | --- | --- | --- |
@@ -267,6 +267,7 @@ variables:
 | `functionCodeDatasetExternalId` | `ds_data_quality_all` | settings / Schedule.data | Data set for the CDF Function code file |
 | `functionClientId` | `${IDP_CLIENT_ID}` | schedule + function secrets | Client ID for the bootstrap Function Schedule and Function secrets (`client-id`) used as workflow trigger credentials |
 | `functionClientSecret` | `${IDP_CLIENT_SECRET}` | schedule + function secrets | Client secret for the bootstrap Function Schedule and Function secrets (`client-secret`) |
+| `functionOwner` | `cdf_dq_runtime` | Function YAML | Owner shown on the bootstrap Function in Fusion |
 
 A data product version may only reference views in its own schema space or in a `cdf_*` system space. To validate your own enterprise views, set `dataProductSchemaSpace`, `schemaSpace` and `secondarySchemaSpace` to the enterprise schema space (when no other data product owns it).
 
@@ -289,11 +290,11 @@ A data product version may only reference views in its own schema space or in a 
 | `timeseries.config_dir` | Folder with time series validation configs (`timeseries_config`) |
 | `external_dataproducts` | Data products published by Toolkit; wired without republishing |
 
-Per-view tuning (partitioning, batch sizes, `max_concurrent_executions: 1`, `uniqueness_cron`) is in `views/*.yaml`; time series schedule and filter in `timeseries_config/timeseries_quality.yaml`. Matching copies ship under the bootstrap Function’s `config/views/` and `config/timeseries/` so bootstrap applies them. Toolkit cannot substitute placeholders inside the function zip — Schedule.`data` carries the module variables and the handler substitutes them at runtime before calling `deploy_validation_infrastructure()`.
+Per-view tuning (partitioning, batch sizes, `max_concurrent_executions: 1`, `uniqueness_cron`) is in `views/*.yaml`; time series schedule and filter in `timeseries_config/timeseries_quality.yaml`. Matching copies ship under the bootstrap Function’s `config/views/` and `config/timeseries_config/` (not `config/timeseries/`, which Toolkit would treat as TimeSeries resources) so bootstrap applies them. Toolkit cannot substitute placeholders inside the function zip — Schedule.`data` carries the module variables and the handler substitutes them at runtime before calling `deploy_validation_infrastructure()`.
 
 ### SHACL rules and view IRIs
 
-The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space>/<view>/` (class `<namespace><view>`, properties `<namespace><property>`) and instances as `http://purl.org/cognite/<instanceSpace>/<externalId>`. These IRIs are built from the variables above, so the rules follow your configured views. Shape logic (allowed status values, order type patterns, value bounds, the two concrete `pi:` series in the time series examples) is sample content: review it against your data. The defaults are verified against Cognite Core and Process Industries view definitions; priority ranges start at `0` because Cognite uses `0` for the highest priority.
+The sample rules in `rulesets/` address views as `http://purl.org/cognite/<space>/<view>/` (class `<namespace><view>`, properties `<namespace><property>`) and instances as `http://purl.org/cognite/<instanceSpace>/<externalId>`. These IRIs are built from the variables above, so the rules follow your configured views. Shape logic (allowed status values, order type patterns, value bounds) is sample content: review it against your data. Time-series rules target the configured view class only (no hard-coded series external IDs). The defaults are verified against Cognite Core and Process Industries view definitions; priority ranges start at `0` because Cognite uses `0` for the highest priority.
 
 ## Operator flow
 
@@ -405,12 +406,12 @@ cdf_dq_runtime/
 ├── data_products/             # Toolkit: DataProduct + DataProductVersion (views, instance spaces, rules)
 ├── rulesets/                  # Toolkit: RuleSet + RuleSetVersion (SHACL) per view
 ├── views/                     # Optional per-view workflow overrides (bundle under function config/views when needed)
-├── timeseries_config/         # Optional time series validation config (bundle under function config/timeseries when needed)
+├── timeseries_config/         # Optional time series validation config (bundle under function config/timeseries_config when needed)
 ├── functions/                 # Toolkit: bootstrap Function + Schedule + bundled config/
 └── scripts/                   # _cli.py (notebook helpers), manage_rulesets.ipynb, inspect_dq_content.ipynb
 ```
 
-**RuleSets:** `asset_shacl_rules`, `equipment_shacl_rules`, `maintenance_order_shacl_rules`, `maintenance_order_rule_logic_test_shacl_rules`, `notification_shacl_rules`, `operation_shacl_rules`, `timeseries_quality_rules` (adapted from the cog-ai sample in data-quality-validation-deploy).
+**RuleSets:** `asset_shacl_rules`, `equipment_shacl_rules`, `maintenance_order_shacl_rules`, `notification_shacl_rules`, `operation_shacl_rules`, `timeseries_quality_rules` (adapted from the cog-ai sample in data-quality-validation-deploy).
 
 ## Support
 

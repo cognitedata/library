@@ -1,6 +1,6 @@
 name: Data quality infrastructure bootstrap
 externalId: fn_dataproduct_all_bootstrap_infrastructure
-owner: Anonymous
+owner: "{{ functionOwner }}"
 description: Bootstraps Data Quality Validation infrastructure from the pinned PyPI package.
 functionPath: handler.py
 runtime: py313

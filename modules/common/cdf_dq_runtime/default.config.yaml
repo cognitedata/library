@@ -58,3 +58,5 @@ functionCodeDatasetExternalId: ds_data_quality_all  # was: dq_shacl_rules
 # IdP credentials for the bootstrap Function Schedule and Function secrets (workflow triggers).
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
+# Displayed as Function owner in Fusion (override per project if needed).
+functionOwner: cdf_dq_runtime

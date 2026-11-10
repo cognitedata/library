@@ -169,7 +169,14 @@ def test_customer_overrides_flow_into_rules_and_views(cli: types.ModuleType, tmp
     assert {space for view in version["views"] for space in view["instanceSpaces"]["read"]} == {"inst_acme"}
 
     ts_rules = _load_yaml(dest / "rulesets" / "timeseries_quality_rules.RuleSetVersion.yaml")["rules"][0]
-    assert "http://purl.org/cognite/inst_acme/pi:160554" in ts_rules
+    assert "http://purl.org/cognite/sp_acme/CogniteTimeSeries/" in ts_rules
+    assert "pi:160554" not in ts_rules
+    assert "pi:160245" not in ts_rules
+    assert "sh:targetNode" not in ts_rules
+    assert not any(
+        path.name.startswith("maintenance_order_rule_logic_test")
+        for path in (dest / "rulesets").glob("*.yaml")
+    )
 
 
 def test_load_settings_raw_returns_typed_runtime_settings(cli: types.ModuleType, tmp_path: Path) -> None:
@@ -682,7 +689,7 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     assert (bootstrap / "requirements.txt").is_file()
     assert (bootstrap / "config" / "settings.yaml").is_file()
     assert (bootstrap / "config" / "views").is_dir()
-    assert (bootstrap / "config" / "timeseries").is_dir()
+    assert (bootstrap / "config" / "timeseries_config").is_dir()
     assert {p.name for p in (bootstrap / "config" / "views").glob("*.yaml")} == {
         "asset.yaml",
         "equipment.yaml",
@@ -690,13 +697,20 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
         "notification.yaml",
         "operation.yaml",
     }
-    assert {p.name for p in (bootstrap / "config" / "timeseries").glob("*.yaml")} == {"timeseries_quality.yaml"}
+    assert {p.name for p in (bootstrap / "config" / "timeseries_config").glob("*.yaml")} == {"timeseries_quality.yaml"}
     function_yaml = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure.Function.yaml"
     assert function_yaml.is_file()
     function_text = function_yaml.read_text(encoding="utf-8")
     assert "space: {{ dataQualitySpace }}" in function_text
+    assert 'owner: "{{ functionOwner }}"' in function_text
     assert 'client-id: "{{ functionClientId }}"' in function_text
     assert 'client-secret: "{{ functionClientSecret }}"' in function_text
+    defaults = _load_yaml(_MODULE / "default.config.yaml")
+    assert defaults["functionOwner"] == "cdf_dq_runtime"
+    space_dq = (_MODULE / "data_modeling" / "dataQuality.Space.yaml").read_text(encoding="utf-8")
+    space_dp = (_MODULE / "data_modeling" / "data_product_schema.Space.yaml").read_text(encoding="utf-8")
+    assert "name: Data quality runtime" in space_dq
+    assert "name: Data quality data product schema" in space_dp
     schedule = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure.Schedule.yaml"
     assert schedule.is_file()
     schedule_text = schedule.read_text(encoding="utf-8")
@@ -721,7 +735,6 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     assert "cognite-data-quality==" in requirements
     assert "pydantic>=" in requirements
 
-    defaults = _load_yaml(_MODULE / "default.config.yaml")
     settings = _load_yaml(bootstrap / "config" / "settings.yaml")
     assert settings["config_space"] == defaults["dataQualitySpace"]
     assert settings["records"]["space"] == defaults["dataQualitySpace"]
