@@ -13,6 +13,7 @@ export {
 	isMainAsset,
 	isMainWorkOrder,
 	isSelectableResourceSlot,
+	selectionSlotKey,
 } from "./canvas-item-helpers";
 export { getCanvasValidationUserMessages } from "./canvas-validation-messages";
 export {

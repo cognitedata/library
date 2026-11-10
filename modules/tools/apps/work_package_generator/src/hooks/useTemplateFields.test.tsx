@@ -100,4 +100,55 @@ describe("useTemplateFields", () => {
 		expect(result.current.fields).toEqual([]);
 		expect(result.current.isLoading).toBe(false);
 	});
+
+	it("C04: keeps Maintenance procedure and Domain drawings slots", async () => {
+		mockGetInstances.mockResolvedValue([
+			{
+				id: "main-asset",
+				label: "Main Asset",
+				viewExternalId: "CogniteAsset",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+			{
+				id: "maint",
+				label: "Maintenance procedure",
+				viewExternalId: "CogniteFile",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+			{
+				id: "domain",
+				label: "Domain drawings",
+				viewExternalId: "CogniteFile",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+			{
+				id: "sheet",
+				label: "Datasheet",
+				viewExternalId: "CogniteFile",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+		]);
+		const { result } = renderHook(() => useTemplateFields(), {
+			wrapper: makeWrapper(),
+		});
+		await waitFor(() => expect(result.current.fields).toHaveLength(3));
+		expect(result.current.fields.map((field) => field.label)).toEqual([
+			"Maintenance procedure",
+			"Domain drawings",
+			"Datasheet",
+		]);
+		expect(result.current.fields.map((field) => field.id)).toEqual([
+			"maint",
+			"domain",
+			"sheet",
+		]);
+	});
 });

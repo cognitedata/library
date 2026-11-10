@@ -36,6 +36,16 @@ export function isMainAsset(
 	);
 }
 
+/** Store and builder key for a slot. Item id wins so duplicate labels stay distinct. */
+export function selectionSlotKey(slot: {
+	id?: string;
+	label?: string;
+}): string {
+	const id = slot.id?.trim();
+	if (id) return id;
+	return slot.label?.trim() || "";
+}
+
 export function isMainWorkOrder(
 	instance: TemplateInstance,
 	config?: AppConfig

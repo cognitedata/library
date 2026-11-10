@@ -2,6 +2,7 @@ import { Activity, ArrowRight, Check, FileText, X } from "lucide-react";
 import { Badge, Button, Loader } from "@/components/ui";
 import type { TemplateSlot } from "@/hooks";
 import type { Selection, TemplateField } from "@/types";
+import { selectionSlotKey } from "@/utils/canvas-item-helpers";
 import { slotCategoryLabel } from "../slot-helpers";
 
 interface SelectionSlotCardProps {
@@ -83,7 +84,7 @@ export function SelectionSlotCard({
 								type="button"
 								variant="outline"
 								size="sm"
-								onClick={() => onPickManually(field.label)}
+								onClick={() => onPickManually(selectionSlotKey(field))}
 							>
 								Pick manually
 							</Button>

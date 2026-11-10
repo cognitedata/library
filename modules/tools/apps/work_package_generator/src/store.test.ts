@@ -191,6 +191,25 @@ describe("useWorkPackageStore", () => {
 		expect(useWorkPackageStore.getState().aiSelections.slot2).toBeNull();
 	});
 
+	it("C15: two slots labelled P&ID keep separate picks", () => {
+		useWorkPackageStore.getState().setSlotSelection("pid-1", {
+			externalId: "file-a",
+			space: "s",
+			name: "A",
+		});
+		useWorkPackageStore.getState().setSlotSelection("pid-2", {
+			externalId: "file-b",
+			space: "s",
+			name: "B",
+		});
+		expect(
+			useWorkPackageStore.getState().aiSelections["pid-1"]?.externalId
+		).toBe("file-a");
+		expect(
+			useWorkPackageStore.getState().aiSelections["pid-2"]?.externalId
+		).toBe("file-b");
+	});
+
 	it("resetForNewWorkOrder clears candidates and selections after manual edits", () => {
 		useWorkPackageStore.getState().addCandidateToType("file", {
 			externalId: "r1",

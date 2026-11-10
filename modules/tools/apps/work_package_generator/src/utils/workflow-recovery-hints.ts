@@ -1,4 +1,5 @@
 import type { AiSelections, TemplateField, ValidationResult } from "@/types";
+import { selectionSlotKey } from "@/utils/canvas-item-helpers";
 import {
 	getCanvasValidationUserMessages,
 	isCanvasValidationNetworkOrUnknown,
@@ -17,7 +18,8 @@ function countUnmatchedSlots(
 	templateFields: TemplateField[],
 	aiSelections: AiSelections
 ): number {
-	return templateFields.filter((tf) => !aiSelections[tf.label]).length;
+	return templateFields.filter((tf) => !aiSelections[selectionSlotKey(tf)])
+		.length;
 }
 
 /**

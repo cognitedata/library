@@ -8,6 +8,7 @@ import type {
 	TemplateField,
 	WorkOrder,
 } from "@/types";
+import { selectionSlotKey } from "@/utils/canvas-item-helpers";
 import { PickResourceModal } from "./PickResourceModal";
 import { AutomationReviewSection } from "./selections-step/AutomationReviewSection";
 import { SelectionSlotCard } from "./selections-step/SelectionSlotCard";
@@ -55,9 +56,11 @@ export function SelectionsStep({
 	const isBaseTemplate = isBaseTemplateId(templateCanvasId, appConfig);
 
 	const { filled, total, emptySlots } = useMemo(() => {
-		const f = templateFields.filter((tf) => aiSelections[tf.label]).length;
+		const f = templateFields.filter(
+			(tf) => aiSelections[selectionSlotKey(tf)]
+		).length;
 		const empty = templateFields
-			.filter((tf) => !aiSelections[tf.label])
+			.filter((tf) => !aiSelections[selectionSlotKey(tf)])
 			.map((tf) => tf.label);
 		return { filled: f, total: templateFields.length, emptySlots: empty };
 	}, [templateFields, aiSelections]);
@@ -114,9 +117,9 @@ export function SelectionsStep({
 				<div className="space-y-2">
 					{templateFields.map((field) => (
 						<SelectionSlotCard
-							key={field.label}
+							key={selectionSlotKey(field)}
 							field={field}
-							selection={aiSelections[field.label] ?? null}
+							selection={aiSelections[selectionSlotKey(field)] ?? null}
 							canPickManually={
 								getCandidatesForSlotType(field.type, candidatesByType).length >
 								0
@@ -131,9 +134,14 @@ export function SelectionsStep({
 			{pickModalSlot && (
 				<PickResourceModal
 					open
-					slotLabel={pickModalSlot}
+					slotKey={pickModalSlot}
+					slotLabel={
+						templateFields.find((f) => selectionSlotKey(f) === pickModalSlot)
+							?.label ?? pickModalSlot
+					}
 					candidates={getCandidatesForSlotType(
-						templateFields.find((f) => f.label === pickModalSlot)?.type ?? "",
+						templateFields.find((f) => selectionSlotKey(f) === pickModalSlot)
+							?.type ?? "",
 						candidatesByType
 					)}
 					currentSelection={aiSelections[pickModalSlot]}

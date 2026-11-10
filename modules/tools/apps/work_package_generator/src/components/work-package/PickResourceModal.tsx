@@ -31,6 +31,8 @@ const PickResourceModalContext =
 interface PickResourceModalProps {
 	open: boolean;
 	slotLabel: string;
+	/** Selection store key. Defaults to the label when the slot has no item id. */
+	slotKey?: string;
 	candidates: ResourceInstance[];
 	currentSelection: AiSelections[string];
 	onClose: () => void;
@@ -53,12 +55,14 @@ export function PickResourceModalProvider({
 export function PickResourceModal({
 	open,
 	slotLabel,
+	slotKey,
 	candidates,
 	currentSelection,
 	onClose,
 }: PickResourceModalProps) {
 	const { useStore } = useContext(PickResourceModalContext);
 	const setSlotSelection = useStore((s) => s.setSlotSelection);
+	const selectionKey = slotKey ?? slotLabel;
 
 	const [filterText, setFilterText] = useState("");
 
@@ -79,7 +83,7 @@ export function PickResourceModal({
 					? item.properties.description
 					: undefined);
 
-			setSlotSelection(slotLabel, {
+			setSlotSelection(selectionKey, {
 				externalId: item.externalId,
 				space: item.space,
 				name,
@@ -87,13 +91,13 @@ export function PickResourceModal({
 			});
 			onClose();
 		},
-		[setSlotSelection, slotLabel, onClose]
+		[setSlotSelection, selectionKey, onClose]
 	);
 
 	const handleClear = useCallback(() => {
-		setSlotSelection(slotLabel, null);
+		setSlotSelection(selectionKey, null);
 		onClose();
-	}, [setSlotSelection, slotLabel, onClose]);
+	}, [setSlotSelection, selectionKey, onClose]);
 
 	return (
 		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>

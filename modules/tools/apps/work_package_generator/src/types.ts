@@ -111,6 +111,8 @@ export interface TemplateCanvas {
 }
 
 export interface TemplateField {
+	/** Template canvas item id. Selections are keyed by this, not the label. */
+	id?: string;
 	type: string;
 	label: string;
 	viewExternalId?: string;
@@ -119,6 +121,8 @@ export interface TemplateField {
 }
 
 export interface TemplateInstance {
+	/** Canvas item node externalId. */
+	id?: string;
 	label: string;
 	viewExternalId: string;
 	viewSpace: string;

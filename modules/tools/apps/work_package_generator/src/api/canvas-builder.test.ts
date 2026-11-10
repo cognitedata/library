@@ -132,6 +132,44 @@ describe("buildCanvasItemsFromTemplate", () => {
 		}
 	});
 
+	it("C15: two slots labelled P&ID keep separate picks", () => {
+		const instances: TemplateInstance[] = [
+			{
+				id: "item-a",
+				label: "P&ID",
+				viewExternalId: "CogniteFile",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+			{
+				id: "item-b",
+				label: "P&ID",
+				viewExternalId: "CogniteFile",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+		];
+		const items = buildCanvasItemsFromTemplate(
+			instances,
+			[],
+			{
+				"item-a": { externalId: "file-a", space: "sp", name: "A" },
+				"item-b": { externalId: "file-b", space: "sp", name: "B" },
+			},
+			asset,
+			workOrder,
+			config
+		);
+		const ids = items
+			.filter((item) => item.type === "fdmInstance")
+			.map((item) =>
+				item.type === "fdmInstance" ? item.instanceExternalId : ""
+			);
+		expect(ids).toEqual(["file-a", "file-b"]);
+	});
+
 	it("omits unselected resource slots so the original template item is not kept", () => {
 		const instances: TemplateInstance[] = [
 			{

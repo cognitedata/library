@@ -6,7 +6,6 @@ import {
 	listTemplateCanvases,
 } from "../api";
 import {
-	dataModelView,
 	getBaseTemplateCanvas,
 	getResourceConfigs,
 	isBaseTemplateId,
@@ -14,6 +13,7 @@ import {
 } from "../app-config";
 import { useDefaultWorkPackageStore } from "../contexts/WorkPackageStoreContext";
 import type { TemplateCanvas, TemplateInstance } from "../types";
+import { isMainAsset, isMainWorkOrder } from "../utils/canvas-item-helpers";
 import { useCdfClientInfo } from "./useClientInfo";
 
 const defaultTemplatesDeps = {
@@ -128,12 +128,8 @@ function categorizeInstance(
 ): TemplateSlot | null {
 	const viewExt = inst.viewExternalId || "";
 	const label = inst.label || "";
-	const labelLower = label.toLowerCase();
 
-	if (
-		viewExt === dataModelView("asset", config).externalId &&
-		labelLower.startsWith("main")
-	) {
+	if (isMainAsset(inst, config)) {
 		return {
 			label,
 			viewExternalId: viewExt,
@@ -141,10 +137,7 @@ function categorizeInstance(
 			populatedBy: "auto",
 		};
 	}
-	if (
-		viewExt === dataModelView("activity", config).externalId &&
-		labelLower.startsWith("main")
-	) {
+	if (isMainWorkOrder(inst, config)) {
 		return {
 			label,
 			viewExternalId: viewExt,

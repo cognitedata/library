@@ -8,6 +8,7 @@ import {
 } from "../app-config";
 import { useWorkPackageStore } from "../store";
 import type { TemplateField } from "../types";
+import { isMainAsset, isMainWorkOrder } from "../utils/canvas-item-helpers";
 import { useCdfClientInfo } from "./useClientInfo";
 
 const defaultTemplateFieldsDeps = {
@@ -63,9 +64,11 @@ export function useTemplateFields(options?: { queryEnabled?: boolean }) {
 			for (const inst of instances) {
 				const viewExt = inst.viewExternalId;
 				const label = inst.label || "";
-				const labelLower = label.toLowerCase();
 
-				if (!viewExt || labelLower.includes("main")) continue;
+				if (!viewExt) continue;
+				if (isMainAsset(inst, appConfig) || isMainWorkOrder(inst, appConfig)) {
+					continue;
+				}
 
 				const matchingConfig = Object.entries(resourceConfigs).find(
 					([, conf]) => conf.viewId.externalId === viewExt
@@ -74,6 +77,7 @@ export function useTemplateFields(options?: { queryEnabled?: boolean }) {
 				if (matchingConfig) {
 					const [typeKey] = matchingConfig;
 					fields.push({
+						id: inst.id?.trim() || `${viewExt}:${label}:${fields.length}`,
 						type: typeKey,
 						label,
 						viewExternalId: viewExt,

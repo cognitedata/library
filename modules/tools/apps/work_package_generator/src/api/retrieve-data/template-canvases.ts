@@ -191,6 +191,7 @@ export async function getTemplateCanvasInstances(
 				);
 
 				return {
+					id: node.externalId,
 					label: getStringProp(props, "label", "Unlabeled"),
 					viewExternalId: getStringProp(props, "viewExternalId"),
 					viewSpace: getStringProp(props, "viewSpace"),

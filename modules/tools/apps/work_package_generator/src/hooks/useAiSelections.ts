@@ -13,6 +13,7 @@ import {
 } from "../app-config";
 import { useDefaultWorkPackageStore } from "../contexts/WorkPackageStoreContext";
 import type { AiSelections } from "../types";
+import { selectionSlotKey } from "../utils/canvas-item-helpers";
 import { getErrorMessage, toUserFacingErrorMessage } from "../utils/errors";
 import { useCdfClientInfo } from "./useClientInfo";
 
@@ -162,10 +163,10 @@ export function useAiSelection() {
 				);
 
 				if (selection) {
-					selections[field.label] = selection;
+					selections[selectionSlotKey(field)] = selection;
 					selectedResources.add(selection.externalId);
 				} else {
-					selections[field.label] = null;
+					selections[selectionSlotKey(field)] = null;
 				}
 			}
 

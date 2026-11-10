@@ -38,6 +38,7 @@ import {
 	isMainAsset,
 	isMainWorkOrder,
 	isSelectableResourceSlot,
+	selectionSlotKey,
 } from "../utils/canvas-item-helpers";
 import {
 	ensureWorkPackageSolutionTag,
@@ -139,7 +140,7 @@ export function buildCanvasItemsFromTemplate(
 		} else if (isMainWorkOrder(inst, appConfig)) {
 			items.push(applyWorkOrderReplacement(item, workOrder));
 		} else {
-			const replacement = selections[label];
+			const replacement = selections[selectionSlotKey(inst)];
 			if (replacement) {
 				items.push(applySelectionReplacement(item, replacement));
 			} else if (!isSelectableResourceSlot(inst, appConfig, resourceConfigs)) {
