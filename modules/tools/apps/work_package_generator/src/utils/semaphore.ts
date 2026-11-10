@@ -76,7 +76,7 @@ export function readRetryAfterMs(error: unknown): number | undefined {
 		? headerRecord(error.error.headers)?.["retry-after"]
 		: undefined;
 	const raw = fromHeaders ?? nested;
-	if (raw === undefined) return undefined;
+	if (!raw?.trim()) return undefined;
 
 	const asSeconds = Number(raw);
 	if (Number.isFinite(asSeconds) && asSeconds >= 0) {

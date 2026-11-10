@@ -23,6 +23,7 @@ import {
 	extractWorkOrderContext,
 } from "../utils/context-helpers";
 import { getErrorMessage } from "../utils/errors";
+import { readRetryAfterMs } from "../utils/semaphore";
 import { resolveApiRuntime } from "./runtime-deps";
 
 // ============================================================================
@@ -562,9 +563,9 @@ async function postAgentChat(
 			}),
 		});
 		if (!RETRYABLE_STATUSES.has(response.status) || response.ok) break;
-		const wait = AGENT_RETRY_DELAYS_MS[attempt];
-		if (wait === undefined) break;
-		await delay(wait);
+		const fallbackWait = AGENT_RETRY_DELAYS_MS[attempt];
+		if (fallbackWait === undefined) break;
+		await delay(readRetryAfterMs(response) ?? fallbackWait);
 	}
 	if (!response?.ok) {
 		return errorResult(response?.status ?? 0);

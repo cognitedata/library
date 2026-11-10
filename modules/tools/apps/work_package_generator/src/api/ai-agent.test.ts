@@ -343,6 +343,41 @@ describe("ai-agent", () => {
 			vi.useRealTimers();
 		});
 
+		it("honours Retry-After on agent chat retries and caps it at 30 seconds", async () => {
+			vi.useFakeTimers();
+			try {
+				cdfApiFetch
+					.mockResolvedValueOnce({
+						ok: false,
+						status: 429,
+						headers: new Headers({ "Retry-After": "5" }),
+					})
+					.mockResolvedValueOnce({
+						ok: false,
+						status: 429,
+						headers: new Headers({ "Retry-After": "3600" }),
+					})
+					.mockResolvedValueOnce({ ok: true, status: 200 });
+				parseJsonResponse.mockResolvedValueOnce({
+					messages: [{ role: "assistant", content: "id-1" }],
+				});
+
+				const pending = queryAiForSelection(client, "p", "a", "pr", ["id-1"]);
+				await vi.advanceTimersByTimeAsync(4_999);
+				expect(cdfApiFetch).toHaveBeenCalledTimes(1);
+				await vi.advanceTimersByTimeAsync(1);
+				expect(cdfApiFetch).toHaveBeenCalledTimes(2);
+
+				await vi.advanceTimersByTimeAsync(29_999);
+				expect(cdfApiFetch).toHaveBeenCalledTimes(2);
+				await vi.advanceTimersByTimeAsync(1);
+				await expect(pending).resolves.toEqual({ kind: "match", id: "id-1" });
+				expect(cdfApiFetch).toHaveBeenCalledTimes(3);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
 		it("N17: runs slot calls one at a time", async () => {
 			let releaseFirst: () => void = () => undefined;
 			const gate = new Promise<void>((resolve) => {
