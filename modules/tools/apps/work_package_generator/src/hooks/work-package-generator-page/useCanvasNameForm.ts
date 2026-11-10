@@ -61,10 +61,13 @@ export function useCanvasNameForm({
 
 	const {
 		data: existingCanvases,
-		isLoading: isCheckingExists,
+		isLoading: isLookupLoading,
+		isFetching: isLookupFetching,
 		error: existingCanvasLookupError,
 		refetch: refetchExistingCanvases,
 	} = useFindByName(debouncedCanvasName);
+	const isCheckingExists =
+		isLookupLoading || isLookupFetching || canvasName !== debouncedCanvasName;
 
 	const handleCreateCanvas = useCallback(
 		() => createCanvas({ canvasName }),
@@ -89,6 +92,12 @@ export function useCanvasNameForm({
 		void refetchExistingCanvases();
 	}, [refetchExistingCanvases]);
 
+	const recheckCanvasName = useCallback(async () => {
+		const refreshed = await refetchExistingCanvases();
+		const rows = refreshed?.data ?? existingCanvases ?? [];
+		return rows.length > 0;
+	}, [existingCanvases, refetchExistingCanvases]);
+
 	const hasExistingCanvas = (existingCanvases?.length || 0) > 0;
 	const existingCanvasLookupErrorMessage = existingCanvasLookupError
 		? toUserFacingErrorMessage(getErrorMessage(existingCanvasLookupError))
@@ -103,6 +112,7 @@ export function useCanvasNameForm({
 		onRetryExistingCanvasLookup: handleRetryExistingCanvasLookup,
 		onCreateCanvas: handleCreateCanvas,
 		onUpdateCanvas: handleUpdateCanvas,
+		recheckCanvasName,
 		resetCanvasNameForm,
 	};
 }

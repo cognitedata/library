@@ -11,6 +11,7 @@ export function CanvasCreationActions({
 	onSave,
 	isCreating,
 	canvasName,
+	isCheckingExists = false,
 }: {
 	isReady: boolean;
 	draftPreview: {
@@ -25,6 +26,7 @@ export function CanvasCreationActions({
 	onSave: () => void;
 	isCreating: boolean;
 	canvasName: string;
+	isCheckingExists?: boolean;
 }) {
 	return (
 		<>
@@ -64,7 +66,9 @@ export function CanvasCreationActions({
 					) : (
 						<Button
 							onClick={onSave}
-							disabled={isCreating || !isReady || !canvasName.trim()}
+							disabled={
+								isCreating || !isReady || !canvasName.trim() || isCheckingExists
+							}
 							className="flex-1 h-12"
 							size="lg"
 						>

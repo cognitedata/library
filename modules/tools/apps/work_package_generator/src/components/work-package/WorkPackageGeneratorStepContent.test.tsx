@@ -112,6 +112,7 @@ const baseVm: WorkPackageGeneratorPageViewModel = {
 	canvasResult: undefined,
 	onCreateCanvas: noop,
 	onUpdateCanvas: noop,
+	recheckCanvasName: async () => false,
 	onCreateAnotherWorkPackage: noop,
 	onChangeWorkOrder: noop,
 };

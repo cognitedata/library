@@ -137,4 +137,67 @@ describe(useCanvasCreationSectionViewModel.name, () => {
 		expect(result.current.isSavedSuccessfully).toBe(true);
 		expect(result.current.subtitle).toMatch(/open in Fusion/i);
 	});
+
+	it("C08: does not save while the name check is running, and opens the dialog when a recheck finds a canvas", async () => {
+		const onCreateCanvas = vi.fn();
+		const recheckCanvasName = vi.fn().mockResolvedValue(true);
+		const { result, rerender } = renderHook(
+			({ isCheckingExists }: { isCheckingExists: boolean }) =>
+				useCanvasCreationSectionViewModel({
+					isReady: true,
+					hasExistingCanvas: false,
+					templateFields: [],
+					aiSelections: {},
+					onCreateCanvas,
+					isCheckingExists,
+					recheckCanvasName,
+				}),
+			{ initialProps: { isCheckingExists: true }, wrapper }
+		);
+
+		act(() => {
+			result.current.handleSaveClick();
+		});
+		expect(onCreateCanvas).not.toHaveBeenCalled();
+		expect(recheckCanvasName).not.toHaveBeenCalled();
+
+		rerender({ isCheckingExists: false });
+		await act(async () => {
+			result.current.handleSaveClick();
+		});
+		expect(recheckCanvasName).toHaveBeenCalledTimes(1);
+		expect(onCreateCanvas).not.toHaveBeenCalled();
+		expect(result.current.existingSaveDialogOpen).toBe(true);
+	});
+
+	it("C11: treats a saved canvas as successful without post-write validation", () => {
+		const failedValidation: CanvasResult = {
+			...savedResult,
+			validation: {
+				...savedResult.validation,
+				success: false,
+				itemsMatchExpected: false,
+				itemsCount: 0,
+				expectedItemsCount: 3,
+				errors: ["Item count mismatch: expected 3, found 0"],
+			},
+		};
+		const { result } = renderHook(
+			() =>
+				useCanvasCreationSectionViewModel({
+					isReady: true,
+					hasExistingCanvas: false,
+					canvasResult: failedValidation,
+					templateFields: [],
+					aiSelections: {},
+					onCreateCanvas: vi.fn(),
+				}),
+			{ wrapper }
+		);
+
+		expect(result.current.isSavedSuccessfully).toBe(true);
+		expect(result.current.recoveryHints).toEqual([]);
+		expect(result.current.subtitle).toMatch(/open in Fusion/i);
+		expect(result.current.subtitle).not.toMatch(/verification/i);
+	});
 });

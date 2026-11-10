@@ -25,6 +25,7 @@ describe("useCanvasNameForm", () => {
 		useFindCanvasesByName.mockReturnValue({
 			data: [],
 			isLoading: false,
+			isFetching: false,
 			error: null,
 			refetch,
 		});
@@ -74,6 +75,7 @@ describe("useCanvasNameForm", () => {
 		useFindCanvasesByName.mockReturnValue({
 			data: [{ externalId: "existing", name: "Canvas for Pump overhaul" }],
 			isLoading: false,
+			isFetching: false,
 			error: null,
 			refetch,
 		});
@@ -109,6 +111,7 @@ describe("useCanvasNameForm", () => {
 		useFindCanvasesByName.mockReturnValue({
 			data: [],
 			isLoading: false,
+			isFetching: false,
 			error: new Error("lookup failed"),
 			refetch,
 		});
@@ -121,5 +124,30 @@ describe("useCanvasNameForm", () => {
 		});
 		expect(refetch).toHaveBeenCalledTimes(1);
 		expect(result.current.canvasName).toBe("");
+	});
+
+	it("C08: keeps the name check in progress until the debounced lookup finishes", () => {
+		const { result } = renderForm();
+		act(() => {
+			result.current.setCanvasName("QA-C08");
+		});
+		expect(result.current.isCheckingExists).toBe(true);
+		act(() => {
+			vi.advanceTimersByTime(500);
+		});
+		expect(result.current.isCheckingExists).toBe(false);
+	});
+
+	it("C08: rechecks the name immediately before writing", async () => {
+		refetch.mockResolvedValue({
+			data: [{ externalId: "found", name: "QA-C08" }],
+		});
+		const { result } = renderForm();
+		let exists = false;
+		await act(async () => {
+			exists = await result.current.recheckCanvasName();
+		});
+		expect(refetch).toHaveBeenCalled();
+		expect(exists).toBe(true);
 	});
 });
