@@ -243,7 +243,7 @@ variables:
         # ... any other key from default.config.yaml
 ```
 
-`cdf build` substitutes them into `rulesets/`, `data_products/` and `data_modeling/`. Toolkit also substitutes the same module variables into the bootstrap Function secrets and Schedule `data` (`dataQualitySpace`, `recordsStreamId`, `functionCodeDatasetExternalId`, `dataProductExternalId`, `dataProductVersion`, `functionClientId`, `functionClientSecret`). The bootstrap handler merges Schedule `data` into the bundled `config/settings.yaml` at runtime (Toolkit cannot substitute placeholders inside the function code bundle).
+`cdf build` substitutes them into `rulesets/`, `data_products/` and `data_modeling/`. Toolkit also substitutes the same module variables into the bootstrap Function secrets and Schedule `data` (spaces, stream, dataset, data product, view identifiers, `instanceSpace`, `ruleSetVersion`, `timeSeriesExternalIdPrefix`, plus `functionClientId` / `functionClientSecret`). The bootstrap handler validates Schedule `data` with Pydantic, merges settings overrides into the bundled `config/settings.yaml`, and substitutes placeholders in bundled `config/views/` and `config/timeseries/` at runtime (Toolkit cannot substitute placeholders inside the function code bundle).
 
 | Variable | Default | Used in | Meaning |
 | --- | --- | --- | --- |
@@ -261,7 +261,7 @@ variables:
 | `dataProductSchemaSpace` | `dm_sol_data_quality` | data product, data_modeling | Schema space owned exclusively by the data product. Must not be a `cdf_*` space or owned by another data product |
 | `dataProductExternalId` | `data_quality_core` | data product, settings / Schedule.data | Data product binding views, instance spaces and rule sets |
 | `dataProductVersion` | `1.0.0` | data product, settings / Schedule.data | Data product version. Bump when views, instance spaces or rule set versions change (they are immutable on an existing version) |
-| `ruleSetVersion` | `2.0.0` | rulesets, data product, timeseries_config | Version of every RuleSetVersion. Bump when you edit rule content |
+| `ruleSetVersion` | `1.0.0` | rulesets, data product, timeseries_config | Version of every RuleSetVersion. Bump when you edit rule content |
 | `dataQualitySpace` | `inst_data_quality` | settings / Schedule.data, data_modeling | Space for runtime state (settings, cursors, historic queue) and record containers |
 | `recordsStreamId` | `cdf_all_validation_results` | settings / Schedule.data | Records stream for validation results. Created by bootstrap if missing |
 | `functionCodeDatasetExternalId` | `ds_data_quality_all` | settings / Schedule.data | Data set for the CDF Function code file |
@@ -289,7 +289,7 @@ A data product version may only reference views in its own schema space or in a 
 | `timeseries.config_dir` | Folder with time series validation configs (`timeseries_config`) |
 | `external_dataproducts` | Data products published by Toolkit; wired without republishing |
 
-Per-view tuning (partitioning, batch sizes, `max_concurrent_executions: 1`, `uniqueness_cron`) is in `views/*.yaml`; time series schedule and filter in `timeseries_config/timeseries_quality.yaml`. When those overrides should apply at bootstrap time, keep matching files under the function’s `config/` directory (`views/`, `timeseries/`).
+Per-view tuning (partitioning, batch sizes, `max_concurrent_executions: 1`, `uniqueness_cron`) is in `views/*.yaml`; time series schedule and filter in `timeseries_config/timeseries_quality.yaml`. Matching copies ship under the bootstrap Function’s `config/views/` and `config/timeseries/` so bootstrap applies them. Toolkit cannot substitute placeholders inside the function zip — Schedule.`data` carries the module variables and the handler substitutes them at runtime before calling `deploy_validation_infrastructure()`.
 
 ### SHACL rules and view IRIs
 

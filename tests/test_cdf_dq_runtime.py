@@ -677,8 +677,20 @@ def test_function_secrets_from_toml(cli: types.ModuleType, tmp_path: Path) -> No
 def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> None:
     bootstrap = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure"
     assert (bootstrap / "handler.py").is_file()
+    assert (bootstrap / "models.py").is_file()
+    assert (bootstrap / "logger.py").is_file()
     assert (bootstrap / "requirements.txt").is_file()
     assert (bootstrap / "config" / "settings.yaml").is_file()
+    assert (bootstrap / "config" / "views").is_dir()
+    assert (bootstrap / "config" / "timeseries").is_dir()
+    assert {p.name for p in (bootstrap / "config" / "views").glob("*.yaml")} == {
+        "asset.yaml",
+        "equipment.yaml",
+        "maintenance_order.yaml",
+        "notification.yaml",
+        "operation.yaml",
+    }
+    assert {p.name for p in (bootstrap / "config" / "timeseries").glob("*.yaml")} == {"timeseries_quality.yaml"}
     function_yaml = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure.Function.yaml"
     assert function_yaml.is_file()
     function_text = function_yaml.read_text(encoding="utf-8")
@@ -697,11 +709,17 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     assert 'functionCodeDatasetExternalId: "{{ functionCodeDatasetExternalId }}"' in schedule_text
     assert 'dataProductExternalId: "{{ dataProductExternalId }}"' in schedule_text
     assert 'dataProductVersion: "{{ dataProductVersion }}"' in schedule_text
+    assert 'schemaSpace: "{{ schemaSpace }}"' in schedule_text
+    assert 'instanceSpace: "{{ instanceSpace }}"' in schedule_text
+    assert 'ruleSetVersion: "{{ ruleSetVersion }}"' in schedule_text
+    assert 'timeSeriesExternalIdPrefix: "{{ timeSeriesExternalIdPrefix }}"' in schedule_text
     assert not (_MODULE / "workflows" / "fn_dataproduct_all_bootstrap_infrastructure.Workflow.yaml").exists()
     assert not (_MODULE / "workflows" / "fn_dataproduct_all_bootstrap_infrastructure.WorkflowVersion.yaml").exists()
     assert not (_MODULE / "workflows" / "fn_dataproduct_all_bootstrap_infrastructure.WorkflowTrigger.yaml").exists()
     assert not (_MODULE / "data_modeling" / "views" / "DataQualityValidationRecord.View.yaml").exists()
-    assert "cognite-data-quality==" in (bootstrap / "requirements.txt").read_text(encoding="utf-8")
+    requirements = (bootstrap / "requirements.txt").read_text(encoding="utf-8")
+    assert "cognite-data-quality==" in requirements
+    assert "pydantic>=" in requirements
 
     defaults = _load_yaml(_MODULE / "default.config.yaml")
     settings = _load_yaml(bootstrap / "config" / "settings.yaml")
@@ -713,8 +731,9 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
         {"external_id": defaults["dataProductExternalId"], "version": defaults["dataProductVersion"]}
     ]
     handler_text = (bootstrap / "handler.py").read_text(encoding="utf-8")
-    assert "_delete_bootstrap_schedule(client)" in handler_text
+    assert "_delete_bootstrap_schedule(client, logger)" in handler_text
     assert "_write_settings_with_overrides" in handler_text
+    assert "FunctionInput.model_validate" in handler_text
     assert "Leave the five-minute schedule in place" in handler_text
 
 
@@ -755,6 +774,60 @@ def _bootstrap_client(
     return SimpleNamespace(functions=functions_api, config=SimpleNamespace(credentials=credentials))
 
 
+def test_function_input_rejects_invalid_log_level() -> None:
+    from pydantic import ValidationError
+
+    sys.path.insert(0, str(_MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure"))
+    try:
+        from models import FunctionInput
+    finally:
+        sys.path.pop(0)
+
+    with pytest.raises(ValidationError):
+        FunctionInput.model_validate({"logLevel": "VERBOSE"})
+
+
+def test_bootstrap_handler_passes_materialized_views_and_timeseries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    materialized: list[Path] = []
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        views = kwargs["views_dir"]
+        ts = kwargs["timeseries_dir"]
+        assert isinstance(views, Path) and views.is_dir()
+        assert isinstance(ts, Path) and ts.is_dir()
+        materialized.extend((views, ts))
+        asset = yaml.safe_load((views / "asset.yaml").read_text(encoding="utf-8"))
+        equipment = yaml.safe_load((views / "equipment.yaml").read_text(encoding="utf-8"))
+        ts_cfg = yaml.safe_load((ts / "timeseries_quality.yaml").read_text(encoding="utf-8"))
+        assert asset["view"]["space"] == "custom_cdm"
+        assert asset["view"]["external_id"] == "CustomAsset"
+        assert asset["instance_spaces"] == ["inst_custom"]
+        assert equipment["uniqueness_cron"] == "0 */4 * * *"
+        assert ts_cfg["filter"]["space"] == "inst_custom"
+        assert ts_cfg["filter"]["external_id_prefix"] == "ts:"
+        assert ts_cfg["shacl_rules"]["ruleset_references"][0]["version"] == "3.0.0"
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client()
+
+    assert handler_module.handle(
+        {
+            "schemaSpace": "custom_cdm",
+            "instanceSpace": "inst_custom",
+            "viewAssetExternalId": "CustomAsset",
+            "timeSeriesExternalIdPrefix": "ts:",
+            "ruleSetVersion": "3.0.0",
+        },
+        client,
+    ) == {"status": "completed"}
+    assert len(materialized) == 2
+    for path in materialized:
+        assert not path.exists()
+
+
 def test_bootstrap_handler_deletes_all_schedules_for_function_on_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -790,7 +863,7 @@ def test_bootstrap_handler_deletes_all_schedules_for_function_on_success(
 
 def test_bootstrap_handler_logs_when_bootstrap_function_missing(
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     def deploy(**_kwargs: object) -> dict[str, object]:
         return {"status": "completed"}
@@ -798,9 +871,8 @@ def test_bootstrap_handler_logs_when_bootstrap_function_missing(
     handler_module = _load_bootstrap_handler(monkeypatch, deploy)
     client = _bootstrap_client(retrieve=lambda *, external_id: None)
 
-    with caplog.at_level("WARNING"):
-        assert handler_module.handle({}, client) == {"status": "completed"}
-    assert f"Bootstrap function not found: {handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID}" in caplog.text
+    assert handler_module.handle({}, client) == {"status": "completed"}
+    assert f"Bootstrap function not found: {handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID}" in capsys.readouterr().out
 
 
 def test_bootstrap_handler_keeps_schedule_when_deployment_fails(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -822,7 +894,7 @@ def test_bootstrap_handler_keeps_schedule_when_deployment_fails(monkeypatch: pyt
 
 def test_bootstrap_handler_logs_schedule_delete_failure_without_failing_deploy(
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     from cognite.client.exceptions import CogniteAPIError
 
@@ -839,10 +911,10 @@ def test_bootstrap_handler_logs_schedule_delete_failure_without_failing_deploy(
         delete=delete_forbidden,
     )
 
-    with caplog.at_level("WARNING"):
-        assert handler_module.handle({}, client) == {"status": "completed"}
-    assert "Failed to delete bootstrap schedule id=2" in caplog.text
-    assert "code=403" in caplog.text
+    assert handler_module.handle({}, client) == {"status": "completed"}
+    out = capsys.readouterr().out
+    assert "Failed to delete bootstrap schedule id=2" in out
+    assert "code=403" in out
 
 
 def test_bootstrap_handler_applies_schedule_data_overrides(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -5,10 +5,23 @@ cronExpression: "*/5 * * * *"
 authentication:
   clientId: "{{ functionClientId }}"
   clientSecret: "{{ functionClientSecret }}"
-# Toolkit substitutes these into Schedule.data (not into the function code bundle settings.yaml).
+# Toolkit substitutes these into Schedule.data (not into the function code bundle).
+# Used for settings.yaml merge and for substituting placeholders in bundled views/timeseries YAML.
 data:
   dataQualitySpace: "{{ dataQualitySpace }}"
   recordsStreamId: "{{ recordsStreamId }}"
   functionCodeDatasetExternalId: "{{ functionCodeDatasetExternalId }}"
   dataProductExternalId: "{{ dataProductExternalId }}"
   dataProductVersion: "{{ dataProductVersion }}"
+  schemaSpace: "{{ schemaSpace }}"
+  secondarySchemaSpace: "{{ secondarySchemaSpace }}"
+  viewVersion: "{{ viewVersion }}"
+  viewAssetExternalId: "{{ viewAssetExternalId }}"
+  viewEquipmentExternalId: "{{ viewEquipmentExternalId }}"
+  viewTimeSeriesExternalId: "{{ viewTimeSeriesExternalId }}"
+  viewMaintenanceOrderExternalId: "{{ viewMaintenanceOrderExternalId }}"
+  viewOperationExternalId: "{{ viewOperationExternalId }}"
+  viewNotificationExternalId: "{{ viewNotificationExternalId }}"
+  instanceSpace: "{{ instanceSpace }}"
+  timeSeriesExternalIdPrefix: "{{ timeSeriesExternalIdPrefix }}"
+  ruleSetVersion: "{{ ruleSetVersion }}"

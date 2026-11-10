@@ -1,6 +1,8 @@
 """Bootstrap Data Quality Validation infrastructure from the released package."""
 
-import logging
+import re
+import shutil
+import sys
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -9,10 +11,13 @@ import yaml
 from cognite.client.exceptions import CogniteAPIError
 from cognite_data_quality import deploy_validation_infrastructure
 
+sys.path.append(str(Path(__file__).parent))
+
+from logger import CogniteFunctionLogger
+from models import FunctionInput, FunctionOutput
+
 if TYPE_CHECKING:
     from cognite.client import CogniteClient
-
-log = logging.getLogger(__name__)
 
 BOOTSTRAP_FUNCTION_EXTERNAL_ID = "fn_dataproduct_all_bootstrap_infrastructure"
 BOOTSTRAP_SCHEDULE_NAME = "fn_dataproduct_all_bootstrap_infrastructure"
@@ -29,8 +34,10 @@ _SETTINGS_OVERRIDE_KEYS = frozenset(
     }
 )
 
+_PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
 
-def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
+
+def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionLogger) -> None:
     """Delete Toolkit bootstrap schedules after a successful deploy.
 
     Authenticated Toolkit schedules are stored under numeric functionId (session/nonce create
@@ -41,28 +48,28 @@ def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
     try:
         function = client.functions.retrieve(external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID)
     except CogniteAPIError as e:
-        log.warning(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | code={e.code}")
+        logger.warning(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | code={e.code}")
         return
     except Exception as e:
-        log.warning(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e}")
+        logger.warning(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e}")
         return
 
     if function is None:
-        log.warning(f"Bootstrap function not found: {BOOTSTRAP_FUNCTION_EXTERNAL_ID}")
+        logger.warning(f"Bootstrap function not found: {BOOTSTRAP_FUNCTION_EXTERNAL_ID}")
         return
 
     function_id = function.id
     try:
         schedules = client.functions.schedules.list(function_id=function_id, limit=None)
     except CogniteAPIError as e:
-        log.warning(f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={e.code}")
+        logger.warning(f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={e.code}")
         return
     except Exception as e:
-        log.warning(f"Failed to list bootstrap schedules for function_id={function_id}: {e}")
+        logger.warning(f"Failed to list bootstrap schedules for function_id={function_id}: {e}")
         return
 
     if not schedules:
-        log.info(f"No bootstrap schedules found for {BOOTSTRAP_FUNCTION_EXTERNAL_ID} (function_id={function_id})")
+        logger.info(f"No bootstrap schedules found for {BOOTSTRAP_FUNCTION_EXTERNAL_ID} (function_id={function_id})")
         return
 
     for schedule in schedules:
@@ -70,13 +77,13 @@ def _delete_bootstrap_schedule(client: "CogniteClient") -> None:
         schedule_name = schedule.name or ""
         try:
             client.functions.schedules.delete(id=schedule_id)
-            log.info(f"Deleted bootstrap schedule id={schedule_id} name={schedule_name}")
+            logger.info(f"Deleted bootstrap schedule id={schedule_id} name={schedule_name}")
         except CogniteAPIError as e:
-            log.warning(
+            logger.warning(
                 f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e} | code={e.code}"
             )
         except Exception as e:
-            log.warning(f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e}")
+            logger.warning(f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e}")
 
 
 def _credential_pair(
@@ -167,6 +174,37 @@ def _overlay_client_credentials_from_secrets(client: "CogniteClient", secrets: d
     config.credentials = _CredentialsWithClientSecret(existing, workflows["client_id"], workflows["client_secret"])
 
 
+def _substitute_placeholders(text: str, variables: dict[str, str]) -> str:
+    """Replace ``{{ name }}`` tokens. Unknown names are left unchanged."""
+
+    def replace(match: re.Match[str]) -> str:
+        name = match.group(1)
+        if name in variables:
+            return variables[name]
+        return match.group(0)
+
+    return _PLACEHOLDER.sub(replace, text)
+
+
+def _materialize_config_dir(source_dir: Path, variables: dict[str, str]) -> Path | None:
+    """Copy YAML from *source_dir* into a temp dir with Toolkit placeholders substituted."""
+    if not source_dir.is_dir():
+        return None
+    yaml_files = sorted(source_dir.glob("*.yaml")) + sorted(source_dir.glob("*.yml"))
+    if not yaml_files:
+        return None
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="dq_bootstrap_"))
+    try:
+        for src in yaml_files:
+            rendered = _substitute_placeholders(src.read_text(encoding="utf-8"), variables)
+            (tmp_dir / src.name).write_text(rendered, encoding="utf-8")
+    except Exception:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
+    return tmp_dir
+
+
 def _write_settings_with_overrides(
     settings_path: Path,
     data: dict[str, object],
@@ -227,31 +265,54 @@ def _write_settings_with_overrides(
             tmp_path.unlink(missing_ok=True)
 
 
+def _ensure_status(result: object) -> dict[str, object]:
+    """Guarantee a ``status`` key on the Function return value."""
+    if isinstance(result, dict):
+        if "status" in result:
+            return result
+        return FunctionOutput(status="succeeded", **result).model_dump()
+    return FunctionOutput(status="succeeded").model_dump()
+
+
 def handle(
     data: dict[str, object], client: "CogniteClient", secrets: dict[str, str] | None = None
 ) -> dict[str, object]:
     """Deploy Data Quality Validation infrastructure from this module's rendered config."""
+    fn_input = FunctionInput.model_validate(data)
+    logger = CogniteFunctionLogger(fn_input.log_level)
     config_dir = Path(__file__).parent / "config"
     bundled_settings = config_dir / "settings.yaml"
     override_path: Path | None = None
+    views_dir: Path | None = None
+    timeseries_dir: Path | None = None
     try:
+        logger.info("Starting Data Quality Validation infrastructure bootstrap")
         _overlay_client_credentials_from_secrets(client, secrets)
-        override_path = _write_settings_with_overrides(bundled_settings, data, secrets)
+        override_path = _write_settings_with_overrides(bundled_settings, fn_input.settings_overrides(), secrets)
+        variables = fn_input.substitution_variables()
+        views_dir = _materialize_config_dir(config_dir / "views", variables)
+        timeseries_dir = _materialize_config_dir(config_dir / "timeseries", variables)
         result = deploy_validation_infrastructure(
             client=client,
             settings_path=override_path or bundled_settings,
-            views_dir=(config_dir / "views") if (config_dir / "views").is_dir() else None,
-            timeseries_dir=(config_dir / "timeseries") if (config_dir / "timeseries").is_dir() else None,
+            views_dir=views_dir,
+            timeseries_dir=timeseries_dir,
             shacl_rules_dir=(config_dir / "shacl_rules") if (config_dir / "shacl_rules").is_dir() else None,
             function_secrets=secrets,
-            force=bool(data.get("force", False)),
+            force=fn_input.force,
         )
-    except Exception:
+    except Exception as e:
         # Leave the five-minute schedule in place so bootstrap can retry.
+        logger.error(f"Data Quality Validation infrastructure bootstrap failed: {e}")
         raise
     else:
-        _delete_bootstrap_schedule(client)
-        return result
+        _delete_bootstrap_schedule(client, logger)
+        logger.info("Data Quality Validation infrastructure bootstrap completed successfully")
+        return _ensure_status(result)
     finally:
         if override_path is not None:
             override_path.unlink(missing_ok=True)
+        if views_dir is not None:
+            shutil.rmtree(views_dir, ignore_errors=True)
+        if timeseries_dir is not None:
+            shutil.rmtree(timeseries_dir, ignore_errors=True)
