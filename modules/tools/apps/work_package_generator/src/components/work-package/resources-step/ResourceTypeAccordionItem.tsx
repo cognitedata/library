@@ -16,7 +16,11 @@ interface ResourceTypeAccordionItemProps {
 	items: ResourceInstance[];
 	extraProperties: string[];
 	onAdd: () => void;
-	onRemoveResource?: (typeKey: string, externalId: string) => void;
+	onRemoveResource?: (
+		typeKey: string,
+		externalId: string,
+		space: string
+	) => void;
 }
 
 export function ResourceTypeAccordionItem({
@@ -61,7 +65,8 @@ export function ResourceTypeAccordionItem({
 					displayName={config.displayName}
 					onRemoveResource={
 						onRemoveResource
-							? (externalId) => onRemoveResource(typeKey, externalId)
+							? (externalId, space) =>
+									onRemoveResource(typeKey, externalId, space)
 							: undefined
 					}
 				/>

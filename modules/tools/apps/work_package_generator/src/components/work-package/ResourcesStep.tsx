@@ -14,7 +14,11 @@ interface ResourcesStepProps {
 	resourcesErrorMessage?: string | null;
 	onRetryResources?: () => void;
 	onContinueFromResources?: () => void;
-	onRemoveResource?: (typeKey: string, externalId: string) => void;
+	onRemoveResource?: (
+		typeKey: string,
+		externalId: string,
+		space: string
+	) => void;
 }
 
 export function ResourcesStep({

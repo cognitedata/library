@@ -467,15 +467,11 @@ describe("getAssetResourcesGeneric", () => {
 		);
 	});
 
-	it("returns empty on error", async () => {
+	it("N13: throws when the asset resource read fails", async () => {
 		queryMock.mockRejectedValue(new Error("fail"));
-		const result = await getAssetResourcesGeneric(
-			client,
-			"asset-1",
-			"s",
-			"file"
-		);
-		expect(result).toEqual([]);
+		await expect(
+			getAssetResourcesGeneric(client, "asset-1", "s", "file")
+		).rejects.toThrow("fail");
 	});
 });
 
@@ -515,15 +511,11 @@ describe("getActivityResourcesGeneric", () => {
 		expect(result).toEqual([]);
 	});
 
-	it("returns empty on error", async () => {
+	it("N13: throws when the activity resource read fails", async () => {
 		queryMock.mockRejectedValue(new Error("query failed"));
-		const result = await getActivityResourcesGeneric(
-			client,
-			"act-1",
-			"s",
-			"timeseries"
-		);
-		expect(result).toEqual([]);
+		await expect(
+			getActivityResourcesGeneric(client, "act-1", "s", "timeseries")
+		).rejects.toThrow("query failed");
 	});
 });
 
@@ -558,7 +550,7 @@ describe("listTemplateCanvases", () => {
 		expect(result[0].externalId).toBe("c-1");
 	});
 
-	it("deduplicates by name keeping most recently updated", async () => {
+	it("B-D4: lists every template with the same name", async () => {
 		const older = canvasNode("c-old", "template_pump", {
 			updatedAt: "2024-01-01",
 		});
@@ -568,14 +560,15 @@ describe("listTemplateCanvases", () => {
 		queryMock.mockResolvedValue({ items: { nodes: [older, newer] } });
 
 		const result = await listTemplateCanvases(client);
-		expect(result).toHaveLength(1);
-		expect(result[0].externalId).toBe("c-new");
+		expect(result.map((canvas) => canvas.externalId).sort()).toEqual([
+			"c-new",
+			"c-old",
+		]);
 	});
 
-	it("returns empty on error", async () => {
+	it("N13: throws when the template list read fails", async () => {
 		queryMock.mockRejectedValue(new Error("fail"));
-		const result = await listTemplateCanvases(client);
-		expect(result).toEqual([]);
+		await expect(listTemplateCanvases(client)).rejects.toThrow("fail");
 	});
 });
 
@@ -605,9 +598,8 @@ describe("findCanvasesByName", () => {
 		expect(result[0].externalId).toBe("c-1");
 	});
 
-	it("returns empty on error", async () => {
+	it("N13: throws when the name search fails", async () => {
 		queryMock.mockRejectedValue(new Error("fail"));
-		const result = await findCanvasesByName(client, "test");
-		expect(result).toEqual([]);
+		await expect(findCanvasesByName(client, "test")).rejects.toThrow("fail");
 	});
 });

@@ -3,6 +3,6 @@ import pkg from "../package.json";
 
 describe("package scripts", () => {
 	it("B-T1: build stops when tsc fails", () => {
-		expect(pkg.scripts.build).toBe("tsc && vite build");
+		expect(pkg.scripts.build).toBe("node scripts/build.mjs");
 	});
 });

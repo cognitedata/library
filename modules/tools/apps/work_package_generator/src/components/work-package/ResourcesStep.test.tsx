@@ -234,7 +234,7 @@ describe("ResourcesStep", () => {
 		);
 		fireEvent.click(screen.getByRole("button", { name: /Remove File one/i }));
 		expect(onRemoveResource).toHaveBeenCalledTimes(1);
-		expect(onRemoveResource).toHaveBeenCalledWith("file", "f1");
+		expect(onRemoveResource).toHaveBeenCalledWith("file", "f1", "s");
 	});
 
 	it("renders a remove control for every listed resource", () => {

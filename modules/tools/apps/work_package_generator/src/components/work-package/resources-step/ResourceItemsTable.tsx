@@ -24,7 +24,7 @@ interface ResourceItemsTableProps {
 	items: ResourceInstance[];
 	extraProperties: string[];
 	displayName: string;
-	onRemoveResource?: (externalId: string) => void;
+	onRemoveResource?: (externalId: string, space: string) => void;
 }
 
 export function ResourceItemsTable({
@@ -130,7 +130,9 @@ export function ResourceItemsTable({
 											size="icon-sm"
 											className="text-muted-foreground hover:text-destructive"
 											aria-label={`Remove ${resourceRowLabel(item)}`}
-											onClick={() => onRemoveResource(item.externalId)}
+											onClick={() =>
+												onRemoveResource(item.externalId, item.space)
+											}
 										>
 											<Trash2 className="h-3.5 w-3.5" aria-hidden />
 										</Button>

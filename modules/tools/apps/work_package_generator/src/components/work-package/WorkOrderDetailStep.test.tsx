@@ -307,13 +307,13 @@ describe("WorkOrderDetailStep", () => {
 			).toBeInTheDocument();
 		});
 
-		it("C05 keeps continue available when no asset is linked", () => {
+		it("C05: does not hang on resolving when no asset is linked", () => {
 			render(<WorkOrderDetailStep {...defaultProps} asset={null} />);
 
 			const continueButton = screen.getByRole("button", {
 				name: /continue with ai suggestions/i,
 			});
-			expect(continueButton).toBeEnabled();
+			expect(continueButton).toBeDisabled();
 			expect(
 				screen.queryByText("Resolving target asset…")
 			).not.toBeInTheDocument();

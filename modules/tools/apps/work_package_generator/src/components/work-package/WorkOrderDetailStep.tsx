@@ -48,7 +48,10 @@ export function WorkOrderDetailStep({
 		assetLookupState ??
 		(isSearching ? "loading" : assetErrorMessage ? "failed" : "none");
 	const isGenerateDisabled =
-		isSearching || lookupState === "loading" || lookupState === "failed";
+		isSearching ||
+		!asset ||
+		lookupState === "loading" ||
+		lookupState === "failed";
 	const disabledHint = isSearching
 		? "Loading work order details…"
 		: lookupState === "loading"
