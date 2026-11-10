@@ -4,6 +4,7 @@
  * Unknown top-level properties are ignored. Keys inside a section are strict.
  */
 
+import { deriveViewCapabilities } from "./derive";
 import { AppConfigError } from "./errors";
 import {
 	type AgentToolConfig,
@@ -98,6 +99,12 @@ export function parseConfigNode(raw: unknown): ParsedConfigNode {
 		);
 	}
 
+	const viewCapabilities = deriveViewCapabilities(
+		workOrderProperties,
+		context.workOrder.properties
+	);
+	warnNoOpSettings(viewCapabilities, ui);
+
 	return {
 		dataModel,
 		canvas,
@@ -110,10 +117,27 @@ export function parseConfigNode(raw: unknown): ParsedConfigNode {
 		clusterSettings,
 		fusion,
 		workOrderProperties,
-		viewCapabilities: { hasStatus: true, hasPriority: true },
+		viewCapabilities,
 		prompts,
 		ui,
 	};
+}
+
+/** Settings that parse cleanly but cannot change behaviour. */
+function warnNoOpSettings(
+	viewCapabilities: AppConfig["viewCapabilities"],
+	ui: AppConfig["ui"]
+): void {
+	if (!viewCapabilities.hasStatus && ui.workOrderStatusOptions.length > 0) {
+		console.warn(
+			"WPG config: WPGConfig.ui.workOrderStatusOptions: no effect because the work-order view has no status property"
+		);
+	}
+	if (!viewCapabilities.hasPriority && ui.workOrderPriorityOptions.length > 0) {
+		console.warn(
+			"WPG config: WPGConfig.ui.workOrderPriorityOptions: no effect because the work-order view has no priority property"
+		);
+	}
 }
 
 function readSchemaVersion(
@@ -432,7 +456,7 @@ function readResourceType(
 	return {
 		displayName,
 		view,
-		properties,
+		properties: properties.filter((name) => name !== "externalId"),
 		assetRelationProperty,
 		assetRelationIsArray,
 		...(activityContainerIdentifier ? { activityContainerIdentifier } : {}),
@@ -771,6 +795,12 @@ function readPrompts(
 			"WPGConfig.prompts.resourceSelection",
 			issues
 		);
+		rejectUnknownPlaceholders(
+			resourceSelection,
+			RESOURCE_SELECTION_PLACEHOLDERS,
+			"WPGConfig.prompts.resourceSelection",
+			issues
+		);
 	}
 	if (templateSelection) {
 		requirePlaceholders(
@@ -779,13 +809,21 @@ function readPrompts(
 			"WPGConfig.prompts.templateSelection",
 			issues
 		);
+		rejectUnknownPlaceholders(
+			templateSelection,
+			TEMPLATE_SELECTION_PLACEHOLDERS,
+			"WPGConfig.prompts.templateSelection",
+			issues
+		);
 	}
 	if (!resourceSelection || !templateSelection) return null;
-	const resourceOk = RESOURCE_SELECTION_PLACEHOLDERS.every((token) =>
-		resourceSelection.includes(`{{${token}}}`)
+	const resourceOk = placeholdersAreKnown(
+		resourceSelection,
+		RESOURCE_SELECTION_PLACEHOLDERS
 	);
-	const templateOk = TEMPLATE_SELECTION_PLACEHOLDERS.every((token) =>
-		templateSelection.includes(`{{${token}}}`)
+	const templateOk = placeholdersAreKnown(
+		templateSelection,
+		TEMPLATE_SELECTION_PLACEHOLDERS
 	);
 	if (!resourceOk || !templateOk) return null;
 	return { resourceSelection, templateSelection };
@@ -1012,6 +1050,34 @@ function requirePlaceholders(
 	}
 }
 
+function rejectUnknownPlaceholders(
+	template: string,
+	tokens: readonly string[],
+	path: string,
+	issues: string[]
+): void {
+	const allowed = new Set<string>(tokens);
+	for (const match of template.matchAll(/\{\{([^{}]*)\}\}/g)) {
+		const name = match[1] ?? "";
+		if (!allowed.has(name)) {
+			issues.push(`${path}: unknown placeholder {{${name}}}`);
+		}
+	}
+}
+
+function placeholdersAreKnown(
+	template: string,
+	tokens: readonly string[]
+): boolean {
+	const allowed = new Set<string>(tokens);
+	const required = tokens.every((token) => template.includes(`{{${token}}}`));
+	if (!required) return false;
+	for (const match of template.matchAll(/\{\{([^{}]*)\}\}/g)) {
+		if (!allowed.has(match[1] ?? "")) return false;
+	}
+	return true;
+}
+
 function readSolutionTag(
 	value: unknown,
 	issues: string[]
@@ -1065,6 +1131,7 @@ function readLimits(
 		"instancePageSize",
 		"upsertBatchSize",
 		"deleteBatchSize",
+		"searchResultLimit",
 	]);
 	const parsed = {} as AppConfig["limits"];
 	let complete = true;

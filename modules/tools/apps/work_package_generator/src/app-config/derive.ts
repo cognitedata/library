@@ -9,7 +9,13 @@ import type {
 	ResourceConfig,
 	TemplateCanvas,
 } from "../types";
-import type { AppConfig, ClusterSettings, ViewIdConfig } from "./types";
+import type {
+	AppConfig,
+	ClusterSettings,
+	ViewCapabilities,
+	ViewIdConfig,
+	WorkOrderPropertyNames,
+} from "./types";
 
 export function toViewReference(view: ViewIdConfig): ViewReference {
 	return {
@@ -30,11 +36,26 @@ export function getViewKey(viewId: ViewReference): string {
 	return `${viewId.externalId}/${viewId.version}`;
 }
 
-export function getViewCapabilities(config?: AppConfig): {
-	hasStatus: boolean;
-	hasPriority: boolean;
-} {
-	return config?.viewCapabilities ?? { hasStatus: true, hasPriority: true };
+/**
+ * Status and priority are present only when the configured work-order
+ * property names appear on the work-order view.
+ *
+ * Assumption: the parser cannot retrieve the live view. `knownPropertyNames`
+ * is the local stand-in (`context.workOrder.properties`).
+ */
+export function deriveViewCapabilities(
+	propertyNames: Pick<WorkOrderPropertyNames, "status" | "priority">,
+	knownPropertyNames: readonly string[]
+): ViewCapabilities {
+	const known = new Set(knownPropertyNames);
+	return {
+		hasStatus: known.has(propertyNames.status),
+		hasPriority: known.has(propertyNames.priority),
+	};
+}
+
+export function getViewCapabilities(config?: AppConfig): ViewCapabilities {
+	return config?.viewCapabilities ?? { hasStatus: false, hasPriority: false };
 }
 
 export function getResourceConfigs(

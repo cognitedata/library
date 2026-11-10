@@ -8,6 +8,7 @@ import {
 	getAgentExternalId,
 	getAiSelectableTemplates,
 	getBaseTemplateCanvas,
+	getViewCapabilities,
 	getViewKey,
 	isBaseTemplateId,
 	toViewReference,
@@ -21,6 +22,15 @@ describe("derive", () => {
 		expect(view.type).toBe("view");
 		expect(viewIdToSource(view)).toEqual({ source: view });
 		expect(getViewKey(view)).toBe(`${view.externalId}/${view.version}`);
+	});
+
+	it("N04: exposes view capabilities from the loaded config", () => {
+		const config = createMockAppConfig();
+		expect(getViewCapabilities(config)).toEqual(config.viewCapabilities);
+		expect(getViewCapabilities(undefined)).toEqual({
+			hasStatus: false,
+			hasPriority: false,
+		});
 	});
 
 	it("reads the Fusion org from the hostname", () => {

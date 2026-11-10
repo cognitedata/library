@@ -25,6 +25,10 @@ describe("toolkit config drift", () => {
 		);
 	});
 
+	it("B-D3: ignores unresolved variables on the config node", () => {
+		expect(nodeYaml).toContain("# rules: ignore[UNRESOLVED-VARIABLE]");
+	});
+
 	it("keeps literal node sections aligned with the fixture", () => {
 		for (const section of [
 			"resourceTypes",
