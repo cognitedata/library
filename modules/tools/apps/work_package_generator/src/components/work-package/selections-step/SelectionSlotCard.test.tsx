@@ -22,4 +22,27 @@ describe("SelectionSlotCard", () => {
 		await user.click(screen.getByRole("button", { name: /pick manually/i }));
 		expect(onPick).toHaveBeenCalledWith("Procedure");
 	});
+
+	it("C16: shows the slot error and still allows a manual pick", () => {
+		render(
+			<SelectionSlotCard
+				field={field}
+				selection={null}
+				canPickManually
+				isRunningAiSelection={false}
+				slotError="AI unavailable: pick manually or retry"
+				onPickManually={vi.fn()}
+				onRetrySlot={vi.fn()}
+			/>
+		);
+		expect(
+			screen.getByText("AI unavailable: pick manually or retry")
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /pick manually/i })
+		).toBeEnabled();
+		expect(
+			screen.getByRole("button", { name: /^Retry$/i })
+		).toBeInTheDocument();
+	});
 });

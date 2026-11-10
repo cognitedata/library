@@ -2,6 +2,10 @@ import { ArrowRight, RotateCcw, Sparkles } from "lucide-react";
 import { TemplateCanvasInstructionsDialog } from "@/components/layout/TemplateCanvasInstructionsDialog";
 import { Button, Loader } from "@/components/ui";
 import type { TemplateSlot } from "@/hooks";
+import {
+	AI_RECOMMENDATION_FAILED_MESSAGE,
+	useAiRunUi,
+} from "@/hooks/useAiSelections";
 import type { TemplateCanvas } from "@/types";
 import { TemplateCanvasCard } from "./template-selection-step/TemplateCanvasCard";
 import { TemplateSelectionAlerts } from "./template-selection-step/TemplateSelectionAlerts";
@@ -18,6 +22,8 @@ interface TemplateSelectionStepProps {
 	templatesErrorMessage?: string | null;
 	onRetryTemplates?: () => void;
 	isRunningAiCanvasRecommendation: boolean;
+	aiRecommendationFailed?: boolean;
+	onRetryRecommendation?: () => void;
 	onSelectTemplate: (id: string) => void;
 	onContinueFromTemplate: () => void;
 }
@@ -34,9 +40,16 @@ export function TemplateSelectionStep({
 	templatesErrorMessage = null,
 	onRetryTemplates,
 	isRunningAiCanvasRecommendation,
+	aiRecommendationFailed = false,
+	onRetryRecommendation,
 	onSelectTemplate,
 	onContinueFromTemplate,
 }: TemplateSelectionStepProps) {
+	const runUi = useAiRunUi();
+	const recommendationFailed =
+		aiRecommendationFailed || runUi.recommendationFailed;
+	const retryRecommendation =
+		onRetryRecommendation ?? runUi.rerunRecommendation ?? undefined;
 	const isContinueDisabled =
 		!templateCanvasId || isLoadingTemplates || isRunningAiCanvasRecommendation;
 	const continueHint = !templateCanvasId
@@ -65,6 +78,26 @@ export function TemplateSelectionStep({
 					</span>
 				)}
 			</div>
+
+			{recommendationFailed && !isRunningAiCanvasRecommendation && (
+				<div className="flex flex-wrap items-center gap-2" role="alert">
+					<p className="text-xs text-destructive">
+						{AI_RECOMMENDATION_FAILED_MESSAGE}
+					</p>
+					{retryRecommendation && (
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="text-xs"
+							onClick={retryRecommendation}
+						>
+							<RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+							Retry
+						</Button>
+					)}
+				</div>
+			)}
 
 			{isLoadingTemplates || isRunningAiCanvasRecommendation ? (
 				<div className="flex items-center gap-2 text-xs text-muted-foreground py-8 justify-center">

@@ -55,6 +55,8 @@ export function useCanvasDraftPreview(isReady: boolean) {
 	} = useContext(UseCanvasDraftPreviewContext);
 	const { client } = useCdfClient();
 	const templateCanvasId = useStore((s) => s.templateCanvasId);
+	const templateFields = useStore((s) => s.templateFields);
+	const templateFieldsLoadedFrom = useStore((s) => s.templateFieldsLoadedFrom);
 	const aiSelections = useStore((s) => s.aiSelections);
 	const candidatesByType = useStore((s) => s.candidatesByType);
 	const asset = useStore((s) => s.asset);
@@ -63,6 +65,9 @@ export function useCanvasDraftPreview(isReady: boolean) {
 	const config = useStore((s) => s.config);
 
 	const isBaseTemplate = isBaseTemplateId(templateCanvasId, appConfig);
+	const hasNoAiSlots =
+		templateFieldsLoadedFrom === templateCanvasId &&
+		templateFields.length === 0;
 
 	return useQuery({
 		queryKey: [
@@ -81,7 +86,7 @@ export function useCanvasDraftPreview(isReady: boolean) {
 			!!templateCanvasId &&
 			!!asset &&
 			!!workOrder &&
-			(isBaseTemplate || Object.keys(aiSelections).length > 0),
+			(isBaseTemplate || hasNoAiSlots || Object.keys(aiSelections).length > 0),
 		queryFn: async () => {
 			if (!client) throw new Error("CDF client not available");
 			if (!asset) throw new Error("Asset not available");

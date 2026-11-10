@@ -10,7 +10,9 @@ interface SelectionSlotCardProps {
 	selection: Selection | null;
 	canPickManually: boolean;
 	isRunningAiSelection: boolean;
+	slotError?: string | null;
 	onPickManually: (slotLabel: string) => void;
+	onRetrySlot?: (slotKey: string) => void;
 }
 
 export function SelectionSlotCard({
@@ -18,7 +20,9 @@ export function SelectionSlotCard({
 	selection,
 	canPickManually,
 	isRunningAiSelection,
+	slotError = null,
 	onPickManually,
+	onRetrySlot,
 }: SelectionSlotCardProps) {
 	const hasSelection = selection != null;
 	return (
@@ -79,16 +83,28 @@ export function SelectionSlotCard({
 						<p className="text-[10px] text-muted-foreground uppercase tracking-wider truncate min-w-0">
 							Selected resource
 						</p>
-						{canPickManually && (
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() => onPickManually(selectionSlotKey(field))}
-							>
-								Pick manually
-							</Button>
-						)}
+						<span className="flex shrink-0 gap-1">
+							{slotError && onRetrySlot && !isRunningAiSelection && (
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => onRetrySlot(selectionSlotKey(field))}
+								>
+									Retry
+								</Button>
+							)}
+							{canPickManually && (
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => onPickManually(selectionSlotKey(field))}
+								>
+									Pick manually
+								</Button>
+							)}
+						</span>
 					</div>
 					{hasSelection ? (
 						<>
@@ -110,6 +126,13 @@ export function SelectionSlotCard({
 						<div className="text-xs text-muted-foreground space-y-0.5">
 							{isRunningAiSelection ? (
 								<p className="italic">Selecting...</p>
+							) : slotError ? (
+								<p
+									className="font-medium not-italic text-destructive"
+									role="alert"
+								>
+									{slotError}
+								</p>
 							) : (
 								<>
 									<p className="font-medium not-italic">No automatic match</p>

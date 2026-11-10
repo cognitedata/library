@@ -80,6 +80,19 @@ describe("TemplateSelectionStep", () => {
 		expect(screen.getByText("Loading templates...")).toBeInTheDocument();
 	});
 
+	it("C02: shows AI recommendation failed", () => {
+		const onRetryRecommendation = vi.fn();
+		renderStep({
+			aiRecommendationFailed: true,
+			onRetryRecommendation,
+		});
+		expect(screen.getByRole("alert")).toHaveTextContent(
+			"AI recommendation failed"
+		);
+		fireEvent.click(screen.getByRole("button", { name: /^Retry$/i }));
+		expect(onRetryRecommendation).toHaveBeenCalledTimes(1);
+	});
+
 	it("shows AI analyzing copy while recommendation is running", () => {
 		renderStep({ isRunningAiCanvasRecommendation: true });
 		expect(screen.getByText("AI analyzing templates...")).toBeInTheDocument();

@@ -1,7 +1,8 @@
 import { Check, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { isBaseTemplateId, useAppConfig } from "@/app-config";
-import { Badge } from "@/components/ui";
+import { Badge, Button } from "@/components/ui";
+import { AI_UNAVAILABLE_MESSAGE, useAiRunUi } from "@/hooks/useAiSelections";
 import type {
 	AiSelections,
 	ResourceInstance,
@@ -33,6 +34,10 @@ interface SelectionsStepProps {
 	onContinueToCreate?: () => void;
 	onGoToTemplate?: () => void;
 	onGoToResources?: () => void;
+	showAiUnavailable?: boolean;
+	onRerunAi?: () => void;
+	onRerunSlot?: (slotKey: string) => void;
+	slotErrors?: Record<string, string>;
 }
 
 export function SelectionsStep({
@@ -50,8 +55,17 @@ export function SelectionsStep({
 	onContinueToCreate,
 	onGoToTemplate,
 	onGoToResources,
+	showAiUnavailable = false,
+	onRerunAi,
+	onRerunSlot,
+	slotErrors,
 }: SelectionsStepProps) {
 	const appConfig = useAppConfig();
+	const runUi = useAiRunUi();
+	const rerunAi = onRerunAi ?? runUi.rerunAll;
+	const rerunSlot = onRerunSlot ?? runUi.rerunSlot;
+	const errors = slotErrors ?? runUi.slotErrors;
+	const aiUnavailable = showAiUnavailable || runUi.selectionFailed;
 	const [pickModalSlot, setPickModalSlot] = useState<string | null>(null);
 	const isBaseTemplate = isBaseTemplateId(templateCanvasId, appConfig);
 
@@ -82,6 +96,16 @@ export function SelectionsStep({
 					onGoToTemplate={onGoToTemplate}
 					onGoToResources={onGoToResources}
 				/>
+			)}
+			{aiUnavailable && !isRunningAiSelection && (
+				<p className="text-xs text-destructive" role="alert">
+					{AI_UNAVAILABLE_MESSAGE}
+				</p>
+			)}
+			{total > 0 && rerunAi && !isRunningAiSelection && (
+				<Button type="button" variant="outline" size="sm" onClick={rerunAi}>
+					Re-run AI
+				</Button>
 			)}
 			{total > 0 && (
 				<div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -125,6 +149,8 @@ export function SelectionsStep({
 								0
 							}
 							isRunningAiSelection={isRunningAiSelection}
+							slotError={errors[selectionSlotKey(field)] || null}
+							onRetrySlot={rerunSlot ?? undefined}
 							onPickManually={setPickModalSlot}
 						/>
 					))}

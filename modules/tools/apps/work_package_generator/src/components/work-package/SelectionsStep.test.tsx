@@ -311,4 +311,46 @@ describe("SelectionsStep", () => {
 			screen.getByText(/None on this template — you can create the canvas/i)
 		).toBeInTheDocument();
 	});
+
+	it("N17: shows AI unavailable after a failed selection run", () => {
+		render(
+			<SelectionsStep
+				workOrder={workOrder}
+				templateCanvasId="tpl-1"
+				templateFields={[fileField]}
+				aiSelections={{}}
+				isRunningAiSelection={false}
+				isLoadingFields={false}
+				showAiUnavailable
+			/>
+		);
+		expect(
+			screen.getByText("AI unavailable: pick manually or retry")
+		).toBeInTheDocument();
+	});
+
+	it("C23: re-runs AI for every slot and for one slot", () => {
+		const onRerunAi = vi.fn();
+		const onRerunSlot = vi.fn();
+		render(
+			<SelectionsStep
+				workOrder={workOrder}
+				templateCanvasId="tpl-1"
+				templateFields={[fileField]}
+				aiSelections={{}}
+				candidatesByType={{ file: [fileCandidate] }}
+				isRunningAiSelection={false}
+				isLoadingFields={false}
+				onRerunAi={onRerunAi}
+				onRerunSlot={onRerunSlot}
+				slotErrors={{
+					[fileField.label]: "AI unavailable: pick manually or retry",
+				}}
+			/>
+		);
+		fireEvent.click(screen.getByRole("button", { name: /Re-run AI/i }));
+		expect(onRerunAi).toHaveBeenCalledTimes(1);
+		fireEvent.click(screen.getByRole("button", { name: /^Retry$/i }));
+		expect(onRerunSlot).toHaveBeenCalledWith(fileField.label);
+	});
 });
