@@ -888,6 +888,40 @@ def test_bootstrap_handler_applies_schedule_data_overrides(monkeypatch: pytest.M
     assert captured_settings["external_dataproducts"] == [{"external_id": "custom-dp", "version": "9.9.9"}]
 
 
+def test_write_settings_overrides_preserve_other_external_dataproducts(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text(
+        yaml.safe_dump(
+            {
+                "external_dataproducts": [
+                    {"external_id": "dp-primary", "version": "1.0.0"},
+                    {"external_id": "dp-secondary", "version": "2.0.0"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    handler_module = _load_bootstrap_handler(monkeypatch, lambda **_kwargs: {"status": "completed"})
+
+    override_path = handler_module._write_settings_with_overrides(
+        settings_path,
+        {"dataProductExternalId": "dp-override", "dataProductVersion": "3.0.0"},
+    )
+    assert override_path is not None
+    try:
+        loaded = yaml.safe_load(override_path.read_text(encoding="utf-8"))
+    finally:
+        override_path.unlink(missing_ok=True)
+
+    assert loaded["external_dataproducts"] == [
+        {"external_id": "dp-override", "version": "3.0.0"},
+        {"external_id": "dp-secondary", "version": "2.0.0"},
+    ]
+
+
 def test_bootstrap_handler_injects_runtime_credentials_from_function_secrets(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

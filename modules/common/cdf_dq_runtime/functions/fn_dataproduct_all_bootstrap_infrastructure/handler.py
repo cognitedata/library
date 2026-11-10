@@ -188,13 +188,16 @@ def _write_settings_with_overrides(
     if "functionCodeDatasetExternalId" in data:
         settings["function_code_dataset_external_id"] = data["functionCodeDatasetExternalId"]
     if "dataProductExternalId" in data or "dataProductVersion" in data:
-        products = settings.get("external_dataproducts")
-        product: dict[str, Any] = dict(products[0]) if isinstance(products, list) and products else {}
-        if "dataProductExternalId" in data:
-            product["external_id"] = data["dataProductExternalId"]
-        if "dataProductVersion" in data:
-            product["version"] = data["dataProductVersion"]
-        settings["external_dataproducts"] = [product]
+        products = settings.setdefault("external_dataproducts", [])
+        if isinstance(products, list):
+            if not products:
+                products.append({})
+            product = products[0]
+            if isinstance(product, dict):
+                if "dataProductExternalId" in data:
+                    product["external_id"] = data["dataProductExternalId"]
+                if "dataProductVersion" in data:
+                    product["version"] = data["dataProductVersion"]
     if runtime_credentials is not None:
         settings["runtime_credentials"] = runtime_credentials
 
