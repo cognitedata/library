@@ -45,7 +45,7 @@ As a planner, I want to search work orders by ID, name, or description and commi
 
 **Acceptance scenarios**:
 
-1. **Given** the Work Order step, **When** I search, **Then** results are a paginated table (20 per page) with external ID, name, description, and status, using CDF `instances.search` (exact ID and full-text).
+1. **Given** the Work Order step, **When** I search, **Then** results are a paginated table (20 per page) with external ID, name, and description. The status column is shown only when the mapped work-order view has a status property. ID search is a case-insensitive prefix on `externalId`, merged with name and description search.
 2. **Given** results, **When** I select a row and confirm, **Then** the app loads the first linked asset from `CogniteActivity.assets[]` and the workflow can advance.
 3. **Given** a committed work order, **When** I search again from the Work Order step, **Then** the flow resets so I can pick a different work order.
 4. **Given** no work order yet, **When** I try later steps, **Then** those steps stay gated until I commit a work order.
@@ -58,7 +58,7 @@ As a planner, I want a recommended Industrial Canvas template with the option to
 
 **Acceptance scenarios**:
 
-1. **Given** templates in `cdf_industrial_canvas` / `Canvas` / `v7`, **When** the Template step loads, **Then** only canvases whose name starts with `template` (case-insensitive) are listed.
+1. **Given** templates in `cdf_industrial_canvas` / `Canvas` / `v7`, **When** the Template step loads, **Then** every public canvas whose name starts with `templates.namePrefix` (shipped `template`, case-insensitive) is listed, plus the signed-in user’s own private canvases with that prefix. Same names are all kept (not newest-per-name). Each card shows owner and updated time. **All Resources** is always listed.
 2. **Given** work order and asset context, **When** the helper agent returns a recommendation, **Then** that template is visually distinguished and I can still select a different one.
 3. **Given** a selected template, **When** I have not confirmed the Template step, **Then** later steps stay gated and template field structure is not treated as committed.
 4. **Given** AI recommendation fails, **When** templates still load, **Then** I can choose a template manually and continue.
@@ -73,7 +73,7 @@ As a planner, I want to see files, time series, and other configured resource ty
 
 1. **Given** a confirmed template, **When** Resources loads, **Then** instances are discovered via each type’s asset relation (and optional activity container identifier, e.g. `timeSeries` on the activity).
 2. **Given** large result sets, **When** discovery runs, **Then** at most 2000 instances are loaded per type; the Resources UI displays a capped subset (50).
-3. **Given** the resource list, **When** I add or remove a candidate, **Then** later AI selection uses the updated candidate set.
+3. **Given** the resource list, **When** I add or remove a candidate, **Then** later AI selection uses the updated candidate set. A removed resource is keyed by space and external id, can be restored, and the removed set resets when the template changes.
 4. **Given** Resources not confirmed, **When** I try Selections or Create, **Then** those steps stay gated.
 
 ### User Story 4 — Review AI slot assignments (Priority: P1)
@@ -84,10 +84,10 @@ As a planner, I want the AI to fill template slots and to override or re-run sel
 
 **Acceptance scenarios**:
 
-1. **Given** template child FDM instance placeholders, **When** fields load, **Then** each `file` / `timeseries` (and other configured) slot is listed; “main” work order and “main” asset/equipment slots are filled by label heuristics, not the agent.
-2. **Given** candidates and slot type, **When** AI runs, **Then** the agent is called per applicable slot with work order, asset, and candidate properties, and the parsed response is a single resource external ID mapped to that slot label.
+1. **Given** template child FDM instance placeholders, **When** fields load, **Then** each `file` / `timeseries` (and other configured) slot is listed. A slot is the main asset or main work order only when `isMainAsset` or `isMainWorkOrder` matches that item’s view. A substring of “main” in the label, such as “Maintenance”, does not make a file slot main.
+2. **Given** candidates and slot type, **When** AI runs, **Then** the agent is called per applicable slot with work order, asset, and candidate properties, and the reply is parsed for exactly one candidate id mapped to that slot.
 3. **Given** one slot fails, **When** others succeed, **Then** the failed slot shows an error and does not block the rest.
-4. **Given** Selections, **When** I re-run AI or pick a resource in the picker, **Then** the store updates for that slot.
+4. **Given** Selections, **When** I re-run AI overall or for one slot, or pick a resource in the picker, **Then** the store updates for the slots that ran.
 5. **Given** automation review is shown, **When** I have not acknowledged it, **Then** Create stays gated.
 
 ### User Story 5 — Preview, save, and open the canvas (Priority: P1)
@@ -99,8 +99,8 @@ As a planner, I want to name the canvas, preview the draft, create or update it 
 **Acceptance scenarios**:
 
 1. **Given** Selections acknowledged, **When** I am on Create, **Then** I can enter a free-text canvas name and see a draft preview of the composed canvas. Preview reads (files, time series, diagram annotations, views) share the app CDF call queue so bursts retry on HTTP 429.
-2. **Given** Create mode, **When** save succeeds, **Then** a new canvas root is written to `IndustrialCanvasInstanceSpace` with a generated UUID `externalId`, `visibility` public, `createdBy`/`updatedBy` set to the current CDF `userIdentifier`, a **Work Package** solution tag, child FDM references and edges in batches of ≤1000, and template annotations copied unchanged.
-3. **Given** Update mode, **When** a canvas with that exact name exists, **Then** its children are deleted (up to 100K items; exceeding the cap fails rather than partial delete) and new items are written.
+2. **Given** Create mode, **When** save succeeds, **Then** a new canvas root is written to `IndustrialCanvasInstanceSpace` with a generated UUID `externalId`, `visibility` public, `createdBy`/`updatedBy` set to the current CDF `userIdentifier`, a **Work Package** solution tag, child FDM references and edges in batches of ≤1000, and template annotations copied with item references remapped onto the new items.
+3. **Given** Update mode, **When** a canvas with that exact name exists, **Then** new items are written, previous children are removed (up to 100K items; exceeding the cap fails rather than a partial delete), existing visibility is kept, and solution tags are merged with the Work Package tag.
 4. **Given** success, **When** I view Create, **Then** I get a Fusion URL (and copy-link) to open the canvas.
 5. **Given** save fails (including missing write permission on `IndustrialCanvasInstanceSpace`), **When** the error returns, **Then** I see a message and can retry.
 
@@ -115,8 +115,10 @@ As a user, I want the app to authenticate via Fusion and use the current CDF pro
 ## Edge cases
 
 - Work order has no `assets[]` — cannot proceed past work-order resolution; show a clear error.
-- Work order has multiple assets — only the **first** asset is used.
-- No canvases named `template*` — Template step is empty; user cannot continue until templates exist.
+- Work order has multiple assets — the **first** asset is used.
+- No canvases named `template*` — **All Resources** is still listed, so the Template step is not empty.
+- Status and Priority filters — shown only when the mapped work-order view has those properties.
+- Browser Back — each workflow step pushes a history entry, and Back restores that step.
 - Agent missing — app creates `{project}_work_package_generator_helper_agent` via CDF AI Agents API if permitted.
 - Reload mid-flow — session is in-memory (Zustand); user starts again from search.
 - Slot type has no candidates — slot stays empty / error; user can add a resource or re-run after adding candidates.
@@ -127,18 +129,18 @@ As a user, I want the app to authenticate via Fusion and use the current CDF pro
 ## Functional requirements
 
 - **FR-001**: Authenticate through the Fusion / `@cognite/app-sdk` host; do not require the user to paste CDF tokens in the UI.
-- **FR-002**: Search `CogniteActivity` nodes and display paginated results (limit 20).
+- **FR-002**: Search `CogniteActivity` nodes and display paginated results (limit 20). ID search is a case-insensitive prefix on `externalId`, plus name and description search. The status column appears only when the mapped view has status.
 - **FR-003**: Resolve context from the first linked asset (`CogniteAsset`); support `CogniteEquipment` where template slots or config require it.
-- **FR-004**: List Industrial Canvas templates from `cdf_industrial_canvas` / `Canvas` / `v7` with name prefix `template`.
+- **FR-004**: List Industrial Canvas templates from `cdf_industrial_canvas` / `Canvas` / `v7`: every public canvas with name prefix `templates.namePrefix`, plus the user’s own private ones, not newest-per-name. Show owner and updated time. **All Resources** is always listed.
 - **FR-005**: Recommend a template via the project helper agent; user selection is authoritative.
 - **FR-006**: Discover resource candidates from `resourceTypes` (files, time series, assets, equipment, activities as configured).
-- **FR-007**: Load template slots from canvas child FDM instance nodes; assign main work-order and main asset slots by heuristics.
-- **FR-008**: Run AI resource selection per applicable slot; allow re-run and manual pick.
+- **FR-007**: Load template slots from canvas child FDM instance nodes. One main-slot rule: type-aware `isMainAsset` / `isMainWorkOrder`, not a substring match on “main”.
+- **FR-008**: Run AI resource selection per applicable slot; allow re-run overall and per slot, and a manual pick.
 - **FR-009**: Gate steps: work order committed → template confirmed → resources confirmed → automation review acknowledged → create.
-- **FR-010**: Create or update a canvas in `IndustrialCanvasInstanceSpace`; set new canvases public; stamp owner from `profiles.me()` `userIdentifier`; attach the Work Package canvas label; copy annotations; batch upserts/deletes at CDF limits.
+- **FR-010**: Create or update a canvas in `IndustrialCanvasInstanceSpace`; set new canvases public; on update keep existing visibility and merge solution tags; stamp owner from `profiles.me()` `userIdentifier`; attach the Work Package canvas label; copy annotations with item references remapped; batch upserts/deletes at CDF limits. There is no post-write validation.
 - **FR-011**: After success, show a Fusion deep link. The org comes from the Fusion page hosting the app (the parent origin when the app is embedded); project and cluster come from the running CDF session. `fusion.fallbackOrganization` on the config node is the only fallback when that host is not Fusion.
 - **FR-012**: Surface loading and error states for search, template load, resource load, AI, field load, and canvas save.
-- **FR-013**: Support desktop (horizontal stepper) and compact/mobile (vertical stepper) layouts without changing the workflow contract.
+- **FR-013**: The stepper is vertical on desktop and horizontal on compact layouts, without changing the workflow contract.
 
 ---
 
@@ -174,7 +176,7 @@ Identifiers live on the `wpg_config` node in space `inst_wpg_app_config` (view `
 | Ensure exists | Look up by id. Create with `POST /ai/agents` only when `existingAgentExternalId` is unset and the agent is missing. A configured id that is missing is an error. |
 | Create payload | Model, runtime, name, description, instructions, and tools from `agent`. |
 | Template prompt | `prompts.templateSelection` filled with the work order, asset, and candidate templates; parse recommended canvas external ID |
-| Slot prompt | `prompts.resourceSelection` filled with the work order, asset, and typed candidates; parse one resource external ID |
+| Slot prompt | `prompts.resourceSelection` filled with the work order, asset, and typed candidates; parse the reply for exactly one candidate id |
 
 ---
 
@@ -182,7 +184,7 @@ Identifiers live on the `wpg_config` node in space `inst_wpg_app_config` (view `
 
 | Constraint | Detail |
 |------------|--------|
-| Single asset | First `CogniteActivity.assets[]` only |
+| Single asset | A work order with several assets uses the first `CogniteActivity.assets[]` entry |
 | Template prefix | `templates.namePrefix` (shipped `template`) |
 | One helper agent per project | External ID is `{project}_{agent.externalIdSuffix}`, unless `agent.existingAgentExternalId` names an agent that already exists |
 | Resource fetch cap | `limits.maxResourceInstancesTotal` (shipped 2000) |
@@ -217,7 +219,9 @@ Vendored create-step preview components under `src/canvas-preview/` are document
 | Selections | `ai-selection` |
 | Create | `canvas-creation` |
 
-Global workflow state is the Zustand store (`src/store.ts`): work order, asset, candidates, template, AI selections, current step, loading, error.
+Each workflow step pushes a history entry. Back uses that entry to restore the step.
+
+Global workflow state is the Zustand store (`src/store.ts`): work order, asset, candidates, template, AI selections, current step, loading, error. Removed resources are keyed by space and external id, can be restored, and reset when the template changes.
 
 ---
 

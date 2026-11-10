@@ -57,19 +57,19 @@ This is a repetitive, expert-knowledge-heavy task that does not scale as the num
 The user searches for a work order by ID, name, or description. Results are returned in a paginated table (20 results per page). The user selects a row and confirms selection. On confirmation, the app loads the work order's linked asset.
 
 **Acceptance criteria:**
-- Search supports exact ID match and full-text search via CDF `instances.search`
-- Results display: external ID, name, description, status
+- ID search is a case-insensitive prefix on `externalId`, merged with name and description search
+- Results display external ID, name, and description. The status column appears only when the mapped view has status
 - Pagination navigates via cursor (next/previous)
 - Selecting a work order loads its first linked asset via the `assets` relation on `CogniteActivity`
 - User can reset and search again from this step at any point in the workflow
 
 ### Step 2 — Template Selection
 
-Available Industrial Canvas templates are listed (canvases whose name starts with `template`, case-insensitive). An AI agent evaluates all templates against the work order and asset context and highlights a recommendation. The user can accept the recommendation or choose a different template.
+Available Industrial Canvas templates are listed: every public canvas whose name starts with `template` (case-insensitive), plus the user’s own private ones, not newest-per-name. Each card shows owner and updated time. **All Resources** is always listed. An AI agent evaluates templates against the work order and asset context and highlights a recommendation. The user can accept the recommendation or choose a different template.
 
 **Acceptance criteria:**
 - Templates fetched from `cdf_industrial_canvas` space, `Canvas` view
-- Only canvases with name prefix `template` are shown
+- Every public canvas with the name prefix is shown, plus the user’s own private ones. **All Resources** is always listed. Cards show owner and updated time
 - AI recommendation calls the CDF AI Agents API with work order + asset context
 - Recommended template is visually distinguished; user can override
 - Selecting a template does not yet load its field structure (gate on explicit continue)
@@ -90,9 +90,9 @@ The template's slot structure (FDM instance placeholder nodes) is loaded. For ea
 
 **Acceptance criteria:**
 - Template slots extracted from canvas child FDM instance nodes
-- "Main" work order slot and "main" asset slot detected by label heuristics (not AI — hard-coded)
+- Main work-order and main asset slots use type-aware `isMainAsset` / `isMainWorkOrder`, not a substring match on "main"
 - AI called once per slot (file/timeseries type); prompt includes work order context, asset context, available resources with properties
-- AI response parsed to extract a single external ID per slot
+- The agent reply is parsed for exactly one candidate id per slot
 - Partial success handled: a failing slot displays an error without blocking the rest
 - User can re-run AI selection with the "Run AI Selection" button
 
@@ -103,10 +103,10 @@ The user enters a canvas name and chooses to create a new canvas or update an ex
 **Acceptance criteria:**
 - Canvas name is user-entered free text
 - "Create" mode: generates a UUID for the new canvas `externalId`
-- "Update" mode: finds existing canvas by exact name match, deletes its child items (up to 100K), then writes new items
+- "Update" mode: finds existing canvas by exact name match, writes new items, then removes previous children (up to 100K), keeps existing visibility, and merges solution tags
 - Canvas root node written to `IndustrialCanvasInstanceSpace`
 - Child FDM instance reference nodes and edges written in batches of ≤1000 items
-- Annotations copied from template unchanged
+- Annotations are copied, with item references remapped
 - On success: Fusion URL displayed for one-click navigation to the created canvas
 - On failure: error message displayed with retry option
 
@@ -144,7 +144,7 @@ The app requires the following to be present in the target CDF project:
 | Assets as `CogniteAsset` | View: `cdf_cdm/CogniteAsset/v1` |
 | Files linked to assets | `CogniteFile.assets[]` relation populated |
 | Time series linked to assets | `CogniteTimeSeries.assets[]` relation populated |
-| Canvas templates in Industrial Canvas | Canvases with name starting with `template` |
+| Canvas templates in Industrial Canvas | Public canvases, and the user’s own private ones, with name starting with `template`. **All Resources** is always listed |
 | `IndustrialCanvasInstanceSpace` write permission | Required for canvas creation |
 | CDF AI Agents enabled | Required for template recommendation and resource selection |
 

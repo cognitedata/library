@@ -125,7 +125,7 @@ cdf deploy
 - `wpg_limits_*` – page, batch, search, and scan caps
 - `wpg_fusion_fallback_organization` – org slug used only when the app is not opened from a Fusion host. Leave empty when users open the app inside Fusion.
 
-`prompts`, `ui`, `context`, and `resourceTypes` are literal JSON on the node. Edit `data_modeling/wpg_config.Node.yaml` to change them. Prompt text uses `{{placeholder}}` tokens that the app fills at runtime. In that JSON, write each opening pair as `\u007b\u007b` (for example `\u007b\u007bworkOrderSection}}`). YAML and JSON both decode that to `{{placeholder}}`, and `cdf build` does not treat it as a Toolkit variable. If **every** `wpg_*` variable is unresolved, your `config.<env>.yaml` is not loaded.
+`prompts`, `ui`, `context`, and `resourceTypes` are literal JSON on the node. Edit `data_modeling/wpg_config.Node.yaml` to change them. Prompt text uses `{{placeholder}}` tokens that the app fills at runtime. In that JSON, write each opening pair as `\u007b\u007b` (for example `\u007b\u007bworkOrderSection}}`). YAML and JSON both decode that to `{{placeholder}}`. The config node starts with `# rules: ignore[UNRESOLVED-VARIABLE]`, so `cdf build` does not report those prompt tokens as unresolved Toolkit variables. If **every** `wpg_*` variable is unresolved, your `config.<env>.yaml` is not loaded.
 
 `wpg_agent_model` is `cognite/fast`. The Toolkit agent schema does not list that model, so `cdf build` reports a **ModelSyntaxWarning** for the agent file. This is expected. The built agent still uses `cognite/fast`, which is the model the app sends.
 
@@ -184,7 +184,7 @@ Deploy the Toolkit resources first. That creates the config node. Project and cl
 
 ##### 2.3 AI agent
 
-The app creates and uses an AI agent at runtime. The external id is `{project}_{agent.externalIdSuffix}` (shipped suffix: `work_package_generator_helper_agent`), unless `agent.existingAgentExternalId` is set on the config node. In that case the app uses that id and does not create an agent. Tools come from `agent.tools` (shipped `[]`). Instructions come from `agent.instructions` and may be an empty string. The agent YAML and the config node share the agent variables in your `config.<env>.yaml`.
+The app creates and uses an AI agent at runtime. The external id is `{project}_{agent.externalIdSuffix}` (shipped suffix: `work_package_generator_helper_agent`), unless `agent.existingAgentExternalId` is set on the config node. In that case the app uses that id and does not create an agent. Tools come from `agent.tools` (shipped `[]`). Instructions come from `agent.instructions` and may be an empty string. When model, runtime, instructions, or tools differ from the live agent, the app updates the agent and logs the diff. If that write fails, the app keeps the existing agent and continues. The agent YAML and the config node share the agent variables in your `config.<env>.yaml`.
 
 #### 3. Data model, spaces, and permissions
 
@@ -234,7 +234,7 @@ The deploy service principal needs whatever the Cognite CLI deploy path requires
 
 Template recommendation and per-field resource selection call the CDF AI Agents HTTP API (see `src/api/ai-agent.ts`):
 
-1. **`getOrCreateAgent`** – Looks up the agent by external id. If `agent.existingAgentExternalId` is set, that id is used and a missing agent is an error. Otherwise, if `{project}_{agent.externalIdSuffix}` is missing, it creates an agent with the model, runtime, name, description, instructions, and tools from `agent`.
+1. **`getOrCreateAgent`** – Looks up the agent by external id. If `agent.existingAgentExternalId` is set, that id is used and a missing agent is an error. Otherwise, if `{project}_{agent.externalIdSuffix}` is missing, it creates an agent with the model, runtime, name, description, instructions, and tools from `agent`. When model, runtime, instructions, or tools differ, it updates the agent and logs the diff, and keeps the existing agent if the update cannot be written.
 2. **`queryAiForSelection`** / canvas recommendation – POST to the agent chat endpoint.
 
 Requirements:
@@ -251,7 +251,7 @@ The app discovers templates by listing **canvas** instances (Industrial Canvas r
 1. In **Fusion → Industrial Canvas**, create a canvas document.
 2. Set the canvas **name** so it starts with `template`, for example `template — Maintenance overview` or `template_work_package_v1`.
 3. Add **FDM instance** placeholders on the canvas for:
-   - The **main** work order and asset representations (the app detects “main” slots by label heuristics in `useTemplateFields` / `getTemplateCanvasInstances`).
+   - The **main** work order and asset representations. A slot is main only when `isMainAsset` or `isMainWorkOrder` matches that item’s view. A substring of “main” in the label does not.
    - Additional slots whose **labels** correspond to resource types in `resourceTypes`. A slot is selectable when its view external id matches the view that resource type points at (shipped file and time series types use `CogniteFile` and `CogniteTimeSeries`).
 4. Save/publish so the canvas exists as DMS instances your users can read.
 
@@ -389,7 +389,7 @@ If the bundle changes after signing (a new `npm run build`, an edit under `dist/
 
 ### Config keys
 
-Edit the config node (`data_modeling/wpg_config.Node.yaml`, with values from your `config.<env>.yaml`) and redeploy. A JavaScript rebuild is not required. Keys below are the node properties. You can add extra entries under `dataModel.views` and `resourceTypes`. A resource type `view` value must be a key in `dataModel.views`. `limits.instancePageSize`, `upsertBatchSize`, and `deleteBatchSize` must be integers from 1 to 1000. `schemaVersion` must be `1`.
+Edit the config node (`data_modeling/wpg_config.Node.yaml`, with values from your `config.<env>.yaml`) and redeploy. A JavaScript rebuild is not required. Keys below are the node properties. You can add extra entries under `dataModel.views` and `resourceTypes`. A resource type `view` value must be a key in `dataModel.views`. `limits.instancePageSize`, `upsertBatchSize`, `deleteBatchSize`, and `searchResultLimit` must be integers from 1 to 1000. Config validation also rejects unknown prompt placeholder names, and it checks view capabilities so Status and Priority settings apply only when the mapped view has those properties. `schemaVersion` must be `1`.
 
 #### Point a view at a different data model
 
@@ -511,6 +511,37 @@ work_package_generator/
 - Inject dependencies through React context (hooks, components) or factory overrides (plain functions) rather than hard-coding them.
 - Write tests first. Every new module with logic gets a `*.test.ts(x)` file in the same change. Prefer dependency injection over `vi.mock`.
 - Never use `any` or `as unknown as T`.
+
+## QA findings resolved
+
+| ID | Fix | Test |
+| --- | --- | --- |
+| C26 | Stepper is vertical on desktop and horizontal on compact layouts | `WorkPackageGeneratorLayout.test.tsx` |
+| C17 | Agent reply is parsed for exactly one candidate id | `ai-agent.test.ts` |
+| C10 | Annotations are copied and item references are remapped | `canvas-builder.test.ts` |
+| C18 | Update keeps visibility and merges solution tags | `canvas-builder.test.ts` |
+| C04 | Main slots use `isMainAsset` / `isMainWorkOrder`, not a substring of “main” | `useTemplateFields.test.tsx` |
+| E3 | All Resources is always listed | `useTemplates.test.tsx` |
+| C11 | No post-write canvas validation | `useCanvasCreation.test.tsx` |
+| C06 | A work order with several assets uses the first | `work-orders.test.ts` |
+| N04 | Status column and Status/Priority filters follow view capabilities | `WorkOrderResultsTable.test.tsx` |
+| N14 | Removed resources are keyed by space and external id, can be restored, and reset when the template changes | `store.test.ts` |
+| C23 | Re-run AI overall and per slot | `SelectionsStep.test.tsx` |
+| N02 | Each workflow step pushes a history entry; Back uses it | `useWorkPackageGeneratorPage.test.tsx` |
+| N10 | Template list is every public canvas plus the user’s own private ones | `template-canvases.test.ts` |
+| B-D4 | Same template names are all listed, with owner and updated time | `template-canvases.test.ts` |
+| N06 | ID search is a case-insensitive prefix on `externalId`, plus name and description search | `work-orders.test.ts` |
+| B-D3 | Config node suppresses unresolved-variable noise with `# rules: ignore[UNRESOLVED-VARIABLE]` | `toolkit-drift.test.ts` |
+| B-D2 | Agent is updated when model, runtime, instructions, or tools differ; the diff is logged; a failed write is soft | `ai-agent.test.ts` |
+| C34 | Config validation rejects `searchResultLimit` above 1000 and unknown placeholder names | `validate.test.ts` |
+| C01 | A late AI pick from the previous work order is discarded | `useAiSelections.test.tsx` |
+| C05 | A work order with no asset leaves the resolving state | `WorkOrderDetailStep.test.tsx` |
+| C09 | A failed create or update does not leave an empty canvas | `canvas-builder.test.ts` |
+| C15 | Two slots with the same label keep separate picks | `canvas-builder.test.ts` |
+| C16 | AI errors are shown per slot instead of “No automatic match” | `ai-agent.test.ts` |
+| C32 | Copy-link falls back to a manual copy dialog | `clipboard.test.ts` |
+| C33a | `AppConfigGate` writes canvas config after render | `AppConfigGate.test.tsx` |
+| B-T1 | `build` stops when the TypeScript check fails | `build-script.test.ts` |
 
 ## Support
 
