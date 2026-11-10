@@ -220,7 +220,7 @@ def _write_settings_with_overrides(
         raise ValueError(f"Expected a mapping in {settings_path}")
     settings: dict[str, object] = loaded
 
-    if "dataQualitySpace" in data:
+    if data.get("dataQualitySpace") is not None:
         space = data["dataQualitySpace"]
         settings["config_space"] = space
         records = settings.get("records")
@@ -228,15 +228,15 @@ def _write_settings_with_overrides(
             records = {}
             settings["records"] = records
         records["space"] = space
-    if "recordsStreamId" in data:
+    if data.get("recordsStreamId") is not None:
         records = settings.get("records")
         if not isinstance(records, dict):
             records = {}
             settings["records"] = records
         records["stream_id"] = data["recordsStreamId"]
-    if "functionCodeDatasetExternalId" in data:
+    if data.get("functionCodeDatasetExternalId") is not None:
         settings["function_code_dataset_external_id"] = data["functionCodeDatasetExternalId"]
-    if "dataProductExternalId" in data or "dataProductVersion" in data:
+    if data.get("dataProductExternalId") is not None or data.get("dataProductVersion") is not None:
         products = settings.get("external_dataproducts")
         if not isinstance(products, list):
             products = []
@@ -245,9 +245,9 @@ def _write_settings_with_overrides(
             products.append({})
         product = products[0]
         if isinstance(product, dict):
-            if "dataProductExternalId" in data:
+            if data.get("dataProductExternalId") is not None:
                 product["external_id"] = data["dataProductExternalId"]
-            if "dataProductVersion" in data:
+            if data.get("dataProductVersion") is not None:
                 product["version"] = data["dataProductVersion"]
     if runtime_credentials is not None:
         settings["runtime_credentials"] = runtime_credentials

@@ -1026,6 +1026,68 @@ def test_write_settings_overrides_replace_null_records_and_products(
     assert loaded["external_dataproducts"] == [{"external_id": "custom-dp", "version": "9.9.9"}]
 
 
+def test_function_input_settings_overrides_exclude_explicit_none() -> None:
+    """Explicit null Schedule keys must not appear in settings.yaml merge overrides."""
+    sys.path.insert(0, str(_MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure"))
+    try:
+        from models import FunctionInput
+    finally:
+        sys.path.pop(0)
+
+    overrides = FunctionInput.model_validate(
+        {
+            "dataQualitySpace": None,
+            "recordsStreamId": "keep_stream",
+            "dataProductVersion": None,
+        }
+    ).settings_overrides()
+
+    assert overrides == {"recordsStreamId": "keep_stream"}
+    assert "dataQualitySpace" not in overrides
+    assert "dataProductVersion" not in overrides
+
+
+def test_write_settings_overrides_ignore_explicit_null_payload_values(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Null Schedule values must not overwrite existing settings.yaml entries."""
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text(
+        yaml.safe_dump(
+            {
+                "config_space": "existingDq",
+                "records": {"space": "existingDq", "stream_id": "existing_stream"},
+                "function_code_dataset_external_id": "existing_dataset",
+                "external_dataproducts": [{"external_id": "existing-dp", "version": "1.0.0"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    handler_module = _load_bootstrap_handler(monkeypatch, lambda **_kwargs: {"status": "completed"})
+
+    override_path = handler_module._write_settings_with_overrides(
+        settings_path,
+        {
+            "dataQualitySpace": None,
+            "recordsStreamId": "new_stream",
+            "functionCodeDatasetExternalId": None,
+            "dataProductExternalId": None,
+            "dataProductVersion": "2.0.0",
+        },
+    )
+    assert override_path is not None
+    try:
+        loaded = yaml.safe_load(override_path.read_text(encoding="utf-8"))
+    finally:
+        override_path.unlink(missing_ok=True)
+
+    assert loaded["config_space"] == "existingDq"
+    assert loaded["records"] == {"space": "existingDq", "stream_id": "new_stream"}
+    assert loaded["function_code_dataset_external_id"] == "existing_dataset"
+    assert loaded["external_dataproducts"] == [{"external_id": "existing-dp", "version": "2.0.0"}]
+
+
 def test_bootstrap_handler_injects_runtime_credentials_from_function_secrets(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

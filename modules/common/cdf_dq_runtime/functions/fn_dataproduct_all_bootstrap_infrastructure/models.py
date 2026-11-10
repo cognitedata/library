@@ -40,7 +40,7 @@ class FunctionInput(BaseModel):
 
     def settings_overrides(self) -> dict[str, object]:
         """Return only Schedule keys that were explicitly set (for settings.yaml merge)."""
-        return self.model_dump(by_alias=True, exclude_unset=True, exclude={"force", "log_level"})
+        return self.model_dump(by_alias=True, exclude_unset=True, exclude_none=True, exclude={"force", "log_level"})
 
     def substitution_variables(self) -> dict[str, str]:
         """All placeholder variables for bundled views/timeseries YAML (includes defaults)."""
