@@ -613,7 +613,7 @@ export async function aiSelectResource(
 	context: AgentContext,
 	selectedResources: Set<string>,
 	appConfig?: AppConfig
-): Promise<Selection | null> {
+): Promise<Selection | Extract<AiSelectionResult, { kind: "error" }> | null> {
 	if (!instances.length) {
 		return null;
 	}
@@ -648,15 +648,15 @@ export async function aiSelectResource(
 		appConfig
 	);
 
-	const selectedExternalId = selectionIdFromResult(
-		await queryAiForSelection(
-			client,
-			project,
-			agentExternalId,
-			prompt,
-			rankedInstances.map((inst) => inst.externalId)
-		)
+	const result = await queryAiForSelection(
+		client,
+		project,
+		agentExternalId,
+		prompt,
+		rankedInstances.map((inst) => inst.externalId)
 	);
+	if (result.kind === "error") return result;
+	const selectedExternalId = selectionIdFromResult(result);
 
 	if (!selectedExternalId) return null;
 
@@ -734,15 +734,17 @@ export async function aiSelectBestCanvasTemplate(
 		}
 	);
 
-	const selectedId = selectionIdFromResult(
-		await queryAiForSelection(
-			client,
-			project,
-			agentExternalId,
-			prompt,
-			rankedCanvases.map((canvas) => canvas.externalId)
-		)
+	const result = await queryAiForSelection(
+		client,
+		project,
+		agentExternalId,
+		prompt,
+		rankedCanvases.map((canvas) => canvas.externalId)
 	);
+	if (result.kind === "error") {
+		throw new Error(`Agent chat failed: ${result.status}`);
+	}
+	const selectedId = selectionIdFromResult(result);
 	if (!selectedId) return null;
 
 	const match = rankedCanvases.find(

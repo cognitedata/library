@@ -457,6 +457,17 @@ describe("ai-agent", () => {
 				)
 			).toBeNull();
 		});
+
+		it("C16: returns the agent error instead of an empty match", async () => {
+			cdfApiFetch.mockResolvedValueOnce({
+				ok: false,
+				status: 400,
+				statusText: "Bad Request",
+			});
+			await expect(
+				aiSelectResource(client, "p", "a", [inst], "file", "lbl", {}, new Set())
+			).resolves.toEqual({ kind: "error", status: 400, retryable: false });
+		});
 	});
 
 	describe("aiSelectBestCanvasTemplate", () => {
