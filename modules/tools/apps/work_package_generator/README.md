@@ -225,6 +225,8 @@ If your tenant uses different spaces or view versions, update those `canvas` and
 | `dataModelInstances` | `READ`, `WRITE` | `IndustrialCanvasInstanceSpace`, `SolutionTagsInstanceSpace` | Canvas create/update/delete and solution-tag upsert |
 | `agents` | `READ`, `WRITE`, `RUN` | `all` if the app must create `{project}_{suffix}`; otherwise that agent's external id plus `WRITE` on `all` only when creation is required (scoped write cannot create) | List/retrieve, create, chat |
 | `userProfiles` | `READ` | (confirm) usually granted to any group member | `profiles.me()` for the canvas owner |
+| `files` | `READ` | spaces that hold file instances (`files:read`) | File slots and document preview |
+| `timeSeries` | `READ` | spaces that hold time series (`timeSeries:read`) | Time series slots |
 
 The deploy service principal needs whatever the Cognite CLI deploy path requires. Confirm that set separately; this table is the signed-in app user.
 

@@ -114,7 +114,7 @@ describe("retrieve-data/template-canvases", () => {
 			expect(result.every((canvas) => canvas.createdBy)).toBe(true);
 		});
 
-		it("N10: lists public canvases and only the current user's private ones", async () => {
+		it("N10: lists public canvases and the user's own private ones. C19: excludes archived canvases", async () => {
 			query.mockResolvedValueOnce({
 				items: {
 					nodes: [

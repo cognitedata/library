@@ -8,6 +8,7 @@ vi.mock("./WorkflowStepper", () => ({
 		onStepClick,
 		workflowStep,
 		message,
+		orientation,
 	}: {
 		workflowStep: number;
 		activeStep: number;
@@ -15,7 +16,7 @@ vi.mock("./WorkflowStepper", () => ({
 		message: string;
 		orientation: string;
 	}) => (
-		<div data-testid="workflow-stepper">
+		<div data-testid="workflow-stepper" data-orientation={orientation}>
 			<button type="button" onClick={() => onStepClick(0)}>
 				step-0
 			</button>
@@ -158,5 +159,26 @@ describe("WorkPackageGeneratorLayout", () => {
 		);
 
 		expect(container.querySelector(".px-6")).toBeTruthy();
+	});
+
+	it("C26: uses a vertical stepper on desktop and a horizontal stepper on compact layouts", () => {
+		const { rerender } = render(
+			<WorkPackageGeneratorLayout {...defaults} isMobileLayout={false}>
+				<div />
+			</WorkPackageGeneratorLayout>
+		);
+		expect(screen.getByTestId("workflow-stepper")).toHaveAttribute(
+			"data-orientation",
+			"vertical"
+		);
+		rerender(
+			<WorkPackageGeneratorLayout {...defaults} isMobileLayout>
+				<div />
+			</WorkPackageGeneratorLayout>
+		);
+		expect(screen.getByTestId("workflow-stepper")).toHaveAttribute(
+			"data-orientation",
+			"horizontal"
+		);
 	});
 });
