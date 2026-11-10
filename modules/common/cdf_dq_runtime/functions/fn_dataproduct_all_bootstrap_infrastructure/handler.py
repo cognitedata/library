@@ -3,7 +3,7 @@
 import logging
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import yaml
 from cognite.client.exceptions import CogniteAPIError
@@ -169,7 +169,7 @@ def _overlay_client_credentials_from_secrets(client: "CogniteClient", secrets: d
 
 def _write_settings_with_overrides(
     settings_path: Path,
-    data: dict[str, Any],
+    data: dict[str, object],
     secrets: dict[str, str] | None = None,
 ) -> Path | None:
     """Merge Schedule.data overrides and function secrets into settings.yaml; return a temp path when needed."""
@@ -180,7 +180,7 @@ def _write_settings_with_overrides(
     loaded = yaml.safe_load(settings_path.read_text(encoding="utf-8"))
     if not isinstance(loaded, dict):
         raise ValueError(f"Expected a mapping in {settings_path}")
-    settings: dict[str, Any] = loaded
+    settings: dict[str, object] = loaded
 
     if "dataQualitySpace" in data:
         space = data["dataQualitySpace"]
@@ -227,7 +227,7 @@ def _write_settings_with_overrides(
             tmp_path.unlink(missing_ok=True)
 
 
-def handle(data: dict[str, Any], client: "CogniteClient", secrets: dict[str, str] | None = None) -> dict[str, object]:
+def handle(data: dict[str, object], client: "CogniteClient", secrets: dict[str, str] | None = None) -> dict[str, object]:
     """Deploy Data Quality Validation infrastructure from this module's rendered config."""
     config_dir = Path(__file__).parent / "config"
     bundled_settings = config_dir / "settings.yaml"
