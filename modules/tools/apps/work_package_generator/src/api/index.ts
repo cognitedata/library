@@ -14,7 +14,6 @@ export {
 	extractClusterFromUrl,
 	generateCanvasLink,
 	updateCanvasFromTemplateAndSelections,
-	validateCanvasCreation,
 } from "./canvas-builder";
 export {
 	getResourceInstancesByRefs,

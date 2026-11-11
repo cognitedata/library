@@ -26,7 +26,6 @@ import type {
 	ResourceInstance,
 	TemplateAnnotation,
 	TemplateInstance,
-	ValidationResult,
 	WorkOrder,
 } from "../types";
 import { generateUuid, getErrorMessage, nowIsoMs } from "../utils";
@@ -753,84 +752,6 @@ export async function updateCanvasFromTemplateAndSelections(
 	await upsertTracked(client, [canvasNode], appConfig, []);
 
 	return canvasId;
-}
-
-/**
- * Validate canvas creation by checking that the canvas node exists and
- * the correct number of child items (instances and annotations) were created.
- */
-export async function validateCanvasCreation(
-	client: CogniteClient,
-	_config: CanvasConfig,
-	canvasId: string,
-	expectedItemsCount: number,
-	appConfig?: AppConfig
-): Promise<ValidationResult> {
-	try {
-		// Check canvas exists
-		const canvasItems = await retrieveInstanceNodes(
-			client,
-			[{ space: _config.canvasSpaceInstance, externalId: canvasId }],
-			[viewIdToSource(canvasSchemaView(appConfig))]
-		);
-
-		const canvasExists = canvasItems.length > 0;
-
-		// Count all child nodes (both instances and annotations) by prefix
-		// Don't filter by sources since canvas contains both CANVAS_INSTANCE_VIEW_ID and CANVAS_ANNOTATION_VIEW_ID nodes
-		let itemsCount = 0;
-		let itemsCursor: string | undefined;
-		do {
-			const itemsResponse = await queryInstanceNodesPage(client, {
-				filter: {
-					prefix: {
-						property: ["node", "externalId"],
-						value: `${canvasId}_`,
-					},
-				},
-				limit: resolveAppConfig(appConfig).limits.instancePageSize,
-				cursor: itemsCursor,
-			});
-			itemsCount += itemsResponse.items?.length || 0;
-			itemsCursor = itemsResponse.nextCursor;
-			// Mismatch is already determined; no need to scan the rest of the canvas.
-			if (expectedItemsCount >= 0 && itemsCount > expectedItemsCount) {
-				break;
-			}
-		} while (itemsCursor);
-
-		const result: ValidationResult = {
-			success: canvasExists && itemsCount === expectedItemsCount,
-			canvasExists,
-			itemsCount,
-			expectedItemsCount,
-			itemsMatchExpected: itemsCount === expectedItemsCount,
-			canvasId,
-			errors: [],
-		};
-
-		if (!canvasExists) {
-			result.errors.push("Canvas node not found");
-		}
-
-		if (!result.itemsMatchExpected && expectedItemsCount >= 0) {
-			result.errors.push(
-				`Item count mismatch: expected ${expectedItemsCount}, found ${itemsCount}`
-			);
-		}
-
-		return result;
-	} catch (error) {
-		return {
-			success: false,
-			canvasExists: false,
-			itemsCount: 0,
-			expectedItemsCount,
-			itemsMatchExpected: false,
-			canvasId,
-			errors: [`Validation error: ${getErrorMessage(error)}`],
-		};
-	}
 }
 
 // ============================================================================

@@ -4,7 +4,6 @@ import {
 	createCanvasFromTemplateAndSelections,
 	generateCanvasLink,
 	updateCanvasFromTemplateAndSelections,
-	validateCanvasCreation,
 } from "../api";
 import { buildBaseTemplateItems } from "../api/canvas-builder/base-template";
 import {
@@ -23,7 +22,6 @@ import { useCdfClientInfo } from "./useClientInfo";
 const defaultCanvasCreationDeps = {
 	createCanvasFromTemplateAndSelections,
 	updateCanvasFromTemplateAndSelections,
-	validateCanvasCreation,
 	generateCanvasLink,
 	buildBaseTemplateItems,
 	getTemplateCanvasInstances,

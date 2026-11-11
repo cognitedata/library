@@ -1,4 +1,3 @@
-import type { CogniteClient } from "@cognite/sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cdfClientTestDouble } from "@/__mocks__/cdf-client-test-double";
 import { installInlineApiRuntime } from "@/__mocks__/inline-api-runtime";
@@ -37,7 +36,6 @@ import {
 	extractClusterFromUrl,
 	generateCanvasLink,
 	updateCanvasFromTemplateAndSelections,
-	validateCanvasCreation,
 } from "./canvas-builder";
 
 const getTemplateCanvasInstances = vi.fn();
@@ -271,75 +269,6 @@ describe("generateCanvasLink / extractClusterFromUrl", () => {
 
 	it("extracts cluster from base URL", () => {
 		expect(extractClusterFromUrl("https://foo.cognitedata.com")).toBe("foo");
-	});
-});
-
-describe("validateCanvasCreation", () => {
-	let retrieve: ReturnType<typeof vi.fn>;
-	let query: ReturnType<typeof vi.fn>;
-	let client: CogniteClient;
-
-	beforeEach(() => {
-		retrieve = vi.fn();
-		query = vi.fn();
-		client = cdfClientTestDouble({
-			instances: { retrieve, query, upsert: vi.fn(), delete: vi.fn() },
-			profiles: { me: vi.fn().mockResolvedValue({ displayName: "u" }) },
-		});
-	});
-
-	it("returns success when counts match", async () => {
-		retrieve.mockResolvedValueOnce({ items: [{ externalId: "c" }] });
-		query.mockResolvedValueOnce({
-			items: { nodes: [{}, {}] },
-			nextCursor: {},
-		});
-		const r = await validateCanvasCreation(client, config, "c", 2);
-		expect(r.success).toBe(true);
-		expect(r.itemsCount).toBe(2);
-	});
-
-	it("aggregates paginated instance counts", async () => {
-		retrieve.mockResolvedValueOnce({ items: [{ externalId: "c" }] });
-		query
-			.mockResolvedValueOnce({
-				items: { nodes: [{}] },
-				nextCursor: { nodes: "n" },
-			})
-			.mockResolvedValueOnce({
-				items: { nodes: [{}] },
-				nextCursor: {},
-			});
-		const r = await validateCanvasCreation(client, config, "c", 2);
-		expect(r.itemsCount).toBe(2);
-	});
-
-	it("stops counting instance pages when count already exceeds expected", async () => {
-		retrieve.mockResolvedValueOnce({ items: [{ externalId: "c" }] });
-		query.mockResolvedValueOnce({
-			items: { nodes: [{}, {}, {}, {}, {}] },
-			nextCursor: { nodes: "would_fetch_more" },
-		});
-		const r = await validateCanvasCreation(client, config, "c", 2);
-		expect(r.itemsCount).toBe(5);
-		expect(r.success).toBe(false);
-		expect(retrieve).toHaveBeenCalledTimes(1);
-		expect(query).toHaveBeenCalledTimes(1);
-	});
-
-	it("returns errors when canvas missing", async () => {
-		retrieve.mockResolvedValue({ items: [] });
-		query.mockResolvedValue({ items: { nodes: [] }, nextCursor: {} });
-		const r = await validateCanvasCreation(client, config, "missing", 0);
-		expect(r.success).toBe(false);
-		expect(r.errors.some((e) => e.includes("not found"))).toBe(true);
-	});
-
-	it("handles validation exception", async () => {
-		retrieve.mockRejectedValueOnce(new Error("boom"));
-		const r = await validateCanvasCreation(client, config, "c", 1);
-		expect(r.success).toBe(false);
-		expect(r.errors[0]).toContain("Validation error");
 	});
 });
 

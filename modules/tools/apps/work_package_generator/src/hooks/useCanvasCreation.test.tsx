@@ -21,7 +21,6 @@ import {
 
 const mockCreate = vi.fn();
 const mockUpdate = vi.fn();
-const mockValidate = vi.fn();
 const mockLink = vi.fn();
 const mockBuildBase = vi.fn();
 const mockGetInstances = vi.fn();
@@ -46,7 +45,6 @@ function makeWrapper() {
 	const deps: UseCanvasCreationContextType = {
 		createCanvasFromTemplateAndSelections: mockCreate,
 		updateCanvasFromTemplateAndSelections: mockUpdate,
-		validateCanvasCreation: mockValidate,
 		generateCanvasLink: mockLink,
 		buildBaseTemplateItems: mockBuildBase,
 		getTemplateCanvasInstances: mockGetInstances,
@@ -92,15 +90,6 @@ describe("useCanvasCreation", () => {
 		vi.clearAllMocks();
 		mockCreate.mockResolvedValue("new-canvas");
 		mockUpdate.mockResolvedValue("existing");
-		mockValidate.mockResolvedValue({
-			success: true,
-			canvasExists: true,
-			itemsCount: 2,
-			expectedItemsCount: 2,
-			itemsMatchExpected: true,
-			canvasId: "x",
-			errors: [],
-		});
 		mockLink.mockReturnValue("https://link");
 		mockGetInstances.mockResolvedValue([]);
 		mockGetAnnotations.mockResolvedValue([]);
@@ -121,7 +110,6 @@ describe("useCanvasCreation", () => {
 			await result.current.mutateAsync({ canvasName: "N" });
 		});
 		await waitFor(() => expect(mockCreate).toHaveBeenCalled());
-		expect(mockValidate).not.toHaveBeenCalled();
 		expect(mockLink).toHaveBeenCalled();
 	});
 
@@ -194,7 +182,6 @@ describe("useCanvasCreation", () => {
 		});
 		expect(mockBuildBase).not.toHaveBeenCalled();
 		expect(mockGetInstances).not.toHaveBeenCalled();
-		expect(mockValidate).not.toHaveBeenCalled();
 	});
 
 	it("requires a CDF client", async () => {
@@ -204,7 +191,6 @@ describe("useCanvasCreation", () => {
 		const deps: UseCanvasCreationContextType = {
 			createCanvasFromTemplateAndSelections: mockCreate,
 			updateCanvasFromTemplateAndSelections: mockUpdate,
-			validateCanvasCreation: mockValidate,
 			generateCanvasLink: mockLink,
 			buildBaseTemplateItems: mockBuildBase,
 			getTemplateCanvasInstances: mockGetInstances,
@@ -251,7 +237,6 @@ describe("useCanvasCreation", () => {
 		});
 		expect(mockGetInstances).not.toHaveBeenCalled();
 		expect(mockGetAnnotations).not.toHaveBeenCalled();
-		expect(mockValidate).not.toHaveBeenCalled();
 		expect(useWorkPackageStore.getState().isLoading).toBe(false);
 	});
 });
