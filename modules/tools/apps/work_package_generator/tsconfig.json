@@ -5,7 +5,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
-    "types": ["@testing-library/jest-dom", "node"],
+    "types": ["@testing-library/jest-dom"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -33,5 +33,5 @@
     }
   },
   "include": ["src", "app.json"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "exclude": ["src/qa-findings-surface.test.ts", "src/build-script.test.ts"]
 }

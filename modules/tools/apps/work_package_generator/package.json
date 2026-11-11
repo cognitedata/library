@@ -22,7 +22,7 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "type-check": "tsc --noEmit",
+    "type-check": "node scripts/build.mjs --type-check-only",
     "deploy": "npx @cognite/cli@latest apps deploy --interactive",
     "activate": "npx @cognite/cli@latest apps activate --interactive",
     "setup-https": "npx @cognite/cli@latest apps setup-https"
