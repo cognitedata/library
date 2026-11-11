@@ -53,7 +53,14 @@ export function useTemplateCanvases() {
 	);
 
 	const query = useQuery({
-		queryKey: ["templateCanvases"],
+		queryKey: [
+			"templateCanvases",
+			appConfig.canvas.canvasView.space,
+			appConfig.canvas.canvasView.externalId,
+			appConfig.canvas.canvasView.version,
+			appConfig.templates.namePrefix,
+			"owner-names",
+		],
 		queryFn: async () => {
 			if (!client) throw new Error("CDF client not available");
 			return listTemplates(client, appConfig);

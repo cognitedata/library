@@ -104,6 +104,8 @@ export interface TemplateCanvas {
 	name: string;
 	visibility: "public" | "private";
 	createdBy?: string;
+	/** Display name for `createdBy`, when the profile lookup succeeds. */
+	ownerName?: string;
 	updatedBy?: string;
 	createdAt?: string;
 	updatedAt?: string;

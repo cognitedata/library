@@ -18,6 +18,15 @@ interface TemplateCanvasCardProps {
 	onSelect: (id: string) => void;
 }
 
+function formatUpdatedDay(updatedAt: string | undefined): string {
+	if (!updatedAt) return "Unknown";
+	const match = /^(\d{4}-\d{2}-\d{2})/.exec(updatedAt);
+	if (match) return match[1];
+	const parsed = new Date(updatedAt);
+	if (Number.isNaN(parsed.getTime())) return "Unknown";
+	return parsed.toISOString().slice(0, 10);
+}
+
 export function TemplateCanvasCard({
 	template,
 	isSelected,
@@ -70,12 +79,22 @@ export function TemplateCanvasCard({
 				</div>
 			</div>
 
-			<p className="text-xs text-neutral-800 dark:text-neutral-100">
-				{template.updatedAt
-					? `Updated ${template.updatedAt}`
-					: "Updated date unknown"}
-				{template.createdBy ? ` · owner ${template.createdBy}` : ""}
-			</p>
+			{(template.updatedAt || template.ownerName || template.createdBy) && (
+				<div className="space-y-0.5 text-xs text-neutral-800 dark:text-neutral-100">
+					{template.updatedAt && (
+						<p>
+							<span className="font-semibold">Updated</span>{" "}
+							{formatUpdatedDay(template.updatedAt)}
+						</p>
+					)}
+					{(template.ownerName || template.createdBy) && (
+						<p>
+							<span className="font-semibold">Owner</span>{" "}
+							{template.ownerName || template.createdBy}
+						</p>
+					)}
+				</div>
+			)}
 
 			{(notices.catalogTruncated || childTruncated) && (
 				<p

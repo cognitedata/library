@@ -4,6 +4,7 @@ import {
 	CANVAS_ANNOTATION_VIEW_ID,
 	CANVAS_INSTANCE_VIEW_ID,
 	CANVAS_VIEW_ID,
+	createMockAppConfig,
 	DEFAULT_CANVAS_DIMENSIONS,
 } from "@/__mocks__/app-config";
 import { cdfClientTestDouble } from "@/__mocks__/cdf-client-test-double";
@@ -114,6 +115,83 @@ describe("retrieve-data/template-canvases", () => {
 			expect(result.every((canvas) => canvas.createdBy)).toBe(true);
 		});
 
+		it("scans the configured view and Canvas/v7, matching the prefix ignoring case", async () => {
+			const config = createMockAppConfig();
+			config.canvas.canvasView.version = "v1";
+			query
+				.mockResolvedValueOnce({
+					items: {
+						nodes: [
+							makeNode("v1", "s", CANVAS_VIEW_ID.space, "Canvas/v1", {
+								name: "Template_pump",
+							}),
+						],
+					},
+				})
+				.mockResolvedValueOnce({
+					items: {
+						nodes: [
+							makeNode("v7", "s", CANVAS_VIEW_ID.space, canvasKey, {
+								name: "template_valve",
+							}),
+							makeNode("v1", "s", CANVAS_VIEW_ID.space, canvasKey, {
+								name: "Template_pump",
+							}),
+						],
+					},
+				});
+			const result = await listTemplateCanvases(client, config);
+			expect(result.map((canvas) => canvas.externalId).sort()).toEqual([
+				"v1",
+				"v7",
+			]);
+			expect(query).toHaveBeenCalledTimes(2);
+			const versions = query.mock.calls.map((call) =>
+				JSON.stringify(call[0].select)
+			);
+			expect(versions.some((body) => body.includes('"v1"'))).toBe(true);
+			expect(versions.some((body) => body.includes('"v7"'))).toBe(true);
+		});
+
+		it("resolves owner hashes to profile display names", async () => {
+			query.mockResolvedValueOnce({
+				items: {
+					nodes: [
+						makeNode("owned", "s", CANVAS_VIEW_ID.space, canvasKey, {
+							name: "template_owned",
+							createdBy: "user-hash",
+						}),
+					],
+				},
+			});
+			const retrieve = vi.fn().mockResolvedValue([
+				{ userIdentifier: "user-hash", displayName: "Ada Lovelace" },
+			]);
+			client = cdfClientTestDouble({
+				instances: { query },
+				profiles: { retrieve },
+			});
+			const result = await listTemplateCanvases(client);
+			expect(retrieve).toHaveBeenCalledWith([{ userIdentifier: "user-hash" }]);
+			expect(result[0]?.ownerName).toBe("Ada Lovelace");
+		});
+
+		it("lists canvases when Canvas/v1 omits visibility", async () => {
+			query.mockResolvedValueOnce({
+				items: {
+					nodes: [
+						makeNode("shared", "s", CANVAS_VIEW_ID.space, canvasKey, {
+							name: "template_shared",
+							createdBy: "someone-else",
+						}),
+					],
+				},
+			});
+			const result = await listTemplateCanvases(client);
+			expect(result.map((canvas) => canvas.externalId)).toEqual(["shared"]);
+			expect(result[0].visibility).toBe("public");
+		});
+
 		it("N10: lists public canvases and the user's own private ones. C19: excludes archived canvases", async () => {
 			query.mockResolvedValueOnce({
 				items: {
@@ -141,9 +219,11 @@ describe("retrieve-data/template-canvases", () => {
 				"mine",
 				"pub",
 			]);
-			const filter = query.mock.calls[0][0].with.nodes.nodes.filter;
-			expect(JSON.stringify(filter)).toContain("isArchived");
-			expect(JSON.stringify(filter)).toContain("template");
+			const filter = JSON.stringify(
+				query.mock.calls[0][0].with.nodes.nodes.filter
+			);
+			expect(filter).not.toContain("visibility");
+			expect(filter).not.toContain("isArchived");
 		});
 	});
 

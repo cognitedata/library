@@ -75,6 +75,44 @@ describe("TemplateSelectionStep", () => {
 		expect(onContinueFromTemplate).toHaveBeenCalledTimes(1);
 	});
 
+	it("places the AI pick immediately after All Resources", () => {
+		renderStep({
+			templates: [
+				{
+					externalId: "base",
+					space: "local",
+					name: "All Resources",
+					visibility: "public",
+				},
+				...templates,
+			],
+			templateCanvasId: "base",
+			aiSelectedCanvasId: "t2",
+		});
+		const cards = screen.getAllByRole("button", { name: /template_|All Resources/i });
+		expect(cards.map((card) => card.textContent)).toEqual([
+			expect.stringContaining("All Resources"),
+			expect.stringContaining("template_valve"),
+			expect.stringContaining("template_pump"),
+		]);
+	});
+
+	it("pages templates 10 at a time", () => {
+		const many = Array.from({ length: 11 }, (_, index) => ({
+			externalId: `t${index}`,
+			space: "s",
+			name: `template_${index}`,
+			visibility: "public" as const,
+		}));
+		renderStep({ templates: many, templateCanvasId: "t0" });
+		expect(screen.getByText("template_0")).toBeInTheDocument();
+		expect(screen.queryByText("template_10")).not.toBeInTheDocument();
+		expect(screen.getByText("Showing 1–10 of 11")).toBeInTheDocument();
+		fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+		expect(screen.getByText("template_10")).toBeInTheDocument();
+		expect(screen.queryByText("template_0")).not.toBeInTheDocument();
+	});
+
 	it("shows loading copy while templates or AI recommendation run", () => {
 		renderStep({ isLoadingTemplates: true });
 		expect(screen.getByText("Loading templates...")).toBeInTheDocument();

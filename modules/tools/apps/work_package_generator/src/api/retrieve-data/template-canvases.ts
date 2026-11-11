@@ -88,6 +88,24 @@ function propertyPath(view: ViewReference, property: string): string[] {
 	return [view.space, `${view.externalId}/${view.version}`, property];
 }
 
+/**
+ * Views to scan for template roots. Canvas/v1 has no `visibility` property,
+ * so a filter on it fails the whole query. Canvas/v7 is where Industrial
+ * Canvas stores current roots. Scan both when they differ.
+ */
+function templateCanvasViews(config: AppConfig): ViewReference[] {
+	const view = canvasSchemaView(config);
+	const views = [view];
+	if (
+		view.space === "cdf_industrial_canvas" &&
+		view.externalId === "Canvas" &&
+		view.version !== "v7"
+	) {
+		views.push({ ...view, version: "v7" });
+	}
+	return views;
+}
+
 /** Child nodes are stored as `${canvasId}_…`, so the prefix needs the separator. */
 function childExternalIdPrefix(templateId: string): string {
 	return `${templateId}_`;
@@ -103,13 +121,16 @@ function mapNodeToTemplateCanvas(
 		externalId: node.externalId,
 		space: node.space,
 		name,
-		visibility:
-			(getStringProp(props, "visibility") as "public" | "private") || "private",
+		visibility: readVisibility(props),
 		createdBy: getOptionalStringProp(props, "createdBy"),
 		updatedBy: getOptionalStringProp(props, "updatedBy"),
 		createdAt: getOptionalStringProp(props, "createdAt"),
 		updatedAt: getOptionalStringProp(props, "updatedAt"),
 	};
+}
+
+function readVisibility(props: Record<string, unknown>): "public" | "private" {
+	return props.visibility === "private" ? "private" : "public";
 }
 
 function isVisibleTemplate(
@@ -125,8 +146,8 @@ function isVisibleTemplate(
 }
 
 /**
- * List every visible template canvas. Name, archive, and visibility filters
- * are applied on the server; the same rules are checked on each row.
+ * List every visible template canvas. Property filters stay on the client:
+ * Canvas/v1 rejects `visibility`, and the name prefix is case-insensitive.
  * Newest canvases are sorted first. Same names are all kept.
  */
 export async function listTemplateCanvases(
@@ -134,54 +155,111 @@ export async function listTemplateCanvases(
 	config?: AppConfig
 ): Promise<TemplateCanvas[]> {
 	const resolvedConfig = resolveAppConfig(config);
-	const schemaView = canvasSchemaView(resolvedConfig);
+	const views = templateCanvasViews(resolvedConfig);
 	const prefix = resolvedConfig.templates.namePrefix;
 	const userId = await resolveCanvasUserId(client, resolvedConfig);
-	const namePath = propertyPath(schemaView, "name");
-	const visibilityPath = propertyPath(schemaView, "visibility");
-	const createdByPath = propertyPath(schemaView, "createdBy");
-	const archivedPath = propertyPath(schemaView, "isArchived");
 
-	const { items: pageItems, truncated } = await listInstanceNodesWithCap(
-		client,
-		{
-			sources: [viewIdToSource(schemaView)],
-			filter: {
-				and: [
-					{ prefix: { property: namePath, value: prefix } },
-					{ not: { equals: { property: archivedPath, value: true } } },
-					{
-						or: [
-							{ equals: { property: visibilityPath, value: "public" } },
-							{ equals: { property: createdByPath, value: userId } },
-						],
-					},
-				],
-			},
-			maxTotalItems: resolvedConfig.limits.maxCanvasListScanItems,
-			warnContext: "listTemplateCanvases",
-			config: resolvedConfig,
+	const seen = new Set<string>();
+	const all: TemplateCanvas[] = [];
+	let anySucceeded = false;
+	let lastError: unknown;
+	let truncated = false;
+
+	for (const schemaView of views) {
+		try {
+			const page = await listInstanceNodesWithCap(client, {
+				sources: [viewIdToSource(schemaView)],
+				maxTotalItems: resolvedConfig.limits.maxCanvasListScanItems,
+				warnContext: `listTemplateCanvases:${schemaView.externalId}/${schemaView.version}`,
+				config: resolvedConfig,
+			});
+			anySucceeded = true;
+			truncated = truncated || page.truncated;
+			for (const item of page.items) {
+				const node = toCdfNode(item);
+				if (!node) continue;
+				const key = `${node.space}:${node.externalId}`;
+				if (seen.has(key)) continue;
+				seen.add(key);
+
+				const props = extractInstanceProperties(node, schemaView);
+				const name = getStringProp(props, "name");
+				const canvas = mapNodeToTemplateCanvas(node, props, name);
+				const archived = props.isArchived === true;
+				if (isVisibleTemplate(canvas, prefix, userId, archived)) {
+					all.push(canvas);
+				}
+			}
+		} catch (error) {
+			lastError = error;
 		}
-	);
+	}
+
+	if (!anySucceeded) {
+		throw lastError instanceof Error
+			? lastError
+			: new Error("Failed to list template canvases");
+	}
 	markCatalogTruncated(truncated);
 
-	const all: TemplateCanvas[] = [];
-	for (const item of pageItems) {
-		const node = toCdfNode(item);
-		if (!node) continue;
-
-		const props = extractInstanceProperties(node, schemaView);
-		const name = getStringProp(props, "name");
-		const canvas = mapNodeToTemplateCanvas(node, props, name);
-		const archived = props.isArchived === true;
-		if (isVisibleTemplate(canvas, prefix, userId, archived)) {
-			all.push(canvas);
-		}
+	const ownerNames = await lookupOwnerNames(
+		client,
+		all.flatMap((canvas) => (canvas.createdBy ? [canvas.createdBy] : []))
+	);
+	for (const canvas of all) {
+		if (!canvas.createdBy) continue;
+		const name = ownerNames.get(canvas.createdBy);
+		if (name) canvas.ownerName = name;
 	}
 
 	return all.sort((a, b) =>
 		(b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")
 	);
+}
+
+/** Map canvas `createdBy` ids to profile display names. Missing profiles stay unresolved. */
+async function lookupOwnerNames(
+	client: CogniteClient,
+	userIdentifiers: readonly string[]
+): Promise<Map<string, string>> {
+	const unique = [...new Set(userIdentifiers)];
+	const names = new Map<string, string>();
+	if (!client.profiles?.retrieve || unique.length === 0) return names;
+
+	const batchSize = 100;
+	for (let index = 0; index < unique.length; index += batchSize) {
+		const batch = unique.slice(index, index + batchSize);
+		try {
+			const profiles = await client.profiles.retrieve(
+				batch.map((userIdentifier) => ({ userIdentifier }))
+			);
+			rememberOwnerNames(names, profiles);
+		} catch {
+			for (const userIdentifier of batch) {
+				try {
+					const profiles = await client.profiles.retrieve([{ userIdentifier }]);
+					rememberOwnerNames(names, profiles);
+				} catch {
+					// Keep the raw id when this profile cannot be resolved.
+				}
+			}
+		}
+	}
+	return names;
+}
+
+function rememberOwnerNames(
+	names: Map<string, string>,
+	profiles: ReadonlyArray<{
+		userIdentifier: string;
+		displayName?: string | null;
+		email?: string | null;
+	}>
+): void {
+	for (const profile of profiles) {
+		const name = profile.displayName?.trim() || profile.email?.trim();
+		if (name) names.set(profile.userIdentifier, name);
+	}
 }
 
 /**
@@ -195,14 +273,11 @@ export async function findCanvasesByName(
 	const trimmedTarget = canvasName.trim();
 	if (!trimmedTarget) return [];
 
-	const canvasNamePropPath = [
-		canvasSchemaView(config).space,
-		`${canvasSchemaView(config).externalId}/${canvasSchemaView(config).version}`,
-		"name",
-	];
+	const schemaView = canvasSchemaView(resolveAppConfig(config));
+	const canvasNamePropPath = propertyPath(schemaView, "name");
 
 	const { items: pageItems } = await listInstanceNodesWithCap(client, {
-		sources: [viewIdToSource(canvasSchemaView(config))],
+		sources: [viewIdToSource(schemaView)],
 		filter: {
 			equals: {
 				property: canvasNamePropPath,
@@ -219,7 +294,7 @@ export async function findCanvasesByName(
 		const node = toCdfNode(item);
 		if (!node) continue;
 
-		const props = extractInstanceProperties(node, canvasSchemaView(config));
+		const props = extractInstanceProperties(node, schemaView);
 		const name = getStringProp(props, "name").trim();
 
 		if (name === trimmedTarget) {
