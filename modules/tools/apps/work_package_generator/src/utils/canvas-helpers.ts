@@ -43,7 +43,7 @@ export function generateCanvasItemProperties(
 		return {
 			id: nodeId,
 			annotationType: item.annotationType,
-			properties: item.properties || {},
+			properties: { ...(item.properties || {}) },
 		};
 	}
 

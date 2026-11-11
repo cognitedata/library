@@ -35,16 +35,19 @@ describe("generateCanvasItemProperties", () => {
 		expect(p.containerReferenceType).toBe("fdmInstance");
 	});
 
-	it("builds CanvasAnnotation props", () => {
+	it("builds CanvasAnnotation props without sharing the input properties reference", () => {
+		const sourceProps = { x: 1, fromId: "src" };
 		const item: CanvasItem = {
 			type: "CanvasAnnotation",
 			containerId: "C",
 			annotationType: "note",
-			properties: { x: 1 },
+			properties: sourceProps,
 		};
 		const p = generateCanvasItemProperties(item, "nid");
 		expect(p.annotationType).toBe("note");
-		expect(p.properties).toEqual({ x: 1 });
+		expect(p.properties).toEqual({ x: 1, fromId: "src" });
+		(p.properties as Record<string, unknown>).fromId = "remapped";
+		expect(sourceProps.fromId).toBe("src");
 	});
 });
 
