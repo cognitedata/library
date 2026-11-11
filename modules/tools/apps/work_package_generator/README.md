@@ -215,7 +215,7 @@ If your tenant uses different spaces or view versions, update those `canvas` and
 
 ##### 3.5 Capabilities
 
-`src/api` calls DMS `instances.search`, `instances.query`, `instances.retrieve`, `instances.upsert`, and `instances.delete`, plus `dataModels.list` for the config view version and `profiles.me()`. `src/api/ai-agent.ts` calls `POST /ai/agents`, `POST /ai/agents/byids`, and `POST /ai/agents/chat`. Names below match [DMS access control](https://docs.cognite.com/cdf/dm/dm_concepts/dm_access_control) and [Agents capabilities](https://docs.cognite.com/cdf/access/guides/capabilities). Shipped runtime is `1.2.0`, so `sessions:create` (required for agent runtime 2.0+) is not listed.
+`src/api` calls DMS `instances.search`, `instances.query`, `instances.retrieve`, `instances.upsert`, and `instances.delete`, plus `dataModels.list` for the config view version and `profiles.me()`. `src/api/ai-agent.ts` calls `POST /ai/agents` (create and config sync), `POST /ai/agents/byids`, and `POST /ai/agents/chat`. Names below match [DMS access control](https://docs.cognite.com/cdf/dm/dm_concepts/dm_access_control) and [Agents capabilities](https://docs.cognite.com/cdf/access/guides/capabilities). Shipped runtime is `1.2.0`, so `sessions:create` (required for agent runtime 2.0+) is not listed.
 
 | Capability | Actions | Scope for the shipped config | Used for |
 | --- | --- | --- | --- |
@@ -517,8 +517,8 @@ work_package_generator/
 | ID | Fix | Test |
 | --- | --- | --- |
 | C26 | Stepper is vertical on desktop and horizontal on compact layouts | `WorkPackageGeneratorLayout.test.tsx` |
-| C17 | Agent reply is parsed for exactly one candidate id | `ai-agent.test.ts` |
-| C10 | Annotations are copied and item references are remapped | `canvas-builder.test.ts` |
+| C17 | Candidates are ranked with slot labels weighted above context (capped at 100), and the reply is parsed for one id | `ai-agent.test.ts` |
+| C10 | Annotations are copied with item references remapped, and annotations anchored to dropped slots are skipped | `canvas-builder.test.ts` |
 | C18 | Update keeps visibility and merges solution tags | `canvas-builder.test.ts` |
 | C04 | Main slots use `isMainAsset` / `isMainWorkOrder`, not a substring of “main” | `useTemplateFields.test.tsx` |
 | E3 | All Resources is always listed | `useTemplates.test.tsx` |
@@ -530,13 +530,13 @@ work_package_generator/
 | N02 | Each workflow step pushes a history entry; Back uses it | `useWorkPackageGeneratorPage.test.tsx` |
 | N10 | Template list is every public canvas plus the user’s own private ones | `template-canvases.test.ts` |
 | B-D4 | Same template names are all listed, with owner and updated time | `template-canvases.test.ts` |
-| N06 | ID search is a case-insensitive prefix on `externalId`, plus name and description search | `work-orders.test.ts` |
+| N06 | ID search matches `externalId` case-insensitively (exact, prefix, and contains) ranked ahead of name and description search | `work-orders.test.ts` |
 | B-D3 | Config node suppresses unresolved-variable noise with `# rules: ignore[UNRESOLVED-VARIABLE]` | `toolkit-drift.test.ts` |
-| B-D2 | Agent is updated when model, runtime, instructions, or tools differ; the diff is logged; a failed write is soft | `ai-agent.test.ts` |
+| B-D2 | Agent is synced via `POST /ai/agents` when model, runtime, instructions, or tools differ; the diff is logged; a failed write is soft | `ai-agent.test.ts` |
 | C34 | Config validation rejects `searchResultLimit` above 1000 and unknown placeholder names | `validate.test.ts` |
 | C01 | A late AI pick from the previous work order is discarded | `useAiSelections.test.tsx` |
 | C05 | A work order with no asset leaves the resolving state | `WorkOrderDetailStep.test.tsx` |
-| C09 | A failed create or update does not leave an empty canvas | `canvas-builder.test.ts` |
+| C09 | Create and update roll back newly written items on failure (including old-child delete failure) so no partial or empty canvas is left | `canvas-builder.test.ts` |
 | C15 | Two slots with the same label keep separate picks | `canvas-builder.test.ts` |
 | C16 | AI errors are shown per slot instead of “No automatic match” | `ai-agent.test.ts` |
 | C32 | Copy-link falls back to a manual copy dialog | `clipboard.test.ts` |

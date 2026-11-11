@@ -45,7 +45,7 @@ As a planner, I want to search work orders by ID, name, or description and commi
 
 **Acceptance scenarios**:
 
-1. **Given** the Work Order step, **When** I search, **Then** results are a paginated table (20 per page) with external ID, name, and description. The status column is shown only when the mapped work-order view has a status property. ID search is a case-insensitive prefix on `externalId`, merged with name and description search.
+1. **Given** the Work Order step, **When** I search, **Then** results are a paginated table (20 per page) with external ID, name, and description. The status column is shown only when the mapped work-order view has a status property. ID search matches `externalId` case-insensitively (exact, prefix, and contains up to a bounded 1,000-node scan, ranked ahead of name and description search).
 2. **Given** results, **When** I select a row and confirm, **Then** the app loads the first linked asset from `CogniteActivity.assets[]` and the workflow can advance.
 3. **Given** a committed work order, **When** I search again from the Work Order step, **Then** the flow resets so I can pick a different work order.
 4. **Given** no work order yet, **When** I try later steps, **Then** those steps stay gated until I commit a work order.
@@ -85,7 +85,7 @@ As a planner, I want the AI to fill template slots and to override or re-run sel
 **Acceptance scenarios**:
 
 1. **Given** template child FDM instance placeholders, **When** fields load, **Then** each `file` / `timeseries` (and other configured) slot is listed. A slot is the main asset or main work order only when `isMainAsset` or `isMainWorkOrder` matches that item’s view. A substring of “main” in the label, such as “Maintenance”, does not make a file slot main.
-2. **Given** candidates and slot type, **When** AI runs, **Then** the agent is called per applicable slot with work order, asset, and candidate properties, and the reply is parsed for exactly one candidate id mapped to that slot.
+2. **Given** candidates and slot type, **When** AI runs, **Then** candidates are ranked with the slot label weighted above work-order and asset context and capped at 100 per prompt, the agent is called per applicable slot, and the reply is parsed for exactly one candidate id mapped to that slot.
 3. **Given** one slot fails, **When** others succeed, **Then** the failed slot shows an error and does not block the rest.
 4. **Given** Selections, **When** I re-run AI overall or for one slot, or pick a resource in the picker, **Then** the store updates for the slots that ran.
 5. **Given** automation review is shown, **When** I have not acknowledged it, **Then** Create stays gated.
@@ -100,7 +100,7 @@ As a planner, I want to name the canvas, preview the draft, create or update it 
 
 1. **Given** Selections acknowledged, **When** I am on Create, **Then** I can enter a free-text canvas name and see a draft preview of the composed canvas. Preview reads (files, time series, diagram annotations, views) share the app CDF call queue so bursts retry on HTTP 429.
 2. **Given** Create mode, **When** save succeeds, **Then** a new canvas root is written to `IndustrialCanvasInstanceSpace` with a generated UUID `externalId`, `visibility` public, `createdBy`/`updatedBy` set to the current CDF `userIdentifier`, a **Work Package** solution tag, child FDM references and edges in batches of ≤1000, and template annotations copied with item references remapped onto the new items.
-3. **Given** Update mode, **When** a canvas with that exact name exists, **Then** new items are written, previous children are removed (up to 100K items; exceeding the cap fails rather than a partial delete), existing visibility is kept, and solution tags are merged with the Work Package tag.
+3. **Given** Update mode, **When** a canvas with that exact name exists, **Then** new items and edges are written first, previous children are removed (up to 100K items; exceeding the cap or failing to delete previous children rolls back the newly written items and fails so the previous canvas stays intact), existing visibility is kept, and solution tags are merged with the Work Package tag before updating the canvas root.
 4. **Given** success, **When** I view Create, **Then** I get a Fusion URL (and copy-link) to open the canvas.
 5. **Given** save fails (including missing write permission on `IndustrialCanvasInstanceSpace`), **When** the error returns, **Then** I see a message and can retry.
 
@@ -129,7 +129,7 @@ As a user, I want the app to authenticate via Fusion and use the current CDF pro
 ## Functional requirements
 
 - **FR-001**: Authenticate through the Fusion / `@cognite/app-sdk` host; do not require the user to paste CDF tokens in the UI.
-- **FR-002**: Search `CogniteActivity` nodes and display paginated results (limit 20). ID search is a case-insensitive prefix on `externalId`, plus name and description search. The status column appears only when the mapped view has status.
+- **FR-002**: Search `CogniteActivity` nodes and display paginated results (limit 20). ID search matches `externalId` case-insensitively (exact, prefix, and bounded contains), ranked ahead of name and description search. The status column appears only when the mapped view has status.
 - **FR-003**: Resolve context from the first linked asset (`CogniteAsset`); support `CogniteEquipment` where template slots or config require it.
 - **FR-004**: List Industrial Canvas templates from `cdf_industrial_canvas` / `Canvas` / `v7`: every public canvas with name prefix `templates.namePrefix`, plus the user’s own private ones, not newest-per-name. Show owner and updated time. **All Resources** is always listed.
 - **FR-005**: Recommend a template via the project helper agent; user selection is authoritative.
@@ -173,7 +173,7 @@ Identifiers live on the `wpg_config` node in space `inst_wpg_app_config` (view `
 | Item | Convention |
 |------|------------|
 | Agent external ID | `{cdfProject}_{agent.externalIdSuffix}` (shipped suffix `work_package_generator_helper_agent`), or `agent.existingAgentExternalId` when that is set |
-| Ensure exists | Look up by id. Create with `POST /ai/agents` only when `existingAgentExternalId` is unset and the agent is missing. A configured id that is missing is an error. |
+| Ensure exists | Look up by id (`POST /ai/agents/byids`). Create with `POST /ai/agents` only when `existingAgentExternalId` is unset and the agent is missing. When model, runtime, instructions, or tools on the live agent differ from `agent`, sync it via `POST /ai/agents` (create-or-update) and keep the live agent if the write fails. A configured `existingAgentExternalId` that is missing is an error. |
 | Create payload | Model, runtime, name, description, instructions, and tools from `agent`. |
 | Template prompt | `prompts.templateSelection` filled with the work order, asset, and candidate templates; parse recommended canvas external ID |
 | Slot prompt | `prompts.resourceSelection` filled with the work order, asset, and typed candidates; parse the reply for exactly one candidate id |
