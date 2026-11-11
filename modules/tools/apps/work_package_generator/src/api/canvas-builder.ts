@@ -116,12 +116,15 @@ function nodeProperties(
 }
 
 /**
- * Point copied annotations at the new item ids. References to items that
- * were not copied are removed so they do not keep pointing at the template.
+ * Point copied annotations at the new item ids. Annotations whose anchor
+ * (`containerId`) or connector endpoints (`fromId` / `toId`) target a template
+ * item that was dropped are skipped so they neither point at the template nor
+ * collapse unanchored at the canvas origin.
  */
 function remapAnnotationAnchors(
 	items: readonly CanvasItem[],
-	nodes: readonly NodeWrite[]
+	nodes: NodeWrite[],
+	edges: EdgeWrite[]
 ): void {
 	const newIdBySource = new Map<string, string>();
 	for (let index = 0; index < items.length; index++) {
@@ -132,29 +135,63 @@ function remapAnnotationAnchors(
 		newIdBySource.set(sourceId, newId);
 	}
 
+	const dropIndices: number[] = [];
 	for (let index = 0; index < items.length; index++) {
 		const item = items[index];
 		if (item?.type !== "CanvasAnnotation") continue;
 		const props = nodeProperties(nodes[index]);
 		if (!props) continue;
 
-		const anchor = sourceAnnotationContainerIds.get(item);
+		const nested =
+			props.properties && typeof props.properties === "object"
+				? (props.properties as Record<string, unknown>)
+				: undefined;
+		const nestedContainerId =
+			typeof nested?.containerId === "string"
+				? nested.containerId.trim()
+				: undefined;
+		const anchor = sourceAnnotationContainerIds.get(item) || nestedContainerId;
+
 		if (anchor) {
 			const mapped = newIdBySource.get(anchor);
-			if (mapped) props.containerId = mapped;
+			if (!mapped) {
+				dropIndices.push(index);
+				continue;
+			}
+			props.containerId = mapped;
+			if (nested && "containerId" in nested) {
+				nested.containerId = mapped;
+			}
+		} else if ("containerId" in props) {
+			delete props.containerId;
 		}
 
-		const nested = props.properties;
-		if (!nested || typeof nested !== "object") continue;
-		const record = nested as Record<string, unknown>;
+		if (!nested) continue;
+		let hasDanglingConnectorEndpoint = false;
 		for (const key of ["fromId", "toId"] as const) {
-			if (!(key in record)) continue;
-			const current = record[key];
-			const mapped =
-				typeof current === "string" ? newIdBySource.get(current) : undefined;
-			if (mapped) record[key] = mapped;
-			else delete record[key];
+			if (!(key in nested)) continue;
+			const current = nested[key];
+			if (typeof current === "string" && current.trim()) {
+				const mapped = newIdBySource.get(current.trim());
+				if (mapped) {
+					nested[key] = mapped;
+				} else {
+					hasDanglingConnectorEndpoint = true;
+				}
+			} else {
+				delete nested[key];
+			}
 		}
+		if (hasDanglingConnectorEndpoint) {
+			dropIndices.push(index);
+		}
+	}
+
+	for (let i = dropIndices.length - 1; i >= 0; i--) {
+		const dropIndex = dropIndices[i];
+		if (dropIndex === undefined) continue;
+		nodes.splice(dropIndex, 1);
+		edges.splice(dropIndex, 1);
 	}
 }
 
@@ -288,7 +325,7 @@ export async function createCanvasFromItems(
 		canvasId,
 		config
 	);
-	remapAnnotationAnchors(items, itemNodes);
+	remapAnnotationAnchors(items, itemNodes, edges);
 
 	const written: DeleteItem[] = [];
 	try {
@@ -678,7 +715,7 @@ export async function updateCanvasFromTemplateAndSelections(
 		canvasId,
 		config
 	);
-	remapAnnotationAnchors(items, itemNodes);
+	remapAnnotationAnchors(items, itemNodes, edges);
 
 	const written: DeleteItem[] = [];
 	try {

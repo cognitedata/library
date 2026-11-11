@@ -704,15 +704,121 @@ describe("createCanvasFromTemplateAndSelections / updateCanvasFromTemplateAndSel
 				(item) => item.sources?.[0]?.properties.annotationType === "note"
 			)?.sources?.[0]?.properties;
 			const arrowProps = arrow?.properties as Record<string, unknown>;
-			const noteProps = note?.properties as Record<string, unknown>;
 
 			expect(arrow?.containerId).toBe(assetId);
 			expect(arrowProps.fromId).toBe(assetId);
 			expect(arrowProps.toId).toBe(diagramId);
-			expect(note?.containerId).toBeUndefined();
-			expect(noteProps.fromId).toBeUndefined();
-			expect(noteProps.toId).toBeUndefined();
-			expect(noteProps.text).toBe("x");
+			expect(note).toBeUndefined();
+		} finally {
+			vi.mocked(generateUuid).mockReturnValue("uuid-fixed");
+		}
+	});
+
+	it("C10: skips an arrow anchored to an empty-slot item instead of leaving it unanchored or with template ids", async () => {
+		let nextId = 0;
+		vi.mocked(generateUuid).mockImplementation(() => `id-${nextId++}`);
+		getTemplateCanvasInstances.mockResolvedValue([
+			{
+				id: "old-asset",
+				label: "Main asset",
+				viewExternalId: "CogniteAsset",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+			{
+				id: "old-empty-file",
+				label: "P&ID",
+				viewExternalId: "CogniteFile",
+				viewSpace: "cdf_cdm",
+				viewVersion: "v1",
+				...tmpl,
+			},
+		]);
+		getTemplateCanvasAnnotations.mockResolvedValue([
+			{
+				id: "arrow-on-empty-slot",
+				type: "polylineAnnotation",
+				containerId: "old-empty-file",
+				properties: {
+					containerId: "old-empty-file",
+					vertices: [
+						{ x: 10, y: 10 },
+						{ x: 50, y: 50 },
+					],
+				},
+			},
+			{
+				id: "connector-to-empty-slot",
+				type: "polylineAnnotation",
+				properties: {
+					fromId: "old-asset",
+					toId: "old-empty-file",
+					vertices: [
+						{ x: 0, y: 0 },
+						{ x: 100, y: 100 },
+					],
+				},
+			},
+			{
+				id: "free-note",
+				type: "note",
+				properties: { text: "Keep me" },
+			},
+		]);
+
+		const upsert = vi.fn().mockResolvedValue(undefined);
+		const client = cdfClientTestDouble({
+			instances: {
+				upsert,
+				list: vi.fn().mockResolvedValue({ items: [], nextCursor: undefined }),
+				query: vi.fn().mockResolvedValue({
+					items: { nodes: [], edges: [] },
+					nextCursor: {},
+				}),
+				delete: vi.fn(),
+				retrieve: vi
+					.fn()
+					.mockResolvedValue({ items: [{ externalId: "wpg-work-package" }] }),
+			},
+			profiles: { me: vi.fn().mockResolvedValue({ displayName: "u" }) },
+			getBaseUrl: () => "https://x",
+		});
+
+		try {
+			await createCanvasFromTemplateAndSelections(
+				client,
+				config,
+				"Canvas",
+				"tpl",
+				{},
+				{ assetExternalId: "a", space: "s" },
+				{ externalId: "w", space: "s" },
+				undefined,
+				undefined,
+				templateReads
+			);
+
+			const writtenNodes = upsert.mock.calls.flatMap(
+				(call) =>
+					(
+						call[0] as {
+							items: Array<{
+								instanceType?: string;
+								externalId?: string;
+								sources?: Array<{ properties: Record<string, unknown> }>;
+							}>;
+						}
+					).items
+			);
+			const annotations = writtenNodes.filter(
+				(item) => item.sources?.[0]?.properties.annotationType
+			);
+			expect(annotations).toHaveLength(1);
+			expect(annotations[0]?.sources?.[0]?.properties.annotationType).toBe(
+				"note"
+			);
+			expect(JSON.stringify(writtenNodes)).not.toContain("old-empty-file");
 		} finally {
 			vi.mocked(generateUuid).mockReturnValue("uuid-fixed");
 		}
