@@ -284,6 +284,75 @@ def _ensure_status(result: object) -> dict[str, object]:
     return FunctionOutput(status="succeeded").model_dump()
 
 
+def _ensure_records_prerequisites(
+    client: "CogniteClient",
+    settings_path: Path,
+    logger: CogniteFunctionLogger,
+) -> None:
+    """Create the records stream, then containers and views. Fail hard on view errors.
+
+    cognite-data-quality 0.5.1b4 ``deploy_validation_infrastructure`` applies record views
+    before ensuring the stream and swallows apply failures with a warning so the rest of
+    deploy continues. Bootstrap must create the stream first and surface view failures so
+    the five-minute schedule keeps retrying instead of deleting itself after a partial deploy.
+
+    Args:
+        client: Authenticated Cognite client.
+        settings_path: Rendered settings.yaml (may include Schedule.data overrides).
+        logger: Function logger.
+
+    Raises:
+        RuntimeError: Record views could not be applied (missing stream, streamId change on
+            an existing view version, or other API error).
+    """
+    # Private helpers: public deploy path soft-fails views; ensure_records_infrastructure is
+    # not exported and uses the same soft-fail apply.
+    from cognite_data_quality._records import (  # type: ignore[attr-defined]
+        _apply_record_views,
+        _ensure_records_container,
+        _ensure_records_stream,
+        _ensure_rule_engine_container,
+        build_record_view_items,
+    )
+    from cognite_data_quality.deploy import load_settings
+
+    settings = load_settings(settings_path)
+    records = settings.records
+    stream_id = records.stream_id
+    if not stream_id:
+        return
+
+    space = records.space
+    validation_container = records.container
+    rule_engine_container = records.rule_engine_container
+    rule_engine_stream_id = records.rule_engine_stream_id or stream_id
+
+    logger.info(f"Ensuring records stream {stream_id} before record views")
+    _ensure_records_stream(client, stream_id, records.stream_type)
+
+    logger.info(f"Ensuring records containers in {space}")
+    _ensure_records_container(client, space, validation_container)
+    _ensure_rule_engine_container(client, space, rule_engine_container)
+
+    items = build_record_view_items(
+        space=space,
+        validation_container=validation_container,
+        rule_engine_container=rule_engine_container,
+        validation_stream_id=stream_id,
+        rule_engine_stream_id=rule_engine_stream_id,
+    )
+    logger.info(f"Applying record views {space}/{validation_container}+{rule_engine_container} (streamId={stream_id})")
+    try:
+        _apply_record_views(client, items)
+    except Exception as exc:
+        logger.error(f"Record views were not applied: {exc}")
+        raise RuntimeError(
+            f"Record views were not applied for stream '{stream_id}': {exc}. "
+            "If streamId changed on an existing view version, delete the old record views "
+            f"({validation_container}/v1, {rule_engine_container}/v1) in {space} and re-run bootstrap."
+        ) from exc
+
+
 def handle(
     data: dict[str, object], client: "CogniteClient", secrets: dict[str, str] | None = None
 ) -> dict[str, object]:
@@ -302,9 +371,11 @@ def handle(
         variables = fn_input.substitution_variables()
         views_dir = _materialize_config_dir(config_dir / "views", variables)
         timeseries_dir = _materialize_config_dir(config_dir / "timeseries_config", variables)
+        settings_path = override_path or bundled_settings
+        _ensure_records_prerequisites(client, settings_path, logger)
         result = deploy_validation_infrastructure(
             client=client,
-            settings_path=override_path or bundled_settings,
+            settings_path=settings_path,
             views_dir=views_dir,
             timeseries_dir=timeseries_dir,
             shacl_rules_dir=(config_dir / "shacl_rules") if (config_dir / "shacl_rules").is_dir() else None,

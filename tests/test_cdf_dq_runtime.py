@@ -748,12 +748,18 @@ def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> 
     ]
     handler_text = (bootstrap / "handler.py").read_text(encoding="utf-8")
     assert "_delete_bootstrap_schedule(client, logger)" in handler_text
+    assert "_ensure_records_prerequisites" in handler_text
     assert "_write_settings_with_overrides" in handler_text
     assert "FunctionInput.model_validate" in handler_text
     assert "Leave the five-minute schedule in place" in handler_text
 
 
-def _load_bootstrap_handler(monkeypatch: pytest.MonkeyPatch, deploy_impl: object) -> types.ModuleType:
+def _load_bootstrap_handler(
+    monkeypatch: pytest.MonkeyPatch,
+    deploy_impl: object,
+    *,
+    ensure_impl: object | None = None,
+) -> types.ModuleType:
     fake_cdq = types.ModuleType("cognite_data_quality")
     fake_cdq.deploy_validation_infrastructure = deploy_impl
     monkeypatch.setitem(sys.modules, "cognite_data_quality", fake_cdq)
@@ -766,6 +772,12 @@ def _load_bootstrap_handler(monkeypatch: pytest.MonkeyPatch, deploy_impl: object
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
+    # Package internals are exercised in dedicated tests; default stub keeps handle() unit tests offline.
+    monkeypatch.setattr(
+        module,
+        "_ensure_records_prerequisites",
+        ensure_impl if ensure_impl is not None else (lambda *_args, **_kwargs: None),
+    )
     return module
 
 
@@ -1232,3 +1244,128 @@ def test_bootstrap_handler_overlays_client_credentials_for_workflow_triggers(
     assert creds.client_id == "runtime-id"
     assert creds.client_secret == "runtime-secret"
     assert creds.authorization_header() == ("Authorization", "Bearer tok")
+
+
+def test_bootstrap_handler_ensures_records_before_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stream/views must be ensured before package deploy (package applies views too early)."""
+    calls: list[str] = []
+
+    def ensure(client: object, settings_path: Path, logger: object) -> None:
+        calls.append(f"ensure:{settings_path.name}")
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        calls.append("deploy")
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy, ensure_impl=ensure)
+    assert handler_module.handle({}, _bootstrap_client()) == {"status": "completed"}
+    assert calls == ["ensure:settings.yaml", "deploy"]
+
+
+def test_bootstrap_handler_fails_when_records_prerequisites_fail(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    deleted: list[int] = []
+
+    def ensure(_client: object, _settings_path: Path, _logger: object) -> None:
+        raise RuntimeError("Record views were not applied: streamId would change")
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        raise AssertionError("deploy must not run after records prerequisite failure")
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy, ensure_impl=ensure)
+    client = _bootstrap_client(
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42)],
+        delete=lambda *, id: deleted.append(id),
+    )
+
+    with pytest.raises(RuntimeError, match="Record views were not applied"):
+        handler_module.handle({}, client)
+    assert deleted == []
+    assert "Data Quality Validation infrastructure bootstrap failed" in capsys.readouterr().out
+
+
+def test_ensure_records_prerequisites_creates_stream_before_views(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Package soft-fails view apply; bootstrap must stream → containers → views and raise on error."""
+    order: list[str] = []
+
+    records = SimpleNamespace(
+        stream_id="dq_all_validation_results",
+        stream_type="BasicArchive",
+        space="inst_data_quality",
+        container="DataQualityValidationRecord",
+        rule_engine_container="RuleEngineResult",
+        rule_engine_stream_id=None,
+    )
+    fake_deploy = types.ModuleType("cognite_data_quality.deploy")
+    fake_deploy.load_settings = lambda _path: SimpleNamespace(records=records)
+    fake_records = types.ModuleType("cognite_data_quality._records")
+    fake_records._ensure_records_stream = lambda *_a, **_k: order.append("stream")
+    fake_records._ensure_records_container = lambda *_a, **_k: order.append("validation_container")
+    fake_records._ensure_rule_engine_container = lambda *_a, **_k: order.append("rule_engine_container")
+    fake_records.build_record_view_items = lambda **_k: [{"externalId": "DataQualityValidationRecord"}]
+    fake_records._apply_record_views = lambda *_a, **_k: order.append("views")
+
+    fake_cdq = types.ModuleType("cognite_data_quality")
+    fake_cdq.deploy_validation_infrastructure = lambda **_k: {"status": "completed"}
+    monkeypatch.setitem(sys.modules, "cognite_data_quality", fake_cdq)
+    monkeypatch.setitem(sys.modules, "cognite_data_quality.deploy", fake_deploy)
+    monkeypatch.setitem(sys.modules, "cognite_data_quality._records", fake_records)
+
+    name = "cdf_dq_runtime_bootstrap_handler_records"
+    sys.modules.pop(name, None)
+    handler_path = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure" / "handler.py"
+    spec = importlib.util.spec_from_file_location(name, handler_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+
+    logger = module.CogniteFunctionLogger("INFO")
+    module._ensure_records_prerequisites(SimpleNamespace(), Path("settings.yaml"), logger)
+    assert order == ["stream", "validation_container", "rule_engine_container", "views"]
+
+
+def test_ensure_records_prerequisites_raises_when_views_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+    records = SimpleNamespace(
+        stream_id="dq_all_validation_results",
+        stream_type="BasicArchive",
+        space="inst_data_quality",
+        container="DataQualityValidationRecord",
+        rule_engine_container="RuleEngineResult",
+        rule_engine_stream_id=None,
+    )
+    fake_deploy = types.ModuleType("cognite_data_quality.deploy")
+    fake_deploy.load_settings = lambda _path: SimpleNamespace(records=records)
+    fake_records = types.ModuleType("cognite_data_quality._records")
+    fake_records._ensure_records_stream = lambda *_a, **_k: None
+    fake_records._ensure_records_container = lambda *_a, **_k: None
+    fake_records._ensure_rule_engine_container = lambda *_a, **_k: None
+    fake_records.build_record_view_items = lambda **_k: [{"externalId": "DataQualityValidationRecord"}]
+
+    def apply_fail(_client: object, _items: list[dict[str, object]]) -> None:
+        raise RuntimeError(
+            "Cannot update view 'inst_data_quality:DataQualityValidationRecord/v1', "
+            "streamId would change from 'cdf_all_validation_results' to 'dq_all_validation_results'"
+        )
+
+    fake_records._apply_record_views = apply_fail
+    fake_cdq = types.ModuleType("cognite_data_quality")
+    fake_cdq.deploy_validation_infrastructure = lambda **_k: {"status": "completed"}
+    monkeypatch.setitem(sys.modules, "cognite_data_quality", fake_cdq)
+    monkeypatch.setitem(sys.modules, "cognite_data_quality.deploy", fake_deploy)
+    monkeypatch.setitem(sys.modules, "cognite_data_quality._records", fake_records)
+
+    name = "cdf_dq_runtime_bootstrap_handler_records_fail"
+    sys.modules.pop(name, None)
+    handler_path = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure" / "handler.py"
+    spec = importlib.util.spec_from_file_location(name, handler_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+
+    logger = module.CogniteFunctionLogger("INFO")
+    with pytest.raises(RuntimeError, match="Record views were not applied"):
+        module._ensure_records_prerequisites(SimpleNamespace(), Path("settings.yaml"), logger)
