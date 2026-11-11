@@ -253,6 +253,46 @@ describe("retrieve-data/work-orders", () => {
 			);
 		});
 
+		it("C12 covers the full 24-hour local day in Europe/Oslo and America/New_York", () => {
+			// Oslo (UTC+1 in November): local day 2026-11-25 runs 2026-11-24T23:00:00.000Z..2026-11-25T22:59:59.999Z,
+			// and local day 2026-11-26 includes 2026-11-25T23:30:00.000Z (00:30 local on Nov 26).
+			const osloStart25 = localDayBoundIso(
+				"2026-11-25",
+				"start",
+				"Europe/Oslo"
+			);
+			const osloEnd25 = localDayBoundIso("2026-11-25", "end", "Europe/Oslo");
+			expect(osloStart25).toBe("2026-11-24T23:00:00.000Z");
+			expect(osloEnd25).toBe("2026-11-25T22:59:59.999Z");
+			expect("2026-11-25T00:30:00.000Z" >= osloStart25).toBe(true);
+			expect("2026-11-25T00:30:00.000Z" <= osloEnd25).toBe(true);
+
+			const osloStart26 = localDayBoundIso(
+				"2026-11-26",
+				"start",
+				"Europe/Oslo"
+			);
+			const osloEnd26 = localDayBoundIso("2026-11-26", "end", "Europe/Oslo");
+			expect("2026-11-25T23:30:00.000Z" >= osloStart26).toBe(true);
+			expect("2026-11-25T23:30:00.000Z" <= osloEnd26).toBe(true);
+
+			// New York (UTC-5 in November): local day 2026-11-25 runs 2026-11-25T05:00:00.000Z..2026-11-26T04:59:59.999Z
+			// (full 24 hours, including 23:30Z on the chosen day, instead of the broken 5-hour window).
+			const nyStart = localDayBoundIso(
+				"2026-11-25",
+				"start",
+				"America/New_York"
+			);
+			const nyEnd = localDayBoundIso("2026-11-25", "end", "America/New_York");
+			expect(nyStart).toBe("2026-11-25T05:00:00.000Z");
+			expect(nyEnd).toBe("2026-11-26T04:59:59.999Z");
+			expect(new Date(nyEnd).getTime() - new Date(nyStart).getTime()).toBe(
+				24 * 60 * 60 * 1000 - 1
+			);
+			expect("2026-11-25T23:30:00.000Z" >= nyStart).toBe(true);
+			expect("2026-11-25T23:30:00.000Z" <= nyEnd).toBe(true);
+		});
+
 		it("rethrows list failures instead of returning empty items", async () => {
 			query.mockRejectedValueOnce(new Error("fail"));
 			await expect(listRecentWorkOrders(client, {})).rejects.toThrow("fail");
