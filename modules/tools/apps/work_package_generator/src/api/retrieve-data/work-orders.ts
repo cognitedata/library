@@ -18,7 +18,11 @@ import {
 } from "../../utils/cdf-helpers";
 import { readOptionalNextCursor } from "../../utils/dms-pagination";
 import { resolveApiRuntime } from "../runtime-deps";
-import { queryInstanceNodesPage, retrieveInstanceNodes } from "./list-nodes";
+import {
+	listInstanceNodesWithCap,
+	queryInstanceNodesPage,
+	retrieveInstanceNodes,
+} from "./list-nodes";
 
 export type PaginatedWorkOrders = {
 	items: WorkOrder[];
@@ -86,6 +90,8 @@ function timeZoneOffsetMs(instant: Date, timeZone: string): number {
 	return asUtc - Math.floor(instant.getTime() / 1000) * 1000;
 }
 
+const MAX_ID_CONTAINS_SCAN_ITEMS = 1000;
+
 function externalIdPrefixFilter(value: string): unknown {
 	const variants = Array.from(
 		new Set([value, value.toLowerCase(), value.toUpperCase()])
@@ -96,21 +102,36 @@ function externalIdPrefixFilter(value: string): unknown {
 	return clauses.length === 1 ? clauses[0] : { or: clauses };
 }
 
+function externalIdMatchRank(externalId: string, needleLower: string): number {
+	const lower = externalId.toLowerCase();
+	if (lower === needleLower) return 0;
+	if (lower.startsWith(needleLower)) return 1;
+	if (lower.includes(needleLower)) return 2;
+	return 3;
+}
+
 function mergeWorkOrders(
 	idMatches: WorkOrder[],
 	nameMatches: WorkOrder[],
+	query: string,
 	limit: number
 ): WorkOrder[] {
+	const needleLower = query.toLowerCase();
 	const seen = new Set<string>();
-	const merged: WorkOrder[] = [];
-	for (const workOrder of [...nameMatches, ...idMatches]) {
+	const deduped: WorkOrder[] = [];
+	for (const workOrder of [...idMatches, ...nameMatches]) {
 		const key = `${workOrder.space}/${workOrder.externalId}`;
 		if (seen.has(key)) continue;
 		seen.add(key);
-		merged.push(workOrder);
-		if (merged.length >= limit) break;
+		deduped.push(workOrder);
 	}
-	return merged;
+	deduped.sort((left, right) => {
+		return (
+			externalIdMatchRank(left.externalId, needleLower) -
+			externalIdMatchRank(right.externalId, needleLower)
+		);
+	});
+	return deduped.slice(0, limit);
 }
 
 function mapNodeToWorkOrder(
@@ -160,16 +181,37 @@ export async function searchWorkOrders(
 		const limit = appConfig.limits.searchResultLimit;
 		const idMatches: WorkOrder[] = [];
 
-		// ID prefix matches are collected on the first page, then merged with name search.
+		// DMS filters only support equals/prefix on externalId, not contains.
+		// On the first page, combine server-side prefix matches with a bounded client-side contains scan.
 		if (!cursor) {
+			const activitySource = viewIdToSource(dataModelView("activity", config));
 			const prefixResponse = await queryInstanceNodesPage(client, {
-				sources: [viewIdToSource(dataModelView("activity", config))],
+				sources: [activitySource],
 				filter: externalIdPrefixFilter(trimmed),
 				limit,
 			});
 			for (const item of prefixResponse.items ?? []) {
 				const wo = mapNodeToWorkOrder(item, config);
 				if (wo) idMatches.push(wo);
+			}
+
+			const needleLower = trimmed.toLowerCase();
+			const containsScanCap = Math.min(
+				appConfig.limits.instancePageSize,
+				MAX_ID_CONTAINS_SCAN_ITEMS
+			);
+			const { items: scannedItems } = await listInstanceNodesWithCap(client, {
+				sources: [activitySource],
+				maxTotalItems: containsScanCap,
+				warnContext: "searchWorkOrders:idContains",
+				pageSize: containsScanCap,
+				config,
+			});
+			for (const item of scannedItems) {
+				const wo = mapNodeToWorkOrder(item, config);
+				if (wo?.externalId.toLowerCase().includes(needleLower)) {
+					idMatches.push(wo);
+				}
 			}
 		}
 
@@ -202,7 +244,7 @@ export async function searchWorkOrders(
 			if (wo) out.push(wo);
 		}
 		return {
-			items: mergeWorkOrders(idMatches, out, limit),
+			items: mergeWorkOrders(idMatches, out, trimmed, limit),
 			nextCursor: searchResponse
 				? readOptionalNextCursor(searchResponse)
 				: undefined,

@@ -55,23 +55,39 @@ describe("retrieve-data/work-orders", () => {
 			expect(query).not.toHaveBeenCalled();
 		});
 
-		it("N06 returns every case-insensitive externalId prefix match and name matches", async () => {
-			query.mockResolvedValueOnce({
-				items: {
-					nodes: [
-						activityNode("WO-1", { name: "Alpha" }),
-						activityNode("wo-12", { name: "Beta" }),
-					],
-				},
-			});
+		it("N06 returns case-insensitive externalId exact, prefix, and contains matches ranked ahead of name matches", async () => {
+			query
+				.mockResolvedValueOnce({
+					items: {
+						nodes: [
+							activityNode("WO-1", { name: "Alpha" }),
+							activityNode("wo-12", { name: "Beta" }),
+						],
+					},
+				})
+				.mockResolvedValueOnce({
+					items: {
+						nodes: [
+							activityNode("WO-1", { name: "Alpha" }),
+							activityNode("wo-12", { name: "Beta" }),
+							activityNode("QA-WPG-WO-ONE", {
+								name: "Replace mechanical seal",
+							}),
+							activityNode("WO", { name: "Exact" }),
+						],
+					},
+					nextCursor: undefined,
+				});
 			search.mockResolvedValueOnce({
 				items: [activityNode("name-hit", { name: "wo pump" })],
 			});
 			const result = await searchWorkOrders(client, "wo");
 			expect(result.items.map((item) => item.externalId)).toEqual([
-				"name-hit",
+				"WO",
 				"WO-1",
 				"wo-12",
+				"QA-WPG-WO-ONE",
+				"name-hit",
 			]);
 			const filter = query.mock.calls[0][0].with.nodes.nodes.filter;
 			expect(JSON.stringify(filter)).toContain("wo");
@@ -80,6 +96,67 @@ describe("retrieve-data/work-orders", () => {
 				"name",
 				"description",
 			]);
+		});
+
+		it("N06 finds QA-WPG-WO-ONE for mid-ID WO-ONE, lowercase qa-wpg-wo-one, and numeric 01", async () => {
+			const nodes = [
+				activityNode("QA-WPG-WO-PAGE-01", {
+					name: "QA WPG Pagination filler 01",
+				}),
+				activityNode("QA-WPG-WO-ONE", {
+					name: "QA WPG Replace mechanical seal",
+				}),
+				activityNode("MORD_REST-136024", { name: "Other Operation" }),
+			];
+
+			// 1. Mid-ID substring `WO-ONE` finds `QA-WPG-WO-ONE` even when prefix and name search miss
+			query
+				.mockResolvedValueOnce({ items: { nodes: [] } })
+				.mockResolvedValueOnce({ items: { nodes }, nextCursor: undefined });
+			search.mockResolvedValueOnce({ items: [] });
+			const midId = await searchWorkOrders(client, "WO-ONE");
+			expect(midId.items.map((item) => item.externalId)).toEqual([
+				"QA-WPG-WO-ONE",
+			]);
+
+			// 2. Lowercase full ID `qa-wpg-wo-one` ranks `QA-WPG-WO-ONE` first ahead of noisy word hits
+			const fillerHits = Array.from({ length: 20 }, (_, i) =>
+				activityNode(`QA-FILLER-${i}`, { name: `qa wpg filler ${i}` })
+			);
+			query
+				.mockResolvedValueOnce({
+					items: { nodes: [nodes[1]] },
+				})
+				.mockResolvedValueOnce({ items: { nodes }, nextCursor: undefined });
+			search.mockResolvedValueOnce({ items: fillerHits });
+			const lowerFull = await searchWorkOrders(client, "qa-wpg-wo-one");
+			expect(lowerFull.items[0]?.externalId).toBe("QA-WPG-WO-ONE");
+
+			// 3. `01` still finds `QA-WPG-WO-PAGE-01`
+			query
+				.mockResolvedValueOnce({ items: { nodes: [] } })
+				.mockResolvedValueOnce({ items: { nodes }, nextCursor: undefined });
+			search.mockResolvedValueOnce({ items: [nodes[0]] });
+			const numeric = await searchWorkOrders(client, "01");
+			expect(numeric.items.map((item) => item.externalId)).toContain(
+				"QA-WPG-WO-PAGE-01"
+			);
+		});
+
+		it("N11 returns every matching work order across spaces", async () => {
+			const twinA = { ...activityNode("QA-WPG-WO-TWIN"), space: "space-a" };
+			const twinB = { ...activityNode("QA-WPG-WO-TWIN"), space: "space-b" };
+			query
+				.mockResolvedValueOnce({ items: { nodes: [twinA, twinB] } })
+				.mockResolvedValueOnce({
+					items: { nodes: [twinA, twinB] },
+					nextCursor: undefined,
+				});
+			search.mockResolvedValueOnce({ items: [] });
+			const result = await searchWorkOrders(client, "TWIN");
+			expect(
+				result.items.map((item) => `${item.space}/${item.externalId}`)
+			).toEqual(["space-a/QA-WPG-WO-TWIN", "space-b/QA-WPG-WO-TWIN"]);
 		});
 
 		it("skips exact match when cursor is provided", async () => {
@@ -103,7 +180,7 @@ describe("retrieve-data/work-orders", () => {
 		});
 
 		it("falls back to search when exact match is empty", async () => {
-			query.mockResolvedValueOnce({ items: { nodes: [] } });
+			query.mockResolvedValue({ items: { nodes: [] } });
 			search.mockResolvedValueOnce({ items: [activityNode("wo-3")] });
 			const result = await searchWorkOrders(client, "pump");
 			expect(result.items[0].externalId).toBe("wo-3");
@@ -187,12 +264,13 @@ describe("retrieve-data/work-orders", () => {
 			query.mockResolvedValueOnce({
 				items: { nodes: [activityNode("wo-1")] },
 			});
+			query.mockResolvedValueOnce({ items: { nodes: [] } });
 			search.mockResolvedValueOnce({ items: [] });
 			await expect(findWorkOrder(client, "wo-1")).resolves.toMatchObject({
 				externalId: "wo-1",
 			});
 
-			query.mockResolvedValueOnce({ items: { nodes: [] } });
+			query.mockResolvedValue({ items: { nodes: [] } });
 			search.mockResolvedValueOnce({ items: [] });
 			await expect(findWorkOrder(client, "missing")).resolves.toBeNull();
 		});
