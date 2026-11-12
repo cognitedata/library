@@ -318,7 +318,10 @@ After a **successful** deploy, the function resolves
 Function Schedule for that numeric `functionId` (Toolkit authenticated schedules
 are stored under `functionId`, not `functionExternalId`). Delete failures are
 printed to the function log (`CogniteAPIError` includes the HTTP code) and do not
-fail the deploy result. If bootstrap fails, the five-minute schedule stays so the
+fail the deploy result. Soft-skipped external DataProduct workflows
+(`status: skipped`, e.g. missing published version or no views) are treated as
+failure so the schedule keeps retrying until instance workflows exist. If
+bootstrap fails for any other reason, the five-minute schedule also stays so the
 next cron tick can retry. A later `cdf deploy` recreates the schedule when needed.
 The schedule identity needs `functionsAcl:READ` / `WRITE` to look up the function
 and delete schedules (403 in the logs means grant those actions). Stuck schedules

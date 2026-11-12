@@ -284,6 +284,41 @@ def _ensure_status(result: object) -> dict[str, object]:
     return FunctionOutput(status="succeeded").model_dump()
 
 
+def _raise_if_external_dataproduct_workflows_skipped(result: object) -> None:
+    """Fail bootstrap when package soft-skips external DataProduct workflow deploy.
+
+    cognite-data-quality 0.5.1b4 ``_deploy_external_dataproduct_workflows`` returns
+    ``status: "skipped"`` (e.g. ``no_published_version``, ``no_views``) instead of
+    raising. Treating that as success would delete the five-minute retry schedule
+    before instance workflows exist.
+
+    Args:
+        result: Return value from ``deploy_validation_infrastructure``.
+
+    Raises:
+        RuntimeError: Any ``external_dataproduct_workflows`` entry has status skipped.
+    """
+    if not isinstance(result, dict):
+        return
+    workflows = result.get("external_dataproduct_workflows")
+    if not isinstance(workflows, list):
+        return
+    skipped: list[str] = []
+    for item in workflows:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("status", "")).lower() != "skipped":
+            continue
+        data_product = item.get("dataProduct", "unknown")
+        version = item.get("version", "?")
+        reason = item.get("reason", "unknown")
+        skipped.append(f"{data_product}@{version} (reason={reason})")
+    if not skipped:
+        return
+    details = "; ".join(skipped)
+    raise RuntimeError(f"External DataProduct workflow deploy was skipped; instance workflows are not ready: {details}")
+
+
 def _ensure_records_prerequisites(
     client: "CogniteClient",
     settings_path: Path,
@@ -382,6 +417,8 @@ def handle(
             function_secrets=secrets,
             force=fn_input.force,
         )
+        # Soft-skipped DP workflows must not count as success (would delete the retry schedule).
+        _raise_if_external_dataproduct_workflows_skipped(result)
     except Exception as e:
         # Leave the five-minute schedule in place so bootstrap can retry.
         logger.error(f"Data Quality Validation infrastructure bootstrap failed: {e}")

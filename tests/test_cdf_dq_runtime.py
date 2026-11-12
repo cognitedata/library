@@ -921,6 +921,65 @@ def test_bootstrap_handler_keeps_schedule_when_deployment_fails(monkeypatch: pyt
     assert deleted == []
 
 
+def test_bootstrap_handler_keeps_schedule_when_external_dataproduct_workflows_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Package soft-skips missing DP versions/views; bootstrap must fail so the schedule retries."""
+    deleted: list[int] = []
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        return {
+            "external_dataproduct_workflows": [
+                {
+                    "dataProduct": "enterprise-process-industry",
+                    "version": "1.1.10",
+                    "status": "skipped",
+                    "reason": "no_published_version",
+                }
+            ]
+        }
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client(
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42)],
+        delete=lambda *, id: deleted.append(id),
+    )
+
+    with pytest.raises(RuntimeError, match=r"skipped.*no_published_version"):
+        handler_module.handle({}, client)
+    assert deleted == []
+    assert "Data Quality Validation infrastructure bootstrap failed" in capsys.readouterr().out
+
+
+def test_bootstrap_handler_deletes_schedule_when_external_dataproduct_workflows_deployed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deleted: list[int] = []
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        return {
+            "external_dataproduct_workflows": [
+                {
+                    "dataProduct": "enterprise-process-industry",
+                    "version": "1.1.10",
+                    "status": "deployed",
+                    "views": 5,
+                }
+            ]
+        }
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client(
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42)],
+        delete=lambda *, id: deleted.append(id),
+    )
+
+    result = handler_module.handle({}, client)
+    assert result["status"] == "succeeded"
+    assert deleted == [2]
+
+
 def test_bootstrap_handler_logs_schedule_delete_failure_without_failing_deploy(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
