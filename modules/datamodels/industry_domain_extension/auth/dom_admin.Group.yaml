@@ -1,0 +1,43 @@
+name: "{{ dom_admin_group_name }}"
+sourceId: "{{ dom_admin_source_id }}"
+capabilities:
+  - dataModelsAcl:
+      actions: [READ, WRITE]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ enterprise_space }}
+  - dataModelsAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
+            - cdf_idm
+            - cdf_cdm_units
+  - dataModelInstancesAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ instance_space }}
+  - datasetsAcl:
+      actions: [OWNER, READ, WRITE]
+      scope:
+        idScope:
+          ids:
+            - "{{ dataset_external_id }}"
+  - streamsAcl:
+      actions: [READ, CREATE, DELETE]
+      scope:
+        all: {}
+  - streamRecordsAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ instance_space }}
+  - locationFiltersAcl:
+      actions: [READ, WRITE]
+      scope:
+        all: {}

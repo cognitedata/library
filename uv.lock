@@ -17,6 +17,7 @@ members = [
     "fn-dm-context-entity-matching",
     "fn-dm-context-files-annotation",
     "fn-file-annotation",
+    "fn-pi-all-ingest-alarm-event",
 ]
 
 [[package]]
@@ -771,6 +772,29 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.2.2,<2.0" },
     { name = "pyyaml", specifier = ">=6.0.2,<7.0" },
 ]
+
+[[package]]
+name = "fn-pi-all-ingest-alarm-event"
+version = "0.0.0"
+source = { virtual = "modules/sourcesystem/cdf_pi_industry_data_dump/functions/fn_pi_all_ingest_alarm_event" }
+dependencies = [
+    { name = "cognite-sdk" },
+    { name = "pydantic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cognite-sdk", specifier = ">=7,<9" },
+    { name = "pydantic", specifier = ">=2.12.4,<3.0.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=7.0.0" }]
 
 [[package]]
 name = "fonttools"

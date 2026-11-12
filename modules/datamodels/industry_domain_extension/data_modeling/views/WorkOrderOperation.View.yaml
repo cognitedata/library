@@ -1,0 +1,81 @@
+space: "{{ enterprise_space }}"
+externalId: WorkOrderOperation
+name: Work order operation
+description: "Enterprise work order operation view. CONTRACT: implements CogniteOperation; no custom container."
+implements:
+  - space: cdf_idm
+    externalId: CogniteOperation
+    version: v1
+    type: view
+version: "{{ dm_enterprise_version }}"
+properties:
+  mainAsset:
+    name: Main asset
+    description: "CONTRACT: Primary tag for this operation."
+    container:
+      space: "cdf_idm"
+      externalId: CogniteOperation
+      type: container
+    containerPropertyIdentifier: mainAsset
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  assets:
+    name: Assets
+    description: "CONTRACT: Tags related to this operation."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  maintenanceOrder:
+    name: Maintenance order
+    description: "CONTRACT: Parent work order."
+    container:
+      space: "cdf_idm"
+      externalId: CogniteOperation
+      type: container
+    containerPropertyIdentifier: maintenanceOrder
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: WorkOrder
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  equipment:
+    name: Equipment
+    description: "CONTRACT: Equipment related to this operation."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: equipment
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Equipment
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  timeSeries:
+    name: Time series
+    description: "CONTRACT: Time series related to this operation."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: timeSeries
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      version: "{{ dm_enterprise_version }}"
+      type: view
+

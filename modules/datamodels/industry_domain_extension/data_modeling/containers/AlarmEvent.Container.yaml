@@ -1,0 +1,111 @@
+space: "{{ enterprise_space }}"
+externalId: AlarmEvent
+name: Alarm event
+description: Immutable alarm state-change event stored as a record in the alarm stream.
+usedFor: record
+properties:
+  eventTime:
+    type: { list: false, type: timestamp }
+    nullable: false
+    autoIncrement: false
+    immutable: false
+    name: EventTime
+    description: "SOURCE_SCAFFOLD: When the state change happened. Example: 2024-01-15T10:00:00Z."
+
+  eventType:
+    type:
+      type: enum
+      list: false
+      values:
+        Raised:
+          name: Raised
+          description: Alarm was raised.
+        Acknowledged:
+          name: Acknowledged
+          description: Alarm was acknowledged.
+        Cleared:
+          name: Cleared
+          description: Alarm was cleared.
+    nullable: true
+    name: Event type
+    description: "SOURCE_SCAFFOLD: Alarm state change type. Example: Raised."
+  severity:
+    type:
+      type: enum
+      list: false
+      values:
+        Low:
+          name: Low
+          description: Low severity.
+        Medium:
+          name: Medium
+          description: Medium severity.
+        High:
+          name: High
+          description: High severity.
+        Critical:
+          name: Critical
+          description: Critical severity.
+    nullable: true
+    name: Severity
+    description: "SOURCE_SCAFFOLD: Alarm severity. Example: High."
+  limitType:
+    type:
+      type: enum
+      list: false
+      values:
+        High:
+          name: High
+          description: High operating limit crossed.
+        Low:
+          name: Low
+          description: Low operating limit crossed.
+    nullable: true
+    name: Limit type
+    description: "SOURCE_SCAFFOLD: Which operating limit was crossed. Example: High."
+  value:
+    type: { list: false, type: float64 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Value
+    description: "SOURCE_SCAFFOLD: Measured value at eventTime. Example: 12.3."
+
+  message:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Message
+    description: "SOURCE_SCAFFOLD: Alarm text from the source. Example: Pressure high."
+
+  asset:
+    type:
+      list: false
+      type: direct
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Asset
+    description: "CONTRACT: Direct relation to Tag."
+
+  timeSeries:
+    type:
+      list: false
+      type: direct
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: TimeSeries
+    description: "CONTRACT: Direct relation to TimeSeriesData."
+
+  operatingLimit:
+    type:
+      list: false
+      type: direct
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: OperatingLimit
+    description: "CONTRACT: Direct relation to OperatingLimit."
+

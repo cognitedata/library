@@ -1,0 +1,52 @@
+space: "{{ search_space }}"
+externalId: SearchMaterial
+name: Search material
+description: Search view for Material. Maps enterprise container only; no CogniteDescribable.
+version: "{{ dm_search_version }}"
+properties:
+  name:
+    name: Name
+    description: "SOURCE_SCAFFOLD: Display label for the material."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Material
+      type: container
+    containerPropertyIdentifier: name
+
+  materialType:
+    name: Material type
+    description: "SOURCE_SCAFFOLD: Material type or category."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Material
+      type: container
+    containerPropertyIdentifier: materialType
+
+  equipment:
+    name: Equipment
+    description: "CONTRACT: Equipment this material belongs to."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Material
+      type: container
+    containerPropertyIdentifier: equipment
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchEquipment
+      version: "{{ dm_search_version }}"
+      type: view
+
+  asset:
+    name: Asset
+    description: "CONTRACT: Tag this material belongs to."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Material
+      type: container
+    containerPropertyIdentifier: asset
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchTag
+      version: "{{ dm_search_version }}"
+      type: view
+

@@ -1,0 +1,192 @@
+workflowExternalId: {{ workflow_external_id }}
+version: v1
+workflowDefinition:
+  tasks:
+    # ── Wave 1: base loads (read RAW only, use node_reference() — run in parallel) ──
+    - externalId: {{ tag_transformation_external_id }}
+      type: transformation
+      name: Tag
+      description: Load Tag nodes from SAP
+      parameters:
+        transformation:
+          externalId: {{ tag_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: {{ equipment_type_transformation_external_id }}
+      type: transformation
+      name: Equipment type
+      description: Load EquipmentType nodes from SAP
+      parameters:
+        transformation:
+          externalId: {{ equipment_type_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: {{ equipment_transformation_external_id }}
+      type: transformation
+      name: Equipment
+      description: Load Equipment nodes from SAP
+      parameters:
+        transformation:
+          externalId: {{ equipment_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: {{ material_transformation_external_id }}
+      type: transformation
+      name: Material
+      description: Load Material nodes from SAP
+      parameters:
+        transformation:
+          externalId: {{ material_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: {{ work_order_transformation_external_id }}
+      type: transformation
+      name: Work order
+      description: Load WorkOrder nodes from SAP
+      parameters:
+        transformation:
+          externalId: {{ work_order_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: {{ work_order_operation_transformation_external_id }}
+      type: transformation
+      name: Work order operation
+      description: Load WorkOrderOperation nodes from SAP
+      parameters:
+        transformation:
+          externalId: {{ work_order_operation_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: {{ notification_transformation_external_id }}
+      type: transformation
+      name: Notification
+      description: Load Notification nodes from SAP
+      parameters:
+        transformation:
+          externalId: {{ notification_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: {{ time_series_transformation_external_id }}
+      type: transformation
+      name: Time series
+      description: Load TimeSeriesData nodes from PI
+      parameters:
+        transformation:
+          externalId: {{ time_series_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: {{ operating_limit_transformation_external_id }}
+      type: transformation
+      name: Operating limit
+      description: Load OperatingLimit nodes from PI
+      parameters:
+        transformation:
+          externalId: {{ operating_limit_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: {{ file_category_transformation_external_id }}
+      type: transformation
+      name: File category
+      description: Load file category nodes from SharePoint
+      parameters:
+        transformation:
+          externalId: {{ file_category_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: {{ document_transformation_external_id }}
+      type: transformation
+      name: Document
+      description: Load Document nodes from SharePoint
+      parameters:
+        transformation:
+          externalId: {{ document_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    # ── Wave 2: need Wave 1 nodes to exist ──────────────────────────────
+    - externalId: {{ diagram_annotation_transformation_external_id }}
+      type: transformation
+      name: Diagram annotation
+      description: Create diagram annotation edges between documents and tags (optional enrichment)
+      parameters:
+        transformation:
+          externalId: {{ diagram_annotation_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: skipTask
+      dependsOn:
+        - externalId: {{ document_transformation_external_id }}
+        - externalId: {{ tag_transformation_external_id }}
+
+    # Alarm event records: the Records service does not validate target nodes, so they must exist first.
+    # abortWorkflow so a broken ingest fails the sample pack loudly.
+    - externalId: {{ alarm_function_external_id }}
+      type: function
+      name: Alarm event records
+      description: Ingest AlarmEvent records from RAW into the alarm stream
+      parameters:
+        function:
+          externalId: {{ alarm_function_external_id }}
+          data:
+            stream_external_id: {{ alarm_stream_external_id }}
+            instance_space: {{ instance_space }}
+            enterprise_space: {{ enterprise_space }}
+            raw_database: {{ raw_database_pi }}
+            raw_table: alarm_event
+          isAsyncComplete: false
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: {{ tag_transformation_external_id }}
+        - externalId: {{ time_series_transformation_external_id }}
+        - externalId: {{ operating_limit_transformation_external_id }}
+
+    # ── Wave 3: overlay on Equipment and Document nodes ─────────────────
+    - externalId: {{ equipment_document_connection_transformation_external_id }}
+      type: transformation
+      name: Equipment document connection
+      description: Connect Equipment to Documents (optional enrichment)
+      parameters:
+        transformation:
+          externalId: {{ equipment_document_connection_transformation_external_id }}
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: skipTask
+      dependsOn:
+        - externalId: {{ equipment_transformation_external_id }}
+        - externalId: {{ document_transformation_external_id }}

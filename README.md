@@ -14,7 +14,7 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 |--------|---------|
 | [`common/`](modules/common/) | Shared CDF platform modules (`cdf_common`, `cdf_ingestion`, `cdf_project_foundation`, `cdf_search`) |
 | [`contextualization/`](modules/contextualization/) | File annotation, entity matching, P&ID annotation |
-| [`datamodels/`](modules/datamodels/) | Industry and extension data models (`rmdm`, ISA, CFIHOS, …) |
+| [`datamodels/`](modules/datamodels/) | Industry and extension data models (`rmdm`, ISA, CFIHOS, industry-neutral, …) |
 | [`solutions/`](modules/solutions/) | Product verticals (`cdm_maintain`, `cdf_infield`, `cdf_ai_extractor`) |
 | [`sourcesystem/`](modules/sourcesystem/) | Extraction pipeline configs (PI, OPC-UA, SAP, database, files) and synthetic data dumps |
 | [`dashboards/`](modules/dashboards/) | Streamlit dashboards and reporting |

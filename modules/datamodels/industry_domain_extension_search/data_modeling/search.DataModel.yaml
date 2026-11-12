@@ -1,0 +1,52 @@
+space: "{{ search_space }}"
+externalId: "{{ search_data_model_external_id }}"
+name: "{{ search_data_model_name }}"
+description: >
+  Schema-only search data product over Industry_DOM. Maps enterprise, CDM and IDM
+  containers; hosts reverse directs. No containers or transformations.
+version: "{{ dm_search_version }}"
+views:
+- space: "{{ search_space }}"
+  externalId: SearchTag
+  version: "{{ dm_search_version }}"
+  type: view
+- space: "{{ search_space }}"
+  externalId: SearchEquipment
+  version: "{{ dm_search_version }}"
+  type: view
+- space: "{{ search_space }}"
+  externalId: SearchDocument
+  version: "{{ dm_search_version }}"
+  type: view
+- space: "{{ search_space }}"
+  externalId: SearchTimeSeriesData
+  version: "{{ dm_search_version }}"
+  type: view
+- space: "{{ search_space }}"
+  externalId: SearchWorkOrder
+  version: "{{ dm_search_version }}"
+  type: view
+- space: "{{ search_space }}"
+  externalId: SearchWorkOrderOperation
+  version: "{{ dm_search_version }}"
+  type: view
+- space: "{{ search_space }}"
+  externalId: SearchNotification
+  version: "{{ dm_search_version }}"
+  type: view
+- space: "{{ search_space }}"
+  externalId: SearchMaterial
+  version: "{{ dm_search_version }}"
+  type: view
+- space: "{{ search_space }}"
+  externalId: SearchOperatingLimit
+  version: "{{ dm_search_version }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteEquipmentType
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFileCategory
+  version: v1
+  type: view

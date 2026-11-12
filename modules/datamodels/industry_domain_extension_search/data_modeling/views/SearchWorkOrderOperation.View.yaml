@@ -1,0 +1,75 @@
+space: "{{ search_space }}"
+externalId: SearchWorkOrderOperation
+name: Search work order operation
+description: Search view for WorkOrderOperation. Maps containers only; no implements.
+version: "{{ dm_search_version }}"
+properties:
+  maintenanceOrder:
+    name: Maintenance order
+    description: "CONTRACT: Parent work order."
+    container:
+      space: "cdf_idm"
+      externalId: CogniteOperation
+      type: container
+    containerPropertyIdentifier: maintenanceOrder
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchWorkOrder
+      version: "{{ dm_search_version }}"
+      type: view
+
+  status:
+    name: Status
+    description: "CONTRACT: IDM status."
+    container:
+      space: "cdf_idm"
+      externalId: CogniteOperation
+      type: container
+    containerPropertyIdentifier: status
+
+  sequence:
+    name: Sequence
+    description: "CONTRACT: IDM sequence."
+    container:
+      space: "cdf_idm"
+      externalId: CogniteOperation
+      type: container
+    containerPropertyIdentifier: sequence
+
+  name:
+    name: Name
+    description: "CONTRACT: Display name from CogniteDescribable when present."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+
+  mainAsset:
+    name: Main asset
+    description: "CONTRACT: Primary tag for this operation."
+    container:
+      space: "cdf_idm"
+      externalId: CogniteOperation
+      type: container
+    containerPropertyIdentifier: mainAsset
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchTag
+      version: "{{ dm_search_version }}"
+      type: view
+
+  assets:
+    name: Assets
+    description: "CONTRACT: Tags related to this operation."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchTag
+      version: "{{ dm_search_version }}"
+      type: view
+

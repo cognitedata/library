@@ -1,0 +1,45 @@
+# Shared variables (identical names and values in the industry_domain_extension modules)
+enterprise_space: dm_dom_industry
+instance_space: inst_industry
+dataset_external_id: ds_industry_all
+dm_enterprise_version: v1
+
+# Sample RAW databases (owned by the *_industry_data_dump modules)
+raw_database_sap: raw_sample_all_sap
+raw_database_pi: raw_sample_all_pi
+raw_database_sharepoint: raw_sample_all_sharepoint
+
+# Workflow
+workflow_external_id: wf_all_industry_ingestion
+workflow_trigger_external_id: trigger_wf_all_industry_ingestion
+# Default never fires (Feb 29 at midnight) — run the workflow manually.
+run_workflow_schedule: "0 0 29 2 *"
+
+# Runtime identity used by the trigger, transformations and the function task
+ingestion_client_id: ${IDP_CLIENT_ID}
+ingestion_client_secret: ${IDP_CLIENT_SECRET}
+
+# Access groups — environment token only here (override per config.<env>.yaml)
+ingestion_group_name: producer_industry_pp_dev
+operator_group_name: producer_industry_wf_dev
+ingestion_source_id: ${INGESTION_GROUP_SOURCE_ID}
+operator_source_id: ${OPERATOR_GROUP_SOURCE_ID}
+
+# Records (alarm events) — function task
+alarm_function_external_id: fn_pi_all_ingest_alarm_event
+alarm_stream_external_id: pi_all_alarm_event
+
+# Transformation externalIds — each is invoked by exactly one workflow task
+tag_transformation_external_id: tr_sap_all_to_industry_tag
+equipment_type_transformation_external_id: tr_sap_all_to_industry_equipment_type
+equipment_transformation_external_id: tr_sap_all_to_industry_equipment
+material_transformation_external_id: tr_sap_all_to_industry_material
+work_order_transformation_external_id: tr_sap_all_to_industry_work_order
+work_order_operation_transformation_external_id: tr_sap_all_to_industry_work_order_operation
+notification_transformation_external_id: tr_sap_all_to_industry_notification
+time_series_transformation_external_id: tr_pi_all_to_industry_time_series
+operating_limit_transformation_external_id: tr_pi_all_to_industry_operating_limit
+file_category_transformation_external_id: tr_sharepoint_all_to_industry_file_category
+document_transformation_external_id: tr_sharepoint_all_to_industry_document
+diagram_annotation_transformation_external_id: tr_sharepoint_all_to_industry_diagram_annotation
+equipment_document_connection_transformation_external_id: tr_sharepoint_all_to_industry_equipment_document_connection

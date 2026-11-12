@@ -1,0 +1,52 @@
+name: "{{ operator_group_name }}"
+sourceId: "{{ operator_source_id }}"
+metadata:
+  origin: cognite-toolkit
+capabilities:
+  # minimum runtime capabilities
+  - projectsAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        all: {}
+  - groupsAcl:
+      actions:
+        - LIST
+      scope:
+        all: {}
+  - sessionsAcl:
+      actions:
+        - CREATE
+      scope:
+        all: {}
+  # run and monitor the workflow; no instance, record or schema WRITE
+  - workflowOrchestrationAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - {{ dataset_external_id }}
+  - transformationsAcl:
+      actions:
+        - READ
+      scope:
+        datasetScope:
+          ids:
+            - {{ dataset_external_id }}
+  - functionsAcl:
+      actions:
+        - READ
+      scope:
+        all: {}
+  - rawAcl:
+      actions:
+        - READ
+      scope:
+        tableScope:
+          dbsToTables:
+            {{ raw_database_sap }}: []
+            {{ raw_database_pi }}: []
+            {{ raw_database_sharepoint }}: []

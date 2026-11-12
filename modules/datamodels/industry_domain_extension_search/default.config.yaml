@@ -1,0 +1,14 @@
+enterprise_space: dm_dom_industry
+search_space: dm_sol_industry_search
+instance_space: inst_industry
+search_data_model_external_id: IndustrySearch_SOL
+search_data_model_name: Industry search DM SOL
+dm_search_version: v1
+
+search_location_filter_external_id: loc_industry_search_all
+search_location_filter_name: Industry search all locations
+
+sol_admin_group_name: admin_industry_sol_dev
+sol_consumer_group_name: consumer_industry_sol_dev
+sol_admin_source_id: ${SOL_ADMIN_GROUP_SOURCE_ID}
+sol_consumer_source_id: ${SOL_CONSUMER_GROUP_SOURCE_ID}

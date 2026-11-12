@@ -1,0 +1,18 @@
+# Overlay: writes Equipment.files on nodes created by tr_sap_all_to_industry_equipment, so nulls must not overwrite.
+externalId: tr_sharepoint_all_to_industry_equipment_document_connection
+name: Industry equipment document connection from SharePoint
+destination:
+  dataModel:
+    space: '{{ enterprise_space }}'
+    externalId: '{{ enterprise_data_model_external_id }}'
+    version: '{{ dm_enterprise_version }}'
+    destinationType: Equipment
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+authentication:
+  clientId: '{{ ingestion_client_id }}'
+  clientSecret: '{{ ingestion_client_secret }}'

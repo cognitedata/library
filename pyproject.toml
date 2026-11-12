@@ -34,6 +34,7 @@ members = [
     "modules/dashboards/context_quality_v2/functions/fn_context_quality_metrics",
     "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor",
     "modules/datamodels/cfihos_oil_and_gas_extension/cfihos_model_config",
+    "modules/sourcesystem/cdf_pi_industry_data_dump/functions/fn_pi_all_ingest_alarm_event",
 ]
 
 [tool.ruff]

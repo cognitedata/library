@@ -1,0 +1,29 @@
+space: "{{ enterprise_space }}"
+externalId: Equipment
+name: Equipment
+description: Enterprise equipment. Extends CogniteEquipment.
+usedFor: node
+properties:
+  modelNumber:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: ModelNumber
+    description: "SOURCE_SCAFFOLD: Manufacturer model number. Example: P-2000."
+    maxTextSize: 2400
+
+constraints:
+  requiresCogniteEquipment:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+indexes:
+  modelNumber:
+    indexType: btree
+    properties:
+      - modelNumber
+    cursorable: false
+

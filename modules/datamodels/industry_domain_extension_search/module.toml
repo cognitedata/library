@@ -1,0 +1,4 @@
+[module]
+title = "Industry Domain Search Data Model template"
+id = "dp:models:industry_domain_extension_search"
+package_id = "dp:models"

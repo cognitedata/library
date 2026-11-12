@@ -1,14 +1,35 @@
 """A caught stage error fails the CDF call after the extraction pipeline run is recorded."""
 
+import importlib.util
 import sys
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import MagicMock
 
 import pytest
 from cognite.client.exceptions import CogniteAPIError
 from pydantic import TypeAdapter, ValidationError
 
+_FUNCTION_DIR = Path(__file__).resolve().parents[2] / "fn_file_annotation"
 sys.path.append(str(Path(__file__).parent))
+
+
+def _load_file_annotation_handler(name: str = "fn_file_annotation_handler_stage_failures") -> ModuleType:
+    """Load this function's handler.py under a unique module name.
+
+    Several CDF functions ship a file named handler.py. Importing that as
+    ``handler`` makes pytest and CodeQL bind the wrong ``handle``.
+    """
+    loaded = sys.modules.get(name)
+    if loaded is not None:
+        return loaded
+    spec = importlib.util.spec_from_file_location(name, _FUNCTION_DIR / "handler.py")
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load {_FUNCTION_DIR / 'handler.py'}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _patch_common(monkeypatch: pytest.MonkeyPatch, module: object, format_name: str) -> MagicMock:
@@ -192,10 +213,10 @@ def test_missing_pipeline_id_is_rejected(stage_name: str) -> None:
     ],
 )
 def test_handler_rejects_invalid_input(data: dict[str, str]) -> None:
-    from handler import handle
+    handler = _load_file_annotation_handler()
 
     with pytest.raises(ValidationError):
-        handle(data, {}, MagicMock())
+        handler.handle(data, {}, MagicMock())
 
 
 def test_handler_imports_without_python_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:

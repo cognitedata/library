@@ -1,0 +1,29 @@
+space: "{{ enterprise_space }}"
+externalId: WorkOrder
+name: Work order
+description: Enterprise work order. Extends CogniteMaintenanceOrder.
+usedFor: node
+properties:
+  workOrderNumber:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: WorkOrderNumber
+    description: "SOURCE_SCAFFOLD: Source order number when it differs from the instance key. Example: 40001234."
+    maxTextSize: 2400
+
+constraints:
+  requiresCogniteMaintenanceOrder:
+    constraintType: requires
+    require:
+      space: cdf_idm
+      externalId: CogniteMaintenanceOrder
+      type: container
+indexes:
+  workOrderNumber:
+    indexType: btree
+    properties:
+      - workOrderNumber
+    cursorable: true
+

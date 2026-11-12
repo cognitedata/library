@@ -1,0 +1,8 @@
+enterprise_space: dm_dom_industry
+instance_space: inst_industry
+enterprise_data_model_external_id: Industry_DOM
+dm_enterprise_version: v1
+dataset_external_id: ds_industry_all
+raw_database_sap: raw_sample_all_sap
+ingestion_client_id: ${IDP_CLIENT_ID}
+ingestion_client_secret: ${IDP_CLIENT_SECRET}

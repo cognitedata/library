@@ -1,0 +1,83 @@
+space: "{{ enterprise_space }}"
+externalId: OperatingLimit
+name: Operating limit
+description: Operating limit access view. No CogniteDescribable.
+version: "{{ dm_enterprise_version }}"
+properties:
+  name:
+    name: Name
+    description: "SOURCE_SCAFFOLD: Display label for the operating limit. Example: High pressure limit."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: name
+
+  timeSeries:
+    name: Time series
+    description: "CONTRACT: Measured time series this limit applies to."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: timeSeries
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  limitHigh:
+    name: Limit high
+    description: "SOURCE_SCAFFOLD: High operating limit value. Example: 10.5."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: limitHigh
+
+  limitLow:
+    name: Limit low
+    description: "SOURCE_SCAFFOLD: Low operating limit value. Example: 1.0."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: limitLow
+
+  limitHighConsequence:
+    name: Limit high consequence
+    description: "SOURCE_SCAFFOLD: Consequence if high limit is exceeded."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: limitHighConsequence
+
+  limitLowConsequence:
+    name: Limit low consequence
+    description: "SOURCE_SCAFFOLD: Consequence if low limit is exceeded."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: limitLowConsequence
+
+  limitHighCorrectiveAction:
+    name: Limit high corrective action
+    description: "SOURCE_SCAFFOLD: Corrective action when high limit is exceeded."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: limitHighCorrectiveAction
+
+  limitLowCorrectiveAction:
+    name: Limit low corrective action
+    description: "SOURCE_SCAFFOLD: Corrective action when low limit is exceeded."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: limitLowCorrectiveAction
+

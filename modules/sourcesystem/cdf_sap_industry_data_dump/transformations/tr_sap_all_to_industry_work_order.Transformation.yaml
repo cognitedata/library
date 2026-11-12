@@ -1,0 +1,17 @@
+externalId: tr_sap_all_to_industry_work_order
+name: Industry work order from SAP
+destination:
+  dataModel:
+    space: '{{ enterprise_space }}'
+    externalId: '{{ enterprise_data_model_external_id }}'
+    version: '{{ dm_enterprise_version }}'
+    destinationType: WorkOrder
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: false
+isPublic: true
+conflictMode: upsert
+authentication:
+  clientId: '{{ ingestion_client_id }}'
+  clientSecret: '{{ ingestion_client_secret }}'

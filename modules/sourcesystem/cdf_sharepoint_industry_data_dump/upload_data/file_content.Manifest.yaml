@@ -1,0 +1,9 @@
+kind: CogniteFileContent
+type: CogniteFileTemplate
+fileDirectory: modules/sourcesystem/cdf_sharepoint_industry_data_dump/upload_data/data
+guessMimeType: false
+template:
+  space: {{ instance_space }}
+  externalId: file_$FILENAME
+  name: $FILENAME
+  mimeType: application/pdf

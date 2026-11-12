@@ -1,0 +1,11 @@
+key,name,materialType,equipment_externalId,asset_externalId
+MAT-001,Spare parts kit - PH 1st Stage Gas Compressor,Spare,EQ-KA-9101,23-KA-9101
+MAT-002,Spare parts kit - PH 2nd Stage Gas Compressor,Spare,EQ-KA-9102,23-KA-9102
+MAT-003,Spare parts kit - Seawater Lift Pump A,Spare,EQ-PA-9201A,23-PA-9201A
+MAT-004,Spare parts kit - 1st Stage Suction ESDV,Spare,EQ-VA-9301,23-XV-92501
+MAT-005,Spare parts kit - Gas Turbine Generator A,Spare,EQ-GT-9401,23-GT-9401
+MAT-006,Spare parts kit - 1st Stage Discharge Cooler,Spare,EQ-EA-9501,23-EA-9501
+MAT-007,Spare parts kit - 1st Stage Suction Pressure Transmitter,Spare,EQ-PT-92501,23-PT-92501
+MAT-008,Spare parts kit - MV Motor 1st Stage Compressor Drive,Spare,EQ-EL-9701,23-EL-9701
+MAT-009,Spare parts kit - Subsea Control Module A,Spare,EQ-SU-8501,48-SU-8501
+MAT-010,Spare parts kit - 1st Stage Safety Relief Valve,Spare,EQ-PSV-92550,23-PSV-92550
