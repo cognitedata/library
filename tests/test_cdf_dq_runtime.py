@@ -1071,6 +1071,40 @@ def test_write_settings_overrides_preserve_other_external_dataproducts(
     ]
 
 
+def test_write_settings_overrides_append_when_single_product_id_mismatches(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A new dataProductExternalId must append, not rename the sole existing product."""
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text(
+        yaml.safe_dump(
+            {
+                "external_dataproducts": [
+                    {"external_id": "existing-dp", "version": "1.0.0"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    handler_module = _load_bootstrap_handler(monkeypatch, lambda **_kwargs: {"status": "completed"})
+
+    override_path = handler_module._write_settings_with_overrides(
+        settings_path,
+        {"dataProductExternalId": "new-dp", "dataProductVersion": "2.0.0"},
+    )
+    assert override_path is not None
+    try:
+        loaded = yaml.safe_load(override_path.read_text(encoding="utf-8"))
+    finally:
+        override_path.unlink(missing_ok=True)
+
+    assert loaded["external_dataproducts"] == [
+        {"external_id": "existing-dp", "version": "1.0.0"},
+        {"external_id": "new-dp", "version": "2.0.0"},
+    ]
+
+
 def test_write_settings_overrides_version_only_raises_when_ambiguous(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
