@@ -1,0 +1,31 @@
+key,historianTagName,asset_externalId,timeseries_externalId,operatingLimit_externalId,eventTime,eventType,severity,limitType,value,message
+ALM-PT92501-C1-Raised,VAL_23-PT-92501:X.Value,23-PT-92501,TS-PT92501,23-PT-92501_limit,2026-11-10T06:12:00Z,Raised,High,High,46.8,23-PT-92501 pressure above high limit 45 barg
+ALM-PT92501-C1-Acknowledged,VAL_23-PT-92501:X.Value,23-PT-92501,TS-PT92501,23-PT-92501_limit,2026-11-10T06:15:30Z,Acknowledged,High,High,47.2,23-PT-92501 high pressure alarm acknowledged by operator
+ALM-PT92501-C1-Cleared,VAL_23-PT-92501:X.Value,23-PT-92501,TS-PT92501,23-PT-92501_limit,2026-11-10T06:42:10Z,Cleared,High,High,43.9,23-PT-92501 pressure back below high limit
+ALM-PT92501-C2-Raised,VAL_23-PT-92501:X.Value,23-PT-92501,TS-PT92501,23-PT-92501_limit,2026-11-10T14:03:20Z,Raised,Medium,Low,4.6,23-PT-92501 pressure below low limit 5 barg
+ALM-PT92501-C2-Acknowledged,VAL_23-PT-92501:X.Value,23-PT-92501,TS-PT92501,23-PT-92501_limit,2026-11-10T14:05:45Z,Acknowledged,Medium,Low,4.4,23-PT-92501 low pressure alarm acknowledged by operator
+ALM-PT92501-C2-Cleared,VAL_23-PT-92501:X.Value,23-PT-92501,TS-PT92501,23-PT-92501_limit,2026-11-10T14:31:00Z,Cleared,Medium,Low,5.8,23-PT-92501 pressure back above low limit
+ALM-TT96115-C1-Raised,VAL_23-TT-96115-01:Z.X.Value,23-TT-96115-01,TS-TT96115,23-TT-96115-01_limit,2026-11-10T07:20:00Z,Raised,High,High,121.4,23-TT-96115-01 temperature above high limit 120 degC
+ALM-TT96115-C1-Acknowledged,VAL_23-TT-96115-01:Z.X.Value,23-TT-96115-01,TS-TT96115,23-TT-96115-01_limit,2026-11-10T07:24:10Z,Acknowledged,High,High,123.0,23-TT-96115-01 high temperature alarm acknowledged by operator
+ALM-TT96115-C1-Cleared,VAL_23-TT-96115-01:Z.X.Value,23-TT-96115-01,TS-TT96115,23-TT-96115-01_limit,2026-11-10T08:10:30Z,Cleared,High,High,118.2,23-TT-96115-01 temperature back below high limit
+ALM-TT96115-C2-Raised,VAL_23-TT-96115-01:Z.X.Value,23-TT-96115-01,TS-TT96115,23-TT-96115-01_limit,2026-11-11T02:45:00Z,Raised,Low,Low,29.1,23-TT-96115-01 temperature below low limit 30 degC
+ALM-TT96115-C2-Acknowledged,VAL_23-TT-96115-01:Z.X.Value,23-TT-96115-01,TS-TT96115,23-TT-96115-01_limit,2026-11-11T02:50:20Z,Acknowledged,Low,Low,28.7,23-TT-96115-01 low temperature alarm acknowledged by operator
+ALM-TT96115-C2-Cleared,VAL_23-TT-96115-01:Z.X.Value,23-TT-96115-01,TS-TT96115,23-TT-96115-01_limit,2026-11-11T03:30:00Z,Cleared,Low,Low,31.5,23-TT-96115-01 temperature back above low limit
+ALM-FT92537-C1-Raised,VAL_23_FT_92537_03:Z.X.Value,23-FT-92537,TS-FT92537,23-FT-92537_limit,2026-11-10T09:30:00Z,Raised,High,High,131500,23-FT-92537 flow above high limit 130000 Am3/h
+ALM-FT92537-C1-Acknowledged,VAL_23_FT_92537_03:Z.X.Value,23-FT-92537,TS-FT92537,23-FT-92537_limit,2026-11-10T09:33:00Z,Acknowledged,High,High,132200,23-FT-92537 high flow alarm acknowledged by operator
+ALM-FT92537-C1-Cleared,VAL_23_FT_92537_03:Z.X.Value,23-FT-92537,TS-FT92537,23-FT-92537_limit,2026-11-10T10:05:00Z,Cleared,High,High,128700,23-FT-92537 flow back below high limit
+ALM-FT92537-C2-Raised,VAL_23_FT_92537_03:Z.X.Value,23-FT-92537,TS-FT92537,23-FT-92537_limit,2026-11-11T05:10:00Z,Raised,Medium,Low,39200,23-FT-92537 flow below low limit 40000 Am3/h
+ALM-FT92537-C2-Acknowledged,VAL_23_FT_92537_03:Z.X.Value,23-FT-92537,TS-FT92537,23-FT-92537_limit,2026-11-11T05:14:00Z,Acknowledged,Medium,Low,38800,23-FT-92537 low flow alarm acknowledged by operator
+ALM-FT92537-C2-Cleared,VAL_23_FT_92537_03:Z.X.Value,23-FT-92537,TS-FT92537,23-FT-92537_limit,2026-11-11T05:55:00Z,Cleared,Medium,Low,41500,23-FT-92537 flow back above low limit
+ALM-LT92521-C1-Raised,VAL_23-LT-92521:X.Value,23-LT-92521,TS-LT92521,23-LT-92521_limit,2026-11-10T11:00:00Z,Raised,Critical,High,81.3,23-LT-92521 scrubber level above high limit 80 percent
+ALM-LT92521-C1-Acknowledged,VAL_23-LT-92521:X.Value,23-LT-92521,TS-LT92521,23-LT-92521_limit,2026-11-10T11:01:30Z,Acknowledged,Critical,High,83.0,23-LT-92521 high level alarm acknowledged by operator
+ALM-LT92521-C1-Cleared,VAL_23-LT-92521:X.Value,23-LT-92521,TS-LT92521,23-LT-92521_limit,2026-11-10T11:40:00Z,Cleared,Critical,High,76.4,23-LT-92521 level back below high limit
+ALM-LT92521-C2-Raised,VAL_23-LT-92521:X.Value,23-LT-92521,TS-LT92521,23-LT-92521_limit,2026-11-11T08:20:00Z,Raised,Medium,Low,19.4,23-LT-92521 scrubber level below low limit 20 percent
+ALM-LT92521-C2-Acknowledged,VAL_23-LT-92521:X.Value,23-LT-92521,TS-LT92521,23-LT-92521_limit,2026-11-11T08:23:00Z,Acknowledged,Medium,Low,18.9,23-LT-92521 low level alarm acknowledged by operator
+ALM-LT92521-C2-Cleared,VAL_23-LT-92521:X.Value,23-LT-92521,TS-LT92521,23-LT-92521_limit,2026-11-11T08:58:00Z,Cleared,Medium,Low,22.1,23-LT-92521 level back above low limit
+ALM-PDT92501-C1-Raised,VAL_23-PDT-92501:X.Value,23-PDT-92501,TS-PDT92501,23-PDT-92501_limit,2026-11-10T13:15:00Z,Raised,High,High,405.5,23-PDT-92501 differential pressure above high limit 400 mbar
+ALM-PDT92501-C1-Acknowledged,VAL_23-PDT-92501:X.Value,23-PDT-92501,TS-PDT92501,23-PDT-92501_limit,2026-11-10T13:18:00Z,Acknowledged,High,High,410.0,23-PDT-92501 high differential pressure alarm acknowledged by operator
+ALM-PDT92501-C1-Cleared,VAL_23-PDT-92501:X.Value,23-PDT-92501,TS-PDT92501,23-PDT-92501_limit,2026-11-10T13:50:00Z,Cleared,High,High,392.3,23-PDT-92501 differential pressure back below high limit
+ALM-PDT92501-C2-Raised,VAL_23-PDT-92501:X.Value,23-PDT-92501,TS-PDT92501,23-PDT-92501_limit,2026-11-11T10:40:00Z,Raised,Low,Low,48.7,23-PDT-92501 differential pressure below low limit 50 mbar
+ALM-PDT92501-C2-Acknowledged,VAL_23-PDT-92501:X.Value,23-PDT-92501,TS-PDT92501,23-PDT-92501_limit,2026-11-11T10:44:00Z,Acknowledged,Low,Low,47.9,23-PDT-92501 low differential pressure alarm acknowledged by operator
+ALM-PDT92501-C2-Cleared,VAL_23-PDT-92501:X.Value,23-PDT-92501,TS-PDT92501,23-PDT-92501_limit,2026-11-11T11:20:00Z,Cleared,Low,Low,52.6,23-PDT-92501 differential pressure back above low limit

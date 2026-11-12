@@ -1,0 +1,6 @@
+kind: RawRows
+type: rawTable
+table:
+  dbName: "{{ raw_database_sap }}"
+  tableName: notification
+key: key

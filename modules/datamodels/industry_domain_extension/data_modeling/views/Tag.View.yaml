@@ -1,0 +1,84 @@
+space: "{{ enterprise_space }}"
+externalId: Tag
+name: Tag
+description: "Enterprise tag view. CONTRACT: implements CogniteAsset; one asset view in this model."
+implements:
+  - space: cdf_cdm
+    externalId: CogniteAsset
+    version: v1
+    type: view
+version: "{{ dm_enterprise_version }}"
+properties:
+  site:
+    name: Site
+    description: "SOURCE_SCAFFOLD: Site or plant code. Example: PLANT01."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: site
+
+  area:
+    name: Area
+    description: "SOURCE_SCAFFOLD: Area or process area code. Example: AREA-A."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: area
+
+  system:
+    name: System
+    description: "SOURCE_SCAFFOLD: System or subsystem code. Example: SYS-01."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: system
+
+  tagClass:
+    name: Tag class
+    description: "SOURCE_SCAFFOLD: Tag class or category label. Example: Pump."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: tagClass
+
+  labels:
+    name: Labels
+    description: "CONTRACT: Text-based labels (CogniteDescribable.tags). Aliased to labels because the view is named Tag."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+
+  parent:
+    name: Parent
+    description: "CONTRACT: Hierarchy parent; sourced to enterprise Tag."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_parent
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  root:
+    name: Root
+    description: "CONTRACT: Hierarchy root; sourced to enterprise Tag."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_root
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+

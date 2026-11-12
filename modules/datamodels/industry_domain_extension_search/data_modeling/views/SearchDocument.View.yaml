@@ -1,0 +1,133 @@
+space: "{{ search_space }}"
+externalId: SearchDocument
+name: Search document
+description: Search view for Document. Maps containers only; no implements.
+version: "{{ dm_search_version }}"
+properties:
+  mimeType:
+    name: MIME type
+    description: "CONTRACT: CogniteFile.mimeType for classification."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: mimeType
+
+  isUploaded:
+    name: Is uploaded
+    description: "CONTRACT: CogniteFile.isUploaded for classification."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: isUploaded
+
+  uploadedTime:
+    name: Uploaded time
+    description: "CONTRACT: CogniteFile.uploadedTime for classification."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: uploadedTime
+
+  category:
+    name: Category
+    description: "CONTRACT: CogniteFileCategory for the document type."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: category
+    source:
+      space: "cdf_cdm"
+      externalId: CogniteFileCategory
+      version: "v1"
+      type: view
+
+  name:
+    name: Name
+    description: "CONTRACT: Display name from CogniteDescribable."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+
+  description:
+    name: Description
+    description: "CONTRACT: Description from CogniteDescribable."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+
+  assets:
+    name: Assets
+    description: "CONTRACT: Tags associated with this document."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchTag
+      version: "{{ dm_search_version }}"
+      type: view
+
+  documentNumber:
+    name: Document number
+    description: "SOURCE_SCAFFOLD: Document number."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: documentNumber
+
+  disciplineCode:
+    name: Discipline code
+    description: "SOURCE_SCAFFOLD: Discipline code."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: disciplineCode
+
+  revision:
+    name: Revision
+    description: "SOURCE_SCAFFOLD: Document revision."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: revision
+
+  site:
+    name: Site
+    description: "SOURCE_SCAFFOLD: Source-native site on Document."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: site
+
+  area:
+    name: Area
+    description: "SOURCE_SCAFFOLD: Source-native area on Document."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: area
+
+  system:
+    name: System
+    description: "SOURCE_SCAFFOLD: Source-native system on Document."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: system
+

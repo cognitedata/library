@@ -1,0 +1,55 @@
+space: "{{ enterprise_space }}"
+externalId: Material
+name: Material
+description: Spare part or bill-of-materials item linked to equipment or tag. Label-only; no CogniteDescribable.
+usedFor: node
+properties:
+  name:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Name
+    description: "SOURCE_SCAFFOLD: Display label for the material. Example: Gasket DN50."
+
+  materialType:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: MaterialType
+    description: "SOURCE_SCAFFOLD: Material type or category. Example: Spare."
+
+  equipment:
+    type:
+      list: false
+      type: direct
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Equipment
+    description: "CONTRACT: Direct relation to Equipment."
+
+  asset:
+    type:
+      list: false
+      type: direct
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Asset
+    description: "CONTRACT: Direct relation to Tag."
+
+indexes:
+  equipment:
+    indexType: btree
+    properties:
+      - equipment
+    cursorable: true
+
+  asset:
+    indexType: btree
+    properties:
+      - asset
+    cursorable: true
+

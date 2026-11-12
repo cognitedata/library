@@ -1,0 +1,53 @@
+space: "{{ enterprise_space }}"
+externalId: "{{ enterprise_data_model_external_id }}"
+name: "{{ enterprise_data_model_name }}"
+description: >
+  Industry-neutral enterprise domain model extending Cognite Core and Process Industry
+  data models. Tag is the single CogniteAsset hub. AlarmEvent records live in the same
+  enterprise space but outside this data model.
+version: "{{ dm_enterprise_version }}"
+views:
+- space: "{{ enterprise_space }}"
+  externalId: Tag
+  version: "{{ dm_enterprise_version }}"
+  type: view
+- space: "{{ enterprise_space }}"
+  externalId: Equipment
+  version: "{{ dm_enterprise_version }}"
+  type: view
+- space: "{{ enterprise_space }}"
+  externalId: Document
+  version: "{{ dm_enterprise_version }}"
+  type: view
+- space: "{{ enterprise_space }}"
+  externalId: TimeSeriesData
+  version: "{{ dm_enterprise_version }}"
+  type: view
+- space: "{{ enterprise_space }}"
+  externalId: WorkOrder
+  version: "{{ dm_enterprise_version }}"
+  type: view
+- space: "{{ enterprise_space }}"
+  externalId: WorkOrderOperation
+  version: "{{ dm_enterprise_version }}"
+  type: view
+- space: "{{ enterprise_space }}"
+  externalId: Notification
+  version: "{{ dm_enterprise_version }}"
+  type: view
+- space: "{{ enterprise_space }}"
+  externalId: Material
+  version: "{{ dm_enterprise_version }}"
+  type: view
+- space: "{{ enterprise_space }}"
+  externalId: OperatingLimit
+  version: "{{ dm_enterprise_version }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteEquipmentType
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFileCategory
+  version: v1
+  type: view

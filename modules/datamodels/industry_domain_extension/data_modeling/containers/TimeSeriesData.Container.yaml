@@ -1,0 +1,63 @@
+space: "{{ enterprise_space }}"
+externalId: TimeSeriesData
+name: Time series data
+description: Enterprise time series. Extends CogniteTimeSeries.
+usedFor: node
+properties:
+  timeSeriesSource:
+    type:
+      type: enum
+      list: false
+      values:
+        Historian:
+          name: Historian
+          description: Time series from a process historian.
+        OpcUa:
+          name: OpcUa
+          description: Time series from an OPC UA source.
+        Other:
+          name: Other
+          description: Time series from another source family.
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Time series source
+    description: "SOURCE_SCAFFOLD: Source family for the time series. Example: Historian."
+  historianTagName:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: HistorianTagName
+    description: "SOURCE_SCAFFOLD: Historian tag name. Example: PI-TAG-001."
+    maxTextSize: 2400
+
+  historianPointSource:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: HistorianPointSource
+    description: "SOURCE_SCAFFOLD: Historian point source. Example: L."
+    maxTextSize: 2400
+
+constraints:
+  requiresCogniteTimeSeries:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+indexes:
+  timeSeriesSource:
+    indexType: btree
+    properties:
+      - timeSeriesSource
+    cursorable: false
+
+  historianTagName:
+    indexType: btree
+    properties:
+      - historianTagName
+    cursorable: false
+

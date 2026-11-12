@@ -1,0 +1,5 @@
+[module]
+title = "Industry Ingestion Workflow"
+is_selected_by_default = false
+id = "dp:common:cdf_industry_ingestion"
+package_id = "dp:common"

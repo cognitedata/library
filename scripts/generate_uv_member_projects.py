@@ -218,6 +218,23 @@ PACKAGE_SPECS: list[dict[str, object]] = [
             "mixpanel>=4.10.0",
         ],
     },
+    {
+        "path": "modules/sourcesystem/cdf_pi_industry_data_dump/functions/fn_pi_all_ingest_alarm_event",
+        "name": "fn-pi-all-ingest-alarm-event",
+        "requires_python": ">=3.11,<3.14",
+        # Local/lock range stays compatible with the other members (cognite-sdk <8); the unit tests need no Records API.
+        "dependencies": [
+            "cognite-sdk>=7,<9",
+            "pydantic>=2.12.4,<3.0.0",
+        ],
+        # The deployed function calls the Records API (RecordWrite, TimeRange), verified against cognite-sdk 8.24.
+        "deploy_dependencies": [
+            "cognite-sdk>=8.24.0,<9",
+            "pydantic>=2.12.4,<3.0.0",
+        ],
+        "dev_dependencies": ["pytest>=7.0.0"],
+        "pytest": True,
+    },
 ]
 
 

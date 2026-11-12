@@ -1,0 +1,104 @@
+space: "{{ enterprise_space }}"
+externalId: AlarmEvent
+name: Alarm event
+description: "Record view for alarm state-change events. Not listed in Industry_DOM (record views cannot be data model members yet)."
+version: "{{ dm_enterprise_version }}"
+streamId:
+  - "{{ alarm_stream_external_id }}"
+properties:
+  eventTime:
+    name: Event time
+    description: "SOURCE_SCAFFOLD: When the state change happened."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: AlarmEvent
+      type: container
+    containerPropertyIdentifier: eventTime
+
+  eventType:
+    name: Event type
+    description: "SOURCE_SCAFFOLD: Alarm state change type. Example: Raised."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: AlarmEvent
+      type: container
+    containerPropertyIdentifier: eventType
+
+  severity:
+    name: Severity
+    description: "SOURCE_SCAFFOLD: Alarm severity. Example: High."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: AlarmEvent
+      type: container
+    containerPropertyIdentifier: severity
+
+  limitType:
+    name: Limit type
+    description: "SOURCE_SCAFFOLD: Which operating limit was crossed. Example: High."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: AlarmEvent
+      type: container
+    containerPropertyIdentifier: limitType
+
+  value:
+    name: Value
+    description: "SOURCE_SCAFFOLD: Measured value at eventTime."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: AlarmEvent
+      type: container
+    containerPropertyIdentifier: value
+
+  message:
+    name: Message
+    description: "SOURCE_SCAFFOLD: Alarm text from the source."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: AlarmEvent
+      type: container
+    containerPropertyIdentifier: message
+
+  asset:
+    name: Asset
+    description: "CONTRACT: Tag this alarm refers to."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: AlarmEvent
+      type: container
+    containerPropertyIdentifier: asset
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  timeSeries:
+    name: Time series
+    description: "CONTRACT: Measured signal for this alarm."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: AlarmEvent
+      type: container
+    containerPropertyIdentifier: timeSeries
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  operatingLimit:
+    name: Operating limit
+    description: "CONTRACT: Limit that was crossed."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: AlarmEvent
+      type: container
+    containerPropertyIdentifier: operatingLimit
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      version: "{{ dm_enterprise_version }}"
+      type: view
+

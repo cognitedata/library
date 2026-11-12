@@ -1,0 +1,13 @@
+# The directory with the function code must have the same name as the externalId below.
+- name: 'pi:all:ingest:alarm_event'
+  externalId: '{{ alarm_function_external_id }}'
+  owner: 'Cognite'
+  description: 'Sample stand-in for a PI alarm extractor: reads RAW alarm_event rows and ingests missing AlarmEvent records into the alarm stream'
+  metadata:
+    version: 'v1'
+  # Function code is stored in the dedicated function space, never in the instance space
+  space: '{{ function_space }}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+  # Data set for the uploaded function code
+  dataSetExternalId: '{{ dataset_external_id }}'

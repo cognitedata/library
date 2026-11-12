@@ -1,0 +1,23 @@
+# Data model identifiers (must match datamodels/industry_domain_extension)
+enterprise_space: dm_dom_industry
+instance_space: inst_industry
+enterprise_data_model_external_id: Industry_DOM
+dm_enterprise_version: v1
+
+# Code space for the alarm Function — never the instance space
+function_space: sp_function_industry
+
+# Governance
+dataset_external_id: ds_industry_all
+
+# RAW databases (SAP is owned by cdf_sap_industry_data_dump and read for cross-source joins)
+raw_database_sap: raw_sample_all_sap
+raw_database_pi: raw_sample_all_pi
+
+# Alarm records
+alarm_stream_external_id: pi_all_alarm_event
+alarm_function_external_id: fn_pi_all_ingest_alarm_event
+
+# Transformation runtime identity
+ingestion_client_id: ${IDP_CLIENT_ID}
+ingestion_client_secret: ${IDP_CLIENT_SECRET}

@@ -1,0 +1,24 @@
+name: "{{ sol_consumer_group_name }}"
+sourceId: "{{ sol_consumer_source_id }}"
+capabilities:
+  - dataModelsAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ search_space }}
+            - {{ enterprise_space }}
+            - cdf_cdm
+            - cdf_idm
+            - cdf_cdm_units
+  - dataModelInstancesAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ instance_space }}
+            - cdf_cdm_units
+  - locationFiltersAcl:
+      actions: [READ]
+      scope:
+        all: {}

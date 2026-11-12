@@ -1,0 +1,79 @@
+space: "{{ enterprise_space }}"
+externalId: OperatingLimit
+name: Operating limit
+description: Operating limits for a measured value. Label-only; no CogniteDescribable.
+usedFor: node
+properties:
+  name:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Name
+    description: "SOURCE_SCAFFOLD: Display label for the operating limit. Example: High pressure limit."
+
+  timeSeries:
+    type:
+      list: false
+      type: direct
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: TimeSeries
+    description: "CONTRACT: Direct relation to TimeSeriesData."
+
+  limitHigh:
+    type: { list: false, type: float64 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: LimitHigh
+    description: "SOURCE_SCAFFOLD: High operating limit value. Example: 10.5."
+
+  limitLow:
+    type: { list: false, type: float64 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: LimitLow
+    description: "SOURCE_SCAFFOLD: Low operating limit value. Example: 1.0."
+
+  limitHighConsequence:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: LimitHighConsequence
+    description: "SOURCE_SCAFFOLD: Consequence if high limit is exceeded."
+
+  limitLowConsequence:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: LimitLowConsequence
+    description: "SOURCE_SCAFFOLD: Consequence if low limit is exceeded."
+
+  limitHighCorrectiveAction:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: LimitHighCorrectiveAction
+    description: "SOURCE_SCAFFOLD: Corrective action when high limit is exceeded."
+
+  limitLowCorrectiveAction:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: LimitLowCorrectiveAction
+    description: "SOURCE_SCAFFOLD: Corrective action when low limit is exceeded."
+
+indexes:
+  timeSeries:
+    indexType: btree
+    properties:
+      - timeSeries
+    cursorable: true
+

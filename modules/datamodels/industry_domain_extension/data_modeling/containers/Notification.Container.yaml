@@ -1,0 +1,44 @@
+space: "{{ enterprise_space }}"
+externalId: Notification
+name: Notification
+description: Enterprise notification. Extends CogniteNotification.
+usedFor: node
+properties:
+  failureModeCode:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: FailureModeCode
+    description: "SOURCE_SCAFFOLD: Failure mode code from the source. Example: FM01."
+    maxTextSize: 2400
+
+  detectionMethodCode:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: DetectionMethodCode
+    description: "SOURCE_SCAFFOLD: Detection method code from the source. Example: DM01."
+    maxTextSize: 2400
+
+constraints:
+  requiresCogniteNotification:
+    constraintType: requires
+    require:
+      space: cdf_idm
+      externalId: CogniteNotification
+      type: container
+indexes:
+  failureModeCode:
+    indexType: btree
+    properties:
+      - failureModeCode
+    cursorable: false
+
+  detectionMethodCode:
+    indexType: btree
+    properties:
+      - detectionMethodCode
+    cursorable: false
+

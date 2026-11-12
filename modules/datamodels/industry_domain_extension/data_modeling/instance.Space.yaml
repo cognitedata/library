@@ -1,0 +1,2 @@
+space: "{{ instance_space }}"
+name: Industry instance space

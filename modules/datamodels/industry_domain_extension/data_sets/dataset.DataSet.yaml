@@ -1,0 +1,5 @@
+- externalId: "{{ dataset_external_id }}"
+  name: "{{ dataset_name }}"
+  description: Dataset for the industry domain model, transformations and workflow.
+  metadata:
+    consoleLabels: '["INDUSTRY", "DOMAIN MODEL"]'

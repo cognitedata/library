@@ -1,0 +1,98 @@
+name: "{{ ingestion_group_name }}"
+sourceId: "{{ ingestion_source_id }}"
+metadata:
+  origin: cognite-toolkit
+capabilities:
+  # minimum runtime capabilities
+  - projectsAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        all: {}
+  - groupsAcl:
+      actions:
+        - LIST
+      scope:
+        all: {}
+  - sessionsAcl:
+      actions:
+        - CREATE
+      scope:
+        all: {}
+  # sample sources read by the transformations and the alarm function
+  - rawAcl:
+      actions:
+        - READ
+      scope:
+        tableScope:
+          dbsToTables:
+            {{ raw_database_sap }}: []
+            {{ raw_database_pi }}: []
+            {{ raw_database_sharepoint }}: []
+  - transformationsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - {{ dataset_external_id }}
+  - workflowOrchestrationAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - {{ dataset_external_id }}
+  - functionsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
+  # resolve views and containers (no WRITE, no search space)
+  - dataModelsAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ enterprise_space }}
+            - cdf_cdm
+            - cdf_idm
+            - cdf_cdm_units
+  # write nodes, edges and type nodes
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+        - WRITE
+        - WRITE_PROPERTIES
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ instance_space }}
+  # CogniteAsset.parent writes; TimeSeriesData.unit
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
+            - cdf_cdm_units
+  # resolve the alarm stream and ingest AlarmEvent records
+  - streamsAcl:
+      actions:
+        - READ
+      scope:
+        all: {}
+  - streamRecordsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ instance_space }}

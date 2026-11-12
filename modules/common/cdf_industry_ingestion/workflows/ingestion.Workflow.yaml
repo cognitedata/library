@@ -1,0 +1,4 @@
+externalId: {{ workflow_external_id }}
+name: Industry ingestion
+description: Loads the industry domain model from the sample SAP, PI and SharePoint dumps, then adds alarm records and connections
+dataSetExternalId: {{ dataset_external_id }}

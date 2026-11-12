@@ -1,0 +1,6 @@
+kind: RawRows
+type: rawTable
+table:
+  dbName: {{ raw_database_pi }}
+  tableName: alarm_event
+key: key

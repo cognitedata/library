@@ -1,0 +1,11 @@
+# The default schedule (Feb 29 at midnight) effectively never fires — run the workflow manually.
+# Set run_workflow_schedule in config.<env>.yaml to enable scheduled runs.
+externalId: {{ workflow_trigger_external_id }}
+triggerRule:
+  triggerType: schedule
+  cronExpression: "{{ run_workflow_schedule }}"
+workflowExternalId: {{ workflow_external_id }}
+workflowVersion: v1
+authentication:
+  clientId: {{ ingestion_client_id }}
+  clientSecret: {{ ingestion_client_secret }}

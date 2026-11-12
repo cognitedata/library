@@ -1,0 +1,28 @@
+name: "{{ sol_admin_group_name }}"
+sourceId: "{{ sol_admin_source_id }}"
+capabilities:
+  - dataModelsAcl:
+      actions: [READ, WRITE]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ search_space }}
+  - dataModelsAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ enterprise_space }}
+            - cdf_cdm
+            - cdf_idm
+            - cdf_cdm_units
+  - dataModelInstancesAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ instance_space }}
+  - locationFiltersAcl:
+      actions: [READ, WRITE]
+      scope:
+        all: {}

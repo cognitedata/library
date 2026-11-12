@@ -1,0 +1,114 @@
+space: "{{ search_space }}"
+externalId: SearchTimeSeriesData
+name: Search time series data
+description: Search view for TimeSeriesData. Maps containers only; no implements.
+version: "{{ dm_search_version }}"
+properties:
+  isStep:
+    name: Is step
+    description: "CONTRACT: CogniteTimeSeries.isStep for classification."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: isStep
+
+  type:
+    name: Type
+    description: "CONTRACT: CogniteTimeSeries.type for classification."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: type
+
+  name:
+    name: Name
+    description: "CONTRACT: Display name from CogniteDescribable."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+
+  description:
+    name: Description
+    description: "CONTRACT: Description from CogniteDescribable."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+
+  assets:
+    name: Assets
+    description: "CONTRACT: Tags associated with this time series."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchTag
+      version: "{{ dm_search_version }}"
+      type: view
+
+  equipment:
+    name: Equipment
+    description: "CONTRACT: Equipment associated with this time series."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: equipment
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchEquipment
+      version: "{{ dm_search_version }}"
+      type: view
+
+  timeSeriesSource:
+    name: Time series source
+    description: "SOURCE_SCAFFOLD: Source family."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: timeSeriesSource
+
+  historianTagName:
+    name: Historian tag name
+    description: "SOURCE_SCAFFOLD: Historian tag name."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: historianTagName
+
+  historianPointSource:
+    name: Historian point source
+    description: "SOURCE_SCAFFOLD: Historian point source."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: historianPointSource
+
+  operatingLimits:
+    name: Operating limits
+    description: "Operating limits whose timeSeries is this series."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchOperatingLimit
+      version: "{{ dm_search_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ search_space }}"
+        externalId: SearchOperatingLimit
+        version: "{{ dm_search_version }}"
+        type: view
+      identifier: timeSeries
+

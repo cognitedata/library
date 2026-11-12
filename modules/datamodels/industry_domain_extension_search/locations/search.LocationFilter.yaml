@@ -1,0 +1,10 @@
+externalId: "{{ search_location_filter_external_id }}"
+name: "{{ search_location_filter_name }}"
+description: Location filter for the Industry search data model.
+dataModels:
+  - externalId: "{{ search_data_model_external_id }}"
+    space: {{ search_space }}
+    version: {{ dm_search_version }}
+instanceSpaces:
+  - {{ instance_space }}
+dataModelingType: DATA_MODELING_ONLY

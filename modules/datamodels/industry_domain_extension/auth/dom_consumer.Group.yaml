@@ -1,0 +1,33 @@
+name: "{{ dom_consumer_group_name }}"
+sourceId: "{{ dom_consumer_source_id }}"
+capabilities:
+  - dataModelsAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ enterprise_space }}
+            - cdf_cdm
+            - cdf_idm
+            - cdf_cdm_units
+  - dataModelInstancesAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ instance_space }}
+            - cdf_cdm_units
+  - streamsAcl:
+      actions: [READ]
+      scope:
+        all: {}
+  - streamRecordsAcl:
+      actions: [READ]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ instance_space }}
+  - locationFiltersAcl:
+      actions: [READ]
+      scope:
+        all: {}

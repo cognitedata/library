@@ -1,0 +1,96 @@
+space: "{{ search_space }}"
+externalId: SearchEquipment
+name: Search equipment
+description: Search view for Equipment. Maps containers only; no implements.
+version: "{{ dm_search_version }}"
+properties:
+  asset:
+    name: Asset
+    description: "CONTRACT: Tag this equipment belongs to."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: asset
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchTag
+      version: "{{ dm_search_version }}"
+      type: view
+
+  equipmentType:
+    name: Equipment type
+    description: "CONTRACT: CogniteEquipmentType classification."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: equipmentType
+    source:
+      space: "cdf_cdm"
+      externalId: CogniteEquipmentType
+      version: "v1"
+      type: view
+
+  name:
+    name: Name
+    description: "CONTRACT: Display name from CogniteDescribable."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+
+  description:
+    name: Description
+    description: "CONTRACT: Description from CogniteDescribable."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+
+  modelNumber:
+    name: Model number
+    description: "SOURCE_SCAFFOLD: Manufacturer model number."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: modelNumber
+
+  manufacturer:
+    name: Manufacturer
+    description: "CONTRACT: Manufacturer from CogniteEquipment."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: manufacturer
+
+  serialNumber:
+    name: Serial number
+    description: "CONTRACT: Serial number from CogniteEquipment."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: serialNumber
+
+  materials:
+    name: Materials
+    description: "Materials whose equipment is this equipment."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchMaterial
+      version: "{{ dm_search_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ search_space }}"
+        externalId: SearchMaterial
+        version: "{{ dm_search_version }}"
+        type: view
+      identifier: equipment
+

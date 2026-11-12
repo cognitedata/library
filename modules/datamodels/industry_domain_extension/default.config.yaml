@@ -1,0 +1,23 @@
+# Data model identifiers
+enterprise_space: dm_dom_industry
+instance_space: inst_industry
+enterprise_data_model_external_id: Industry_DOM
+enterprise_data_model_name: Industry DM DOM
+dm_enterprise_version: v1
+
+# Governance
+dataset_external_id: ds_industry_all
+dataset_name: Industry domain model
+enterprise_location_filter_external_id: loc_industry_all
+enterprise_location_filter_name: Industry all locations
+
+# Access groups — persona-led; environment token only here (override per config.<env>.yaml)
+dom_admin_group_name: admin_industry_dom_dev
+dom_consumer_group_name: consumer_industry_dom_dev
+dom_admin_source_id: ${DOM_ADMIN_GROUP_SOURCE_ID}
+dom_consumer_source_id: ${DOM_CONSUMER_GROUP_SOURCE_ID}
+
+# Records
+alarm_stream_external_id: pi_all_alarm_event
+# Sample/dev default only. Template is fixed at stream creation — set BasicArchive before any non-dev deploy.
+alarm_stream_template: ImmutableTestStream

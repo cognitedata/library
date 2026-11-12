@@ -1,0 +1,182 @@
+space: "{{ search_space }}"
+externalId: SearchTag
+name: Search tag
+description: Search view for Tag. Maps enterprise and CDM containers; no implements.
+version: "{{ dm_search_version }}"
+properties:
+  type:
+    name: Type
+    description: "CONTRACT: CogniteAsset.type for Search classification."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: type
+    source:
+      space: "cdf_cdm"
+      externalId: CogniteAssetType
+      version: "v1"
+      type: view
+
+  parent:
+    name: Parent
+    description: "CONTRACT: Hierarchy parent; sourced to SearchTag."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_parent
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchTag
+      version: "{{ dm_search_version }}"
+      type: view
+
+  name:
+    name: Name
+    description: "CONTRACT: Display name from CogniteDescribable."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+
+  description:
+    name: Description
+    description: "CONTRACT: Description from CogniteDescribable."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+
+  labels:
+    name: Labels
+    description: "CONTRACT: Text-based labels (CogniteDescribable.tags). Aliased to labels because the view is named SearchTag."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+
+  site:
+    name: Site
+    description: "SOURCE_SCAFFOLD: Site or plant code from enterprise Tag."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: site
+
+  area:
+    name: Area
+    description: "SOURCE_SCAFFOLD: Area code from enterprise Tag."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: area
+
+  system:
+    name: System
+    description: "SOURCE_SCAFFOLD: System code from enterprise Tag."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: system
+
+  tagClass:
+    name: Tag class
+    description: "SOURCE_SCAFFOLD: Tag class from enterprise Tag."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: tagClass
+
+  workOrders:
+    name: Work orders
+    description: "Work orders whose mainAsset is this tag."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchWorkOrder
+      version: "{{ dm_search_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ search_space }}"
+        externalId: SearchWorkOrder
+        version: "{{ dm_search_version }}"
+        type: view
+      identifier: mainAsset
+
+  documents:
+    name: Documents
+    description: "Documents whose assets include this tag."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchDocument
+      version: "{{ dm_search_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ search_space }}"
+        externalId: SearchDocument
+        version: "{{ dm_search_version }}"
+        type: view
+      identifier: assets
+
+  timeSeries:
+    name: Time series
+    description: "Time series whose assets include this tag."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchTimeSeriesData
+      version: "{{ dm_search_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ search_space }}"
+        externalId: SearchTimeSeriesData
+        version: "{{ dm_search_version }}"
+        type: view
+      identifier: assets
+
+  equipment:
+    name: Equipment
+    description: "Equipment whose asset is this tag."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchEquipment
+      version: "{{ dm_search_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ search_space }}"
+        externalId: SearchEquipment
+        version: "{{ dm_search_version }}"
+        type: view
+      identifier: asset
+
+  notifications:
+    name: Notifications
+    description: "Notifications whose asset is this tag."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchNotification
+      version: "{{ dm_search_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ search_space }}"
+        externalId: SearchNotification
+        version: "{{ dm_search_version }}"
+        type: view
+      identifier: asset
+
