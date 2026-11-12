@@ -26,7 +26,6 @@ workflow (daily) -> function (plan, shards, finalize, export) -> Records stream 
 | Workflow `wf_context_quality_metrics` + schedule trigger | `plan`, then one task per shard in parallel, `finalize`, then `export`. Runs daily at 04:00 UTC |
 | Stream `context_quality_metrics` | The Records stream that holds the run log (append-only) |
 | Container and view `ContextQualityRelationship`, two spaces | Schema space for the definitions, instance space for the rows |
-| Data model `ContextQualityMetrics` | Lists the view |
 | Data set `ds_context_quality` | Holds the function code and the Excel workbook of unlinked items |
 | Groups `gp_context_quality_function`, `gp_context_quality_dashboard_users` | The workflow identity (reads data, writes records) and the dashboard readers (read only) |
 
@@ -112,7 +111,7 @@ shown and the previous one stays current. Then deploy the
 ```
 context_quality_v2/
 ├── auth/                  # function group and dashboard-users group
-├── data_modeling/         # spaces, container, view, data model
+├── data_modeling/         # spaces, container, view
 ├── data_sets/
 ├── functions/
 │   ├── context_quality.Function.yaml
