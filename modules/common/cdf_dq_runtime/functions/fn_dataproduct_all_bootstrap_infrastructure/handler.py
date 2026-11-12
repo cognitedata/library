@@ -188,14 +188,16 @@ def _materialize_config_dir(source_dir: Path, variables: dict[str, str]) -> Path
         return None
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="dq_bootstrap_"))
+    success = False
     try:
         for src in yaml_files:
             rendered = _substitute_placeholders(src.read_text(encoding="utf-8"), variables)
             (tmp_dir / src.name).write_text(rendered, encoding="utf-8")
-    except Exception:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        raise
-    return tmp_dir
+        success = True
+        return tmp_dir
+    finally:
+        if not success:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def _write_settings_with_overrides(
