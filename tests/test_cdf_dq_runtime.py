@@ -1005,6 +1005,28 @@ def test_bootstrap_handler_logs_schedule_delete_failure_without_failing_deploy(
     assert "code=403" in out
 
 
+def test_bootstrap_handler_swallows_non_api_schedule_cleanup_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Non-API failures during schedule cleanup must not mask a successful deploy."""
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+
+    def retrieve_timeout(*, external_id: str) -> None:
+        raise TimeoutError(f"timed out retrieving {external_id}")
+
+    client = _bootstrap_client(retrieve=retrieve_timeout)
+
+    assert handler_module.handle({}, client) == {"status": "completed"}
+    out = capsys.readouterr().out
+    assert f"Failed to retrieve bootstrap function {handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID}" in out
+    assert "code=None" in out
+
+
 def test_bootstrap_handler_applies_schedule_data_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     captured_settings: dict[str, object] = {}
     bundled = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure" / "config" / "settings.yaml"

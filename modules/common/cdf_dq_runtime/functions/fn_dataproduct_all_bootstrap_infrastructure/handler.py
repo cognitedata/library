@@ -47,8 +47,12 @@ def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionL
     """
     try:
         function = client.functions.retrieve(external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID)
-    except CogniteAPIError as e:
-        logger.warning(f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | code={e.code}")
+    except Exception as e:
+        # Best-effort cleanup: swallow API and transport errors so deploy success is preserved.
+        logger.warning(
+            f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | "
+            f"code={getattr(e, 'code', None)}"
+        )
         return
 
     if function is None:
@@ -59,8 +63,10 @@ def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionL
     try:
         # SDK/API cannot filter schedules by function_id; list all and filter in Python.
         schedules = [s for s in client.functions.schedules.list(limit=None) if s.function_id == function_id]
-    except CogniteAPIError as e:
-        logger.warning(f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={e.code}")
+    except Exception as e:
+        logger.warning(
+            f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={getattr(e, 'code', None)}"
+        )
         return
 
     if not schedules:
@@ -73,9 +79,10 @@ def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionL
         try:
             client.functions.schedules.delete(id=schedule_id)
             logger.info(f"Deleted bootstrap schedule id={schedule_id} name={schedule_name}")
-        except CogniteAPIError as e:
+        except Exception as e:
             logger.warning(
-                f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e} | code={e.code}"
+                f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e} | "
+                f"code={getattr(e, 'code', None)}"
             )
 
 
