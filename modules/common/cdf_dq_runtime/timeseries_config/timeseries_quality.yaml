@@ -1,5 +1,6 @@
-# Time series datapoint validation config for deploy_infrastructure.py (not a Toolkit resource).
+# Time series datapoint validation config for bootstrap (not a Toolkit resource).
 # SHACL is published by Toolkit (timeseries_quality_rules RuleSet).
+# Bundle under functions/.../config/timeseries_config/ when bootstrap should apply it.
 
 name: timeseries_quality
 description: "Time series datapoint quality rules (hourly)"
@@ -23,7 +24,7 @@ shacl_rules:
       version: "{{ ruleSetVersion }}"
 
 validation:
-  verbose: true
+  verbose: false
 
 records:
   rule_set_id: timeseries_quality_rules

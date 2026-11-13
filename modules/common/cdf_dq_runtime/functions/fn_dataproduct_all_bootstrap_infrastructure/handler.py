@@ -1,0 +1,463 @@
+"""Bootstrap Data Quality Validation infrastructure from the released package."""
+
+import re
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+import yaml
+from cognite.client.credentials import CredentialProvider
+from cognite.client.exceptions import CogniteAPIError
+from cognite_data_quality import deploy_validation_infrastructure
+
+sys.path.insert(0, str(Path(__file__).parent))
+
+from logger import CogniteFunctionLogger
+from models import FunctionInput, FunctionOutput
+
+if TYPE_CHECKING:
+    from cognite.client import CogniteClient
+
+BOOTSTRAP_FUNCTION_EXTERNAL_ID = "fn_dataproduct_all_bootstrap_infrastructure"
+BOOTSTRAP_SCHEDULE_NAME = "fn_dataproduct_all_bootstrap_infrastructure"
+
+# Toolkit cannot substitute module variables inside function code bundles. Pass these via
+# Schedule.data (see fn_dataproduct_all_bootstrap_infrastructure.Schedule.yaml) so config.<env>.yaml overrides apply.
+_SETTINGS_OVERRIDE_KEYS = frozenset(
+    {
+        "dataQualitySpace",
+        "recordsStreamId",
+        "functionCodeDatasetExternalId",
+        "dataProductExternalId",
+        "dataProductVersion",
+    }
+)
+
+_PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
+
+
+def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionLogger) -> None:
+    """Delete Toolkit bootstrap schedules after a successful deploy.
+
+    Authenticated Toolkit schedules are stored under numeric functionId (session/nonce create
+    path); listing by function_external_id returns nothing. Resolve the function, then delete
+    every schedule for that function_id. Never raises — delete failures must not mask a
+    successful deploy result. Requires functionsAcl:READ + WRITE on the schedule identity.
+    """
+    try:
+        function = client.functions.retrieve(external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID)
+    except (CogniteAPIError, TimeoutError, ConnectionError, OSError) as e:
+        # Best-effort cleanup: swallow expected API/transport errors so deploy success is preserved.
+        logger.warning(
+            f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | "
+            f"code={getattr(e, 'code', None)}"
+        )
+        return
+
+    if function is None:
+        logger.warning(f"Bootstrap function not found: {BOOTSTRAP_FUNCTION_EXTERNAL_ID}")
+        return
+
+    function_id = function.id
+    try:
+        # SDK/API cannot filter schedules by function_id; list all and filter in Python.
+        schedules = [s for s in client.functions.schedules.list(limit=None) if s.function_id == function_id]
+    except (CogniteAPIError, TimeoutError, ConnectionError, OSError) as e:
+        logger.warning(
+            f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={getattr(e, 'code', None)}"
+        )
+        return
+
+    if not schedules:
+        logger.info(f"No bootstrap schedules found for {BOOTSTRAP_FUNCTION_EXTERNAL_ID} (function_id={function_id})")
+        return
+
+    for schedule in schedules:
+        schedule_id = schedule.id
+        schedule_name = schedule.name or ""
+        try:
+            client.functions.schedules.delete(id=schedule_id)
+            logger.info(f"Deleted bootstrap schedule id={schedule_id} name={schedule_name}")
+        except (CogniteAPIError, TimeoutError, ConnectionError, OSError) as e:
+            logger.warning(
+                f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e} | "
+                f"code={getattr(e, 'code', None)}"
+            )
+
+
+def _credential_pair(
+    secrets: dict[str, str],
+    *,
+    id_keys: tuple[str, ...],
+    secret_keys: tuple[str, ...],
+) -> dict[str, str] | None:
+    client_id = next((secrets[key] for key in id_keys if secrets.get(key)), None)
+    client_secret = next((secrets[key] for key in secret_keys if secrets.get(key)), None)
+    if client_id and client_secret:
+        return {"client_id": client_id, "client_secret": client_secret}
+    return None
+
+
+def _runtime_credentials_from_secrets(secrets: dict[str, str] | None) -> dict[str, dict[str, str]] | None:
+    """Map CDF Function secrets to settings.runtime_credentials for workflow trigger deploy.
+
+    Schedule-authenticated clients inside CDF Functions expose a token, not client_id/client_secret.
+    The package needs explicit credentials to upsert workflow triggers (data_product_sync, etc.).
+    """
+    if not secrets:
+        return None
+    functions = _credential_pair(secrets, id_keys=("client-id",), secret_keys=("client-secret",))
+    workflows = _credential_pair(
+        secrets,
+        id_keys=("workflow-client-id", "client-id"),
+        secret_keys=("workflow-client-secret", "client-secret"),
+    )
+    schedules = _credential_pair(
+        secrets,
+        id_keys=("schedule-client-id", "client-id"),
+        secret_keys=("schedule-client-secret", "client-secret"),
+    )
+    if not any((functions, workflows, schedules)):
+        return None
+    credentials: dict[str, dict[str, str]] = {}
+    if functions:
+        credentials["functions"] = functions
+    if workflows:
+        credentials["workflows"] = workflows
+    if schedules:
+        credentials["schedules"] = schedules
+    return credentials
+
+
+class _CredentialsWithClientSecret(CredentialProvider):
+    """Credential provider proxy that exposes client_id/client_secret for trigger upsert.
+
+    cognite-data-quality 0.5.x does not forward ``function_secrets`` into
+    ``_deploy_external_dataproduct_workflows``. ``_build_trigger_credentials`` then only
+    reads ``client.config.credentials.client_id`` / ``client_secret``. Schedule auth is
+    token-only, so overlay Function secrets while keeping the original provider for API calls.
+
+    Inherits ``CredentialProvider`` (runtime-checkable Protocol) so SDK
+    ``isinstance(..., CredentialProvider)`` checks keep passing after the overlay.
+    """
+
+    _base: CredentialProvider
+    client_id: str
+    client_secret: str
+
+    def __init__(self, base: CredentialProvider, client_id: str, client_secret: str) -> None:
+        self._base = base
+        self.client_id = client_id
+        self.client_secret = client_secret
+
+    def authorization_header(self) -> tuple[str, str]:
+        return self._base.authorization_header()
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._base, name)
+
+
+def _overlay_client_credentials_from_secrets(client: "CogniteClient", secrets: dict[str, str] | None) -> None:
+    """Attach client_id/client_secret from Function secrets onto the in-function CogniteClient."""
+    workflows = _credential_pair(
+        secrets or {},
+        id_keys=("workflow-client-id", "client-id"),
+        secret_keys=("workflow-client-secret", "client-secret"),
+    )
+    if workflows is None:
+        return
+    config = getattr(client, "config", None)
+    if config is None:
+        return
+    existing = getattr(config, "credentials", None)
+    if existing is None:
+        return
+    if getattr(existing, "client_id", None) and getattr(existing, "client_secret", None):
+        return
+    # Prefer mutating the existing provider so isinstance(..., CredentialProvider) still holds.
+    try:
+        existing.client_id = workflows["client_id"]
+        existing.client_secret = workflows["client_secret"]
+    except AttributeError:
+        config.credentials = _CredentialsWithClientSecret(existing, workflows["client_id"], workflows["client_secret"])
+
+
+def _substitute_placeholders(text: str, variables: dict[str, str]) -> str:
+    """Replace ``{{ name }}`` tokens. Unknown names are left unchanged."""
+
+    def replace(match: re.Match[str]) -> str:
+        name = match.group(1)
+        if name in variables:
+            return variables[name]
+        return match.group(0)
+
+    return _PLACEHOLDER.sub(replace, text)
+
+
+def _materialize_config_dir(source_dir: Path, variables: dict[str, str]) -> Path | None:
+    """Copy YAML from *source_dir* into a temp dir with Toolkit placeholders substituted."""
+    if not source_dir.is_dir():
+        return None
+    yaml_files = sorted(source_dir.glob("*.yaml")) + sorted(source_dir.glob("*.yml"))
+    if not yaml_files:
+        return None
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="dq_bootstrap_"))
+    success = False
+    try:
+        for src in yaml_files:
+            rendered = _substitute_placeholders(src.read_text(encoding="utf-8"), variables)
+            (tmp_dir / src.name).write_text(rendered, encoding="utf-8")
+        success = True
+        return tmp_dir
+    finally:
+        if not success:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def _write_settings_with_overrides(
+    settings_path: Path,
+    data: dict[str, object],
+    secrets: dict[str, str] | None = None,
+) -> Path | None:
+    """Merge Schedule.data overrides and function secrets into settings.yaml; return a temp path when needed."""
+    runtime_credentials = _runtime_credentials_from_secrets(secrets)
+    if not _SETTINGS_OVERRIDE_KEYS.intersection(data) and runtime_credentials is None:
+        return None
+
+    loaded = yaml.safe_load(settings_path.read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        raise ValueError(f"Expected a mapping in {settings_path}")
+    settings: dict[str, object] = loaded
+
+    if data.get("dataQualitySpace") is not None:
+        space = data["dataQualitySpace"]
+        settings["config_space"] = space
+        records = settings.get("records")
+        if not isinstance(records, dict):
+            records = {}
+            settings["records"] = records
+        records["space"] = space
+    if data.get("recordsStreamId") is not None:
+        records = settings.get("records")
+        if not isinstance(records, dict):
+            records = {}
+            settings["records"] = records
+        records["stream_id"] = data["recordsStreamId"]
+    if data.get("functionCodeDatasetExternalId") is not None:
+        settings["function_code_dataset_external_id"] = data["functionCodeDatasetExternalId"]
+    if data.get("dataProductExternalId") is not None or data.get("dataProductVersion") is not None:
+        products = settings.get("external_dataproducts")
+        if not isinstance(products, list):
+            products = []
+            settings["external_dataproducts"] = products
+        target_id = data.get("dataProductExternalId")
+        target_version = data.get("dataProductVersion")
+        product = None
+        if target_id is not None:
+            product = next(
+                (p for p in products if isinstance(p, dict) and p.get("external_id") == target_id),
+                None,
+            )
+        if product is None:
+            # Sole product: Schedule.data Toolkit vars rename/update the placeholder.
+            # Multiple products: match by id above, or append a new entry below.
+            if len(products) == 1 and isinstance(products[0], dict):
+                product = products[0]
+            elif target_id is not None:
+                product = {}
+                products.append(product)
+            elif target_version is not None:
+                raise ValueError(
+                    "Cannot apply dataProductVersion override: "
+                    f"found {len(products)} external data products in settings, "
+                    "but dataProductExternalId was not specified to disambiguate."
+                )
+        if product is not None:
+            if target_id is not None:
+                product["external_id"] = target_id
+            if target_version is not None:
+                product["version"] = target_version
+    if runtime_credentials is not None:
+        settings["runtime_credentials"] = runtime_credentials
+
+    tmp_path: Path | None = None
+    success = False
+    try:
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".yaml", encoding="utf-8") as tmp:
+            tmp_path = Path(tmp.name)
+            yaml.safe_dump(settings, tmp, sort_keys=False)
+        success = True
+        return tmp_path
+    finally:
+        if not success and tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
+
+
+def _ensure_status(result: object) -> dict[str, object]:
+    """Guarantee a ``status`` key on the Function return value."""
+    if isinstance(result, dict):
+        if "status" in result:
+            return result
+        return FunctionOutput(status="succeeded", **result).model_dump()
+    return FunctionOutput(status="succeeded").model_dump()
+
+
+def _raise_if_external_dataproduct_workflows_skipped(result: object) -> None:
+    """Fail bootstrap when package soft-skips external DataProduct workflow deploy.
+
+    cognite-data-quality 0.5.1b4 ``_deploy_external_dataproduct_workflows`` returns
+    ``status: "skipped"`` (e.g. ``no_published_version``, ``no_views``) instead of
+    raising. Treating that as success would delete the five-minute retry schedule
+    before instance workflows exist.
+
+    Args:
+        result: Return value from ``deploy_validation_infrastructure``.
+
+    Raises:
+        RuntimeError: Any ``external_dataproduct_workflows`` entry has status skipped.
+    """
+    if not isinstance(result, dict):
+        return
+    workflows = result.get("external_dataproduct_workflows")
+    if not isinstance(workflows, list):
+        return
+    skipped: list[str] = []
+    for item in workflows:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("status", "")).lower() != "skipped":
+            continue
+        data_product = item.get("dataProduct", "unknown")
+        version = item.get("version", "?")
+        reason = item.get("reason", "unknown")
+        skipped.append(f"{data_product}@{version} (reason={reason})")
+    if not skipped:
+        return
+    details = "; ".join(skipped)
+    raise RuntimeError(f"External DataProduct workflow deploy was skipped; instance workflows are not ready: {details}")
+
+
+def _ensure_records_prerequisites(
+    client: "CogniteClient",
+    settings_path: Path,
+    logger: CogniteFunctionLogger,
+) -> None:
+    """Create the records stream, then containers and views. Fail hard on view errors.
+
+    cognite-data-quality 0.5.1b4 ``deploy_validation_infrastructure`` applies record views
+    before ensuring the stream and swallows apply failures with a warning so the rest of
+    deploy continues. Bootstrap must create the stream first and surface view failures so
+    the five-minute schedule keeps retrying instead of deleting itself after a partial deploy.
+
+    Args:
+        client: Authenticated Cognite client.
+        settings_path: Rendered settings.yaml (may include Schedule.data overrides).
+        logger: Function logger.
+
+    Raises:
+        RuntimeError: Record views could not be applied (missing stream, streamId change on
+            an existing view version, or other API error).
+    """
+    # Pin-coupled private helpers (cognite-data-quality 0.5.1b5):
+    # ``ensure_records_infrastructure`` (documented on ``_records``) still soft-fails view
+    # apply via ``_ensure_record_views`` and skips the rule-engine container / settings
+    # ``rule_engine_stream_id``. Bootstrap must hard-fail so the five-minute schedule retries
+    # instead of deleting itself after a partial deploy. Prefer a package-exported hard-fail
+    # API when one exists; until then keep these imports aligned with the pinned wheel.
+    from cognite_data_quality._records import (  # type: ignore[attr-defined]
+        _apply_record_views,
+        _ensure_records_container,
+        _ensure_records_stream,
+        _ensure_rule_engine_container,
+        build_record_view_items,
+    )
+    from cognite_data_quality.deploy import load_settings
+
+    settings = load_settings(settings_path)
+    records = settings.records
+    # DeploymentSettings.records is always set (default_factory), but guard None/empty
+    # so a null YAML records block cannot AttributeError before the stream_id check.
+    if records is None or not records.stream_id:
+        return
+    stream_id = records.stream_id
+
+    space = records.space
+    validation_container = records.container
+    rule_engine_container = records.rule_engine_container
+    rule_engine_stream_id = records.rule_engine_stream_id or stream_id
+
+    logger.info(f"Ensuring records stream {stream_id} before record views")
+    _ensure_records_stream(client, stream_id, records.stream_type)
+
+    logger.info(f"Ensuring records containers in {space}")
+    _ensure_records_container(client, space, validation_container)
+    _ensure_rule_engine_container(client, space, rule_engine_container)
+
+    items = build_record_view_items(
+        space=space,
+        validation_container=validation_container,
+        rule_engine_container=rule_engine_container,
+        validation_stream_id=stream_id,
+        rule_engine_stream_id=rule_engine_stream_id,
+    )
+    logger.info(f"Applying record views {space}/{validation_container}+{rule_engine_container} (streamId={stream_id})")
+    try:
+        _apply_record_views(client, items)
+    except CogniteAPIError as exc:
+        logger.error(f"Record views were not applied: {exc}")
+        raise RuntimeError(
+            f"Record views were not applied for stream '{stream_id}': {exc}. "
+            "If streamId changed on an existing view version, delete the old record views "
+            f"({validation_container}/v1, {rule_engine_container}/v1) in {space} and re-run bootstrap."
+        ) from exc
+
+
+def handle(
+    data: dict[str, object], client: "CogniteClient", secrets: dict[str, str] | None = None
+) -> dict[str, object]:
+    """Deploy Data Quality Validation infrastructure from this module's rendered config."""
+    fn_input = FunctionInput.model_validate(data)
+    logger = CogniteFunctionLogger(fn_input.log_level)
+    config_dir = Path(__file__).parent / "config"
+    bundled_settings = config_dir / "settings.yaml"
+    override_path: Path | None = None
+    views_dir: Path | None = None
+    timeseries_dir: Path | None = None
+    try:
+        logger.info("Starting Data Quality Validation infrastructure bootstrap")
+        _overlay_client_credentials_from_secrets(client, secrets)
+        override_path = _write_settings_with_overrides(bundled_settings, fn_input.settings_overrides(), secrets)
+        variables = fn_input.substitution_variables()
+        views_dir = _materialize_config_dir(config_dir / "views", variables)
+        timeseries_dir = _materialize_config_dir(config_dir / "timeseries_config", variables)
+        settings_path = override_path or bundled_settings
+        _ensure_records_prerequisites(client, settings_path, logger)
+        result = deploy_validation_infrastructure(
+            client=client,
+            settings_path=settings_path,
+            views_dir=views_dir,
+            timeseries_dir=timeseries_dir,
+            shacl_rules_dir=(config_dir / "shacl_rules") if (config_dir / "shacl_rules").is_dir() else None,
+            function_secrets=secrets,
+            force=fn_input.force,
+        )
+        # Soft-skipped DP workflows must not count as success (would delete the retry schedule).
+        _raise_if_external_dataproduct_workflows_skipped(result)
+    except Exception as e:
+        # Leave the five-minute schedule in place so bootstrap can retry.
+        logger.error(f"Data Quality Validation infrastructure bootstrap failed: {e}")
+        raise
+    else:
+        _delete_bootstrap_schedule(client, logger)
+        logger.info("Data Quality Validation infrastructure bootstrap completed successfully")
+        return _ensure_status(result)
+    finally:
+        if override_path is not None:
+            override_path.unlink(missing_ok=True)
+        if views_dir is not None:
+            shutil.rmtree(views_dir, ignore_errors=True)
+        if timeseries_dir is not None:
+            shutil.rmtree(timeseries_dir, ignore_errors=True)

@@ -26,19 +26,6 @@ def _load_cli() -> types.ModuleType:
     return module
 
 
-def _load_pipeline(cli_module: types.ModuleType) -> types.ModuleType:
-    sys.modules["_cli"] = cli_module
-    name = "cdf_dq_runtime_deploy_pipeline"
-    sys.modules.pop(name, None)
-    spec = importlib.util.spec_from_file_location(name, _SCRIPTS / "deploy_pipeline.py")
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
 @pytest.fixture
 def cli() -> types.ModuleType:
     return _load_cli()
@@ -124,7 +111,7 @@ def test_materialize_defaults_target_cognite_core_views(cli: types.ModuleType, t
     assert settings["external_dataproducts"] == [
         {"external_id": version["dataProductExternalId"], "version": version["version"]}
     ]
-    assert settings["config_space"] == settings["records"]["space"] == "dataQuality"
+    assert settings["config_space"] == settings["records"]["space"] == "inst_data_quality"
 
     for path in (dest / "views").glob("*.yaml"):
         override = _load_yaml(path)
@@ -182,7 +169,13 @@ def test_customer_overrides_flow_into_rules_and_views(cli: types.ModuleType, tmp
     assert {space for view in version["views"] for space in view["instanceSpaces"]["read"]} == {"inst_acme"}
 
     ts_rules = _load_yaml(dest / "rulesets" / "timeseries_quality_rules.RuleSetVersion.yaml")["rules"][0]
-    assert "http://purl.org/cognite/inst_acme/pi:160554" in ts_rules
+    assert "http://purl.org/cognite/sp_acme/CogniteTimeSeries/" in ts_rules
+    assert "pi:160554" not in ts_rules
+    assert "pi:160245" not in ts_rules
+    assert "sh:targetNode" not in ts_rules
+    assert not any(
+        path.name.startswith("maintenance_order_rule_logic_test") for path in (dest / "rulesets").glob("*.yaml")
+    )
 
 
 def test_load_settings_raw_returns_typed_runtime_settings(cli: types.ModuleType, tmp_path: Path) -> None:
@@ -190,12 +183,12 @@ def test_load_settings_raw_returns_typed_runtime_settings(cli: types.ModuleType,
     settings_path.write_text(
         "\n".join(
             [
-                "config_space: dataQuality",
+                "config_space: inst_data_quality",
                 "config_source: dataproduct",
                 "data_product_sync_cron: '15 * * * *'",
                 "records:",
-                "  space: dataQuality",
-                "  stream_id: test_stream_1",
+                "  space: inst_data_quality",
+                "  stream_id: dq_all_validation_results",
                 "",
             ]
         ),
@@ -203,25 +196,25 @@ def test_load_settings_raw_returns_typed_runtime_settings(cli: types.ModuleType,
     )
     settings = cli.load_settings_raw(settings_path)
     assert isinstance(settings, cli.RuntimeSettings)
-    assert settings.config_space == "dataQuality"
+    assert settings.config_space == "inst_data_quality"
     assert settings.config_source == "dataproduct"
     assert settings.data_product_sync_cron == "15 * * * *"
     assert settings.records is not None
-    assert settings.records.space == "dataQuality"
-    assert settings.records.stream_id == "test_stream_1"
-    assert settings.effective_config_space == "dataQuality"
+    assert settings.records.space == "inst_data_quality"
+    assert settings.records.stream_id == "dq_all_validation_results"
+    assert settings.effective_config_space == "inst_data_quality"
 
 
 def test_data_quality_space_from_settings(cli: types.ModuleType, tmp_path: Path) -> None:
     settings = tmp_path / "settings.yaml"
-    settings.write_text("config_space: dataQuality\n", encoding="utf-8")
-    assert cli.data_quality_space(cli.load_settings_raw(settings)) == "dataQuality"
+    settings.write_text("config_space: inst_data_quality\n", encoding="utf-8")
+    assert cli.data_quality_space(cli.load_settings_raw(settings)) == "inst_data_quality"
 
 
 def test_data_quality_space_falls_back_to_records_space(cli: types.ModuleType, tmp_path: Path) -> None:
     settings = tmp_path / "settings.yaml"
     settings.write_text(
-        "records:\n  space: fromRecords\n  stream_id: test_stream_1\n",
+        "records:\n  space: fromRecords\n  stream_id: dq_all_validation_results\n",
         encoding="utf-8",
     )
     assert cli.data_quality_space(cli.load_settings_raw(settings)) == "fromRecords"
@@ -230,10 +223,10 @@ def test_data_quality_space_falls_back_to_records_space(cli: types.ModuleType, t
 def test_records_stream_id_from_settings(cli: types.ModuleType, tmp_path: Path) -> None:
     settings = tmp_path / "settings.yaml"
     settings.write_text(
-        "records:\n  space: dataQuality\n  stream_id: test_stream_1\n",
+        "records:\n  space: inst_data_quality\n  stream_id: dq_all_validation_results\n",
         encoding="utf-8",
     )
-    assert cli.records_stream_id(cli.load_settings_raw(settings)) == "test_stream_1"
+    assert cli.records_stream_id(cli.load_settings_raw(settings)) == "dq_all_validation_results"
 
 
 def test_ensure_records_stream_skips_when_exists(cli: types.ModuleType) -> None:
@@ -241,13 +234,13 @@ def test_ensure_records_stream_skips_when_exists(cli: types.ModuleType) -> None:
         config = SimpleNamespace(project="demo")
 
         def get(self, url: str):
-            assert url.endswith("/streams/test_stream_1")
+            assert url.endswith("/streams/dq_all_validation_results")
             return SimpleNamespace(status_code=200)
 
         def post(self, *_args, **_kwargs):
             raise AssertionError("must not create when stream exists")
 
-    assert cli.ensure_records_stream(_Client(), "test_stream_1") == "exists"
+    assert cli.ensure_records_stream(_Client(), "dq_all_validation_results") == "exists"
 
 
 def test_ensure_records_stream_url_encodes_stream_id(cli: types.ModuleType) -> None:
@@ -285,12 +278,12 @@ def test_ensure_records_stream_creates_when_missing(cli: types.ModuleType) -> No
             posted["json"] = json
             return SimpleNamespace(status_code=200)
 
-    assert cli.ensure_records_stream(_Client(), "test_stream_1") == "created"
+    assert cli.ensure_records_stream(_Client(), "dq_all_validation_results") == "created"
     assert posted["url"] == "/api/v1/projects/demo/streams"
     assert posted["json"] == {
         "items": [
             {
-                "externalId": "test_stream_1",
+                "externalId": "dq_all_validation_results",
                 "settings": {"template": {"name": "BasicArchive"}},
             }
         ]
@@ -309,7 +302,7 @@ def test_ensure_records_stream_dry_run_does_not_create(cli: types.ModuleType) ->
         def post(self, *_args, **_kwargs):
             raise AssertionError("must not create during dry-run")
 
-    assert cli.ensure_records_stream(_Client(), "test_stream_1", dry_run=True) == "would_create"
+    assert cli.ensure_records_stream(_Client(), "dq_all_validation_results", dry_run=True) == "would_create"
 
 
 def test_ensure_records_stream_forbidden_raises_permission_error(cli: types.ModuleType) -> None:
@@ -322,7 +315,7 @@ def test_ensure_records_stream_forbidden_raises_permission_error(cli: types.Modu
             raise CogniteAPIError("The user does not have the required Streams capabilities.", code=403)
 
     with pytest.raises(PermissionError, match="streamsAcl:READ"):
-        cli.ensure_records_stream(_Client(), "test_stream_1")
+        cli.ensure_records_stream(_Client(), "dq_all_validation_results")
 
 
 def test_collect_granted_actions_from_token_dump(cli: types.ModuleType) -> None:
@@ -644,9 +637,13 @@ def test_print_infrastructure_summary_formats_external_dataproducts(
                 "views": 5,
                 "workflows": [
                     {
-                        "workflow_external_id": "dq-shacl-enterprise-process-industry",
-                        "uniqueness_workflow_external_id": "dq-shacl-enterprise-process-industry-uniqueness",
-                        "edge_existence_workflow_external_id": "dq-shacl-enterprise-process-industry-edge-existence",
+                        "workflow_external_id": "wf_all_validate_instances-enterprise-process-industry",
+                        "uniqueness_workflow_external_id": (
+                            "wf_all_validate_instances-enterprise-process-industry-uniqueness"
+                        ),
+                        "edge_existence_workflow_external_id": (
+                            "wf_all_validate_instances-enterprise-process-industry-edge-existence"
+                        ),
                     }
                 ],
             }
@@ -669,7 +666,7 @@ def test_print_infrastructure_summary_formats_external_dataproducts(
     cli.print_infrastructure_summary(results)
     output = capsys.readouterr().out
     assert "enterprise-process-industry @ 1.1.10" in output
-    assert "sync-cursor: dq-shacl-enterprise-process-industry" in output
+    assert "sync-cursor: wf_all_validate_instances-enterprise-process-industry" in output
     assert "dq-data-product-sync (deployed)" in output
     assert "dq-historic-queue-manager (deployed)" in output
 
@@ -687,107 +684,878 @@ def test_function_secrets_from_toml(cli: types.ModuleType, tmp_path: Path) -> No
     assert cli.function_secrets_from_toml(tmp_path / "missing.toml") is None
 
 
-def _install_fake_data_quality(monkeypatch: pytest.MonkeyPatch, *, pipeline_impl: object, settings: object) -> None:
+def test_bootstrap_resources_are_present_and_do_not_duplicate_record_views() -> None:
+    bootstrap = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure"
+    assert (bootstrap / "handler.py").is_file()
+    assert (bootstrap / "models.py").is_file()
+    assert (bootstrap / "logger.py").is_file()
+    assert (bootstrap / "requirements.txt").is_file()
+    assert (bootstrap / "config" / "settings.yaml").is_file()
+    assert (bootstrap / "config" / "views").is_dir()
+    assert (bootstrap / "config" / "timeseries_config").is_dir()
+    assert {p.name for p in (bootstrap / "config" / "views").glob("*.yaml")} == {
+        "asset.yaml",
+        "equipment.yaml",
+        "maintenance_order.yaml",
+        "notification.yaml",
+        "operation.yaml",
+    }
+    assert {p.name for p in (bootstrap / "config" / "timeseries_config").glob("*.yaml")} == {"timeseries_quality.yaml"}
+    function_yaml = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure.Function.yaml"
+    assert function_yaml.is_file()
+    function_text = function_yaml.read_text(encoding="utf-8")
+    assert "space: {{ dataQualitySpace }}" in function_text
+    assert 'owner: "{{ functionOwner }}"' in function_text
+    assert 'client-id: "{{ functionClientId }}"' in function_text
+    assert 'client-secret: "{{ functionClientSecret }}"' in function_text
+    defaults = _load_yaml(_MODULE / "default.config.yaml")
+    assert defaults["functionOwner"] == "cdf_dq_runtime"
+    space_dq = (_MODULE / "data_modeling" / "dataQuality.Space.yaml").read_text(encoding="utf-8")
+    space_dp = (_MODULE / "data_modeling" / "data_product_schema.Space.yaml").read_text(encoding="utf-8")
+    assert "name: Data quality runtime" in space_dq
+    assert "name: Data quality data product schema" in space_dp
+    schedule = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure.Schedule.yaml"
+    assert schedule.is_file()
+    schedule_text = schedule.read_text(encoding="utf-8")
+    assert "functionExternalId: fn_dataproduct_all_bootstrap_infrastructure" in schedule_text
+    assert 'cronExpression: "*/5 * * * *"' in schedule_text
+    assert 'clientId: "{{ functionClientId }}"' in schedule_text
+    assert 'clientSecret: "{{ functionClientSecret }}"' in schedule_text
+    assert 'dataQualitySpace: "{{ dataQualitySpace }}"' in schedule_text
+    assert 'recordsStreamId: "{{ recordsStreamId }}"' in schedule_text
+    assert 'functionCodeDatasetExternalId: "{{ functionCodeDatasetExternalId }}"' in schedule_text
+    assert 'dataProductExternalId: "{{ dataProductExternalId }}"' in schedule_text
+    assert 'dataProductVersion: "{{ dataProductVersion }}"' in schedule_text
+    assert 'schemaSpace: "{{ schemaSpace }}"' in schedule_text
+    assert 'instanceSpace: "{{ instanceSpace }}"' in schedule_text
+    assert 'ruleSetVersion: "{{ ruleSetVersion }}"' in schedule_text
+    assert 'timeSeriesExternalIdPrefix: "{{ timeSeriesExternalIdPrefix }}"' in schedule_text
+    assert not (_MODULE / "workflows" / "fn_dataproduct_all_bootstrap_infrastructure.Workflow.yaml").exists()
+    assert not (_MODULE / "workflows" / "fn_dataproduct_all_bootstrap_infrastructure.WorkflowVersion.yaml").exists()
+    assert not (_MODULE / "workflows" / "fn_dataproduct_all_bootstrap_infrastructure.WorkflowTrigger.yaml").exists()
+    assert not (_MODULE / "data_modeling" / "views" / "DataQualityValidationRecord.View.yaml").exists()
+    requirements = (bootstrap / "requirements.txt").read_text(encoding="utf-8")
+    assert "cognite-data-quality==" in requirements
+    assert "pydantic>=" in requirements
+
+    settings = _load_yaml(bootstrap / "config" / "settings.yaml")
+    assert settings["config_space"] == defaults["dataQualitySpace"]
+    assert settings["records"]["space"] == defaults["dataQualitySpace"]
+    assert settings["records"]["stream_id"] == defaults["recordsStreamId"]
+    assert settings["function_code_dataset_external_id"] == defaults["functionCodeDatasetExternalId"]
+    assert settings["external_dataproducts"] == [
+        {"external_id": defaults["dataProductExternalId"], "version": defaults["dataProductVersion"]}
+    ]
+    handler_text = (bootstrap / "handler.py").read_text(encoding="utf-8")
+    assert "_delete_bootstrap_schedule(client, logger)" in handler_text
+    assert "_ensure_records_prerequisites" in handler_text
+    assert "_write_settings_with_overrides" in handler_text
+    assert "FunctionInput.model_validate" in handler_text
+    assert "Leave the five-minute schedule in place" in handler_text
+
+
+def _load_bootstrap_handler(
+    monkeypatch: pytest.MonkeyPatch,
+    deploy_impl: object,
+    *,
+    ensure_impl: object | None = None,
+) -> types.ModuleType:
     fake_cdq = types.ModuleType("cognite_data_quality")
-    fake_cdq.deploy_validation_pipeline = pipeline_impl
+    fake_cdq.deploy_validation_infrastructure = deploy_impl
+    monkeypatch.setitem(sys.modules, "cognite_data_quality", fake_cdq)
+    name = "cdf_dq_runtime_bootstrap_handler"
+    sys.modules.pop(name, None)
+    handler_path = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure" / "handler.py"
+    spec = importlib.util.spec_from_file_location(name, handler_path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    # Package internals are exercised in dedicated tests; default stub keeps handle() unit tests offline.
+    monkeypatch.setattr(
+        module,
+        "_ensure_records_prerequisites",
+        ensure_impl if ensure_impl is not None else (lambda *_args, **_kwargs: None),
+    )
+    return module
+
+
+def _bootstrap_client(
+    *,
+    schedules: list[SimpleNamespace] | None = None,
+    delete: object | None = None,
+    retrieve: object | None = None,
+    credentials: object | None = None,
+) -> SimpleNamespace:
+    """Minimal CogniteClient stub for bootstrap handler schedule self-delete."""
+    schedule_api = SimpleNamespace(
+        list=lambda **_kwargs: list(schedules or []),
+        delete=delete or (lambda *, id: None),
+    )
+    functions_api = SimpleNamespace(
+        retrieve=retrieve or (lambda *, external_id: SimpleNamespace(id=42, external_id=external_id)),
+        schedules=schedule_api,
+    )
+    if credentials is None:
+        return SimpleNamespace(functions=functions_api)
+    return SimpleNamespace(functions=functions_api, config=SimpleNamespace(credentials=credentials))
+
+
+def test_function_input_rejects_invalid_log_level() -> None:
+    from pydantic import ValidationError
+
+    sys.path.insert(0, str(_MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure"))
+    try:
+        from models import FunctionInput
+    finally:
+        sys.path.pop(0)
+
+    with pytest.raises(ValidationError):
+        FunctionInput.model_validate({"logLevel": "VERBOSE"})
+
+
+def test_bootstrap_handler_passes_materialized_views_and_timeseries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    materialized: list[Path] = []
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        views = kwargs["views_dir"]
+        ts = kwargs["timeseries_dir"]
+        assert isinstance(views, Path) and views.is_dir()
+        assert isinstance(ts, Path) and ts.is_dir()
+        materialized.extend((views, ts))
+        asset = yaml.safe_load((views / "asset.yaml").read_text(encoding="utf-8"))
+        equipment = yaml.safe_load((views / "equipment.yaml").read_text(encoding="utf-8"))
+        ts_cfg = yaml.safe_load((ts / "timeseries_quality.yaml").read_text(encoding="utf-8"))
+        assert asset["view"]["space"] == "custom_cdm"
+        assert asset["view"]["external_id"] == "CustomAsset"
+        assert asset["instance_spaces"] == ["inst_custom"]
+        assert equipment["uniqueness_cron"] == "0 */4 * * *"
+        assert ts_cfg["filter"]["space"] == "inst_custom"
+        assert ts_cfg["filter"]["external_id_prefix"] == "ts:"
+        assert ts_cfg["shacl_rules"]["ruleset_references"][0]["version"] == "3.0.0"
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client()
+
+    assert handler_module.handle(
+        {
+            "schemaSpace": "custom_cdm",
+            "instanceSpace": "inst_custom",
+            "viewAssetExternalId": "CustomAsset",
+            "timeSeriesExternalIdPrefix": "ts:",
+            "ruleSetVersion": "3.0.0",
+        },
+        client,
+    ) == {"status": "completed"}
+    assert len(materialized) == 2
+    for path in materialized:
+        assert not path.exists()
+
+
+def test_bootstrap_handler_deletes_all_schedules_for_function_on_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    list_calls: list[dict[str, object]] = []
+    deleted: list[int] = []
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    schedules = [
+        SimpleNamespace(id=1, name="fn_dataproduct_all_bootstrap_infrastructure", function_id=42),
+        SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42),
+        SimpleNamespace(id=3, name="other-function-schedule", function_id=99),
+    ]
+    # Toolkit creates authenticated schedules with functionId (nonce/session). The SDK cannot
+    # filter by function_id, so the handler lists all schedules and filters in Python.
+    client = _bootstrap_client(
+        schedules=schedules,
+        delete=lambda *, id: deleted.append(id),
+    )
+    original_list = client.functions.schedules.list
+
+    def tracking_list(**kwargs: object) -> list[SimpleNamespace]:
+        list_calls.append(kwargs)
+        return original_list(**kwargs)
+
+    client.functions.schedules.list = tracking_list
+
+    assert handler_module.handle({}, client) == {"status": "completed"}
+    assert list_calls == [{"limit": None}]
+    assert deleted == [1, 2]
+
+
+def test_bootstrap_handler_logs_when_bootstrap_function_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client(retrieve=lambda *, external_id: None)
+
+    assert handler_module.handle({}, client) == {"status": "completed"}
+    assert f"Bootstrap function not found: {handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID}" in capsys.readouterr().out
+
+
+def test_bootstrap_handler_keeps_schedule_when_deployment_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    deleted: list[int] = []
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        raise RuntimeError("temporary deployment failure")
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client(
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42)],
+        delete=lambda *, id: deleted.append(id),
+    )
+
+    with pytest.raises(RuntimeError, match="temporary deployment failure"):
+        handler_module.handle({}, client)
+    assert deleted == []
+
+
+def test_bootstrap_handler_keeps_schedule_when_external_dataproduct_workflows_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Package soft-skips missing DP versions/views; bootstrap must fail so the schedule retries."""
+    deleted: list[int] = []
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        return {
+            "external_dataproduct_workflows": [
+                {
+                    "dataProduct": "enterprise-process-industry",
+                    "version": "1.1.10",
+                    "status": "skipped",
+                    "reason": "no_published_version",
+                }
+            ]
+        }
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client(
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42)],
+        delete=lambda *, id: deleted.append(id),
+    )
+
+    with pytest.raises(RuntimeError, match=r"skipped.*no_published_version"):
+        handler_module.handle({}, client)
+    assert deleted == []
+    assert "Data Quality Validation infrastructure bootstrap failed" in capsys.readouterr().out
+
+
+def test_bootstrap_handler_deletes_schedule_when_external_dataproduct_workflows_deployed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deleted: list[int] = []
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        return {
+            "external_dataproduct_workflows": [
+                {
+                    "dataProduct": "enterprise-process-industry",
+                    "version": "1.1.10",
+                    "status": "deployed",
+                    "views": 5,
+                }
+            ]
+        }
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client(
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42)],
+        delete=lambda *, id: deleted.append(id),
+    )
+
+    result = handler_module.handle({}, client)
+    assert result["status"] == "succeeded"
+    assert deleted == [2]
+
+
+def test_bootstrap_handler_logs_schedule_delete_failure_without_failing_deploy(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+
+    def delete_forbidden(*, id: int) -> None:
+        raise CogniteAPIError(message="missing capability", code=403, x_request_id="req")
+
+    client = _bootstrap_client(
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42)],
+        delete=delete_forbidden,
+    )
+
+    assert handler_module.handle({}, client) == {"status": "completed"}
+    out = capsys.readouterr().out
+    assert "Failed to delete bootstrap schedule id=2" in out
+    assert "code=403" in out
+
+
+def test_bootstrap_handler_swallows_non_api_schedule_cleanup_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Non-API failures during schedule cleanup must not mask a successful deploy."""
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+
+    def retrieve_timeout(*, external_id: str) -> None:
+        raise TimeoutError(f"timed out retrieving {external_id}")
+
+    client = _bootstrap_client(retrieve=retrieve_timeout)
+
+    assert handler_module.handle({}, client) == {"status": "completed"}
+    out = capsys.readouterr().out
+    assert f"Failed to retrieve bootstrap function {handler_module.BOOTSTRAP_FUNCTION_EXTERNAL_ID}" in out
+    assert "code=None" in out
+
+
+def test_bootstrap_handler_applies_schedule_data_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_settings: dict[str, object] = {}
+    bundled = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure" / "config" / "settings.yaml"
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        settings_path = kwargs["settings_path"]
+        assert isinstance(settings_path, Path)
+        assert settings_path != bundled
+        captured_settings.update(yaml.safe_load(settings_path.read_text(encoding="utf-8")))
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client()
+
+    result = handler_module.handle(
+        {
+            "dataQualitySpace": "customDq",
+            "recordsStreamId": "custom_stream",
+            "functionCodeDatasetExternalId": "custom_dataset",
+            "dataProductExternalId": "custom-dp",
+            "dataProductVersion": "9.9.9",
+        },
+        client,
+    )
+    assert result == {"status": "completed"}
+    assert captured_settings["config_space"] == "customDq"
+    assert captured_settings["records"] == {"space": "customDq", "stream_id": "custom_stream"}
+    assert captured_settings["function_code_dataset_external_id"] == "custom_dataset"
+    assert captured_settings["external_dataproducts"] == [{"external_id": "custom-dp", "version": "9.9.9"}]
+
+
+def test_write_settings_overrides_preserve_other_external_dataproducts(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text(
+        yaml.safe_dump(
+            {
+                "external_dataproducts": [
+                    {"external_id": "dp-primary", "version": "1.0.0"},
+                    {"external_id": "dp-secondary", "version": "2.0.0"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    handler_module = _load_bootstrap_handler(monkeypatch, lambda **_kwargs: {"status": "completed"})
+
+    override_path = handler_module._write_settings_with_overrides(
+        settings_path,
+        {"dataProductExternalId": "dp-override", "dataProductVersion": "3.0.0"},
+    )
+    assert override_path is not None
+    try:
+        loaded = yaml.safe_load(override_path.read_text(encoding="utf-8"))
+    finally:
+        override_path.unlink(missing_ok=True)
+
+    assert loaded["external_dataproducts"] == [
+        {"external_id": "dp-primary", "version": "1.0.0"},
+        {"external_id": "dp-secondary", "version": "2.0.0"},
+        {"external_id": "dp-override", "version": "3.0.0"},
+    ]
+
+
+def test_write_settings_overrides_rename_when_single_product_id_mismatches(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Schedule Toolkit vars rename the sole bundled placeholder product, not append."""
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text(
+        yaml.safe_dump(
+            {
+                "external_dataproducts": [
+                    {"external_id": "existing-dp", "version": "1.0.0"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    handler_module = _load_bootstrap_handler(monkeypatch, lambda **_kwargs: {"status": "completed"})
+
+    override_path = handler_module._write_settings_with_overrides(
+        settings_path,
+        {"dataProductExternalId": "new-dp", "dataProductVersion": "2.0.0"},
+    )
+    assert override_path is not None
+    try:
+        loaded = yaml.safe_load(override_path.read_text(encoding="utf-8"))
+    finally:
+        override_path.unlink(missing_ok=True)
+
+    assert loaded["external_dataproducts"] == [
+        {"external_id": "new-dp", "version": "2.0.0"},
+    ]
+
+
+def test_write_settings_overrides_version_only_raises_when_ambiguous(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Version-only overrides must fail when the target product is ambiguous."""
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text(
+        yaml.safe_dump(
+            {
+                "external_dataproducts": [
+                    {"external_id": "dp-primary", "version": "1.0.0"},
+                    {"external_id": "dp-secondary", "version": "2.0.0"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    handler_module = _load_bootstrap_handler(monkeypatch, lambda **_kwargs: {"status": "completed"})
+
+    with pytest.raises(ValueError, match="Cannot apply dataProductVersion override"):
+        handler_module._write_settings_with_overrides(
+            settings_path,
+            {"dataProductVersion": "3.0.0"},
+        )
+
+
+def test_write_settings_overrides_version_only_raises_when_no_products(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Version-only overrides must fail when no external data products exist to update."""
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text(
+        yaml.safe_dump({"external_dataproducts": []}),
+        encoding="utf-8",
+    )
+    handler_module = _load_bootstrap_handler(monkeypatch, lambda **_kwargs: {"status": "completed"})
+
+    with pytest.raises(ValueError, match="Cannot apply dataProductVersion override"):
+        handler_module._write_settings_with_overrides(
+            settings_path,
+            {"dataProductVersion": "3.0.0"},
+        )
+
+
+def test_write_settings_overrides_replace_null_records_and_products(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """YAML null for records/external_dataproducts must not silently skip Schedule overrides."""
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text(
+        "records: null\nexternal_dataproducts: null\n",
+        encoding="utf-8",
+    )
+    handler_module = _load_bootstrap_handler(monkeypatch, lambda **_kwargs: {"status": "completed"})
+
+    override_path = handler_module._write_settings_with_overrides(
+        settings_path,
+        {
+            "dataQualitySpace": "customDq",
+            "recordsStreamId": "custom_stream",
+            "dataProductExternalId": "custom-dp",
+            "dataProductVersion": "9.9.9",
+        },
+    )
+    assert override_path is not None
+    try:
+        loaded = yaml.safe_load(override_path.read_text(encoding="utf-8"))
+    finally:
+        override_path.unlink(missing_ok=True)
+
+    assert loaded["config_space"] == "customDq"
+    assert loaded["records"] == {"space": "customDq", "stream_id": "custom_stream"}
+    assert loaded["external_dataproducts"] == [{"external_id": "custom-dp", "version": "9.9.9"}]
+
+
+def test_function_input_settings_overrides_exclude_explicit_none() -> None:
+    """Explicit null Schedule keys must not appear in settings.yaml merge overrides."""
+    sys.path.insert(0, str(_MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure"))
+    try:
+        from models import FunctionInput
+    finally:
+        sys.path.pop(0)
+
+    overrides = FunctionInput.model_validate(
+        {
+            "dataQualitySpace": None,
+            "recordsStreamId": "keep_stream",
+            "dataProductVersion": None,
+        }
+    ).settings_overrides()
+
+    assert overrides == {"recordsStreamId": "keep_stream"}
+    assert "dataQualitySpace" not in overrides
+    assert "dataProductVersion" not in overrides
+
+
+def test_write_settings_overrides_ignore_explicit_null_payload_values(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Null Schedule values must not overwrite existing settings.yaml entries."""
+    settings_path = tmp_path / "settings.yaml"
+    settings_path.write_text(
+        yaml.safe_dump(
+            {
+                "config_space": "existingDq",
+                "records": {"space": "existingDq", "stream_id": "existing_stream"},
+                "function_code_dataset_external_id": "existing_dataset",
+                "external_dataproducts": [{"external_id": "existing-dp", "version": "1.0.0"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    handler_module = _load_bootstrap_handler(monkeypatch, lambda **_kwargs: {"status": "completed"})
+
+    override_path = handler_module._write_settings_with_overrides(
+        settings_path,
+        {
+            "dataQualitySpace": None,
+            "recordsStreamId": "new_stream",
+            "functionCodeDatasetExternalId": None,
+            "dataProductExternalId": None,
+            "dataProductVersion": "2.0.0",
+        },
+    )
+    assert override_path is not None
+    try:
+        loaded = yaml.safe_load(override_path.read_text(encoding="utf-8"))
+    finally:
+        override_path.unlink(missing_ok=True)
+
+    assert loaded["config_space"] == "existingDq"
+    assert loaded["records"] == {"space": "existingDq", "stream_id": "new_stream"}
+    assert loaded["function_code_dataset_external_id"] == "existing_dataset"
+    assert loaded["external_dataproducts"] == [{"external_id": "existing-dp", "version": "2.0.0"}]
+
+
+def test_bootstrap_handler_injects_runtime_credentials_from_function_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    bundled = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure" / "config" / "settings.yaml"
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        settings_path = kwargs["settings_path"]
+        assert isinstance(settings_path, Path)
+        assert settings_path != bundled
+        captured["settings"] = yaml.safe_load(settings_path.read_text(encoding="utf-8"))
+        captured["function_secrets"] = kwargs["function_secrets"]
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client()
+    secrets = {"client-id": "runtime-id", "client-secret": "runtime-secret"}
+
+    result = handler_module.handle({}, client, secrets=secrets)
+    assert result == {"status": "completed"}
+    assert captured["function_secrets"] == secrets
+    settings = captured["settings"]
+    assert isinstance(settings, dict)
+    assert settings["runtime_credentials"] == {
+        "functions": {"client_id": "runtime-id", "client_secret": "runtime-secret"},
+        "workflows": {"client_id": "runtime-id", "client_secret": "runtime-secret"},
+        "schedules": {"client_id": "runtime-id", "client_secret": "runtime-secret"},
+    }
+
+
+def test_bootstrap_handler_prefers_specialized_workflow_secret_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_settings: dict[str, object] = {}
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        settings_path = kwargs["settings_path"]
+        assert isinstance(settings_path, Path)
+        captured_settings.update(yaml.safe_load(settings_path.read_text(encoding="utf-8")))
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    client = _bootstrap_client()
+
+    handler_module.handle(
+        {},
+        client,
+        secrets={
+            "client-id": "fn-id",
+            "client-secret": "fn-secret",
+            "workflow-client-id": "wf-id",
+            "workflow-client-secret": "wf-secret",
+            "schedule-client-id": "sched-id",
+            "schedule-client-secret": "sched-secret",
+        },
+    )
+    assert captured_settings["runtime_credentials"] == {
+        "functions": {"client_id": "fn-id", "client_secret": "fn-secret"},
+        "workflows": {"client_id": "wf-id", "client_secret": "wf-secret"},
+        "schedules": {"client_id": "sched-id", "client_secret": "sched-secret"},
+    }
+
+
+def test_bootstrap_handler_overlays_client_credentials_for_workflow_triggers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Package 0.5.x drops function_secrets for external DataProduct workflows.
+
+    ``_build_trigger_credentials`` then only reads client_id/client_secret from
+    ``client.config.credentials``. Schedule auth is token-only, so the handler must
+    overlay Function secrets onto the client before deploy.
+    """
+    captured_client: dict[str, object] = {}
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        captured_client["client"] = kwargs["client"]
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    token_creds = SimpleNamespace(authorization_header=lambda: ("Authorization", "Bearer tok"))
+    client = _bootstrap_client(credentials=token_creds)
+
+    handler_module.handle(
+        {},
+        client,
+        secrets={"client-id": "runtime-id", "client-secret": "runtime-secret"},
+    )
+    deploy_client = captured_client["client"]
+    assert deploy_client is client
+    creds = client.config.credentials
+    assert creds is token_creds
+    assert creds.client_id == "runtime-id"
+    assert creds.client_secret == "runtime-secret"
+    assert creds.authorization_header() == ("Authorization", "Bearer tok")
+
+
+def test_bootstrap_handler_overlays_immutable_credentials_via_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fall back to a proxy when client_id/client_secret cannot be set on the provider."""
+
+    class _ImmutableTokenCreds:
+        __slots__ = ()
+
+        def authorization_header(self) -> tuple[str, str]:
+            return ("Authorization", "Bearer tok")
+
+    captured_client: dict[str, object] = {}
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        captured_client["client"] = kwargs["client"]
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    token_creds = _ImmutableTokenCreds()
+    client = _bootstrap_client(credentials=token_creds)
+
+    handler_module.handle(
+        {},
+        client,
+        secrets={"client-id": "runtime-id", "client-secret": "runtime-secret"},
+    )
+    from cognite.client.credentials import CredentialProvider
+
+    creds = client.config.credentials
+    assert creds is not token_creds
+    assert isinstance(creds, handler_module._CredentialsWithClientSecret)
+    assert isinstance(creds, CredentialProvider)
+    assert creds.client_id == "runtime-id"
+    assert creds.client_secret == "runtime-secret"
+    assert creds.authorization_header() == ("Authorization", "Bearer tok")
+
+
+def test_bootstrap_handler_ensures_records_before_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stream/views must be ensured before package deploy (package applies views too early)."""
+    calls: list[str] = []
+
+    def ensure(client: object, settings_path: Path, logger: object) -> None:
+        calls.append(f"ensure:{settings_path.name}")
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        calls.append("deploy")
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy, ensure_impl=ensure)
+    assert handler_module.handle({}, _bootstrap_client()) == {"status": "completed"}
+    assert calls == ["ensure:settings.yaml", "deploy"]
+
+
+def test_bootstrap_handler_fails_when_records_prerequisites_fail(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    deleted: list[int] = []
+
+    def ensure(_client: object, _settings_path: Path, _logger: object) -> None:
+        raise RuntimeError("Record views were not applied: streamId would change")
+
+    def deploy(**_kwargs: object) -> dict[str, object]:
+        raise AssertionError("deploy must not run after records prerequisite failure")
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy, ensure_impl=ensure)
+    client = _bootstrap_client(
+        schedules=[SimpleNamespace(id=2, name=handler_module.BOOTSTRAP_SCHEDULE_NAME, function_id=42)],
+        delete=lambda *, id: deleted.append(id),
+    )
+
+    with pytest.raises(RuntimeError, match="Record views were not applied"):
+        handler_module.handle({}, client)
+    assert deleted == []
+    assert "Data Quality Validation infrastructure bootstrap failed" in capsys.readouterr().out
+
+
+def _load_bootstrap_handler_with_records(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    records: object,
+    module_name: str,
+    fake_records: types.ModuleType | None = None,
+) -> types.ModuleType:
+    """Load bootstrap handler with mocked cognite_data_quality records helpers."""
     fake_deploy = types.ModuleType("cognite_data_quality.deploy")
-    fake_deploy.load_settings = lambda _path: settings
+    fake_deploy.load_settings = lambda _path: SimpleNamespace(records=records)
+    if fake_records is None:
+        fake_records = types.ModuleType("cognite_data_quality._records")
+        fake_records._ensure_records_stream = lambda *_a, **_k: None
+        fake_records._ensure_records_container = lambda *_a, **_k: None
+        fake_records._ensure_rule_engine_container = lambda *_a, **_k: None
+        fake_records.build_record_view_items = lambda **_k: [{"externalId": "DataQualityValidationRecord"}]
+        fake_records._apply_record_views = lambda *_a, **_k: None
+
+    fake_cdq = types.ModuleType("cognite_data_quality")
+    fake_cdq.deploy_validation_infrastructure = lambda **_k: {"status": "completed"}
     monkeypatch.setitem(sys.modules, "cognite_data_quality", fake_cdq)
     monkeypatch.setitem(sys.modules, "cognite_data_quality.deploy", fake_deploy)
+    monkeypatch.setitem(sys.modules, "cognite_data_quality._records", fake_records)
+
+    sys.modules.pop(module_name, None)
+    handler_path = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure" / "handler.py"
+    spec = importlib.util.spec_from_file_location(module_name, handler_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
-def test_deploy_pipeline_dry_run_does_not_call_pipeline(
-    cli: types.ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    pipeline = _load_pipeline(cli)
-    settings_path = tmp_path / "settings.yaml"
-    settings_path.write_text("config_space: dataQuality\n", encoding="utf-8")
+def test_ensure_records_prerequisites_creates_stream_before_views(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Package soft-fails view apply; bootstrap must stream → containers → views and raise on error."""
+    order: list[str] = []
 
-    def fail_if_called(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError("deploy_validation_pipeline must not run during --dry-run")
+    records = SimpleNamespace(
+        stream_id="dq_all_validation_results",
+        stream_type="BasicArchive",
+        space="inst_data_quality",
+        container="DataQualityValidationRecord",
+        rule_engine_container="RuleEngineResult",
+        rule_engine_stream_id=None,
+    )
+    fake_records = types.ModuleType("cognite_data_quality._records")
+    fake_records._ensure_records_stream = lambda *_a, **_k: order.append("stream")
+    fake_records._ensure_records_container = lambda *_a, **_k: order.append("validation_container")
+    fake_records._ensure_rule_engine_container = lambda *_a, **_k: order.append("rule_engine_container")
+    fake_records.build_record_view_items = lambda **_k: [{"externalId": "DataQualityValidationRecord"}]
+    fake_records._apply_record_views = lambda *_a, **_k: order.append("views")
 
-    _install_fake_data_quality(
+    module = _load_bootstrap_handler_with_records(
         monkeypatch,
-        pipeline_impl=fail_if_called,
-        settings=SimpleNamespace(
-            external_dataproducts=[SimpleNamespace(external_id="dp-1")],
-            effective_config_space="dataQuality",
-        ),
-    )
-    monkeypatch.setattr(
-        pipeline,
-        "resolve_cognite_client",
-        lambda _path: (_ for _ in ()).throw(AssertionError("client must not be created during --dry-run")),
+        records=records,
+        module_name="cdf_dq_runtime_bootstrap_handler_records",
+        fake_records=fake_records,
     )
 
-    assert pipeline.main(["--dry-run", "--settings-path", str(settings_path)]) == 0
-    output = capsys.readouterr().out
-    assert "[DRY RUN] No changes were made" in output
-    assert "historic_mode: enqueue" in output
-    assert "data_product_external_id: dp-1" in output
+    logger = module.CogniteFunctionLogger("INFO")
+    module._ensure_records_prerequisites(SimpleNamespace(), Path("settings.yaml"), logger)
+    assert order == ["stream", "validation_container", "rule_engine_container", "views"]
 
 
-def test_deploy_pipeline_live_calls_package(
-    cli: types.ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    pipeline = _load_pipeline(cli)
-    settings_path = tmp_path / "settings.yaml"
-    settings_path.write_text("config_space: dataQuality\n", encoding="utf-8")
-    captured: dict[str, object] = {}
+def test_ensure_records_prerequisites_skips_when_records_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """None/empty records must not AttributeError; skip stream/view ensure."""
+    called: list[str] = []
+    fake_records = types.ModuleType("cognite_data_quality._records")
+    fake_records._ensure_records_stream = lambda *_a, **_k: called.append("stream")
+    fake_records._ensure_records_container = lambda *_a, **_k: called.append("validation_container")
+    fake_records._ensure_rule_engine_container = lambda *_a, **_k: called.append("rule_engine_container")
+    fake_records.build_record_view_items = lambda **_k: called.append("items") or []
+    fake_records._apply_record_views = lambda *_a, **_k: called.append("views")
 
-    def fake_pipeline(*_args: object, **kwargs: object) -> dict[str, object]:
-        captured.update(kwargs)
-        return {"status": "ok", "total_enqueued": 2}
-
-    _install_fake_data_quality(
+    module = _load_bootstrap_handler_with_records(
         monkeypatch,
-        pipeline_impl=fake_pipeline,
-        settings=SimpleNamespace(
-            external_dataproducts=[SimpleNamespace(external_id="dp-1")],
-            effective_config_space="dataQuality",
-        ),
+        records=None,
+        module_name="cdf_dq_runtime_bootstrap_handler_records_none",
+        fake_records=fake_records,
     )
-
-    class _Client:
-        config = SimpleNamespace(project="demo")
-
-    monkeypatch.setattr(pipeline, "resolve_cognite_client", lambda _path: _Client())
-
-    assert pipeline.main(["--settings-path", str(settings_path), "--historic-mode", "enqueue"]) == 0
-    assert captured["historic_mode"] == "enqueue"
-    assert captured["data_product_external_id"] == "dp-1"
-    assert isinstance(captured["settings_path"], str)
-    assert "dry_run" not in captured
+    logger = module.CogniteFunctionLogger("INFO")
+    module._ensure_records_prerequisites(SimpleNamespace(), Path("settings.yaml"), logger)
+    assert called == []
 
 
-def test_deploy_pipeline_requires_data_product_external_id(
-    cli: types.ModuleType,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    pipeline = _load_pipeline(cli)
-    settings_path = tmp_path / "settings.yaml"
-    settings_path.write_text("config_space: dataQuality\n", encoding="utf-8")
+def test_ensure_records_prerequisites_raises_when_views_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cognite.client.exceptions import CogniteAPIError
 
-    def fail_if_called(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError("deploy_validation_pipeline must not run without data product")
+    records = SimpleNamespace(
+        stream_id="dq_all_validation_results",
+        stream_type="BasicArchive",
+        space="inst_data_quality",
+        container="DataQualityValidationRecord",
+        rule_engine_container="RuleEngineResult",
+        rule_engine_stream_id=None,
+    )
+    fake_records = types.ModuleType("cognite_data_quality._records")
+    fake_records._ensure_records_stream = lambda *_a, **_k: None
+    fake_records._ensure_records_container = lambda *_a, **_k: None
+    fake_records._ensure_rule_engine_container = lambda *_a, **_k: None
+    fake_records.build_record_view_items = lambda **_k: [{"externalId": "DataQualityValidationRecord"}]
 
-    _install_fake_data_quality(
+    def apply_fail(_client: object, _items: list[dict[str, object]]) -> None:
+        raise CogniteAPIError(
+            "Cannot update view 'inst_data_quality:DataQualityValidationRecord/v1', "
+            "streamId would change from 'cdf_all_validation_results' to 'dq_all_validation_results'",
+            code=400,
+        )
+
+    fake_records._apply_record_views = apply_fail
+    module = _load_bootstrap_handler_with_records(
         monkeypatch,
-        pipeline_impl=fail_if_called,
-        settings=SimpleNamespace(external_dataproducts=[], effective_config_space="dataQuality"),
-    )
-    monkeypatch.setattr(
-        pipeline,
-        "resolve_cognite_client",
-        lambda _path: (_ for _ in ()).throw(AssertionError("client must not be created")),
+        records=records,
+        module_name="cdf_dq_runtime_bootstrap_handler_records_fail",
+        fake_records=fake_records,
     )
 
-    assert pipeline.main(["--settings-path", str(settings_path)]) == 1
-    err = capsys.readouterr().err
-    assert "data_product_external_id is missing" in err
-    assert "--data-product-external-id" in err
+    logger = module.CogniteFunctionLogger("INFO")
+    with pytest.raises(RuntimeError, match="Record views were not applied"):
+        module._ensure_records_prerequisites(SimpleNamespace(), Path("settings.yaml"), logger)
