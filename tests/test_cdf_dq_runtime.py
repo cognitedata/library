@@ -1071,11 +1071,11 @@ def test_write_settings_overrides_preserve_other_external_dataproducts(
     ]
 
 
-def test_write_settings_overrides_append_when_single_product_id_mismatches(
+def test_write_settings_overrides_rename_when_single_product_id_mismatches(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """A new dataProductExternalId must append, not rename the sole existing product."""
+    """Schedule Toolkit vars rename the sole bundled placeholder product, not append."""
     settings_path = tmp_path / "settings.yaml"
     settings_path.write_text(
         yaml.safe_dump(
@@ -1100,7 +1100,6 @@ def test_write_settings_overrides_append_when_single_product_id_mismatches(
         override_path.unlink(missing_ok=True)
 
     assert loaded["external_dataproducts"] == [
-        {"external_id": "existing-dp", "version": "1.0.0"},
         {"external_id": "new-dp", "version": "2.0.0"},
     ]
 

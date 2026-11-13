@@ -245,7 +245,9 @@ def _write_settings_with_overrides(
                 None,
             )
         if product is None:
-            if target_id is None and len(products) == 1 and isinstance(products[0], dict):
+            # Sole product: Schedule.data Toolkit vars rename/update the placeholder.
+            # Multiple products: match by id above, or append a new entry below.
+            if len(products) == 1 and isinstance(products[0], dict):
                 product = products[0]
             elif target_id is not None:
                 product = {}
