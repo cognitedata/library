@@ -378,9 +378,11 @@ def _ensure_records_prerequisites(
 
     settings = load_settings(settings_path)
     records = settings.records
-    stream_id = records.stream_id
-    if not stream_id:
+    # DeploymentSettings.records is always set (default_factory), but guard None/empty
+    # so a null YAML records block cannot AttributeError before the stream_id check.
+    if records is None or not records.stream_id:
         return
+    stream_id = records.stream_id
 
     space = records.space
     validation_container = records.container

@@ -1438,6 +1438,40 @@ def test_bootstrap_handler_fails_when_records_prerequisites_fail(
     assert "Data Quality Validation infrastructure bootstrap failed" in capsys.readouterr().out
 
 
+def _load_bootstrap_handler_with_records(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    records: object,
+    module_name: str,
+    fake_records: types.ModuleType | None = None,
+) -> types.ModuleType:
+    """Load bootstrap handler with mocked cognite_data_quality records helpers."""
+    fake_deploy = types.ModuleType("cognite_data_quality.deploy")
+    fake_deploy.load_settings = lambda _path: SimpleNamespace(records=records)
+    if fake_records is None:
+        fake_records = types.ModuleType("cognite_data_quality._records")
+        fake_records._ensure_records_stream = lambda *_a, **_k: None
+        fake_records._ensure_records_container = lambda *_a, **_k: None
+        fake_records._ensure_rule_engine_container = lambda *_a, **_k: None
+        fake_records.build_record_view_items = lambda **_k: [{"externalId": "DataQualityValidationRecord"}]
+        fake_records._apply_record_views = lambda *_a, **_k: None
+
+    fake_cdq = types.ModuleType("cognite_data_quality")
+    fake_cdq.deploy_validation_infrastructure = lambda **_k: {"status": "completed"}
+    monkeypatch.setitem(sys.modules, "cognite_data_quality", fake_cdq)
+    monkeypatch.setitem(sys.modules, "cognite_data_quality.deploy", fake_deploy)
+    monkeypatch.setitem(sys.modules, "cognite_data_quality._records", fake_records)
+
+    sys.modules.pop(module_name, None)
+    handler_path = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure" / "handler.py"
+    spec = importlib.util.spec_from_file_location(module_name, handler_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_ensure_records_prerequisites_creates_stream_before_views(monkeypatch: pytest.MonkeyPatch) -> None:
     """Package soft-fails view apply; bootstrap must stream → containers → views and raise on error."""
     order: list[str] = []
@@ -1450,8 +1484,6 @@ def test_ensure_records_prerequisites_creates_stream_before_views(monkeypatch: p
         rule_engine_container="RuleEngineResult",
         rule_engine_stream_id=None,
     )
-    fake_deploy = types.ModuleType("cognite_data_quality.deploy")
-    fake_deploy.load_settings = lambda _path: SimpleNamespace(records=records)
     fake_records = types.ModuleType("cognite_data_quality._records")
     fake_records._ensure_records_stream = lambda *_a, **_k: order.append("stream")
     fake_records._ensure_records_container = lambda *_a, **_k: order.append("validation_container")
@@ -1459,24 +1491,37 @@ def test_ensure_records_prerequisites_creates_stream_before_views(monkeypatch: p
     fake_records.build_record_view_items = lambda **_k: [{"externalId": "DataQualityValidationRecord"}]
     fake_records._apply_record_views = lambda *_a, **_k: order.append("views")
 
-    fake_cdq = types.ModuleType("cognite_data_quality")
-    fake_cdq.deploy_validation_infrastructure = lambda **_k: {"status": "completed"}
-    monkeypatch.setitem(sys.modules, "cognite_data_quality", fake_cdq)
-    monkeypatch.setitem(sys.modules, "cognite_data_quality.deploy", fake_deploy)
-    monkeypatch.setitem(sys.modules, "cognite_data_quality._records", fake_records)
-
-    name = "cdf_dq_runtime_bootstrap_handler_records"
-    sys.modules.pop(name, None)
-    handler_path = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure" / "handler.py"
-    spec = importlib.util.spec_from_file_location(name, handler_path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
+    module = _load_bootstrap_handler_with_records(
+        monkeypatch,
+        records=records,
+        module_name="cdf_dq_runtime_bootstrap_handler_records",
+        fake_records=fake_records,
+    )
 
     logger = module.CogniteFunctionLogger("INFO")
     module._ensure_records_prerequisites(SimpleNamespace(), Path("settings.yaml"), logger)
     assert order == ["stream", "validation_container", "rule_engine_container", "views"]
+
+
+def test_ensure_records_prerequisites_skips_when_records_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """None/empty records must not AttributeError; skip stream/view ensure."""
+    called: list[str] = []
+    fake_records = types.ModuleType("cognite_data_quality._records")
+    fake_records._ensure_records_stream = lambda *_a, **_k: called.append("stream")
+    fake_records._ensure_records_container = lambda *_a, **_k: called.append("validation_container")
+    fake_records._ensure_rule_engine_container = lambda *_a, **_k: called.append("rule_engine_container")
+    fake_records.build_record_view_items = lambda **_k: called.append("items") or []
+    fake_records._apply_record_views = lambda *_a, **_k: called.append("views")
+
+    module = _load_bootstrap_handler_with_records(
+        monkeypatch,
+        records=None,
+        module_name="cdf_dq_runtime_bootstrap_handler_records_none",
+        fake_records=fake_records,
+    )
+    logger = module.CogniteFunctionLogger("INFO")
+    module._ensure_records_prerequisites(SimpleNamespace(), Path("settings.yaml"), logger)
+    assert called == []
 
 
 def test_ensure_records_prerequisites_raises_when_views_fail(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1490,8 +1535,6 @@ def test_ensure_records_prerequisites_raises_when_views_fail(monkeypatch: pytest
         rule_engine_container="RuleEngineResult",
         rule_engine_stream_id=None,
     )
-    fake_deploy = types.ModuleType("cognite_data_quality.deploy")
-    fake_deploy.load_settings = lambda _path: SimpleNamespace(records=records)
     fake_records = types.ModuleType("cognite_data_quality._records")
     fake_records._ensure_records_stream = lambda *_a, **_k: None
     fake_records._ensure_records_container = lambda *_a, **_k: None
@@ -1506,20 +1549,12 @@ def test_ensure_records_prerequisites_raises_when_views_fail(monkeypatch: pytest
         )
 
     fake_records._apply_record_views = apply_fail
-    fake_cdq = types.ModuleType("cognite_data_quality")
-    fake_cdq.deploy_validation_infrastructure = lambda **_k: {"status": "completed"}
-    monkeypatch.setitem(sys.modules, "cognite_data_quality", fake_cdq)
-    monkeypatch.setitem(sys.modules, "cognite_data_quality.deploy", fake_deploy)
-    monkeypatch.setitem(sys.modules, "cognite_data_quality._records", fake_records)
-
-    name = "cdf_dq_runtime_bootstrap_handler_records_fail"
-    sys.modules.pop(name, None)
-    handler_path = _MODULE / "functions" / "fn_dataproduct_all_bootstrap_infrastructure" / "handler.py"
-    spec = importlib.util.spec_from_file_location(name, handler_path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
+    module = _load_bootstrap_handler_with_records(
+        monkeypatch,
+        records=records,
+        module_name="cdf_dq_runtime_bootstrap_handler_records_fail",
+        fake_records=fake_records,
+    )
 
     logger = module.CogniteFunctionLogger("INFO")
     with pytest.raises(RuntimeError, match="Record views were not applied"):
