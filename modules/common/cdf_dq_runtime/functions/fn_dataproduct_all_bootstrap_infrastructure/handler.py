@@ -383,7 +383,7 @@ def _ensure_records_prerequisites(
     logger.info(f"Applying record views {space}/{validation_container}+{rule_engine_container} (streamId={stream_id})")
     try:
         _apply_record_views(client, items)
-    except Exception as exc:
+    except CogniteAPIError as exc:
         logger.error(f"Record views were not applied: {exc}")
         raise RuntimeError(
             f"Record views were not applied for stream '{stream_id}': {exc}. "
