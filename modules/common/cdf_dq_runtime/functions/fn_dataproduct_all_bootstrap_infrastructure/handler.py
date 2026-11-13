@@ -47,8 +47,8 @@ def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionL
     """
     try:
         function = client.functions.retrieve(external_id=BOOTSTRAP_FUNCTION_EXTERNAL_ID)
-    except Exception as e:
-        # Best-effort cleanup: swallow API and transport errors so deploy success is preserved.
+    except (CogniteAPIError, TimeoutError, ConnectionError, OSError) as e:
+        # Best-effort cleanup: swallow expected API/transport errors so deploy success is preserved.
         logger.warning(
             f"Failed to retrieve bootstrap function {BOOTSTRAP_FUNCTION_EXTERNAL_ID}: {e} | "
             f"code={getattr(e, 'code', None)}"
@@ -63,7 +63,7 @@ def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionL
     try:
         # SDK/API cannot filter schedules by function_id; list all and filter in Python.
         schedules = [s for s in client.functions.schedules.list(limit=None) if s.function_id == function_id]
-    except Exception as e:
+    except (CogniteAPIError, TimeoutError, ConnectionError, OSError) as e:
         logger.warning(
             f"Failed to list bootstrap schedules for function_id={function_id}: {e} | code={getattr(e, 'code', None)}"
         )
@@ -79,7 +79,7 @@ def _delete_bootstrap_schedule(client: "CogniteClient", logger: CogniteFunctionL
         try:
             client.functions.schedules.delete(id=schedule_id)
             logger.info(f"Deleted bootstrap schedule id={schedule_id} name={schedule_name}")
-        except Exception as e:
+        except (CogniteAPIError, TimeoutError, ConnectionError, OSError) as e:
             logger.warning(
                 f"Failed to delete bootstrap schedule id={schedule_id} name={schedule_name}: {e} | "
                 f"code={getattr(e, 'code', None)}"
@@ -171,7 +171,12 @@ def _overlay_client_credentials_from_secrets(client: "CogniteClient", secrets: d
         return
     if getattr(existing, "client_id", None) and getattr(existing, "client_secret", None):
         return
-    config.credentials = _CredentialsWithClientSecret(existing, workflows["client_id"], workflows["client_secret"])
+    # Prefer mutating the existing provider so isinstance(..., CredentialProvider) still holds.
+    try:
+        existing.client_id = workflows["client_id"]
+        existing.client_secret = workflows["client_secret"]
+    except AttributeError:
+        config.credentials = _CredentialsWithClientSecret(existing, workflows["client_id"], workflows["client_secret"])
 
 
 def _substitute_placeholders(text: str, variables: dict[str, str]) -> str:

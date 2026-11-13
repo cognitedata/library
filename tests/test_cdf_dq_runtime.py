@@ -1355,6 +1355,41 @@ def test_bootstrap_handler_overlays_client_credentials_for_workflow_triggers(
     deploy_client = captured_client["client"]
     assert deploy_client is client
     creds = client.config.credentials
+    assert creds is token_creds
+    assert creds.client_id == "runtime-id"
+    assert creds.client_secret == "runtime-secret"
+    assert creds.authorization_header() == ("Authorization", "Bearer tok")
+
+
+def test_bootstrap_handler_overlays_immutable_credentials_via_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fall back to a proxy when client_id/client_secret cannot be set on the provider."""
+
+    class _ImmutableTokenCreds:
+        __slots__ = ()
+
+        def authorization_header(self) -> tuple[str, str]:
+            return ("Authorization", "Bearer tok")
+
+    captured_client: dict[str, object] = {}
+
+    def deploy(**kwargs: object) -> dict[str, object]:
+        captured_client["client"] = kwargs["client"]
+        return {"status": "completed"}
+
+    handler_module = _load_bootstrap_handler(monkeypatch, deploy)
+    token_creds = _ImmutableTokenCreds()
+    client = _bootstrap_client(credentials=token_creds)
+
+    handler_module.handle(
+        {},
+        client,
+        secrets={"client-id": "runtime-id", "client-secret": "runtime-secret"},
+    )
+    creds = client.config.credentials
+    assert creds is not token_creds
+    assert isinstance(creds, handler_module._CredentialsWithClientSecret)
     assert creds.client_id == "runtime-id"
     assert creds.client_secret == "runtime-secret"
     assert creds.authorization_header() == ("Authorization", "Bearer tok")
