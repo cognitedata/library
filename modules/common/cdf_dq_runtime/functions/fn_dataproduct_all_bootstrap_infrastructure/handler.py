@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import yaml
+from cognite.client.credentials import CredentialProvider
 from cognite.client.exceptions import CogniteAPIError
 from cognite_data_quality import deploy_validation_infrastructure
 
@@ -130,25 +131,29 @@ def _runtime_credentials_from_secrets(secrets: dict[str, str] | None) -> dict[st
     return credentials
 
 
-class _CredentialsWithClientSecret:
+class _CredentialsWithClientSecret(CredentialProvider):
     """Credential provider proxy that exposes client_id/client_secret for trigger upsert.
 
     cognite-data-quality 0.5.x does not forward ``function_secrets`` into
     ``_deploy_external_dataproduct_workflows``. ``_build_trigger_credentials`` then only
     reads ``client.config.credentials.client_id`` / ``client_secret``. Schedule auth is
     token-only, so overlay Function secrets while keeping the original provider for API calls.
+
+    Inherits ``CredentialProvider`` (runtime-checkable Protocol) so SDK
+    ``isinstance(..., CredentialProvider)`` checks keep passing after the overlay.
     """
 
     _base: object
     client_id: str
     client_secret: str
 
-    __slots__ = ("_base", "client_id", "client_secret")
-
     def __init__(self, base: object, client_id: str, client_secret: str) -> None:
-        object.__setattr__(self, "_base", base)
-        object.__setattr__(self, "client_id", client_id)
-        object.__setattr__(self, "client_secret", client_secret)
+        self._base = base
+        self.client_id = client_id
+        self.client_secret = client_secret
+
+    def authorization_header(self) -> tuple[str, str]:
+        return self._base.authorization_header()  # type: ignore[attr-defined]
 
     def __getattr__(self, name: str) -> object:
         return getattr(self._base, name)
@@ -356,8 +361,12 @@ def _ensure_records_prerequisites(
         RuntimeError: Record views could not be applied (missing stream, streamId change on
             an existing view version, or other API error).
     """
-    # Private helpers: public deploy path soft-fails views; ensure_records_infrastructure is
-    # not exported and uses the same soft-fail apply.
+    # Pin-coupled private helpers (cognite-data-quality 0.5.1b5):
+    # ``ensure_records_infrastructure`` (documented on ``_records``) still soft-fails view
+    # apply via ``_ensure_record_views`` and skips the rule-engine container / settings
+    # ``rule_engine_stream_id``. Bootstrap must hard-fail so the five-minute schedule retries
+    # instead of deleting itself after a partial deploy. Prefer a package-exported hard-fail
+    # API when one exists; until then keep these imports aligned with the pinned wheel.
     from cognite_data_quality._records import (  # type: ignore[attr-defined]
         _apply_record_views,
         _ensure_records_container,

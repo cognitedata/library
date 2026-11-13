@@ -1387,9 +1387,12 @@ def test_bootstrap_handler_overlays_immutable_credentials_via_proxy(
         client,
         secrets={"client-id": "runtime-id", "client-secret": "runtime-secret"},
     )
+    from cognite.client.credentials import CredentialProvider
+
     creds = client.config.credentials
     assert creds is not token_creds
     assert isinstance(creds, handler_module._CredentialsWithClientSecret)
+    assert isinstance(creds, CredentialProvider)
     assert creds.client_id == "runtime-id"
     assert creds.client_secret == "runtime-secret"
     assert creds.authorization_header() == ("Authorization", "Bearer tok")
