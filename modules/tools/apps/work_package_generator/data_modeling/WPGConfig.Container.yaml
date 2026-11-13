@@ -1,0 +1,118 @@
+space: dm_sol_wpg_app
+externalId: WPGConfig
+name: WPG config
+description: Stores one Work Package Generator config node per CDF project. Section objects match the former app.json config keys.
+usedFor: node
+properties:
+  schemaVersion:
+    name: Schema version
+    description: Content shape version of this config node. Starts at 1. The app rejects a version it does not support.
+    nullable: false
+    type:
+      list: false
+      type: int32
+  name:
+    name: Name
+    description: Human-readable label for this config node, shown in Fusion.
+    nullable: true
+    type:
+      list: false
+      type: text
+  description:
+    name: Description
+    description: Short explanation of this config node, shown in Fusion.
+    nullable: true
+    type:
+      list: false
+      type: text
+  dataModel:
+    name: Data model
+    description: View and container references used to read work orders, assets, equipment, files, time series, and solution tags.
+    nullable: false
+    type:
+      list: false
+      type: json
+  canvas:
+    name: Canvas
+    description: Industrial Canvas schema space, instance space, views, dimensions, visibility, and sticky style.
+    nullable: false
+    type:
+      list: false
+      type: json
+  resourceTypes:
+    name: Resource types
+    description: Resource types the wizard can place on a canvas, including the view and asset relation for each type.
+    nullable: false
+    type:
+      list: false
+      type: json
+  context:
+    name: Context
+    description: Property names sent to the helper agent as work-order and asset context.
+    nullable: false
+    type:
+      list: false
+      type: json
+  agent:
+    name: Agent
+    description: Model, runtime, external id suffix, name, description, instructions, and tools for the helper agent.
+    nullable: false
+    type:
+      list: false
+      type: json
+  templates:
+    name: Templates
+    description: Template name prefix and the built-in All Resources template identity.
+    nullable: false
+    type:
+      list: false
+      type: json
+  solutionTag:
+    name: Solution tag
+    description: Instance space, external id, and name of the Work Package solution tag attached to new canvases.
+    nullable: false
+    type:
+      list: false
+      type: json
+  limits:
+    name: Limits
+    description: Page, batch, search, and scan caps. The three DMS batch sizes must be integers from 1 to 1000.
+    nullable: false
+    type:
+      list: false
+      type: json
+  cluster:
+    name: Cluster
+    description: API host suffix and host aliases used to derive the cluster id from the session base URL.
+    nullable: false
+    type:
+      list: false
+      type: json
+  fusion:
+    name: Fusion
+    description: Fusion host suffix, canvas workspace, and optional fallback organization when the host frame is not Fusion.
+    nullable: false
+    type:
+      list: false
+      type: json
+  workOrderProperties:
+    name: Work order properties
+    description: Activity property names the app reads, filters, and sorts as work-order fields.
+    nullable: false
+    type:
+      list: false
+      type: json
+  prompts:
+    name: Prompts
+    description: Agent prompt templates. Placeholders such as work-order and asset tokens are filled at runtime.
+    nullable: false
+    type:
+      list: false
+      type: json
+  ui:
+    name: UI
+    description: Status and priority options, example ids, terms, and the five stepper labels.
+    nullable: false
+    type:
+      list: false
+      type: json
