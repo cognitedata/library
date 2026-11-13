@@ -143,17 +143,17 @@ class _CredentialsWithClientSecret(CredentialProvider):
     ``isinstance(..., CredentialProvider)`` checks keep passing after the overlay.
     """
 
-    _base: object
+    _base: CredentialProvider
     client_id: str
     client_secret: str
 
-    def __init__(self, base: object, client_id: str, client_secret: str) -> None:
+    def __init__(self, base: CredentialProvider, client_id: str, client_secret: str) -> None:
         self._base = base
         self.client_id = client_id
         self.client_secret = client_secret
 
     def authorization_header(self) -> tuple[str, str]:
-        return self._base.authorization_header()  # type: ignore[attr-defined]
+        return self._base.authorization_header()
 
     def __getattr__(self, name: str) -> object:
         return getattr(self._base, name)
