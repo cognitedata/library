@@ -1420,6 +1420,8 @@ def test_ensure_records_prerequisites_creates_stream_before_views(monkeypatch: p
 
 
 def test_ensure_records_prerequisites_raises_when_views_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+
     records = SimpleNamespace(
         stream_id="dq_all_validation_results",
         stream_type="BasicArchive",
@@ -1437,9 +1439,10 @@ def test_ensure_records_prerequisites_raises_when_views_fail(monkeypatch: pytest
     fake_records.build_record_view_items = lambda **_k: [{"externalId": "DataQualityValidationRecord"}]
 
     def apply_fail(_client: object, _items: list[dict[str, object]]) -> None:
-        raise RuntimeError(
+        raise CogniteAPIError(
             "Cannot update view 'inst_data_quality:DataQualityValidationRecord/v1', "
-            "streamId would change from 'cdf_all_validation_results' to 'dq_all_validation_results'"
+            "streamId would change from 'cdf_all_validation_results' to 'dq_all_validation_results'",
+            code=400,
         )
 
     fake_records._apply_record_views = apply_fail
