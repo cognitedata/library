@@ -38,7 +38,7 @@ from cq.reader import (
     load_shard,
     validate_extra_links,
 )
-from cq.resilience import patiently
+from cq.resilience import patiently, phase, watched
 from cq.scope import filter_result, parse_scope
 from cq.types import EntityKey, LoadedData, Row, RowProps, RunConfig
 
@@ -347,7 +347,9 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         scope = parse_scope(payload.get("scope"), links_given=bool(links))
         if spaces and scope.kinds != frozenset():
             if scope.kinds is None:
+                phase("reading the shard's entities")
                 data = load_shard(client, spaces)
+                phase("counting")
                 result = compute(data, cfg, latest_datapoints(client, data))
                 left_to_the_plan: tuple[str, ...] = ("no-source-entities",)  # the plan says that, for the run
             else:
@@ -355,13 +357,16 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
                 # does),
                 # count their kinds, and keep what belongs to the dimensions of the scope
                 needed = scope.kinds | ({"assets"} if _grain_needs_assets(cfg) else frozenset())
+                phase("reading the shard's entities")
                 data = load_shard(client, spaces, needed)
+                phase("counting")
                 result = filter_result(compute(data, cfg, latest_datapoints(client, data), kinds=scope.kinds), scope)
                 left_to_the_plan = _NOT_FROM_A_BATCH
             main_rows = build_rows(result, cfg)
             listed = [*export.item_rows(result["drilldown"]), *export.summary_rows(result["agg"])]
             warnings = [w for w in result["warnings"] if w["code"] not in left_to_the_plan]
         if links and extra_spaces:
+            phase("reading the configured views")
             nodes = load_extra_links(client, links, list(extra_spaces))
             gaps = find_gaps(links, nodes, extra_spaces)
             # the plan writes the rows of a view that is empty everywhere, so nothing is filled in here
@@ -372,7 +377,7 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         return main_rows, warnings, listed
 
     started_at = time.monotonic()
-    main_rows, warnings, listed = patiently(count)
+    main_rows, warnings, listed = watched(lambda: patiently(count))
     counted_at = time.monotonic()
     written = _finish_piece(client, cfg, payload, "shard", main_rows, warnings, listed)
     return {
@@ -412,8 +417,11 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         warnings: list[dict[str, Any]] = []
         listed: list[tuple[str, ...]] = []
         if kinds:
+            phase(f"reading the batch's entities ({', '.join(sorted(kinds))})")
             data = load_batch(client, space, facility, kinds, flt)
+            phase("looking up what the batch links to outside it")
             cross = fetch_cross(client, data, counted, kinds, space)  # type: ignore[arg-type]
+            phase("counting")
             result = compute(data, counted, latest_datapoints(client, data), kinds=kinds, cross=cross)  # type: ignore[arg-type]
             result = filter_result(result, parse_scope(payload.get("scope"), links_given=None))
             main_rows = build_rows(result, counted)  # type: ignore[arg-type]
@@ -422,6 +430,7 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         links = parse_extra_links(payload.get("extraLinks"))
         for model, view in views:
             of_view = [link for link in links if link["model"] == model and link["view"] == view]
+            phase(f"reading the configured view {view}")
             nodes = load_extra_links(client, of_view, [space], flt)
             gaps = find_gaps(of_view, nodes, {space: facility})
             main_rows += writer.extra_link_rows(
@@ -433,7 +442,7 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         return main_rows, warnings, listed
 
     started_at = time.monotonic()
-    main_rows, warnings, listed = patiently(count)
+    main_rows, warnings, listed = watched(lambda: patiently(count))
     counted_at = time.monotonic()
     written = _finish_piece(client, cfg, payload, "batch", _rekey(main_rows, shard), warnings, listed)
     return {

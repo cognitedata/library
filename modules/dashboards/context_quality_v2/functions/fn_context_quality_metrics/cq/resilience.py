@@ -31,6 +31,8 @@ PATIENCE_BUDGET = 300.0
 # (`begin_call`), so that the call fails with the error of the service while there is still time to say so, and the
 # task can be tried again with ten minutes of its own.
 CALL_BUDGET = 540.0
+# Counting must end this many seconds before the budget, so that its rows can still be written.
+WRITE_RESERVE = 30.0
 
 sleep: Callable[[float], None] = time.sleep
 clock: Callable[[], float] = time.monotonic
@@ -39,15 +41,27 @@ _call_started: float | None = None
 
 _events: Counter[str] = Counter()
 _events_lock = threading.Lock()
+_phase = "starting"
+
+
+class CallBudgetExceeded(TimeoutError):
+    """The counting of a call did not finish in its budget. The message says where it was and what had slowed it."""
 
 
 def begin_call() -> None:
     """Marks the start of a call of the function: its budget of `CALL_BUDGET` seconds is counted from here, and the
     events noted by the call before it are forgotten."""
-    global _call_started
+    global _call_started, _phase
     _call_started = clock()
+    _phase = "starting"
     with _events_lock:
         _events.clear()
+
+
+def phase(name: str) -> None:
+    """Says what the call is doing now, for the error of a call that does not finish (`watched`)."""
+    global _phase
+    _phase = name
 
 
 def note(event: str) -> None:
@@ -139,6 +153,36 @@ class _Client:
 def harden(client: CogniteClient) -> CogniteClient:
     """`client`, with the reads of its data modeling instances API retried."""
     return client if isinstance(client, _Client) else _Client(client)  # type: ignore[return-value]
+
+
+def watched[R](work: Callable[[], R]) -> R:
+    """`work()`, which must end `WRITE_RESERVE` seconds before the call's budget. A call that the platform stops at ten
+    minutes leaves no output and no log, so a read that does not return is given up here instead: the call fails with
+    an error that names the step it was in and what had slowed it. The read itself cannot be stopped; it is left to
+    finish on its own thread. Where no call has begun (a script, a test) `work` is simply run."""
+    if _call_started is None:
+        return work()
+    outcome: list[R] = []
+    failure: list[BaseException] = []
+
+    def run() -> None:
+        try:
+            outcome.append(work())
+        except BaseException as error:  # handed to the caller below, whatever it is
+            failure.append(error)
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    thread.join(max(0.0, time_left() - WRITE_RESERVE))
+    if thread.is_alive():
+        raise CallBudgetExceeded(
+            f"The call used {elapsed():.0f} s without finishing; it was {_phase}. "
+            f"Slowed by: {events() or 'nothing noted'}. Make the shards smaller: start the run with "
+            '{"planning": {"shardTargetEntities": <half the current value>}}.'
+        )
+    if failure:
+        raise failure[0]
+    return outcome[0]
 
 
 def patiently[R](work: Callable[[], R]) -> R:

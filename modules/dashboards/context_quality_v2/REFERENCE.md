@@ -298,6 +298,11 @@ keys are rejected, and the usual limits apply (`maxShards` at most 190). To make
 If a run is started without the `planning` key and the workflow service does not accept the missing reference, pass
 `"planning": {}`.
 
+**A call that does not finish.** The platform stops a function call at ten minutes and a stopped call leaves no
+output and no log. A shard or batch therefore gives up its counting 30 seconds before its 540-second budget ends and
+fails with an error that names the step it was in (reading entities, looking up what the batch links to, counting) and
+what had slowed it (failed requests, fallbacks). Read it in the task's response, then make the shards smaller.
+
 **What differs from one call (`compute_metrics`)**, because a call sees only part of the project:
 
 - *Several spaces.* An entity that links to one in another space has no such entity loaded: its tier, division and

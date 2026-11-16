@@ -1,5 +1,6 @@
 """The retry policy for the data modeling reads."""
 
+import threading
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -206,3 +207,47 @@ def test_the_seconds_of_a_call_count_from_its_start(call_clock: list[float]) -> 
     call_clock[0] = 12.5
 
     assert resilience.elapsed() == 12.5
+
+
+# ---------------------------------------------------------------- the watchdog on a call that does not finish
+
+
+def test_watched_returns_what_the_work_returns() -> None:
+    resilience.begin_call()
+
+    assert resilience.watched(lambda: 42) == 42
+
+
+def test_watched_passes_on_the_error_of_the_work() -> None:
+    resilience.begin_call()
+
+    def fails() -> None:
+        raise ValueError("a bad row")
+
+    with pytest.raises(ValueError, match="a bad row"):
+        resilience.watched(fails)
+
+
+def test_watched_gives_up_a_call_that_does_not_finish_and_says_where_it_was(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(resilience, "CALL_BUDGET", 0.2)
+    monkeypatch.setattr(resilience, "WRITE_RESERVE", 0.0)
+    resilience.begin_call()
+    resilience.phase("looking up what the batch links to outside it")
+    resilience.note("http 408")
+    release = threading.Event()
+    try:
+        with pytest.raises(resilience.CallBudgetExceeded) as error:
+            resilience.watched(lambda: release.wait(5))
+    finally:
+        release.set()
+
+    message = str(error.value)
+    assert "looking up what the batch links to outside it" in message
+    assert "'http 408': 1" in message
+    assert "shardTargetEntities" in message
+
+
+def test_watched_just_runs_the_work_where_no_call_has_begun(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(resilience, "_call_started", None)
+
+    assert resilience.watched(lambda: "done") == "done"
