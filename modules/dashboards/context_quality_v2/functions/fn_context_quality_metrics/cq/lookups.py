@@ -18,7 +18,7 @@ from cognite.client.exceptions import CogniteAPIError
 
 from cq.cross import Cross
 from cq.reader import _MISSING_VIEW, CDM, IDM, _ref
-from cq.resilience import note
+from cq.resilience import note, phase
 from cq.types import AssetRow, LoadedData, Ref, RunConfig
 
 CHUNK = 500
@@ -215,8 +215,11 @@ def fetch_cross(client: CogniteClient, data: LoadedData, cfg: RunConfig, kinds: 
     if "assets" in kinds:
         own = data["assets"]
         parentless = [(a["space"], a["id"]) for a in own if a["parent"] is None]
+        phase("looking up which parentless assets have children")
         cross.has_children = _present(client, ASSET, "parent", parentless, space)
+        phase("looking up the ancestors of the assets")
         cross.assets.update(_ancestors(client, own, space, int(cfg["maxDepth"]) + 2))
+        phase("looking up which assets have a time series")
         cross.ts_assets = _with_time_series(client, [(a["space"], a["id"]) for a in own], space)
     if "objects3d" in kinds:
         objects = [(o["space"], o["id"]) for o in data["objects3d"]]
