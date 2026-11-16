@@ -18,7 +18,7 @@ Industry-neutral enterprise (`_DOM`) data model template for asset-heavy industr
 
 | Area | Contents |
 |------|----------|
-| Spaces | `{{ enterprise_space }}` (schema); per-source instance spaces `{{ instance_space_sap }}`, `{{ instance_space_pi }}`, `{{ instance_space_sharepoint }}`; Search schema lives in companion module |
+| Spaces | `{{ enterprise_space }}` (schema); one instance space `{{ instance_space }}` (default `inst_location`); Search schema lives in companion module |
 | Containers | Tag, Equipment, Document, TimeSeriesData, WorkOrder, Notification, Material, OperatingLimit (node); AlarmEvent (record) |
 | Views | Matching domain views (`implements` CDM/IDM where applicable) + `AlarmEvent` record view (`streamId`, not in the DataModel) |
 | Data model | `Industry_DOM` + `CogniteEquipmentType` / `CogniteFileCategory` |
@@ -30,17 +30,13 @@ Industry-neutral enterprise (`_DOM`) data model template for asset-heavy industr
 
 Because the CogniteAsset view is named `Tag`, CogniteDescribable `tags` is exposed as view property `labels` on `Tag` (and on `SearchTag`). Transformations must write `AS labels`, never `AS tags`.
 
-### Per-source instance spaces (no Source schema layer)
+### One instance space (no Source schema layer)
 
-This template has no `_SRC` model — transformations write RAW straight into `Industry_DOM`. Instances are partitioned by **sample source**, not into one shared space:
+This template has no `_SRC` model — transformations write RAW straight into `Industry_DOM`. Nodes, edges and alarm records all live in **one** instance space, `{{ instance_space }}` (default `inst_location`). Every direct, including links from PI or SharePoint data to a Tag, uses that same space.
 
-| Space | Source | Typical content |
-|-------|--------|-----------------|
-| `{{ instance_space_sap }}` | SAP | Tag, Equipment, WorkOrder, Notification, Material, equipment types |
-| `{{ instance_space_pi }}` | PI | TimeSeriesData, OperatingLimit, AlarmEvent records |
-| `{{ instance_space_sharepoint }}` | SharePoint | Document, file categories, diagram annotation edges |
+There is **no search instance space**: Search is schema-only (views + data model in `{{ search_space }}`).
 
-There is **no search instance space**: Search is schema-only (views + data model in `{{ search_space }}`). Cross-source directs (e.g. PI/SharePoint → Tag) use `node_reference` into the **target** source’s space (usually SAP for assets). Use per-site instance spaces if you need site-level access control on top of this pattern.
+When the model is installed and extended, change or add instance spaces to match how the derived domain is used (a site, a plant, or an access boundary). Do not split spaces by source system. Update location filters, group scopes, transformation `instanceSpace`, and every `node_reference` together. Spaces are permanent — decide this before the first production deploy. The full step is in [SPEC.md](SPEC.md).
 
 ### Alarms vs Search access
 
@@ -52,7 +48,7 @@ Sample two-step graph → records query: filter nodes on `Industry_DOM`, then fi
 
 These groups are **additive** to foundation personas (`admin_all_*`, `producer_all_*`, `consumer_all_*`). Do not delete the foundation groups when installing this pack, and do not treat `admin_industry_all_*` as a substitute for `admin_all_*`.
 
-CDM time series and files need **both** `dataModelsAcl` READ on `cdf_cdm` and `dataModelInstancesAcl` READ on the instance spaces that hold the nodes. `admin`, `dom_producer`, and `sol_consumer` already grant that pair.
+CDM time series and files need **both** `dataModelsAcl` READ on `cdf_cdm` and `dataModelInstancesAcl` READ on `{{ instance_space }}`. `admin`, `dom_producer`, and `sol_consumer` already grant that pair.
 
 Security categories (`sc_*`) apply to classic time series and files only. They do not gate data-modeling instances. Tag and Search access stays space-scoped.
 
@@ -69,11 +65,12 @@ Out of the box this pack does **not** add a `_SRC` schema layer, per-source huma
 ### How to extend
 
 1. Inventory `SOURCE_SCAFFOLD:` properties and the demo RAW modules.
-2. Map each real source field to a view property (`keep` / `replace` / `drop`) and confirm the table before editing YAML.
-3. Remove unused types before the first production deploy.
-4. Point transformations at real RAW. Drop the `*_industry_data_dump` modules once real extractors write the same nodes.
-5. Add missing fields on the existing enterprise containers only while still pre-production. After the first production deploy, add a new extension container.
-6. Keep Search views in step with every container you keep, rename, or remove.
+2. Keep `inst_location` unless the derived domain needs more instance spaces. Add or rename spaces for a site, plant, or access boundary — not per source system.
+3. Map each real source field to a view property (`keep` / `replace` / `drop`) and confirm the table before editing YAML.
+4. Remove unused types before the first production deploy.
+5. Point transformations at real RAW. Drop the `*_industry_data_dump` modules once real extractors write the same nodes.
+6. Add missing fields on the existing enterprise containers only while still pre-production. After the first production deploy, add a new extension container.
+7. Keep Search views in step with every container you keep, rename, or remove.
 
 Full procedure, touch map, and rename recipes: [SPEC.md](SPEC.md).
 
@@ -119,9 +116,7 @@ industry_domain_extension/
   streams/
   data_modeling/
     enterprise.Space.yaml
-    instance_sap.Space.yaml
-    instance_pi.Space.yaml
-    instance_sharepoint.Space.yaml
+    instance.Space.yaml
     enterprise.DataModel.yaml
     containers/
     views/

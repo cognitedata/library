@@ -23,11 +23,11 @@ Schema-only search (`_SOL`) data product for the industry domain template. Maps 
 | Views | SearchTag, SearchEquipment, SearchDocument, SearchTimeSeriesData, SearchWorkOrder, SearchWorkOrderOperation, SearchNotification, SearchMaterial, SearchOperatingLimit |
 | Data model | `IndustrySearch_SOL` + `CogniteEquipmentType` / `CogniteFileCategory` |
 | Auth | `consumer_industry_sol_*` (schema admin lives in the enterprise module as `admin_industry_all_*`) |
-| Location | Search location filter over per-source instance spaces (`sap` / `pi` / `sharepoint`) |
+| Location | Search location filter over `{{ instance_space }}` (`inst_location`) |
 
 There is **no** search view for `AlarmEvent` — read alarms through the enterprise record view and Records API (`producer_industry_dom_*` or admin). Search UI users use `{{ sol_consumer_group_name }}`; map both IdP groups only when a user needs Search and alarms.
 
-Search consumers need **both** `dataModelsAcl` READ on `cdf_cdm` and `dataModelInstancesAcl` READ on `{{ instance_space_sap }}`, `{{ instance_space_pi }}`, and `{{ instance_space_sharepoint }}`. `{{ sol_consumer_group_name }}` already grants that pair. Security categories (`sc_*`) do not gate these instances.
+Search consumers need **both** `dataModelsAcl` READ on `cdf_cdm` and `dataModelInstancesAcl` READ on `{{ instance_space }}`. `{{ sol_consumer_group_name }}` already grants that pair. Security categories (`sc_*`) do not gate these instances.
 
 `consumer_industry_sol_*` is an add-on to foundation `consumer_all_*`, not a replacement.
 
@@ -37,7 +37,7 @@ Search consumers need **both** `dataModelsAcl` READ on `cdf_cdm` and `dataModelI
 
 ### No search instance space
 
-Search holds views and the data model only. Instances live in the per-source spaces owned with the enterprise module (`{{ instance_space_sap }}`, `{{ instance_space_pi }}`, `{{ instance_space_sharepoint }}`). Nothing would belong in a separate search instance space — Search views map enterprise / CDM / IDM containers; once enterprise loads finish, data is visible through `IndustrySearch_SOL` with no search-side writes.
+Search holds views and the data model only. Instances live in `{{ instance_space }}` (default `inst_location`), owned with the enterprise module. Nothing would belong in a separate search instance space — Search views map enterprise / CDM / IDM containers; once enterprise loads finish, data is visible through `IndustrySearch_SOL` with no search-side writes. When the domain is extended, point this location filter at the same instance spaces the enterprise module uses.
 
 ## Deployment
 

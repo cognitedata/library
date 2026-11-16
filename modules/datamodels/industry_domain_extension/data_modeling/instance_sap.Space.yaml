@@ -1,2 +1,0 @@
-space: "{{ instance_space_sap }}"
-name: Industry SAP instance space

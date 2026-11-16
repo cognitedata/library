@@ -34,13 +34,19 @@ rg -n "raw_sample_all_|industry_data_dump" modules/sourcesystem modules/common/c
 
 1. **Inventory the demo surface.** Run the greps above. List every `SOURCE_SCAFFOLD` property (§5.1 table) and every
    demo RAW table / transformation / workflow task (§8.9 touch map, §12).
-2. **Map real sources → template.** For each real source table or API entity, fill the worksheet (§8.2):
+2. **Set instance spaces from the derived domain.** The template ships one instance space, `{{ instance_space }}`
+   (`inst_location`). All sample sources write into it. When the model is installed and extended, change that
+   space — or add spaces — to match how the derived domain is used (site, plant, or access boundary). Do not
+   split by source system. Update location filters, group scopes, transformation `instanceSpace`, and every
+   `node_reference` so each direct points at the space that holds the target node. Keep the ids in config.
+   Spaces are permanent; decide this before the first production deploy (§8.8).
+3. **Map real sources → template.** For each real source table or API entity, fill the worksheet (§8.2):
    source system → source field → target view → container property → action (`keep` / `replace` / `drop`).
    Confirm the table with the developer before editing YAML (cog-vd W1a).
-3. **Trim unused types first.** If a demo entity has no real source and no consumer, remove it with §8.6 + the
+4. **Trim unused types first.** If a demo entity has no real source and no consumer, remove it with §8.6 + the
    touch-map row (§8.9) — container, views, DataModel entries, Search reverse, transformation, workflow task, RAW
    table. Free now; hard later.
-4. **Swap scaffold properties for source fields.** For each `replace` / `drop` row:
+5. **Swap scaffold properties for source fields.** For each `replace` / `drop` row:
    - **drop** — delete the property from the enterprise container + view, the Search view map, indexes, and the
      SQL / Function that wrote it.
    - **replace (rename)** — use §8.10: same touch-map row; keep one camelCase id everywhere (container, view,
@@ -48,22 +54,23 @@ rg -n "raw_sample_all_|industry_data_dump" modules/sourcesystem modules/common/c
    - **replace (new meaning)** — prefer renaming the scaffold id to the source name when it is still pre-prod;
      do not leave a dead demo property beside the real one.
    - Never invent a custom property that duplicates CDM/IDM (§8.4); map to the CDM/IDM field instead.
-5. **Point ingestion at real RAW.** Change transformation `source` databases/tables and column lists to the
+6. **Point ingestion at real RAW.** Change transformation `source` databases/tables and column lists to the
    project extractors. Update `config.<env>.yaml` RAW database variables. Remove or stop deploying the
    `*_industry_data_dump` sample modules when real data is connected (§8.1 Sample data row).
-6. **Extend only for gaps.** If the source has fields with no template home and no CDM/IDM equivalent:
+7. **Extend only for gaps.** If the source has fields with no template home and no CDM/IDM equivalent:
    - Prefer a new property on the **existing adopter-owned** enterprise container (still pre-prod), tagged
      without `SOURCE_SCAFFOLD` once it is production-shaped.
    - After first prod deploy, add properties only on a **new extension container** mapped into the view
      (cog-vd W1a step 5 / W2) — never edit CDM/IDM containers.
    - New entity type → §8.5; new high-volume event type → §5.11 (records), not nodes.
-7. **Align Search `_SOL`.** Update or remove Search views and reverses for every container you kept, renamed,
-   trimmed or added. Search stays schema-only (no containers, no transforms).
-8. **Drop demo values from docs and examples.** Rewrite property descriptions: remove `SOURCE_SCAFFOLD:` and
+8. **Align Search `_SOL`.** Update or remove Search views and reverses for every container you kept, renamed,
+   trimmed or added. Search stays schema-only (no containers, no transforms). Point the search location filter
+   at the same instance spaces as the enterprise module.
+9. **Drop demo values from docs and examples.** Rewrite property descriptions: remove `SOURCE_SCAFFOLD:` and
    synthetic `Example: PLANT01`-style values; use real domain wording and a non-sensitive example from the
    source. Update README *Adapting this template* with the filled §8.2 worksheet.
-9. **Validate.** Run §9 (naming, structure, relations, build, dry-run). Confirm instance / record counts against
-   the source after the first non-demo deploy.
+10. **Validate.** Run §9 (naming, structure, relations, build, dry-run). Confirm instance / record counts against
+    the source after the first non-demo deploy.
 
 #### Done when
 
@@ -71,14 +78,17 @@ rg -n "raw_sample_all_|industry_data_dump" modules/sourcesystem modules/common/c
       temporary, listed in the README)
 - [ ] No transformation or Function still reads `raw_sample_all_*` in the target environment
 - [ ] §8.2 worksheet is filled and checked into the project (README or `SPEC.md`)
+- [ ] Instance spaces match the derived domain. The template default `inst_location` stays unless the domain
+      needs more; no space is named after a source system
 - [ ] §9 gate is green
 
 #### Do not
 
 - Rename or remove `CONTRACT` wiring (`implements`, typed `source`, CDM/IDM maps) without approval
 - Leave demo RAW modules enabled beside production extractors writing the same nodes
-- Add source-system or site names into permanent identifiers (spaces, view ids, property ids) — put those in
-  config / instance data only (§8.8, §9.1)
+- Add source-system or site names into permanent identifiers (view ids, property ids) — put those in config /
+  instance data only (§8.8, §9.1)
+- Split instance spaces by source system. Extra spaces come from derived-domain usage (§8.0 step 2)
 
 ### 8.1 Stable vs scaffolding
 
@@ -99,7 +109,7 @@ the first production deploy satisfies W1a step 5. After that, new properties go 
 |---------------|--------------|-------------|--------------------|--------------------------------|
 | | | | | |
 
-Fill one row per source field during §8.0 step 2. §12.3 is a filled-in example for the **demo** sample data —
+Fill one row per source field during §8.0 step 3. §12.3 is a filled-in example for the **demo** sample data —
 replace those rows with the real mapping; do not ship the demo worksheet as the project contract.
 
 ### 8.3 Replacement recipes
@@ -180,7 +190,7 @@ Use the touch map (§8.9) for the type being removed:
 |----------|---------|---------|
 | Data model | `PascalCase_DOM` / `_SOL` | `Industry_DOM` |
 | DM space | `dm_dom_*` / `dm_sol_*` | `dm_dom_industry` |
-| Instance space | `inst_*` — one per sample source | `inst_industry_sap`, `inst_industry_pi`, `inst_industry_sharepoint` |
+| Instance space | `inst_{snake_case}` — one space in the template; add spaces only for derived-domain usage (site, plant, access boundary), not per source | `inst_location` |
 | View / container | PascalCase, singular, not reserved | `TimeSeriesData`, `Document` |
 | Property | camelCase | `documentNumber` |
 | Location filter | `loc_{location}` | `loc_industry_all` |
@@ -210,7 +220,7 @@ documented in project governance — this SPEC / PLAN is that documentation for 
 `cdf-naming-check` must treat these five tokens as approved for this pack — do not flag `dom` / `sol` / `wf` as
 unknown types.
 
-**Spaces:** `{{ search_space }}` is schema-only (views + data model). There is **no** search instance space. Instances/records live in per-source spaces (`{{ instance_space_sap }}`, `{{ instance_space_pi }}`, `{{ instance_space_sharepoint }}`). Cross-source directs use the **target** source’s space (e.g. PI/SharePoint → Tag in SAP space).
+**Spaces:** `{{ search_space }}` is schema-only (views + data model). There is **no** search instance space. Nodes, edges and records live in `{{ instance_space }}` (default `inst_location`). Directs use that same space. When the model is installed and extended, replace or add instance spaces to match the derived domain (§8.0 step 2); do not introduce one space per source system.
 
 ### 8.9 Touch map — every file per entity
 

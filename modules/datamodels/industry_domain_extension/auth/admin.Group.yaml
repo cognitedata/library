@@ -21,9 +21,7 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space_sap }}
-            - {{ instance_space_pi }}
-            - {{ instance_space_sharepoint }}
+            - {{ instance_space }}
   - datasetsAcl:
       actions: [OWNER, READ, WRITE]
       scope:
@@ -39,7 +37,7 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space_pi }}
+            - {{ instance_space }}
   - locationFiltersAcl:
       actions: [READ, WRITE]
       scope:

@@ -6,7 +6,5 @@ dataModels:
     space: {{ search_space }}
     version: {{ dm_search_version }}
 instanceSpaces:
-  - {{ instance_space_sap }}
-  - {{ instance_space_pi }}
-  - {{ instance_space_sharepoint }}
+  - {{ instance_space }}
 dataModelingType: DATA_MODELING_ONLY

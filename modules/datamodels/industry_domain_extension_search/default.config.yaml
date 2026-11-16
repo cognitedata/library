@@ -1,9 +1,7 @@
 enterprise_space: dm_dom_industry
 search_space: dm_sol_industry_search
-# Per-source instance spaces (shared with enterprise) — Search is schema-only; no search instance space
-instance_space_sap: inst_industry_sap
-instance_space_pi: inst_industry_pi
-instance_space_sharepoint: inst_industry_sharepoint
+# Shared with the enterprise module. Search is schema-only; no search instance space.
+instance_space: inst_location
 search_data_model_external_id: IndustrySearch_SOL
 search_data_model_name: Industry search DM SOL
 dm_search_version: v1

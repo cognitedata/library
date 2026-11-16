@@ -16,9 +16,7 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space_sap }}
-            - {{ instance_space_pi }}
-            - {{ instance_space_sharepoint }}
+            - {{ instance_space }}
             - cdf_cdm_units
   - locationFiltersAcl:
       actions: [READ]

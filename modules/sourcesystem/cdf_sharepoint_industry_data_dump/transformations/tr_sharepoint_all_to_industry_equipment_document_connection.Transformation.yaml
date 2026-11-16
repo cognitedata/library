@@ -7,8 +7,8 @@ destination:
     externalId: '{{ enterprise_data_model_external_id }}'
     version: '{{ dm_enterprise_version }}'
     destinationType: Equipment
-  # Equipment nodes live in the SAP instance space
-  instanceSpace: '{{ instance_space_sap }}'
+  # Equipment nodes live in the shared instance space
+  instanceSpace: '{{ instance_space }}'
   type: instances
 dataSetExternalId: '{{ dataset_external_id }}'
 ignoreNullFields: true

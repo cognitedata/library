@@ -63,7 +63,7 @@ capabilities:
             - cdf_cdm
             - cdf_idm
             - cdf_cdm_units
-  # write nodes, edges and type nodes (one instance space per sample source)
+  # write nodes, edges and type nodes
   - dataModelInstancesAcl:
       actions:
         - READ
@@ -72,9 +72,7 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space_sap }}
-            - {{ instance_space_pi }}
-            - {{ instance_space_sharepoint }}
+            - {{ instance_space }}
   # CogniteAsset.parent writes; TimeSeriesData.unit
   - dataModelInstancesAcl:
       actions:
@@ -84,7 +82,7 @@ capabilities:
           spaceIds:
             - cdf_cdm
             - cdf_cdm_units
-  # resolve the alarm stream and ingest AlarmEvent records (PI space)
+  # resolve the alarm stream and ingest AlarmEvent records
   - streamsAcl:
       actions:
         - READ
@@ -97,4 +95,4 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space_pi }}
+            - {{ instance_space }}

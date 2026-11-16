@@ -1,10 +1,10 @@
 # Data model identifiers
 enterprise_space: dm_dom_industry
 search_space: dm_sol_industry_search
-# One instance space per sample source (no shared inst_industry; no search instance space)
-instance_space_sap: inst_industry_sap
-instance_space_pi: inst_industry_pi
-instance_space_sharepoint: inst_industry_sharepoint
+# One instance space for all nodes, edges and records. When the model is installed and
+# extended, change or add spaces to match derived-domain usage (site, plant, access
+# boundary) — not one space per source system. Search has no instance space.
+instance_space: inst_location
 enterprise_data_model_external_id: Industry_DOM
 enterprise_data_model_name: Industry DM DOM
 dm_enterprise_version: v1

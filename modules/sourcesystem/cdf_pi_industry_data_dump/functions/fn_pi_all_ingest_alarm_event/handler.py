@@ -30,7 +30,6 @@ class HandlerInput(BaseModel):
 
     stream_external_id: str
     instance_space: str
-    instance_space_sap: str
     enterprise_space: str
     raw_database: str
     raw_table: str
@@ -96,13 +95,12 @@ def _direct(space: str, external_id: str | None) -> dict[str, str] | None:
     return {"space": space, "externalId": external_id} if external_id else None
 
 
-def row_to_record(row: AlarmRow, instance_space: str, instance_space_sap: str) -> AlarmRecord:
+def row_to_record(row: AlarmRow, instance_space: str) -> AlarmRecord:
     """Map a validated RAW row to an ``AlarmEvent`` record.
 
     Args:
         row: Validated RAW row.
-        instance_space: PI space of the record and same-source directs (timeSeries, operatingLimit).
-        instance_space_sap: SAP space for asset (Tag) directs.
+        instance_space: Space of the record and of every direct (asset, timeSeries, operatingLimit).
 
     Returns:
         The record, without properties that are empty in the source.
@@ -115,7 +113,7 @@ def row_to_record(row: AlarmRow, instance_space: str, instance_space_sap: str) -
         "limitType": row.limit_type,
         "value": row.value,
         "message": row.message,
-        "asset": _direct(instance_space_sap, row.asset_external_id),
+        "asset": _direct(instance_space, row.asset_external_id),
         "timeSeries": _direct(instance_space, row.time_series_external_id),
         "operatingLimit": _direct(instance_space, row.operating_limit_external_id),
     }
@@ -134,15 +132,13 @@ def filter_missing(records: list[AlarmRecord], existing_external_ids: set[str]) 
 def plan_ingest(
     raw_rows: list[dict[str, object]],
     instance_space: str,
-    instance_space_sap: str,
     existing_external_ids: set[str],
 ) -> IngestPlan:
     """Validate and map the RAW rows, then keep only records that are not in the stream yet.
 
     Args:
         raw_rows: RAW rows as dicts, including the row ``key``.
-        instance_space: PI space for the records and same-source directs.
-        instance_space_sap: SAP space for asset directs.
+        instance_space: Space of the records and of every direct.
         existing_external_ids: External ids already present in the stream.
 
     Returns:
@@ -152,7 +148,7 @@ def plan_ingest(
     invalid = 0
     for raw_row in raw_rows:
         try:
-            records.append(row_to_record(AlarmRow.model_validate(raw_row), instance_space, instance_space_sap))
+            records.append(row_to_record(AlarmRow.model_validate(raw_row), instance_space))
         except ValidationError as error:
             invalid += 1
             log.warning(f"Skipping invalid alarm_event row {raw_row.get('key')}: {error}")
@@ -213,8 +209,8 @@ def handle(data: dict, client: CogniteClient) -> dict[str, int]:
     """CDF Function entry point.
 
     Args:
-        data: Contract with ``stream_external_id``, ``instance_space``, ``instance_space_sap``,
-            ``enterprise_space``, ``raw_database``, ``raw_table`` and optional ``last_updated_time_gt`` (ISO-8601).
+        data: Contract with ``stream_external_id``, ``instance_space``, ``enterprise_space``,
+            ``raw_database``, ``raw_table`` and optional ``last_updated_time_gt`` (ISO-8601).
         client: Injected client; its session carries the credentials.
 
     Returns:
@@ -226,7 +222,7 @@ def handle(data: dict, client: CogniteClient) -> dict[str, int]:
 
     raw_rows = read_raw_rows(client, params.raw_database, params.raw_table)
     existing = fetch_existing_external_ids(client, params, last_updated_time_gt)
-    plan = plan_ingest(raw_rows, params.instance_space, params.instance_space_sap, existing)
+    plan = plan_ingest(raw_rows, params.instance_space, existing)
     ingested = ingest_records(client, params, plan.new_records)
 
     counts = {"read": plan.read, "invalid": plan.invalid, "skipped": plan.skipped, "ingested": ingested}
