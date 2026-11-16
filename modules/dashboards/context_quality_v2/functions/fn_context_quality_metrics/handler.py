@@ -15,9 +15,11 @@ The workflow runs plan, then a dynamic task that calls compute_shard once per sh
 
 Any key in payload["config"] overrides the matching key in cq.config.DEFAULT_CONFIG.
 
-plan also takes payload["scope"] (cq.scope): "all", "configured" or {"dimensions": [...], "configured": bool}, so that a
-run
-measures some dimensions only; the pieces it creates carry it, and finalize writes it into the complete marker.
+plan also takes payload["scope"] (cq.scope): "all", "configured" or {"dimensions": [...], "configured": bool}, so that
+a run measures some dimensions only; the pieces it creates carry it, and finalize writes it into the complete marker.
+
+plan also takes payload["planning"], an object with any of shardTargetEntities, maxShards and maxConcurrentShards,
+which replaces those settings for this run only.
 
 compute_metrics also takes payload["extraLinks"], a list of {"model": "space:externalId:version", "links":
 ["View.property", ...]}. Each link is measured per facility next to the built-in metrics (cq.extra_links).
@@ -71,9 +73,27 @@ class Payload(BaseModel):
         return self
 
 
+# The settings of how a run is divided that the workflow input may change for one run (see REFERENCE.md)
+PLANNING_KEYS = ("shardTargetEntities", "maxShards", "maxConcurrentShards")
+
+
+def _config_for(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """The config of a call. A `plan` call lets payload["planning"] override how the run is divided, for this run."""
+    config = payload.get("config")
+    planning = payload.get("planning")
+    if payload["action"] != "plan" or planning is None:
+        return config
+    if not isinstance(planning, dict):
+        raise ValueError(f'planning must be an object like {{"shardTargetEntities": 25000}}, not {planning!r}')
+    unknown = sorted(set(planning) - set(PLANNING_KEYS))
+    if unknown:
+        raise ValueError(f"planning can only set {', '.join(PLANNING_KEYS)}; not {', '.join(unknown)}")
+    return {**(config or {}), **planning}
+
+
 def handle(data: dict[str, Any], client: CogniteClient) -> dict[str, Any]:
     payload = Payload.model_validate(data or {}).model_dump()
-    cfg = build_config(payload.get("config"))
+    cfg = build_config(_config_for(payload))
     begin_call()
     return ACTIONS[payload["action"]](harden(client), cfg, payload)
 

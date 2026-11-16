@@ -285,6 +285,19 @@ default) two at a time, `0` all at once, `1` one after the other, `N` in N lanes
 the one N places before it (`dependsOn`), so with `1` a run is a chain; a call that fails stops the ones after it. Use
 it to go easy on the project's data modeling and time series services, or to follow one run in order.
 
+**Making the shards smaller for one run.** The workflow input takes an optional `planning` object that replaces
+`shardTargetEntities`, `maxShards` and `maxConcurrentShards` for that run, without a deploy:
+
+```json
+{"extraLinks": [], "scope": "all", "planning": {"shardTargetEntities": 25000}}
+```
+
+Use it when a shard times out (a call may run for 10 minutes): halve `shardTargetEntities` and run again. Other
+keys are rejected, and the usual limits apply (`maxShards` at most 190). To make it permanent, set the matching
+`metrics...` variable and deploy. The schedule passes an empty `planning`, so scheduled runs use the deployed values.
+If a run is started without the `planning` key and the workflow service does not accept the missing reference, pass
+`"planning": {}`.
+
 **What differs from one call (`compute_metrics`)**, because a call sees only part of the project:
 
 - *Several spaces.* An entity that links to one in another space has no such entity loaded: its tier, division and

@@ -23,6 +23,9 @@ workflowDefinition:
             # What the run is for: "all" (every dimension, what the schedule runs), "configured", or
             # {"dimensions": [...] | "all", "configured": true | false}. See REFERENCE.md, "Running some dimensions only".
             scope: ${workflow.input.scope}
+            # Optional, for one run: {"shardTargetEntities": 25000} makes each shard smaller, and maxShards and
+            # maxConcurrentShards can be set too. See REFERENCE.md, "Making the shards smaller for one run".
+            planning: ${workflow.input.planning}
             # The function has no default for these three: the deployment names them (module variables).
             # Everything below is project-specific and empty by default; nothing here is demo configuration.
             # The plan hands this configuration on to every shard.

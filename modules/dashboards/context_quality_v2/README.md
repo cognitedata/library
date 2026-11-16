@@ -98,7 +98,8 @@ cdf deploy
 ### Step 5: Run it once and check
 
 The first scheduled run follows the next trigger time. To get data now, start the workflow in Fusion (**Data
-management > Data workflows > `wf_context_quality_metrics` > Run**) with the input `{"extraLinks": [], "scope": "all"}`.
+management > Data workflows > `wf_context_quality_metrics` > Run**) with the input `{"extraLinks": [], "scope": "all", "planning": {}}`. To make shards smaller for one run (a shard timed out), put
+`{"shardTargetEntities": 25000}` in `planning`.
 Or start it from the dashboard: open the app and press **Run built-in checks** on its first-run screen (see
 ["Start a run"](../../tools/apps/context_quality_dashboard/README.md#start-a-run)). The dashboard does not start runs by itself.
 
