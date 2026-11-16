@@ -1,6 +1,6 @@
 space: "{{ search_space }}"
 externalId: SearchEquipment
-name: Search equipment
+name: Equipment
 description: Search view for Equipment. Maps containers only; no implements.
 version: "{{ dm_search_version }}"
 properties:

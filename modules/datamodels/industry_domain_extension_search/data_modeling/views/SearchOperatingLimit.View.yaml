@@ -1,6 +1,6 @@
 space: "{{ search_space }}"
 externalId: SearchOperatingLimit
-name: Search operating limit
+name: Operating limit
 description: Search view for OperatingLimit. Maps enterprise container only; no CogniteDescribable.
 version: "{{ dm_search_version }}"
 properties:

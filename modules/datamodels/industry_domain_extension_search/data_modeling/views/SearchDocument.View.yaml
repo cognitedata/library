@@ -1,6 +1,6 @@
 space: "{{ search_space }}"
 externalId: SearchDocument
-name: Search document
+name: Document
 description: Search view for Document. Maps containers only; no implements.
 version: "{{ dm_search_version }}"
 properties:

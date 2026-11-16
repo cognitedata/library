@@ -1,6 +1,6 @@
 space: "{{ search_space }}"
 externalId: SearchWorkOrder
-name: Search work order
+name: Work order
 description: Search view for WorkOrder. Maps containers only; no implements.
 version: "{{ dm_search_version }}"
 properties:

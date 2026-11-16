@@ -1,6 +1,6 @@
 space: "{{ search_space }}"
 externalId: SearchNotification
-name: Search notification
+name: Notification
 description: Search view for Notification. Maps containers only; no implements.
 version: "{{ dm_search_version }}"
 properties:

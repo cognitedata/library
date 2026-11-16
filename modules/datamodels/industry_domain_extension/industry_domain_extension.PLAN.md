@@ -221,7 +221,7 @@ Naming checks applied (cog-vd `cdf-naming-conventions` + `cdf-data-model-limits`
 - Views and containers: PascalCase, **singular**, and not on the reserved list (`File`, `TimeSeries`, … are
   rejected by CDF — hence `Document` and `TimeSeriesData`).
 - Display names: sentence case — spaces (`Industry DM DOM`, `Industry search DM SOL`, `Industry instance space`,
-  `Industry function space`), views/containers (`Time series data`, `Work order operation`, `Search work order`),
+  `Industry function space`), views/containers (`Time series data`, `Work order operation`, `Equipment`),
   location filters, data set.
 - No environment tokens (`dev` / `test` / `prod`) and no customer or site names in any identifier — except the
   required `<environment>` suffix on persona-led access group names (set per `config.<env>.yaml`).

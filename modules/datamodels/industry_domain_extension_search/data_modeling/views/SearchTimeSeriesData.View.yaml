@@ -1,6 +1,6 @@
 space: "{{ search_space }}"
 externalId: SearchTimeSeriesData
-name: Search time series data
+name: Time series data
 description: Search view for TimeSeriesData. Maps containers only; no implements.
 version: "{{ dm_search_version }}"
 properties:

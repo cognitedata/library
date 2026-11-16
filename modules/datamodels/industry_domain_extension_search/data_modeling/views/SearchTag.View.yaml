@@ -1,6 +1,6 @@
 space: "{{ search_space }}"
 externalId: SearchTag
-name: Search tag
+name: Tag
 description: Search view for Tag. Maps enterprise and CDM containers; no implements.
 version: "{{ dm_search_version }}"
 properties:
