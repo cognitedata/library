@@ -1559,7 +1559,7 @@ over-permission a pack that has no EPs.
 Docs:
 
 - README per module (CONTRIBUTING.md structure) with layer, consumers, CDM/IDM versions, deploy order, the
-  single-instance-space exception, the stable-contract and adapting sections (§8), and the validation commands (§9)
+  per-source instance-space strategy (§11.3), the stable-contract and adapting sections (§8), and the validation commands (§9)
 - `modules/README.md` / root `README.md`: list the industry model next to ISA and CFIHOS
 - Cognite docs: a package reference page next to `/cdf/deploy/cdf_toolkit/references/packages/oil_gas_data_model`
   with the configuration reference (§3.2)
@@ -1579,7 +1579,7 @@ Split the enterprise delivery so PRs stay reviewable (~500 lines):
 1. **Enterprise schema + auth (no SPEC):** spaces, 8 node containers + `AlarmEvent` record container, 9 views +
    `AlarmEvent` record view (`version` + `streamId`), stream, DataModel, auth (`admin` + `dom_producer`), data set,
    location filter, `default.config.yaml`, README with layer / `consumers:` stubs / labels note /
-   single-instance-space exception (no search instance space) / stream-template warning / alarms vs Search access +
+   per-source instance spaces (no search instance space) / stream-template warning / alarms vs Search access +
    sample two-step records query. Point *Adapting this template* at this plan until SPEC lands.
 2. **Enterprise SPEC + adaptation docs:** `SPEC.md` (full §8 contract) and README *How to extend* / stable-contract
    sections condensed from §8.0–§8.10.
