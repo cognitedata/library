@@ -9,7 +9,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: DocumentNumber
+    name: Document number
     description: "SOURCE_SCAFFOLD: Document number from the register. Example: DOC-001."
     maxTextSize: 2400
 
@@ -18,7 +18,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: DisciplineCode
+    name: Discipline code
     description: "SOURCE_SCAFFOLD: Engineering discipline code. Example: ME."
     maxTextSize: 2400
 

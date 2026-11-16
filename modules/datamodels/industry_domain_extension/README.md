@@ -48,6 +48,35 @@ There is **no search instance space**: Search is schema-only (views + data model
 
 Sample two-step graph → records query: filter nodes on `Industry_DOM`, then filter `AlarmEvent` records with `in` on the `asset` direct (chunk ≤ 100 ids per request). Immutable streams require a `lastUpdatedTime` range on every filter.
 
+### Access notes
+
+These groups are **additive** to foundation personas (`admin_all_*`, `producer_all_*`, `consumer_all_*`). Do not delete the foundation groups when installing this pack, and do not treat `admin_industry_all_*` as a substitute for `admin_all_*`.
+
+CDM time series and files need **both** `dataModelsAcl` READ on `cdf_cdm` and `dataModelInstancesAcl` READ on the instance spaces that hold the nodes. `admin`, `dom_producer`, and `sol_consumer` already grant that pair.
+
+Security categories (`sc_*`) apply to classic time series and files only. They do not gate data-modeling instances. Tag and Search access stays space-scoped.
+
+Out of the box this pack does **not** add a `_SRC` schema layer, per-source human admin groups, or extraction-pipeline ACLs on `producer_industry_pp_*` / `producer_industry_wf_*`. Those are delivery adaptations, not template fixes.
+
+### Stable contract vs scaffolding
+
+| Kind | Keep |
+|------|------|
+| CONTRACT | `implements`, typed `source`, DataModel membership, Search as schema only |
+| SOURCE_SCAFFOLD | Demo properties (`site`, `documentNumber`, `historianTagName`, …) — rename or delete before the first production deploy |
+| RECORD | `AlarmEvent` `usedFor: record`, no constraints or indexes, record view with `streamId` |
+
+### How to extend
+
+1. Inventory `SOURCE_SCAFFOLD:` properties and the demo RAW modules.
+2. Map each real source field to a view property (`keep` / `replace` / `drop`) and confirm the table before editing YAML.
+3. Remove unused types before the first production deploy.
+4. Point transformations at real RAW. Drop the `*_industry_data_dump` modules once real extractors write the same nodes.
+5. Add missing fields on the existing enterprise containers only while still pre-production. After the first production deploy, add a new extension container.
+6. Keep Search views in step with every container you keep, rename, or remove.
+
+Full procedure, touch map, and rename recipes: [SPEC.md](SPEC.md).
+
 ### Stream template warning
 
 `ImmutableTestStream` is for sample/dev only (short retention). The stream template **cannot be changed** after creation — set `BasicArchive` in `config.<env>.yaml` **before** the first non-dev deploy.
@@ -100,7 +129,7 @@ industry_domain_extension/
 
 ## Adapting this template
 
-See [SPEC.md](SPEC.md) for the full agent contract (How to extend, stable vs scaffolding, mapping worksheet, trim/rename recipes). Until sample-data companions land, treat `SOURCE_SCAFFOLD:` properties as the demo surface to replace before first production deploy.
+Follow *How to extend* above, then fill the mapping worksheet in [SPEC.md](SPEC.md). `SOURCE_SCAFFOLD:` properties are the demo surface to replace before the first production deploy. After that, container properties cannot be removed.
 
 Grep scaffolds:
 

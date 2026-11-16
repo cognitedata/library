@@ -9,7 +9,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: WorkOrderNumber
+    name: Work order number
     description: "SOURCE_SCAFFOLD: Source order number when it differs from the instance key. Example: 40001234."
     maxTextSize: 2400
 

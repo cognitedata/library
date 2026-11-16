@@ -17,7 +17,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: MaterialType
+    name: Material type
     description: "SOURCE_SCAFFOLD: Material type or category. Example: Spare."
 
   equipment:

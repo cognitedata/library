@@ -27,6 +27,10 @@ Schema-only search (`_SOL`) data product for the industry domain template. Maps 
 
 There is **no** search view for `AlarmEvent` — read alarms through the enterprise record view and Records API (`producer_industry_dom_*` or admin). Search UI users use `{{ sol_consumer_group_name }}`; map both IdP groups only when a user needs Search and alarms.
 
+Search consumers need **both** `dataModelsAcl` READ on `cdf_cdm` and `dataModelInstancesAcl` READ on `{{ instance_space_sap }}`, `{{ instance_space_pi }}`, and `{{ instance_space_sharepoint }}`. `{{ sol_consumer_group_name }}` already grants that pair. Security categories (`sc_*`) do not gate these instances.
+
+`consumer_industry_sol_*` is an add-on to foundation `consumer_all_*`, not a replacement.
+
 ### Naming note — `labels` vs `tags`
 
 `SearchTag` exposes CogniteDescribable `tags` as view property `labels` (same alias as enterprise `Tag`).
@@ -61,6 +65,10 @@ industry_domain_extension_search/
     search.DataModel.yaml
     views/          # no containers/
 ```
+
+## Adapting this template
+
+Search stays schema-only: update or remove `Search*` views when the enterprise containers change, and do not add containers, transformations, or a search instance space. Procedure and the stable-contract table: [SPEC.md](../industry_domain_extension/SPEC.md).
 
 ## Support
 

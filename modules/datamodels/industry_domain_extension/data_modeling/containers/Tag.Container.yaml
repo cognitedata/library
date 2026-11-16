@@ -36,7 +36,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: TagClass
+    name: Tag class
     description: "SOURCE_SCAFFOLD: Tag class or category label. Example: Pump."
     maxTextSize: 2400
 

@@ -28,7 +28,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: HistorianTagName
+    name: Historian tag name
     description: "SOURCE_SCAFFOLD: Historian tag name. Example: PI-TAG-001."
     maxTextSize: 2400
 
@@ -37,7 +37,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: HistorianPointSource
+    name: Historian point source
     description: "SOURCE_SCAFFOLD: Historian point source. Example: L."
     maxTextSize: 2400
 

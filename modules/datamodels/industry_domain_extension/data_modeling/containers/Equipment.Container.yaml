@@ -9,7 +9,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: ModelNumber
+    name: Model number
     description: "SOURCE_SCAFFOLD: Manufacturer model number. Example: P-2000."
     maxTextSize: 2400
 

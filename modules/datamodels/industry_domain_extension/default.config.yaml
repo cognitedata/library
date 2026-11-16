@@ -16,7 +16,9 @@ enterprise_location_filter_external_id: loc_industry_all
 enterprise_location_filter_name: Industry all locations
 
 # Access groups — persona-led; environment token only here (override per config.<env>.yaml)
-# Type tokens: all | dom | sol | pp | wf — one admin, DOM producer, SOL consumer (+ pp/wf in ingestion)
+# Type tokens: all | dom | sol | pp | wf (dom/sol/wf are template-specific; documented in SPEC §8.8)
+# One admin, DOM producer, SOL consumer. pp/wf live in cdf_industry_ingestion.
+# Additive to foundation admin_all_* / producer_all_* / consumer_all_* — do not replace them.
 admin_group_name: admin_industry_all_dev
 dom_producer_group_name: producer_industry_dom_dev
 admin_source_id: ${ADMIN_GROUP_SOURCE_ID}

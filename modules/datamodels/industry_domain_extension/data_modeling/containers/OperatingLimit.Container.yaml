@@ -19,7 +19,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: TimeSeries
+    name: Time series
     description: "CONTRACT: Direct relation to TimeSeriesData."
 
   limitHigh:
@@ -27,7 +27,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: LimitHigh
+    name: Limit high
     description: "SOURCE_SCAFFOLD: High operating limit value. Example: 10.5."
 
   limitLow:
@@ -35,7 +35,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: LimitLow
+    name: Limit low
     description: "SOURCE_SCAFFOLD: Low operating limit value. Example: 1.0."
 
   limitHighConsequence:
@@ -43,7 +43,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: LimitHighConsequence
+    name: Limit high consequence
     description: "SOURCE_SCAFFOLD: Consequence if high limit is exceeded."
 
   limitLowConsequence:
@@ -51,7 +51,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: LimitLowConsequence
+    name: Limit low consequence
     description: "SOURCE_SCAFFOLD: Consequence if low limit is exceeded."
 
   limitHighCorrectiveAction:
@@ -59,7 +59,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: LimitHighCorrectiveAction
+    name: Limit high corrective action
     description: "SOURCE_SCAFFOLD: Corrective action when high limit is exceeded."
 
   limitLowCorrectiveAction:
@@ -67,7 +67,7 @@ properties:
     nullable: true
     autoIncrement: false
     immutable: false
-    name: LimitLowCorrectiveAction
+    name: Limit low corrective action
     description: "SOURCE_SCAFFOLD: Corrective action when low limit is exceeded."
 
 indexes:
