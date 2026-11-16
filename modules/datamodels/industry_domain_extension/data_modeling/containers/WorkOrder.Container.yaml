@@ -5,14 +5,12 @@ description: Enterprise work order. Extends CogniteMaintenanceOrder.
 usedFor: node
 properties:
   workOrderNumber:
-    type: { list: false, collation: ucs_basic, type: text }
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
     nullable: true
     autoIncrement: false
     immutable: false
     name: Work order number
     description: "SOURCE_SCAFFOLD: Source order number when it differs from the instance key. Example: 40001234."
-    maxTextSize: 2400
-
 constraints:
   requiresCogniteMaintenanceOrder:
     constraintType: requires

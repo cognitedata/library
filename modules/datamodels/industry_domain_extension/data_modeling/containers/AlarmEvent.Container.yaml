@@ -13,7 +13,6 @@ properties:
   eventType:
     type:
       type: enum
-      list: false
       values:
         Raised:
           name: Raised
@@ -31,7 +30,6 @@ properties:
   severity:
     type:
       type: enum
-      list: false
       values:
         Low:
           name: Low
@@ -52,7 +50,6 @@ properties:
   limitType:
     type:
       type: enum
-      list: false
       values:
         High:
           name: High

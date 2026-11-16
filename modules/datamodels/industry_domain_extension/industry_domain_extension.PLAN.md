@@ -448,13 +448,12 @@ description: Enterprise tag / functional location hub. Extends CogniteAsset.
 usedFor: node
 properties:
   site:
-    type: { list: false, collation: ucs_basic, type: text }
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
     nullable: true
     autoIncrement: false
     immutable: false
     name: Site
     description: "SOURCE_SCAFFOLD: Site or plant code. Example: PLANT01."
-    maxTextSize: 2400
   # ... area, system, tagClass ...
 constraints:
   requiresCogniteAsset:

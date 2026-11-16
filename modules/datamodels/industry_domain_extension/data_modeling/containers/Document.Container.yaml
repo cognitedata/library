@@ -5,59 +5,47 @@ description: Enterprise document / file. Extends CogniteFile.
 usedFor: node
 properties:
   documentNumber:
-    type: { list: false, collation: ucs_basic, type: text }
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
     nullable: true
     autoIncrement: false
     immutable: false
     name: Document number
     description: "SOURCE_SCAFFOLD: Document number from the register. Example: DOC-001."
-    maxTextSize: 2400
-
   disciplineCode:
-    type: { list: false, collation: ucs_basic, type: text }
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
     nullable: true
     autoIncrement: false
     immutable: false
     name: Discipline code
     description: "SOURCE_SCAFFOLD: Engineering discipline code. Example: ME."
-    maxTextSize: 2400
-
   revision:
-    type: { list: false, collation: ucs_basic, type: text }
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
     nullable: true
     autoIncrement: false
     immutable: false
     name: Revision
     description: "SOURCE_SCAFFOLD: Document revision. Example: A."
-    maxTextSize: 2400
-
   site:
-    type: { list: false, collation: ucs_basic, type: text }
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
     nullable: true
     autoIncrement: false
     immutable: false
     name: Site
     description: "SOURCE_SCAFFOLD: Source-native site code from the document register. Example: PLANT01."
-    maxTextSize: 2400
-
   area:
-    type: { list: false, collation: ucs_basic, type: text }
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
     nullable: true
     autoIncrement: false
     immutable: false
     name: Area
     description: "SOURCE_SCAFFOLD: Source-native area code from the document register. Example: AREA-A."
-    maxTextSize: 2400
-
   system:
-    type: { list: false, collation: ucs_basic, type: text }
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
     nullable: true
     autoIncrement: false
     immutable: false
     name: System
     description: "SOURCE_SCAFFOLD: Source-native system code from the document register. Example: SYS-01."
-    maxTextSize: 2400
-
 constraints:
   requiresCogniteFile:
     constraintType: requires
