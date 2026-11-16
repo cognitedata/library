@@ -41,11 +41,11 @@ Ship a **small, industry-neutral** reusable domain data model template that work
 | CDM/IDM reuse | IDM `status` / `type` / `priority`, CDM `equipmentType`, `category`, `manufacturer`, `serialNumber` instead of custom duplicates |
 | Custom types | Local `name` only — **no** `CogniteDescribable` |
 | Location | Canonical on `Tag` in enterprise; search reaches it by navigating the asset relation (no copies) |
-| Search `_SOL` | Schema-only data product: views + data model mapping `{{ enterprise_space }}` / CDM / IDM containers; **no** containers, transformations or instance writes |
+| Search `_SOL` | Schema-only data product: views + data model in `{{ search_space }}` mapping enterprise / CDM / IDM containers; **no** containers, transformations, instance writes, or search instance space |
 | Reverse directs | On Search `_SOL` only — **not** on domain views |
-| Event records | `AlarmEvent` record container + record view in the enterprise space, stream `{{ alarm_stream_external_id }}` (immutable); records stored in `{{ instance_space }}`; loaded by a CDF Function (Records cannot be onboarded through RAW + Transformations) |
-| Access | Six persona-led groups (cog-vd `<persona>_industry_<type>_<env>` with type vocabulary `dom`/`sol`/`pp`/`wf`): DOM admin / consumer, SOL admin / consumer, pipeline producer, pipeline operator; only the pipeline writes data (§11.1). Search + alarms → dual membership |
-| Instance space | One shared `inst_industry` — **documented exception** (§11.3); function code in separate `{{ function_space }}` |
+| Event records | `AlarmEvent` record container + record view in the enterprise space, stream `{{ alarm_stream_external_id }}` (immutable); records stored in `{{ instance_space_pi }}`; loaded by a CDF Function (Records cannot be onboarded through RAW + Transformations) |
+| Access | Five persona-led groups (cog-vd `<persona>_industry_<type>_<env>` with type vocabulary `all`/`dom`/`sol`/`pp`/`wf`): one schema admin, DOM producer, SOL consumer, pipeline producer, pipeline operator (§11.1). Alarms via DOM producer; Search UI via SOL consumer |
+| Instance spaces | One per sample source (`inst_industry_sap` / `_pi` / `_sharepoint`) — **no** `_SRC` schema layer, **no** search instance space (§11.3); function code in separate `{{ function_space }}` |
 | Tag labels | CogniteDescribable `tags` exposed as view property `labels` on `Tag` / `SearchTag` (§5.1.1) |
 | Versions | `{{dm_enterprise_version}}` and `{{dm_search_version}}` — never shared; AlarmEvent record view uses enterprise version |
 | Variables | Same snake_case variable names in all six modules (§3.2) |
@@ -76,8 +76,8 @@ industry_domain_extension/
   README.md                      # incl. "How to extend" (§8.0), "Stable contract vs scaffolding", "Adapting this template"
   SPEC.md                        # full agent contract from this plan §8 (lead with §8.0)
   auth/
-    dom_admin.Group.yaml         # name {{ dom_admin_group_name }}
-    dom_consumer.Group.yaml      # name {{ dom_consumer_group_name }}
+    admin.Group.yaml             # name {{ admin_group_name }} — schema WRITE on enterprise + search
+    dom_producer.Group.yaml      # name {{ dom_producer_group_name }}
   data_sets/
     dataset.DataSet.yaml         # externalId {{ dataset_external_id }}
   locations/
@@ -86,7 +86,9 @@ industry_domain_extension/
     alarm.Streams.yaml           # externalId {{ alarm_stream_external_id }}, template {{ alarm_stream_template }}
   data_modeling/
     enterprise.Space.yaml        # {{ enterprise_space }}
-    instance.Space.yaml          # {{ instance_space }}
+    instance_sap.Space.yaml      # {{ instance_space_sap }}
+    instance_pi.Space.yaml       # {{ instance_space_pi }}
+    instance_sharepoint.Space.yaml  # {{ instance_space_sharepoint }}
     enterprise.DataModel.yaml    # {{ enterprise_data_model_external_id }}
     containers/
       Tag.Container.yaml
@@ -115,12 +117,11 @@ industry_domain_extension_search/
   default.config.yaml
   README.md
   auth/
-    sol_admin.Group.yaml         # name {{ sol_admin_group_name }}
     sol_consumer.Group.yaml      # name {{ sol_consumer_group_name }}
   locations/
     search.LocationFilter.yaml   # externalId {{ search_location_filter_external_id }}
   data_modeling/
-    search.Space.yaml            # {{ search_space }} — schema space for views only
+    search.Space.yaml            # {{ search_space }} — schema only (views + model); no instance space
     search.DataModel.yaml        # {{ search_data_model_external_id }}
     views/                       # no containers/ and no transformations/ in this module
       SearchTag.View.yaml
@@ -147,8 +148,10 @@ project overrides them once at the `variables.modules` level of `config.<env>.ya
 # Data model identifiers
 enterprise_space: dm_dom_industry
 search_space: dm_sol_industry_search
-instance_space: inst_industry
-function_space: sp_function_industry          # function code only — never instance_space (cdf_common pattern)
+instance_space_sap: inst_industry_sap
+instance_space_pi: inst_industry_pi
+instance_space_sharepoint: inst_industry_sharepoint
+function_space: sp_function_industry          # function code only — never an instance space (cdf_common pattern)
 enterprise_data_model_external_id: Industry_DOM
 enterprise_data_model_name: Industry DM DOM
 search_data_model_external_id: IndustrySearch_SOL
@@ -165,16 +168,14 @@ search_location_filter_external_id: loc_industry_search_all
 search_location_filter_name: Industry search all locations
 
 # Access groups — persona-led, the only identifiers that carry the environment token (override per config.<env>.yaml)
-# Type tokens for this template: dom | sol | pp | wf (§8.8 / §11.1 vocabulary)
-dom_admin_group_name: admin_industry_dom_dev
-dom_consumer_group_name: consumer_industry_dom_dev
-sol_admin_group_name: admin_industry_sol_dev
+# Type tokens for this template: all | dom | sol | pp | wf (§8.8 / §11.1 vocabulary)
+admin_group_name: admin_industry_all_dev
+dom_producer_group_name: producer_industry_dom_dev
 sol_consumer_group_name: consumer_industry_sol_dev
 ingestion_group_name: producer_industry_pp_dev
 operator_group_name: producer_industry_wf_dev
-dom_admin_source_id: ${DOM_ADMIN_GROUP_SOURCE_ID}
-dom_consumer_source_id: ${DOM_CONSUMER_GROUP_SOURCE_ID}
-sol_admin_source_id: ${SOL_ADMIN_GROUP_SOURCE_ID}
+admin_source_id: ${ADMIN_GROUP_SOURCE_ID}
+dom_producer_source_id: ${DOM_PRODUCER_GROUP_SOURCE_ID}
 sol_consumer_source_id: ${SOL_CONSUMER_GROUP_SOURCE_ID}
 ingestion_source_id: ${INGESTION_GROUP_SOURCE_ID}
 operator_source_id: ${OPERATOR_GROUP_SOURCE_ID}
@@ -212,7 +213,8 @@ Naming checks applied (cog-vd `cdf-naming-conventions` + `cdf-data-model-limits`
   location filters, data set.
 - No environment tokens (`dev` / `test` / `prod`) and no customer or site names in any identifier — except the
   required `<environment>` suffix on persona-led access group names (set per `config.<env>.yaml`).
-- Access group type tokens for this template are the project vocabulary in §8.8 (`dom`, `sol`, `pp`, `wf`).
+- Access group type tokens: §8.8 — standard `all` / `pp` plus template-specific `dom` / `sol` / `wf` (docs Tip on
+  alternative schemes; this PLAN is the governance record).
 - Template targets **CDM `v1` and IDM `v1`**; CDM/IDM view versions are hard-coded `v1`.
 
 ### 3.3 module.toml
@@ -384,7 +386,8 @@ Every inherited CDM/IDM direct relation a domain view exposes gets `source` poin
 
 `CogniteEquipmentType` and `CogniteFileCategory` are used as-is from `cdf_cdm` (no domain view, no container). Both
 views are listed in `Industry_DOM` and `IndustrySearch_SOL` so transformations and apps can reach them. Type nodes
-live in `{{ instance_space }}`; their external IDs are the source codes.
+live in the instance space of the dump that creates them (SAP equipment types / SharePoint file categories); their
+external IDs are the source codes.
 
 ### 5.4 Custom types — no CogniteDescribable
 
@@ -554,7 +557,7 @@ state change (raised, acknowledged, cleared) is a new record — this fits an im
 | Stream | `streams/alarm.Streams.yaml` | `externalId: {{ alarm_stream_external_id }}`; `settings.template.name: {{ alarm_stream_template }}`. Default in sample config is `ImmutableTestStream` (**dev / experimentation only**, short retention). The template **cannot be changed** after creation — set `BasicArchive` in `config.<env>.yaml` **before the first non-dev deploy** (and before any deploy that must retain sample alarms). Stream limits per project are small (1 `BasicLiveData`, 2 `BasicArchive`, 3 `ImmutableTestStream`). §9.2 **[FAIL]** if any non-dev config still uses `ImmutableTestStream` |
 | Record container | `containers/AlarmEvent.Container.yaml` | `space: {{ enterprise_space }}`, `usedFor: record`; keys `space`, `externalId`, `name`, `description`, `properties`, `usedFor` only — **no** `constraints`, **no** `indexes`; no `immutable`, `autoIncrement`, `collation`, or `timeseries` / `file` / `sequence` types |
 | Record view | `views/AlarmEvent.View.yaml` | `version: "{{ dm_enterprise_version }}"`; `streamId: ['{{ alarm_stream_external_id }}']` (Toolkit ≥ 0.9); maps only `AlarmEvent`; directs carry `source` to the enterprise views. **Not** listed in `Industry_DOM` — data models can't include record views yet. Cognite docs *Record views* require this view; do **not** delete it because an older cog-vd one-liner said "record has no view" (§9.2) |
-| Records | written by `{{ alarm_function_external_id }}` (§12.5) | `space: {{ instance_space }}` (shared space with the nodes they reference); `externalId` `pi_all_<historianTagName>_<eventTime>_<eventType>` |
+| Records | written by `{{ alarm_function_external_id }}` (§12.5) | `space: {{ instance_space_pi }}`; asset directs use `{{ instance_space_sap }}`; timeSeries/operatingLimit directs use PI space; `externalId` `pi_all_<historianTagName>_<eventTime>_<eventType>` |
 
 `AlarmEvent` properties (all `SOURCE_SCAFFOLD` except the directs):
 
@@ -588,10 +591,10 @@ Rules:
 The search model is a **data product schema**: it owns no data and no storage. It reads the same nodes the
 enterprise transformations write, through different views. One `Search*` view per enterprise type. Rules:
 
-0. **Schema only** — the module contains a space, views, the data model, a location filter and its admin / consumer
-   access groups (§11.1). **No** containers,
-   **no** transformations, **no** workflow tasks; every view property maps a container in `{{ enterprise_space }}`,
-   `cdf_cdm` or `cdf_idm`, or is a reverse direct.
+0. **Schema only** — the module contains a space, views, the data model, a location filter and the SOL consumer
+   access group (§11.1). Schema admin for this space lives in the enterprise module (`admin_industry_all_*`).
+   **No** containers, **no** transformations, **no** workflow tasks, **no** search instance space; every view
+   property maps a container in `{{ enterprise_space }}`, `cdf_cdm` or `cdf_idm`, or is a reverse direct.
 1. **No** `implements` — map minimum CDM/IDM container properties so apps classify the type (cog-vd *Minimum CDM/IDM
    Mapping Without `implements`*).
 2. Map enterprise extension props via `container:` + `containerPropertyIdentifier:` using
@@ -835,7 +838,7 @@ Use the touch map (§8.9) for the type being removed:
 |----------|---------|---------|
 | Data model | `PascalCase_DOM` / `_SOL` | `Industry_DOM` |
 | DM space | `dm_dom_*` / `dm_sol_*` | `dm_dom_industry` |
-| Instance space | `inst_*` | `inst_industry` |
+| Instance space | `inst_*` — one per sample source | `inst_industry_sap`, `inst_industry_pi`, `inst_industry_sharepoint` |
 | View / container | PascalCase, singular, not reserved | `TimeSeriesData`, `Document` |
 | Property | camelCase | `documentNumber` |
 | Location filter | `loc_{location}` | `loc_industry_all` |
@@ -850,17 +853,26 @@ Use the touch map (§8.9) for the type being removed:
 | Access group / service principal | persona-led `<persona>_[segment_]<type>_<environment>`; persona `admin` / `producer` / `consumer`; segment `industry`; **type** from the vocabulary below | `consumer_industry_sol_prod` |
 | Function space | `sp_function_{snake_case}` — code upload only; never reuse `instance_space` | `sp_function_industry` |
 
-**Access group type vocabulary (this template).** cog-vd naming-conventions lists building-block types such as
-`pp`, `ep`, `all`. This template uses a documented alternative scheme (allowed when stated in project governance):
+**Access group type vocabulary (this template).** Cognite’s default Access Management type tokens are building-block
+scopes such as `ep`, `pp`, and `all` (see Cognite Docs *Resource naming conventions* → Access management). The same
+page allows **alternative schemes** (ACL-, data-domain-, or source-system-based) when they better match the IdP —
+**provided the chosen scheme is documented in project governance**. This PLAN **is** that documentation for the
+industry pack.
 
-| Type token | Meaning | Used by |
-|------------|---------|---------|
-| `dom` | Enterprise / domain data model scope | `admin_industry_dom_*`, `consumer_industry_dom_*` |
-| `sol` | Search / solution data product scope | `admin_industry_sol_*`, `consumer_industry_sol_*` |
-| `pp` | Processing pipeline (transformations + function runtime) | `producer_industry_pp_*` |
-| `wf` | Workflow operator (run / monitor only) | `producer_industry_wf_*` |
+| Type token | Kind | Meaning | Used by |
+|------------|------|---------|---------|
+| `all` | Standard (cog-vd / docs) | Cross-layer schema admin (enterprise + search spaces) | `admin_industry_all_*` |
+| `pp` | Standard (cog-vd / docs) | Processing pipeline (transformations + function runtime) | `producer_industry_pp_*` |
+| `dom` | **Template-specific** | Enterprise / domain data scope (human producer) | `producer_industry_dom_*` |
+| `sol` | **Template-specific** | Search / solution data product scope (consumer) | `consumer_industry_sol_*` |
+| `wf` | **Template-specific** | Workflow operator (run / monitor only) | `producer_industry_wf_*` |
 
-`cdf-naming-check` must treat these four tokens as approved for this pack — do not flag them as unknown types.
+Do **not** invent further type tokens without updating this section. `cdf-naming-check` / `cog-vd-audit` must treat
+these five tokens as approved for this pack — do not flag `dom` / `sol` / `wf` as unknown types. Delivery projects
+that prefer only the default `ep` / `pp` / `all` list may map IdP groups differently; keep this vocabulary when
+shipping the pack as documented.
+
+**Spaces:** `{{ search_space }}` is schema-only (views + data model). There is **no** search instance space. Instances/records live in per-source spaces (`{{ instance_space_sap }}`, `{{ instance_space_pi }}`, `{{ instance_space_sharepoint }}`). Cross-source directs use the **target** source’s space.
 
 ### 8.9 Touch map — every file per entity
 
@@ -906,7 +918,7 @@ the commands `uv run cdf build`, `uv run cdf deploy --dry-run` and the `cog-vd-a
 - [ ] No environment tokens, customer, site, or industry-specific names in identifiers (env suffix only on group
       names, always via variable)
 - [ ] Group names match `<persona>_industry_<type>_<environment>` with persona `admin` / `producer` / `consumer`
-      and type from the §8.8 vocabulary (`dom`, `sol`, `pp`, `wf`)
+      and type from the §8.8 vocabulary (`all`, `dom`, `sol`, `pp`, `wf`)
 - [ ] No two identifiers differ only by capitalization; same concept uses the same property id everywhere
 
 ### 9.2 Structure (`cdf-data-modeling` W3 — structural checklist)
@@ -931,7 +943,8 @@ the commands `uv run cdf build`, `uv run cdf deploy --dry-run` and the `cog-vd-a
 - [ ] `requires` only on the parent CDM/IDM container
 - [ ] Search module has **no** `*.Container.yaml`, `*.Transformation.*` or workflow tasks; every search view property
       maps an `{{ enterprise_space }}` / `cdf_cdm` / `cdf_idm` container or is a reverse
-- [ ] Single instance space documented as an exception in both READMEs (§11.3)
+- [ ] Per-source instance spaces documented in both READMEs; Search README states **no** search instance space —
+      schema only (§11.3)
 
 ### 9.3 Relations (`cdf-data-modeling` W3 — relation checklist)
 
@@ -952,13 +965,15 @@ the commands `uv run cdf build`, `uv run cdf deploy --dry-run` and the `cog-vd-a
 
 ### 9.5 Access (least privilege)
 
-- [ ] Six groups exist, one per persona (§11.1), each in the module that owns its scope; `sourceId` from env vars
+- [ ] Five groups exist (§11.1): admin, DOM producer, SOL consumer, pipeline producer, pipeline operator; each in
+      the module that owns its scope; `sourceId` from env vars
 - [ ] No group has WRITE on `cdf_cdm`, `cdf_idm` or `cdf_cdm_units`
-- [ ] Only `{{ ingestion_group_name }}` writes instances or records; only the two admin groups write schema
-- [ ] Consumer groups have READ only; `{{ sol_consumer_group_name }}` has no RAW, records, transformation or workflow
-      access; README documents dual membership for Search + alarms (§11.1)
+- [ ] Only `{{ ingestion_group_name }}` and `{{ dom_producer_group_name }}` write instances or records; only
+      `{{ admin_group_name }}` writes schema (enterprise + search)
+- [ ] `{{ sol_consumer_group_name }}` has READ only — no RAW, records, transformation or workflow access; READMEs
+      document alarms via DOM producer vs Search via SOL consumer (§11.1)
 - [ ] Dev check with a `{{ sol_consumer_group_name }}` member: every `Search*` view returns data and a write is
-      rejected; same for `{{ dom_consumer_group_name }}` on `Industry_DOM` and an `AlarmEvent` records filter
+      rejected; same for `{{ dom_producer_group_name }}` on `Industry_DOM` and an `AlarmEvent` records filter
 - [ ] Workflow run succeeds with **only** `{{ ingestion_group_name }}` on the client (no extra admin rights)
 
 ### 9.6 Build and registry
@@ -976,7 +991,8 @@ the commands `uv run cdf build`, `uv run cdf deploy --dry-run` and the `cog-vd-a
       `instanceSpace: {{ instance_space }}`; `dataSetExternalId: {{ dataset_external_id }}`; `conflictMode: upsert`
 - [ ] `ignoreNullFields: false` except overlay transformations that share nodes (§12.3 marks them)
 - [ ] Each transformation writes only containers it owns; no two transformations write the same property
-- [ ] Every direct built with `node_reference('{{ instance_space }}', …)`; null/empty keys yield `NULL`
+- [ ] Every direct built with `node_reference` into the **target** source’s instance space (same-source →
+      `{{ instance_space }}`, cross-source asset/Tag → `{{ instance_space_sap }}`); null/empty keys yield `NULL`
 - [ ] Tag transform writes Describable labels as view property `labels` (SQL `AS labels`), never `AS tags` (§5.1.1)
 - [ ] Document transform populates CogniteFile `mimeType`, `isUploaded`, and `uploadedTime` (file syncer + §6.2)
 - [ ] JOINs only for real lookups (asset → equipment, annotation → tag), never just to resolve a direct relation
@@ -1046,40 +1062,49 @@ the commands `uv run cdf build`, `uv run cdf deploy --dry-run` and the `cog-vd-a
 
 ### 11.1 Access model — one group per persona, owned by the module that owns the scope
 
-Persona-led names (cog-vd *Access Management*): `<persona>_industry_<type>_<environment>`. The environment token is
-allowed **only** in group and service principal names; every name is a variable (§3.2) so `config.<env>.yaml` sets
-`_dev` / `_test` / `_prod`. Group `sourceId`s come from env vars; never hard-code IdP ids. Type tokens are the
-documented vocabulary in §8.8 (`dom`, `sol`, `pp`, `wf`) — a stated alternative to the default `ep` / `pp` / `all`
-list.
+Persona-led names (Cognite Docs / cog-vd *Access Management*): `<persona>_industry_<type>_<environment>`. The
+environment token is allowed **only** in group and service principal names; every name is a variable (§3.2) so
+`config.<env>.yaml` sets `_dev` / `_test` / `_prod`. Group `sourceId`s come from env vars; never hard-code IdP ids.
 
-**Alarms and Search consumers:** `sol_consumer` has no `streamRecordsAcl` (alarms are not in the search model).
-Apps that need Search **and** alarms must map the IdP user to **both** `{{ sol_consumer_group_name }}` and
-`{{ dom_consumer_group_name }}` (dual membership). Enterprise README documents this and shows a sample two-step
-graph→records query (filter nodes, then records `in` on the direct, chunk ≤ 100 ids per request — Cognite docs
-*Traversing between records and the graph*; `cdf-dms-queries` pagination).
+**Type tokens:** §8.8 — standard `all` / `pp` plus template-specific `dom` / `sol` / `wf`, documented here as the
+governance alternative allowed by Cognite Docs (*Resource naming conventions* → Access management Tip). `all` is
+used for the single cross-layer schema admin.
+
+**OOTB human groups are intentionally simple:** one schema admin (both spaces), a DOM producer (instance/record
+write), and a SOL consumer (Search UI read). Pipeline `pp` / `wf` remain service identities. Do **not** ship
+separate `dom`/`sol` admin groups or a DOM consumer.
+
+**Alarms vs Search:** `sol_consumer` has no `streamRecordsAcl` (alarms are not in the search model). Alarm access is
+via `{{ dom_producer_group_name }}` (or admin); Search UI via `{{ sol_consumer_group_name }}`. Map both IdP groups
+only when a user needs both products. Enterprise README shows a sample two-step graph→records query (filter nodes,
+then records `in` on the direct, chunk ≤ 100 ids per request — Cognite docs *Traversing between records and the
+graph*; `cdf-dms-queries` pagination).
 
 ```mermaid
 flowchart LR
   deployer["CI/CD deployer (cdf_project_foundation)"] -->|deploys| schema
-  domAdmin[admin_industry_dom] -->|"schema WRITE"| dom[enterprise_space]
-  solAdmin[admin_industry_sol] -->|"schema WRITE"| sol[search_space]
+  admin[admin_industry_all] -->|"schema WRITE"| dom[enterprise_space]
+  admin -->|"schema WRITE"| sol[search_space]
   ingestion[producer_industry_pp] -->|"RAW READ"| raw[raw_sample_all_*]
-  ingestion -->|"instances + records WRITE"| inst[instance_space]
+  ingestion -->|"WRITE"| sapInst[instance_space_sap]
+  ingestion -->|"WRITE + records"| piInst[instance_space_pi]
+  ingestion -->|"WRITE"| spInst[instance_space_sharepoint]
+  domProducer[producer_industry_dom] -->|"WRITE all three"| sapInst
+  domProducer -->|READ| dom
   operator[producer_industry_wf] -->|"run / monitor"| wf[wf_all_industry_ingestion]
-  domConsumer[consumer_industry_dom] -->|READ| dom
-  domConsumer -->|READ| inst
   solConsumer[consumer_industry_sol] -->|READ| sol
   solConsumer -->|"READ (mapped containers)"| dom
-  solConsumer -->|READ| inst
+  solConsumer -->|READ| sapInst
+  solConsumer -->|READ| piInst
+  solConsumer -->|READ| spInst
   schema[all schema resources]
 ```
 
 | Group (module) | Persona | Capabilities | Never |
 |----------------|---------|--------------|-------|
-| `dom_admin.Group.yaml` → `{{ dom_admin_group_name }}` (enterprise) | Domain model owner | `dataModelsAcl` READ/WRITE on `{{ enterprise_space }}`, READ on `cdf_cdm`, `cdf_idm`, `cdf_cdm_units`; `dataModelInstancesAcl` READ on `{{ instance_space }}`; `datasetsAcl` OWNER/READ/WRITE on `{{ dataset_external_id }}`; `streamsAcl` READ/CREATE/DELETE; `streamRecordsAcl` READ on `{{ instance_space }}`; `locationFiltersAcl` READ/WRITE | WRITE on any `cdf_*` space; instance or record WRITE (data is written only by the pipeline) |
-| `dom_consumer.Group.yaml` → `{{ dom_consumer_group_name }}` (enterprise) | Domain consumer (apps, analysts on `Industry_DOM`) | `dataModelsAcl` READ on `{{ enterprise_space }}`, `cdf_cdm`, `cdf_idm`, `cdf_cdm_units`; `dataModelInstancesAcl` READ on `{{ instance_space }}`, `cdf_cdm_units`; `streamsAcl` READ; `streamRecordsAcl` READ on `{{ instance_space }}` (alarms); `locationFiltersAcl` READ | Any WRITE; RAW |
-| `sol_admin.Group.yaml` → `{{ sol_admin_group_name }}` (search) | Search data product owner | `dataModelsAcl` READ/WRITE on `{{ search_space }}`, READ on `{{ enterprise_space }}`, `cdf_cdm`, `cdf_idm`, `cdf_cdm_units`; `dataModelInstancesAcl` READ on `{{ instance_space }}`; `locationFiltersAcl` READ/WRITE | WRITE on `{{ enterprise_space }}`; any instance / record WRITE |
-| `sol_consumer.Group.yaml` → `{{ sol_consumer_group_name }}` (search) | Search data product consumer (Search UI, apps) | `dataModelsAcl` READ on `{{ search_space }}` **and** `{{ enterprise_space }}`, `cdf_cdm`, `cdf_idm`, `cdf_cdm_units` (search views map containers there); `dataModelInstancesAcl` READ on `{{ instance_space }}`, `cdf_cdm_units`; `locationFiltersAcl` READ | Any WRITE; RAW; records (alarms are not in the search model — dual-membership with `dom_consumer` for Search + alarms, §11.1); transformations / workflows |
+| `admin.Group.yaml` → `{{ admin_group_name }}` (enterprise) | Schema admin (enterprise + search) | `dataModelsAcl` READ/WRITE on `{{ enterprise_space }}` and `{{ search_space }}`, READ on `cdf_cdm`, `cdf_idm`, `cdf_cdm_units`; `dataModelInstancesAcl` READ on all three instance spaces; `datasetsAcl` OWNER/READ/WRITE on `{{ dataset_external_id }}`; `streamsAcl` READ/CREATE/DELETE; `streamRecordsAcl` READ on `{{ instance_space_pi }}`; `locationFiltersAcl` READ/WRITE | WRITE on any `cdf_*` space; instance or record WRITE |
+| `dom_producer.Group.yaml` → `{{ dom_producer_group_name }}` (enterprise) | Domain producer (interactive / domain data work on `Industry_DOM`) | `dataModelsAcl` READ on `{{ enterprise_space }}`, `cdf_cdm`, `cdf_idm`, `cdf_cdm_units`; `dataModelInstancesAcl` READ/WRITE/WRITE_PROPERTIES on all three instance spaces, READ on `cdf_cdm_units`; `streamsAcl` READ; `streamRecordsAcl` READ/WRITE on `{{ instance_space_pi }}` (alarms); `locationFiltersAcl` READ | Schema WRITE; search-space WRITE; RAW |
+| `sol_consumer.Group.yaml` → `{{ sol_consumer_group_name }}` (search) | Search data product consumer (Search UI, apps) | `dataModelsAcl` READ on `{{ search_space }}` **and** `{{ enterprise_space }}`, `cdf_cdm`, `cdf_idm`, `cdf_cdm_units` (search views map containers there); `dataModelInstancesAcl` READ on all three instance spaces, `cdf_cdm_units`; `locationFiltersAcl` READ | Any WRITE; RAW; records (alarms via DOM producer); transformations / workflows |
 | `ingestion.Group.yaml` → `{{ ingestion_group_name }}` (ingestion) | Pipeline runtime — the service principal `{{ ingestion_client_id }}` used by transformations, the workflow trigger and the function task | see §12.6 | `dataModelsAcl` WRITE; search space; `datasetsAcl` OWNER |
 | `operator.Group.yaml` → `{{ operator_group_name }}` (ingestion) | Pipeline operator (runs / monitors) | `workflowOrchestrationAcl` READ/WRITE, `transformationsAcl` READ, on `{{ dataset_external_id }}`; `functionsAcl` READ; `rawAcl` READ on the three databases; `sessionsAcl` CREATE; `projectsAcl` READ/LIST; `groupsAcl` LIST | Instance / record WRITE; schema WRITE |
 
@@ -1094,26 +1119,55 @@ groups; the README states this dependency.
 `dataset.DataSet.yaml`: `externalId: {{ dataset_external_id }}`, `name: {{ dataset_name }}`; labels `INDUSTRY`,
 `DOMAIN MODEL`; no industry-standard labels. Used by the data model, all transformations and the workflow.
 
-### 11.3 Spaces and the single instance space exception
+### 11.3 Spaces — per-source instance spaces (no Source schema layer)
 
-| File | Identifier | Name |
-|------|------------|------|
-| `enterprise.Space.yaml` | `{{ enterprise_space }}` | Industry DM DOM |
-| `instance.Space.yaml` | `{{ instance_space }}` | Industry instance space |
-| `search.Space.yaml` (search module) | `{{ search_space }}` | Industry search DM SOL |
-| `function.Space.yaml` (PI data dump) | `{{ function_space }}` | Industry function space |
+| File | Identifier | Name | Role |
+|------|------------|------|------|
+| `enterprise.Space.yaml` | `{{ enterprise_space }}` | Industry DM DOM | Enterprise **schema** (containers, `_DOM` views, data model) |
+| `instance_sap.Space.yaml` | `{{ instance_space_sap }}` | Industry SAP instance space | SAP nodes (Tag, Equipment, work, materials, equipment types) |
+| `instance_pi.Space.yaml` | `{{ instance_space_pi }}` | Industry PI instance space | PI nodes + alarm records (TimeSeriesData, OperatingLimit, AlarmEvent) |
+| `instance_sharepoint.Space.yaml` | `{{ instance_space_sharepoint }}` | Industry SharePoint instance space | SharePoint nodes (Document, file categories, diagram edges) |
+| `search.Space.yaml` (search module) | `{{ search_space }}` | Industry search DM SOL | Search **schema only** (views + data model) — **not** an instance space |
+| `function.Space.yaml` (PI data dump) | `{{ function_space }}` | Industry function space | Function code upload only |
 
-cog-vd recommends separate source and enterprise instance spaces. This template has **no source data model** —
-transformations write RAW straight into `Industry_DOM` — so one instance space holds all enterprise instances and
-type nodes. Both READMEs document this exception and state that a project adding a `_SRC` model must give it its own
-instance space, and that per-site instance spaces are the tool for site-level access control.
+#### Instance strategy (keep this pack’s hybrid; document vs Cognite default)
+
+Cognite Docs (*Designing scalable data models* → Source and enterprise layer instance strategy) recommend
+**separate instance spaces for the source and enterprise layers**, each owned by the domain that writes them, so
+deleting a source instance cannot wipe the enterprise copy. Schema spaces stay separate from instance spaces;
+solution (`_SOL`) models generally **map** enterprise (and CDM/IDM) containers and do not own instances.
+
+**This template keeps a deliberate hybrid** (do not “fix” it to a full `_SRC` layer unless a project needs it):
+
+| Cognite default | This pack (locked) |
+|-----------------|--------------------|
+| `_SRC` schema + source-owned instance space(s) | **No `_SRC` schema** — sample RAW → transformations write straight into `Industry_DOM` containers |
+| Separate enterprise-owned instance space | **No single shared enterprise instance space** — one instance space **per sample source** (`sap` / `pi` / `sharepoint`) |
+| `_SOL` maps enterprise instances | Same — Search is schema-only; **no** search instance space |
+| Per-site instance spaces for site AC | Adaptation only — add when a delivery needs site-scoped groups |
+
+**Why this hybrid:** the pack is a demo / starting template without source data models. Per-source instance spaces
+still give write ownership and ACL boundaries close to “each writer owns its instance space,” without introducing
+a second schema layer or duplicating nodes into a separate enterprise space.
+
+**Rules that follow:**
+
+1. **No search instance space.** Search views map enterprise / CDM / IDM containers; once loads finish, data is
+   visible through `IndustrySearch_SOL` with no search-side instance writes.
+2. **Cross-source directs** (PI/SharePoint → Tag) use `node_reference` into the **target** source’s space (usually
+   `{{ instance_space_sap }}`). Same-source directs stay in that dump’s `{{ instance_space }}`.
+3. **Adding a real `_SRC` layer later** is a project adaptation: introduce `_SRC` models **and** new source-owned
+   instance spaces; do **not** reuse `inst_industry_sap` / `_pi` / `_sharepoint` as if they were enterprise-only
+   spaces — re-plan write targets and transforms so source and enterprise instances stay separable.
+4. **Site-level access control** still uses per-site instance spaces (and matching group scopes) on top of this
+   pattern when needed — Cognite’s primary lever for facility/plant segregation.
 
 ### 11.4 Location filters
 
 | Module | File | Data model | Instance spaces |
 |--------|------|------------|-----------------|
-| Enterprise | `enterprise.LocationFilter.yaml` | `{{ enterprise_data_model_external_id }}` @ `{{ dm_enterprise_version }}` | `{{ instance_space }}` |
-| Search | `search.LocationFilter.yaml` | `{{ search_data_model_external_id }}` @ `{{ dm_search_version }}` | `{{ instance_space }}` |
+| Enterprise | `enterprise.LocationFilter.yaml` | `{{ enterprise_data_model_external_id }}` @ `{{ dm_enterprise_version }}` | all three per-source spaces |
+| Search | `search.LocationFilter.yaml` | `{{ search_data_model_external_id }}` @ `{{ dm_search_version }}` | all three per-source spaces |
 
 Both use `dataModelingType: DATA_MODELING_ONLY` (Toolkit resource library, *Locations*), mirroring the CFIHOS and
 ISA search modules.
@@ -1228,7 +1282,7 @@ workflow group's transformation scope matches the transformations it runs.
 | `notification` | `cdf_sap_data_dump/upload_data/notification.RawRows.csv` | 10 | As-is |
 | `timeseries` | `cdf_pi_data_dump/upload_data/timeseries.RawRows.csv` | 375 | As-is |
 | `file` | `cdf_sharepoint_data_dump/upload_data/file.RawRows.csv` | 11 | As-is, plus file content manifest; also source of CogniteFileCategory nodes |
-| `diagram_annotation` | `cdf_sharepoint_data_dump/upload_data/diagram_annotation.RawRows.csv` | as source | As-is; the transformation sets every space from `{{ instance_space }}` and ignores the CSV space columns |
+| `diagram_annotation` | `cdf_sharepoint_data_dump/upload_data/diagram_annotation.RawRows.csv` | as source | As-is; transformation sets edge/start from SharePoint space and end (Tag) from SAP space; CSV space columns ignored |
 | `material` | **new** synthetic CSV | 10 | One spare part per equipment row; columns `key,name,materialType,equipment_externalId,asset_externalId` |
 | `alarm_event` | **new** synthetic CSV | 30 | Raised → Acknowledged → Cleared for 2 crossings on each of the 5 instruments with set points; columns `key,historianTagName,asset_externalId,timeseries_externalId,operatingLimit_externalId,eventTime,eventType,severity,limitType,value,message`; ids match the tag, time series and operating limit samples |
 
@@ -1254,7 +1308,7 @@ transformation creates → `ignoreNullFields: true`; all others `false`.
 | PI | `tr_pi_all_to_industry_operating_limit` | `instrument_equipment` ⋈ `timeseries` → OperatingLimit | rows with `setPointHigh`/`setPointLow`; `limitHigh`/`limitLow`; `timeSeries` = first time series whose `asset_externalId` = instrument `key` |
 | SharePoint | `tr_sharepoint_all_to_industry_file_category` | `file` → `cdf_cdm:CogniteFileCategory` | distinct `documentTypeCode`→externalId and `code` |
 | SharePoint | `tr_sharepoint_all_to_industry_document` | `file` ⋈ `diagram_annotation` → Document | `documentNumber`, `disciplineCode`; `currentRevision`→`revision`; `documentTypeCode`→`category`; `facility`→`site`; `area`, `system`; `name` / `description` from file metadata; `mimeType`; **`isUploaded`** and **`uploadedTime`** populated so the CogniteFile syncer and Search (§6.2) work (same pattern as CFIHOS file load — confirm against the SharePoint file-content manifest); `assets` = distinct union of `asset_externalId` and annotated tags (single owner of `CogniteFile.assets`) |
-| SharePoint | `tr_sharepoint_all_to_industry_diagram_annotation` | `diagram_annotation` → `cdf_cdm:CogniteDiagramAnnotation` edges | Same pattern as the CFIHOS annotation transformation; edge, start and end node spaces from `{{ instance_space }}` |
+| SharePoint | `tr_sharepoint_all_to_industry_diagram_annotation` | `diagram_annotation` → `cdf_cdm:CogniteDiagramAnnotation` edges | Edge + start (document) in SharePoint space; end (Tag) in `{{ instance_space_sap }}` |
 | SharePoint | `tr_sharepoint_all_to_industry_equipment_document_connection` | `equipment` ⋈ `diagram_annotation` → Equipment.`files` | **Overlay**; documents whose annotated tag = equipment asset |
 Each `.yaml` follows the CFIHOS pattern, pointed at the industry model:
 
@@ -1341,7 +1395,8 @@ stands in for that extractor.
 | Key | Type | Required | Meaning |
 |-----|------|----------|---------|
 | `stream_external_id` | string | yes | `{{ alarm_stream_external_id }}` |
-| `instance_space` | string | yes | Record + directed-node space |
+| `instance_space` | string | yes | PI instance space for the record + same-source directs |
+| `instance_space_sap` | string | yes | SAP instance space for `asset` directs (Tag) |
 | `enterprise_space` | string | yes | Space of the `AlarmEvent` container / record view |
 | `raw_database` | string | yes | `{{ raw_database_pi }}` |
 | `raw_table` | string | yes | `alarm_event` |
@@ -1353,7 +1408,8 @@ No secrets in Function YAML or `data` — the workflow session / injected `clien
 Steps:
 
 1. Read `data["raw_database"].data["raw_table"]` rows; validate each into a pydantic model.
-2. Build records in `data["instance_space"]` with source = `AlarmEvent` record view
+2. Build records in `data["instance_space"]` (PI) with source = `AlarmEvent` record view; `asset` directs use
+   `data["instance_space_sap"]`
    (`{{ enterprise_space }}` / `AlarmEvent` / `{{ dm_enterprise_version }}`); directs as
    `{space, externalId}` in `instance_space`.
 3. Filter the stream for existing `externalId`s (immutable streams need a `lastUpdatedTime` range — use
@@ -1393,12 +1449,26 @@ group is mapped to `{{ ingestion_group_name }}` via `{{ ingestion_source_id }}`.
 | `workflowOrchestrationAcl` | READ, WRITE | `datasetScope` `{{ dataset_external_id }}` | Workflow execution |
 | `functionsAcl` | READ, WRITE | all | Call the function task |
 | `dataModelsAcl` | READ | `{{ enterprise_space }}`, `cdf_cdm`, `cdf_idm`, `cdf_cdm_units` | Resolve views/containers; **no** search space, **no** WRITE |
-| `dataModelInstancesAcl` | READ, WRITE, WRITE_PROPERTIES | `{{ instance_space }}` | Write nodes, edges and type nodes |
+| `dataModelInstancesAcl` | READ, WRITE, WRITE_PROPERTIES | all three per-source instance spaces | Write nodes, edges and type nodes |
 | `dataModelInstancesAcl` | READ | `cdf_cdm`, `cdf_cdm_units` | `CogniteAsset.parent` writes; `TimeSeriesData.unit` |
 | `streamsAcl` | READ | all | Resolve `{{ alarm_stream_external_id }}` |
-| `streamRecordsAcl` | READ, WRITE | `{{ instance_space }}` | Duplicate check + ingest `AlarmEvent` records |
+| `streamRecordsAcl` | READ, WRITE | `{{ instance_space_pi }}` | Duplicate check + ingest `AlarmEvent` records |
 
 `operator.Group.yaml` → `{{ operator_group_name }}` (`producer_industry_wf_<env>`): run and monitor only — see §11.1.
+
+**Extraction pipelines — not in OOTB groups.** This module ships sample RAW → transformations → workflow → alarm
+function only; it does **not** deploy Extraction Pipelines. Do not add `extractionPipelinesAcl` /
+`extractionConfigsAcl` / `extractionRunsAcl` to `ingestion` or `operator` by default.
+
+**Adaptation when replacing sample dumps with real extractors:**
+
+- Prefer the existing per-extractor pattern (`producer.ep_*` groups in `sourcesystem/cdf_*_extractor`) — READ
+  pipelines/configs, WRITE runs, dataset-scoped — and dual-map the service principal if it also runs the industry
+  workflow.
+- Or extend `{{ ingestion_group_name }}` with dataset-scoped extraction ACLs if the **same** SP must report
+  extractor runs and run transformations.
+- Optionally give `{{ operator_group_name }}` READ on pipelines/runs (dataset-scoped) so humans can monitor
+  extractors alongside the workflow; leave WRITE runs on the extractor SP.
 
 ---
 
@@ -1434,15 +1504,15 @@ Docs:
 Split the enterprise delivery so PRs stay reviewable (~500 lines):
 
 1. **Enterprise schema + auth (no SPEC):** spaces, 8 node containers + `AlarmEvent` record container, 9 views +
-   `AlarmEvent` record view (`version` + `streamId`), stream, DataModel, auth, data set, location filter,
-   `default.config.yaml`, README with layer / `consumers:` stubs / labels note / single-instance-space exception /
-   stream-template warning / dual-membership for alarms + sample two-step records query. Point *Adapting this
-   template* at this plan until SPEC lands.
+   `AlarmEvent` record view (`version` + `streamId`), stream, DataModel, auth (`admin` + `dom_producer`), data set,
+   location filter, `default.config.yaml`, README with layer / `consumers:` stubs / labels note /
+   single-instance-space exception (no search instance space) / stream-template warning / alarms vs Search access +
+   sample two-step records query. Point *Adapting this template* at this plan until SPEC lands.
 2. **Enterprise SPEC + adaptation docs:** `SPEC.md` (full §8 contract) and README *How to extend* / stable-contract
    sections condensed from §8.0–§8.10.
 3. Search module (schema only): space, Search views (classification + UX maps + reverses + `labels` alias),
-   DataModel, location filter, `sol_admin` / `sol_consumer` groups, config, README (incl. "do not copy CFIHOS
-   `implements`" box).
+   DataModel, location filter, `sol_consumer` group, config, README (incl. "do not copy CFIHOS `implements`" box and
+   no search instance space).
 4. `cdf_sap_industry_data_dump`: RAW, sample data, 7 transformations (Tag SQL uses `AS labels`).
 5. `cdf_pi_industry_data_dump` + `cdf_sharepoint_industry_data_dump`: RAW, sample data, 6 transformations
    (Document populates `isUploaded` / `uploadedTime`); PI module includes `function.Space.yaml`.

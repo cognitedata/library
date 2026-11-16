@@ -162,7 +162,8 @@ workflowDefinition:
           externalId: {{ alarm_function_external_id }}
           data:
             stream_external_id: {{ alarm_stream_external_id }}
-            instance_space: {{ instance_space }}
+            instance_space: {{ instance_space_pi }}
+            instance_space_sap: {{ instance_space_sap }}
             enterprise_space: {{ enterprise_space }}
             raw_database: {{ raw_database_pi }}
             raw_table: alarm_event

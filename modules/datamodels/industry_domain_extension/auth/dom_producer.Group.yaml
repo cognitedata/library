@@ -1,5 +1,5 @@
-name: "{{ dom_consumer_group_name }}"
-sourceId: "{{ dom_consumer_source_id }}"
+name: "{{ dom_producer_group_name }}"
+sourceId: "{{ dom_producer_source_id }}"
 capabilities:
   - dataModelsAcl:
       actions: [READ]
@@ -11,22 +11,29 @@ capabilities:
             - cdf_idm
             - cdf_cdm_units
   - dataModelInstancesAcl:
+      actions: [READ, WRITE, WRITE_PROPERTIES]
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ instance_space_sap }}
+            - {{ instance_space_pi }}
+            - {{ instance_space_sharepoint }}
+  - dataModelInstancesAcl:
       actions: [READ]
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space }}
             - cdf_cdm_units
   - streamsAcl:
       actions: [READ]
       scope:
         all: {}
   - streamRecordsAcl:
-      actions: [READ]
+      actions: [READ, WRITE]
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space }}
+            - {{ instance_space_pi }}
   - locationFiltersAcl:
       actions: [READ]
       scope:

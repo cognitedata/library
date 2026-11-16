@@ -18,25 +18,33 @@ Industry-neutral enterprise (`_DOM`) data model template for asset-heavy industr
 
 | Area | Contents |
 |------|----------|
-| Spaces | `{{ enterprise_space }}` (schema), `{{ instance_space }}` (instances + records) |
+| Spaces | `{{ enterprise_space }}` (schema); per-source instance spaces `{{ instance_space_sap }}`, `{{ instance_space_pi }}`, `{{ instance_space_sharepoint }}`; Search schema lives in companion module |
 | Containers | Tag, Equipment, Document, TimeSeriesData, WorkOrder, Notification, Material, OperatingLimit (node); AlarmEvent (record) |
 | Views | Matching domain views (`implements` CDM/IDM where applicable) + `AlarmEvent` record view (`streamId`, not in the DataModel) |
 | Data model | `Industry_DOM` + `CogniteEquipmentType` / `CogniteFileCategory` |
 | Stream | `{{ alarm_stream_external_id }}` (default template `ImmutableTestStream` — **dev only**) |
-| Auth | `admin_industry_dom_*`, `consumer_industry_dom_*` |
+| Auth | `admin_industry_all_*` (schema on enterprise + search), `producer_industry_dom_*` |
 | Governance | Dataset + enterprise location filter |
 
 ### Naming note — `labels` vs `tags`
 
 Because the CogniteAsset view is named `Tag`, CogniteDescribable `tags` is exposed as view property `labels` on `Tag` (and on `SearchTag`). Transformations must write `AS labels`, never `AS tags`.
 
-### Single instance space (documented exception)
+### Per-source instance spaces (no Source schema layer)
 
-This template has no `_SRC` model — transformations write RAW straight into `Industry_DOM` — so one instance space (`inst_industry`) holds all enterprise instances, type nodes and alarm records. A project that adds a `_SRC` model must give it its own instance space. Use per-site instance spaces for site-level access control.
+This template has no `_SRC` model — transformations write RAW straight into `Industry_DOM`. Instances are partitioned by **sample source**, not into one shared space:
 
-### Alarms + Search dual membership
+| Space | Source | Typical content |
+|-------|--------|-----------------|
+| `{{ instance_space_sap }}` | SAP | Tag, Equipment, WorkOrder, Notification, Material, equipment types |
+| `{{ instance_space_pi }}` | PI | TimeSeriesData, OperatingLimit, AlarmEvent records |
+| `{{ instance_space_sharepoint }}` | SharePoint | Document, file categories, diagram annotation edges |
 
-`sol_consumer` has no `streamRecordsAcl`. Apps that need Search **and** alarms must map the IdP user to both `{{ sol_consumer_group_name }}` and `{{ dom_consumer_group_name }}`.
+There is **no search instance space**: Search is schema-only (views + data model in `{{ search_space }}`). Cross-source directs (e.g. PI/SharePoint → Tag) use `node_reference` into the **target** source’s space (usually SAP for assets). Use per-site instance spaces if you need site-level access control on top of this pattern.
+
+### Alarms vs Search access
+
+`sol_consumer` has no `streamRecordsAcl`. Alarm access is via `{{ dom_producer_group_name }}` (or admin); Search UI via `{{ sol_consumer_group_name }}`. Map both IdP groups only when a user needs both products.
 
 Sample two-step graph → records query: filter nodes on `Industry_DOM`, then filter `AlarmEvent` records with `in` on the `asset` direct (chunk ≤ 100 ids per request). Immutable streams require a `lastUpdatedTime` range on every filter.
 
@@ -82,7 +90,9 @@ industry_domain_extension/
   streams/
   data_modeling/
     enterprise.Space.yaml
-    instance.Space.yaml
+    instance_sap.Space.yaml
+    instance_pi.Space.yaml
+    instance_sharepoint.Space.yaml
     enterprise.DataModel.yaml
     containers/
     views/

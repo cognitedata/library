@@ -2,7 +2,7 @@
 
 ## Overview
 
-Schema-only search (`_SOL`) data product for the industry domain template. Maps enterprise / CDM / IDM containers into Search-oriented views and hosts reverse directs. **No containers, no transformations, no instance writes.**
+Schema-only search (`_SOL`) data product for the industry domain template. Maps enterprise / CDM / IDM containers into Search-oriented views and hosts reverse directs. **No containers, no transformations, no instance writes, no search instance space.**
 
 **Layer:** Solution / search (`IndustrySearch_SOL`). Enterprise companion: [`industry_domain_extension`](../industry_domain_extension/README.md).
 
@@ -19,21 +19,21 @@ Schema-only search (`_SOL`) data product for the industry domain template. Maps 
 
 | Area | Contents |
 |------|----------|
-| Space | `{{ search_space }}` (views + data model only) |
+| Space | `{{ search_space }}` — schema only (views + data model); **not** an instance space |
 | Views | SearchTag, SearchEquipment, SearchDocument, SearchTimeSeriesData, SearchWorkOrder, SearchWorkOrderOperation, SearchNotification, SearchMaterial, SearchOperatingLimit |
 | Data model | `IndustrySearch_SOL` + `CogniteEquipmentType` / `CogniteFileCategory` |
-| Auth | `admin_industry_sol_*`, `consumer_industry_sol_*` |
-| Location | Search location filter over `{{ instance_space }}` |
+| Auth | `consumer_industry_sol_*` (schema admin lives in the enterprise module as `admin_industry_all_*`) |
+| Location | Search location filter over per-source instance spaces (`sap` / `pi` / `sharepoint`) |
 
-There is **no** search view for `AlarmEvent` — consumers read alarms through the enterprise record view and Records API. For Search + alarms, use dual membership with `dom_consumer` (see enterprise README).
+There is **no** search view for `AlarmEvent` — read alarms through the enterprise record view and Records API (`producer_industry_dom_*` or admin). Search UI users use `{{ sol_consumer_group_name }}`; map both IdP groups only when a user needs Search and alarms.
 
 ### Naming note — `labels` vs `tags`
 
 `SearchTag` exposes CogniteDescribable `tags` as view property `labels` (same alias as enterprise `Tag`).
 
-### Single instance space
+### No search instance space
 
-Instances live in the shared `{{ instance_space }}` owned with the enterprise module (documented exception — see enterprise README).
+Search holds views and the data model only. Instances live in the per-source spaces owned with the enterprise module (`{{ instance_space_sap }}`, `{{ instance_space_pi }}`, `{{ instance_space_sharepoint }}`). Nothing would belong in a separate search instance space — Search views map enterprise / CDM / IDM containers; once enterprise loads finish, data is visible through `IndustrySearch_SOL` with no search-side writes.
 
 ## Deployment
 
@@ -65,4 +65,4 @@ industry_domain_extension_search/
 ## Support
 
 - Cognite Hub and Cognite Docs
-- Plan source: `../industry_domain_extension.PLAN.md`
+- Plan source: `../industry_domain_extension/industry_domain_extension.PLAN.md`

@@ -1,5 +1,5 @@
-name: "{{ dom_admin_group_name }}"
-sourceId: "{{ dom_admin_source_id }}"
+name: "{{ admin_group_name }}"
+sourceId: "{{ admin_source_id }}"
 capabilities:
   - dataModelsAcl:
       actions: [READ, WRITE]
@@ -7,6 +7,7 @@ capabilities:
         spaceIdScope:
           spaceIds:
             - {{ enterprise_space }}
+            - {{ search_space }}
   - dataModelsAcl:
       actions: [READ]
       scope:
@@ -20,7 +21,9 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space }}
+            - {{ instance_space_sap }}
+            - {{ instance_space_pi }}
+            - {{ instance_space_sharepoint }}
   - datasetsAcl:
       actions: [OWNER, READ, WRITE]
       scope:
@@ -36,7 +39,7 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space }}
+            - {{ instance_space_pi }}
   - locationFiltersAcl:
       actions: [READ, WRITE]
       scope:

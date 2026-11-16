@@ -1,6 +1,11 @@
 # Shared variables (identical names and values in the industry_domain_extension modules)
 enterprise_space: dm_dom_industry
-instance_space: inst_industry
+# Per-source instance spaces (alarm function uses PI + SAP cross-ref)
+instance_space_sap: inst_industry_sap
+instance_space_pi: inst_industry_pi
+instance_space_sharepoint: inst_industry_sharepoint
+# Alias used by the alarm Function task as its write/record space
+instance_space: inst_industry_pi
 dataset_external_id: ds_industry_all
 dm_enterprise_version: v1
 

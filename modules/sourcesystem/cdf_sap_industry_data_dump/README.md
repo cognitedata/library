@@ -45,16 +45,16 @@ so the loads do not depend on each other and can run in parallel. `Tag.labels` i
 
 - Cognite Toolkit.
 - The `industry_domain_extension` data model module deployed with the same `enterprise_space`,
-  `instance_space`, `enterprise_data_model_external_id` and `dm_enterprise_version`.
+  `instance_space` (`inst_industry_sap`), `enterprise_data_model_external_id` and `dm_enterprise_version`.
 - The data set `{{ dataset_external_id }}` and an ingestion service principal with write access to the
-  instance space, RAW and the data set.
+  SAP instance space, RAW and the data set.
 
 ### Variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `enterprise_space` | `dm_dom_industry` | Space of the enterprise views |
-| `instance_space` | `inst_industry` | Space the nodes are written to |
+| `instance_space` | `inst_industry_sap` | Space the SAP nodes are written to |
 | `enterprise_data_model_external_id` | `Industry_DOM` | Target data model |
 | `dm_enterprise_version` | `v1` | Data model and view version |
 | `dataset_external_id` | `ds_industry_all` | Data set for the transformations |

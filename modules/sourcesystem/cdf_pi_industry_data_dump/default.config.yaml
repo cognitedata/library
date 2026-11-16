@@ -1,10 +1,15 @@
 # Data model identifiers (must match datamodels/industry_domain_extension)
 enterprise_space: dm_dom_industry
-instance_space: inst_industry
+# Write target for PI nodes + alarm records
+instance_space: inst_industry_pi
+# Cross-source directs (Tag/asset live in SAP space)
+instance_space_sap: inst_industry_sap
+instance_space_pi: inst_industry_pi
+instance_space_sharepoint: inst_industry_sharepoint
 enterprise_data_model_external_id: Industry_DOM
 dm_enterprise_version: v1
 
-# Code space for the alarm Function — never the instance space
+# Code space for the alarm Function — never an instance space
 function_space: sp_function_industry
 
 # Governance

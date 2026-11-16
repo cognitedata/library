@@ -39,15 +39,16 @@ Transformations are full loads with `upsert`; this is a sample-data choice. For 
 | `data` key | Required | Meaning |
 |------------|----------|---------|
 | `stream_external_id` | yes | Stream to ingest into (`alarm_stream_external_id`) |
-| `instance_space` | yes | Space of the records and of the directly related nodes |
+| `instance_space` | yes | PI instance space of the records and same-source directs (`timeSeries`, `operatingLimit`) |
+| `instance_space_sap` | yes | SAP instance space for `asset` (Tag) directs |
 | `enterprise_space` | yes | Space of the `AlarmEvent` container |
 | `raw_database` | yes | `raw_database_pi` |
 | `raw_table` | yes | `alarm_event` |
 | `last_updated_time_gt` | no | ISO-8601 lower bound for the duplicate check; defaults to the last 7 days |
 
 The Function returns `read`, `invalid`, `skipped` (already in the stream) and `ingested`. It carries no secrets; the
-injected client holds the credentials. Rows are mapped to the `AlarmEvent` record container; `asset`, `timeSeries`
-and `operatingLimit` are direct relations to nodes in `instance_space`.
+injected client holds the credentials. Rows are mapped to the `AlarmEvent` record container; `timeSeries` and
+`operatingLimit` point at nodes in `instance_space` (PI); `asset` points at Tags in `instance_space_sap`.
 
 The deployed Function needs `cognite-sdk` 8.24 or later (Records API); `requirements.txt` pins it.
 

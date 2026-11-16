@@ -22,10 +22,10 @@ refer to, writes the diagram annotations as `CogniteDiagramAnnotation` edges and
     `uploadedTime` (the issue date) so the file syncer and Search treat the sample PDFs as uploaded. `assets` is the
     distinct union of the file's own `asset_externalId` and every tag it is annotated with; this transformation is the
     single owner of `Document.assets`. `currentRevision` from the sample is carried into `revision` as is.
-  - `tr_sharepoint_all_to_industry_diagram_annotation` — `diagram_annotation` → `CogniteDiagramAnnotation` edges. The
-    edge, start and end node spaces all come from `instance_space`; the space columns in the CSV are ignored.
-  - `tr_sharepoint_all_to_industry_equipment_document_connection` — **overlay** on `Equipment` nodes created by the
-    SAP module: writes `Equipment.files` for documents annotated with the equipment's tag, with
+  - `tr_sharepoint_all_to_industry_diagram_annotation` — `diagram_annotation` → `CogniteDiagramAnnotation` edges.
+    Edge and start node (document) use `instance_space` (SharePoint); end node (Tag) uses `instance_space_sap`.
+  - `tr_sharepoint_all_to_industry_equipment_document_connection` — **overlay** on `Equipment` nodes in
+    `instance_space_sap`: writes `Equipment.files` for documents annotated with the equipment's tag, with
     `ignoreNullFields: true`.
 
 Document nodes use the external id `file_<file name>`, matching the file content manifest and the annotation edges.

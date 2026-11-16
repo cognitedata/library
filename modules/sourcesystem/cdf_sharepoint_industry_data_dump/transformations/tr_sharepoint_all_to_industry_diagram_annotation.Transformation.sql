@@ -26,7 +26,7 @@ SELECT
   , 'edge'                                               AS instanceType
   , '{{ instance_space }}'                               AS space
   , node_reference('{{ instance_space }}', start_key)    AS startNode
-  , node_reference('{{ instance_space }}', end_key)      AS endNode
+  , node_reference('{{ instance_space_sap }}', end_key)  AS endNode
   , type_reference('cdf_cdm', annotation_type)           AS `type`
   , status                                               AS status
   , confidence                                           AS confidence

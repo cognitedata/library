@@ -1,6 +1,11 @@
 # Data model identifiers (must match datamodels/industry_domain_extension)
 enterprise_space: dm_dom_industry
-instance_space: inst_industry
+# Write target for SharePoint nodes
+instance_space: inst_industry_sharepoint
+# Cross-source directs (Tag/asset live in SAP space)
+instance_space_sap: inst_industry_sap
+instance_space_pi: inst_industry_pi
+instance_space_sharepoint: inst_industry_sharepoint
 enterprise_data_model_external_id: Industry_DOM
 dm_enterprise_version: v1
 

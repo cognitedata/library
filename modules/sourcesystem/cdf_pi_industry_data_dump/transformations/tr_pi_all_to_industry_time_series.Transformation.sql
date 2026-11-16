@@ -1,7 +1,7 @@
 WITH equipment_lookup AS (
   SELECT
       nullif(trim(cast(asset_externalId AS STRING)), '')                      AS asset_key
-    , collect_set(node_reference('{{ instance_space }}', cast(`key` AS STRING))) AS equipment
+    , collect_set(node_reference('{{ instance_space_sap }}', cast(`key` AS STRING))) AS equipment
   FROM `{{ raw_database_sap }}`.`equipment`
   WHERE nullif(trim(cast(asset_externalId AS STRING)), '') IS NOT NULL
   GROUP BY nullif(trim(cast(asset_externalId AS STRING)), '')
@@ -36,7 +36,7 @@ SELECT
   , s.source_unit                                        AS sourceUnit
   , CASE
       WHEN s.asset_key IS NULL THEN NULL
-      ELSE array(node_reference('{{ instance_space }}', s.asset_key))
+      ELSE array(node_reference('{{ instance_space_sap }}', s.asset_key))
     END                                                  AS assets
   , e.equipment                                          AS equipment
   , s.source_id                                          AS sourceId

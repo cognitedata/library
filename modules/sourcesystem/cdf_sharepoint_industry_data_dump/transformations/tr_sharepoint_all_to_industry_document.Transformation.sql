@@ -35,7 +35,7 @@ WITH source AS (
 , document_assets AS (
   SELECT
       document_key
-    , collect_set(node_reference('{{ instance_space }}', asset_key)) AS assets
+    , collect_set(node_reference('{{ instance_space_sap }}', asset_key)) AS assets
   FROM (
     SELECT document_key, asset_key FROM source WHERE asset_key IS NOT NULL
     UNION

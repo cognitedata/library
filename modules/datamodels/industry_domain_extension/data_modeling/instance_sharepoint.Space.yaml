@@ -1,0 +1,2 @@
+space: "{{ instance_space_sharepoint }}"
+name: Industry SharePoint instance space

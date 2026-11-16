@@ -88,7 +88,7 @@ The default `run_workflow_schedule` is `"0 0 29 2 *"` (Feb 29 at midnight). **Th
 
 ## Configuration
 
-Variables are in `default.config.yaml`. The shared ones (`enterprise_space`, `instance_space`, `dataset_external_id`, `dm_enterprise_version`, `raw_database_*`, `alarm_stream_external_id`) must match the values used by the enterprise and data-dump modules. Group names carry the environment token (`_dev`); override them per `config.<env>.yaml`. Each `<entity>_transformation_external_id` must match a transformation deployed by a data-dump module.
+Variables are in `default.config.yaml`. The shared ones (`enterprise_space`, `instance_space_sap` / `_pi` / `_sharepoint`, `dataset_external_id`, `dm_enterprise_version`, `raw_database_*`, `alarm_stream_external_id`) must match the values used by the enterprise and data-dump modules. Group names carry the environment token (`_dev`); override them per `config.<env>.yaml`. Each `<entity>_transformation_external_id` must match a transformation deployed by a data-dump module.
 
 ## Module Structure
 

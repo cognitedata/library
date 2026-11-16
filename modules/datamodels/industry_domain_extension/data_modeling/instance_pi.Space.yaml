@@ -1,0 +1,2 @@
+space: "{{ instance_space_pi }}"
+name: Industry PI instance space

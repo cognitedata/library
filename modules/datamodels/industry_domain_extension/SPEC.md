@@ -180,7 +180,7 @@ Use the touch map (§8.9) for the type being removed:
 |----------|---------|---------|
 | Data model | `PascalCase_DOM` / `_SOL` | `Industry_DOM` |
 | DM space | `dm_dom_*` / `dm_sol_*` | `dm_dom_industry` |
-| Instance space | `inst_*` | `inst_industry` |
+| Instance space | `inst_*` — one per sample source | `inst_industry_sap`, `inst_industry_pi`, `inst_industry_sharepoint` |
 | View / container | PascalCase, singular, not reserved | `TimeSeriesData`, `Document` |
 | Property | camelCase | `documentNumber` |
 | Location filter | `loc_{location}` | `loc_industry_all` |
@@ -195,17 +195,22 @@ Use the touch map (§8.9) for the type being removed:
 | Access group / service principal | persona-led `<persona>_[segment_]<type>_<environment>`; persona `admin` / `producer` / `consumer`; segment `industry`; **type** from the vocabulary below | `consumer_industry_sol_prod` |
 | Function space | `sp_function_{snake_case}` — code upload only; never reuse `instance_space` | `sp_function_industry` |
 
-**Access group type vocabulary (this template).** cog-vd naming-conventions lists building-block types such as
-`pp`, `ep`, `all`. This template uses a documented alternative scheme (allowed when stated in project governance):
+**Access group type vocabulary (this template).** Cognite’s default Access Management type tokens are `ep`, `pp`,
+`all` (Cognite Docs *Resource naming conventions* → Access management). Alternative schemes are allowed when
+documented in project governance — this SPEC / PLAN is that documentation for the industry pack.
 
-| Type token | Meaning | Used by |
-|------------|---------|---------|
-| `dom` | Enterprise / domain data model scope | `admin_industry_dom_*`, `consumer_industry_dom_*` |
-| `sol` | Search / solution data product scope | `admin_industry_sol_*`, `consumer_industry_sol_*` |
-| `pp` | Processing pipeline (transformations + function runtime) | `producer_industry_pp_*` |
-| `wf` | Workflow operator (run / monitor only) | `producer_industry_wf_*` |
+| Type token | Kind | Meaning | Used by |
+|------------|------|---------|---------|
+| `all` | Standard | Cross-layer schema admin (enterprise + search spaces) | `admin_industry_all_*` |
+| `pp` | Standard | Processing pipeline (transformations + function runtime) | `producer_industry_pp_*` |
+| `dom` | Template-specific | Enterprise / domain data scope (human producer) | `producer_industry_dom_*` |
+| `sol` | Template-specific | Search / solution data product scope (consumer) | `consumer_industry_sol_*` |
+| `wf` | Template-specific | Workflow operator (run / monitor only) | `producer_industry_wf_*` |
 
-`cdf-naming-check` must treat these four tokens as approved for this pack — do not flag them as unknown types.
+`cdf-naming-check` must treat these five tokens as approved for this pack — do not flag `dom` / `sol` / `wf` as
+unknown types.
+
+**Spaces:** `{{ search_space }}` is schema-only (views + data model). There is **no** search instance space. Instances/records live in per-source spaces (`{{ instance_space_sap }}`, `{{ instance_space_pi }}`, `{{ instance_space_sharepoint }}`). Cross-source directs use the **target** source’s space (e.g. PI/SharePoint → Tag in SAP space).
 
 ### 8.9 Touch map — every file per entity
 
