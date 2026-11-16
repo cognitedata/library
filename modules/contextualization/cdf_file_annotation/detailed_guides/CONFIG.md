@@ -101,7 +101,9 @@ data:
 
 These values are intentionally constants in
 `functions/fn_file_annotation/fa_constants.py`, not Toolkit / extraction-pipeline
-variables. Change them by editing that file and redeploying the function.
+variables. Change them by editing that file and redeploying the function. See
+[Customizing a constant](#customizing-a-constant) for when and how to turn one into a
+Toolkit variable.
 
 Pipeline limits and promote cleanup:
 
@@ -164,6 +166,79 @@ Confidence thresholds that decide Approved / Suggested / drop after detect
 (`assetAutoApprovalThreshold`, `assetAutoSuggestThreshold`, and the optional
 `fileAuto*` pair) remain Toolkit variables under `parameters` (see above). They are
 not part of `DiagramDetectConfig`.
+
+### Customizing a constant
+
+The module ships these values as constants on purpose: most deployments never change
+them, and each new variable is one more thing to configure and document. You can still
+change any of them yourself.
+
+#### Constant or variable?
+
+- Edit the constant when one value suits every environment. This is a one-line change in
+  `fa_constants.py`, followed by a redeploy.
+- Promote it to a Toolkit variable when different environments or customers need
+  different values, or when you tune it often. You can then set it per `config.<env>.yaml`
+  without touching code.
+- Either way you are changing library code, so reapply the change when you upgrade the
+  module.
+
+#### Example: making `fuzzinessMinChars` a variable
+
+`minChars` is the shortest tag that gets fuzzy matching. Raising it (for example to 6)
+means fewer false links on short tags such as `P-10`, but slightly misread short tags are
+no longer matched. Lowering it does the reverse.
+
+1. `default.config.yaml`: add the variable, and add it to every `config.<env>.yaml` that
+   overrides module variables. An unresolved `{{ }}` placeholder does not fall back to
+   the default.
+
+   ```yaml
+   # Shortest tag that gets fuzzy matching in Diagram Detect (customizeFuzziness.minChars).
+   fuzzinessMinChars: 4
+   ```
+
+2. `extraction_pipelines/ep_file_annotation.config.yaml`: under `parameters`, next to the
+   thresholds, add `fuzzinessMinChars: {{ fuzzinessMinChars }}`.
+3. `functions/fn_file_annotation/services/config_service.py`, `class Parameters`: add a
+   validated field like the threshold fields. Without it, pydantic ignores the key, so a
+   typo or wrong type passes silently.
+
+   ```python
+   fuzziness_min_chars: int | None = Field(default=None, ge=1)
+   ```
+
+4. Same file, `build_internal_stage_config`, under `customizeFuzziness`: fall back to the
+   constant.
+
+   ```python
+   "minChars": parameters.get("fuzzinessMinChars") or FUZZINESS_MIN_CHARS,
+   ```
+
+   Do not write `parameters.get("fuzzinessMinChars", FUZZINESS_MIN_CHARS)`. A blank
+   Toolkit variable renders as `null`, so `.get` returns `None`, `minChars` is dropped,
+   and the API default is sent instead. Use `or` only when `0` is not a meaningful value;
+   otherwise check `is None` explicitly.
+5. Test: in `functions/tests/fn_file_annotation/test_file_annotation.py`, follow
+   `test_config_uses_parameters_and_data_shape`. Assert
+   `config.launch_function.annotation_service.diagram_detect_config.customize_fuzziness.min_chars`
+   is 6 when `"fuzzinessMinChars": 6` is set, and 4 when the key is missing or `None`.
+6. Docs: add the parameter to [Parameters](#parameters) and update its row in the
+   Diagram Detect table above, since it is now a variable rather than a constant.
+7. Deploy: run `cdf build -c config.<env>.yaml` and then `cdf deploy`. The function code
+   and the pipeline config both changed, so both must deploy. Check that the Launch log's
+   config header shows `minChars=<value>`.
+
+#### Cautions
+
+- A change takes effect only after you redeploy the function. It does not alter existing
+  annotations; files must be annotated again to pick up the new value (see
+  `cleanOldAnnotations`).
+- Some constants are not meant for tuning. The RAW names must match `raw/`, `auth/`, the
+  transformations and the dashboard (see [RAW database and tables](#raw-database-and-tables)).
+  `ANNOTATION_EXTRACT` cannot be `True` together with `READ_EMBEDDED_TEXT`.
+- For code changes, follow the Configuration Changes checklist in
+  [CONTRIBUTING.md](../CONTRIBUTING.md#configuration-changes).
 
 ## Migration from the four-function config
 

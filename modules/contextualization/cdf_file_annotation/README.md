@@ -497,7 +497,9 @@ Toolkit variables in `default.config.yaml`. RAW database and table names, fixed 
 queries, cleanup behavior, and Diagram Detect matching defaults
 (`DiagramDetectConfig` fields such as `minFuzzyScore`, connection flags, and
 fuzziness) live in `functions/fn_file_annotation/fa_constants.py` — edit that file
-and redeploy the function to change them; they are not Toolkit variables. See
+and redeploy the function to change them; they are not Toolkit variables. To change
+one, or make it a variable, see
+[Customizing a constant](./detailed_guides/CONFIG.md#customizing-a-constant). See
 [CONFIG.md](./detailed_guides/CONFIG.md#diagram-detect-matching-diagramdetectconfig)
 for the constant table and SDK / API links.
 

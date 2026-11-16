@@ -146,7 +146,7 @@ def process_annotations(
 
 Contributions that align with the project's philosophy:
 
-- **Configuration-driven**: Prefer adding configuration options over hardcoded behavior
+- **Configuration-driven**: Prefer adding configuration options over hardcoded behavior for choices that commonly differ between deployments; tuning values stay constants in `fa_constants.py` (see [Customizing a constant](detailed_guides/CONFIG.md#customizing-a-constant))
 - **Interface-based**: Extend functionality through interfaces rather than modifying core logic
 - **Well-documented**: Code should be self-explanatory with clear documentation
 - **Production-ready**: Code should handle edge cases, errors, and scale considerations
