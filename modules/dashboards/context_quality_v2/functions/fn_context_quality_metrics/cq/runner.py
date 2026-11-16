@@ -263,6 +263,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         fits=lambda candidate: tasks_fit(tasks_for(candidate)),
     )
     tasks = tasks_for(items)
+    split_deadline_reached = time.monotonic() > plan_deadline
     # a configured view that holds nothing in any facility still shows up, as not applicable, in every facility
     empty = {key for key, by_space in link_counts.items() if not any(by_space.values())}
     nothing = writer.extra_link_rows(count_links(links, {}, facilities, empty_views=empty) if empty else {}, facilities)
@@ -284,6 +285,9 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         "locations": len(found),
         "batches": sum(1 for task in tasks if task["parameters"]["function"]["data"]["action"] == "compute_batch"),
         "scope": scope.to_payload(),
+        # True when the plan ran out of its time to cut big kinds into slices, so some batches are bigger than the target
+        "splitDeadlineReached": split_deadline_reached,
+        "timing": _timing(),
         "tasks": tasks,
     }
 
