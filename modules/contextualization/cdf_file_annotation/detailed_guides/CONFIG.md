@@ -107,9 +107,9 @@ Pipeline limits and promote cleanup:
 
 - Batch size: 50 files
 - Page range: 50 pages
-- Entity-cache lifetime: 0 hours (always refresh)
+- Match entities are read through the DMS sync endpoint on top of a cached copy (`ENTITY_SYNC_*`)
 - Finalize retries: 3
-- Global entity-search limit: 1000
+- Promote entity-search limit: 2 (one match, or a second to detect ambiguity)
 - Function work budget: 7 minutes
 - Local HTTP 429 wait: 900 seconds
 - Promote searches file and target entities
@@ -155,7 +155,7 @@ Launch passes these constants into Cognite Diagram Detect via
 | `FUZZINESS_MIN_CHARS` | `4` | `customizeFuzziness.minChars` |
 | `DIRECTION_DELTA` | `None` | `directionDelta` |
 | `DIRECTION_WEIGHTS` | `{"left": 1.0, "right": 1.0, "up": 1.0, "down": 1.0}` | `directionWeights` |
-| `MIN_FUZZY_SCORE` | `0.99` | `minFuzzyScore` (`1` disables OCR character substitutions) |
+| `MIN_FUZZY_SCORE` | `0.90` | `minFuzzyScore` (`1` disables OCR character substitutions) |
 | `READ_EMBEDDED_TEXT` | `True` | `readEmbeddedText` |
 | `REMOVE_LEADING_ZEROS` | `None` | `removeLeadingZeros` |
 | `SUBSTITUTIONS` | `None` | `substitutions` — when set, replaces the API's default look-alike map |
