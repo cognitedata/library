@@ -54,6 +54,8 @@ def _grain_needs_assets(cfg: RunConfig) -> bool:
 def latest_datapoints(client: CogniteClient, data: LoadedData) -> dict[EntityKey, datetime | None]:
     ids = [NodeId(t["space"], t["id"]) for t in data["timeseries"]]
     out = {(i.space, i.external_id): None for i in ids}
+    if ids:
+        phase(f"reading the latest datapoint of {len(ids)} time series")
     for i in range(0, len(ids), 500):
         res = client.time_series.data.retrieve_latest(instance_id=ids[i : i + 500], ignore_unknown_ids=True)
         for r in res:
@@ -65,6 +67,7 @@ def latest_datapoints(client: CogniteClient, data: LoadedData) -> dict[EntityKey
             iid = r.instance_id
             if iid is not None and isinstance(ts, datetime):
                 out[(iid.space, iid.external_id)] = ts.astimezone(UTC)
+    phase("counting")
     return out
 
 
