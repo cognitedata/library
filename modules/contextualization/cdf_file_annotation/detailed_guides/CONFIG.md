@@ -109,7 +109,6 @@ Pipeline limits and promote cleanup:
 
 - Batch size: 50 files
 - Page range: 50 pages
-- Match entities are read through the DMS sync endpoint on top of a cached copy (`ENTITY_SYNC_*`)
 - Finalize retries: 3
 - Promote entity-search limit: 2 (one match, or a second to detect ambiguity)
 - Function work budget: 7 minutes
@@ -118,6 +117,9 @@ Pipeline limits and promote cleanup:
 - Rejected pattern edges are deleted from DMS after their RAW audit row is updated
 - Ambiguous Suggested edges remain in DMS for review
 - Annotation types, state/status filters, and standard tags
+
+Match entities are read through the DMS sync endpoint on top of a cached copy in a CDF
+file (`ENTITY_SYNC_*` constants).
 
 ### RAW database and tables
 
@@ -190,8 +192,7 @@ means fewer false links on short tags such as `P-10`, but slightly misread short
 no longer matched. Lowering it does the reverse.
 
 1. `default.config.yaml`: add the variable, and add it to every `config.<env>.yaml` that
-   overrides module variables. An unresolved `{{ }}` placeholder does not fall back to
-   the default.
+   overrides module variables, so each environment sets it explicitly.
 
    ```yaml
    # Shortest tag that gets fuzzy matching in Diagram Detect (customizeFuzziness.minChars).
@@ -215,14 +216,16 @@ no longer matched. Lowering it does the reverse.
    "minChars": parameters.get("fuzzinessMinChars") or FUZZINESS_MIN_CHARS,
    ```
 
-   Do not write `parameters.get("fuzzinessMinChars", FUZZINESS_MIN_CHARS)`. A blank
-   Toolkit variable renders as `null`, so `.get` returns `None`, `minChars` is dropped,
-   and the API default is sent instead. Use `or` only when `0` is not a meaningful value;
+   Do not write `parameters.get("fuzzinessMinChars", FUZZINESS_MIN_CHARS)`. If the
+   variable is left blank, the rendered YAML value is `null`: the key exists, so `.get`
+   returns `None` instead of the default, `minChars` is dropped, and the API default is
+   sent instead. Use `or` only when `0` is not a meaningful value;
    otherwise check `is None` explicitly.
 5. Test: in `functions/tests/fn_file_annotation/test_file_annotation.py`, follow
    `test_config_uses_parameters_and_data_shape`. Assert
    `config.launch_function.annotation_service.diagram_detect_config.customize_fuzziness.min_chars`
    is 6 when `"fuzzinessMinChars": 6` is set, and 4 when the key is missing or `None`.
+   These three cases were run against this recipe and pass.
 6. Docs: add the parameter to [Parameters](#parameters) and update its row in the
    Diagram Detect table above, since it is now a variable rather than a constant.
 7. Deploy: run `cdf build -c config.<env>.yaml` and then `cdf deploy`. The function code
@@ -232,8 +235,9 @@ no longer matched. Lowering it does the reverse.
 #### Cautions
 
 - A change takes effect only after you redeploy the function. It does not alter existing
-  annotations; files must be annotated again to pick up the new value (see
-  `cleanOldAnnotations`).
+  annotations. Files are matched with the new value only when they are annotated again,
+  which means tagging them `ToAnnotate` again; `cleanOldAnnotations` only controls
+  whether the previous annotations are removed when that run finalizes.
 - Some constants are not meant for tuning. The RAW names must match `raw/`, `auth/`, the
   transformations and the dashboard (see [RAW database and tables](#raw-database-and-tables)).
   `ANNOTATION_EXTRACT` cannot be `True` together with `READ_EMBEDDED_TEXT`.

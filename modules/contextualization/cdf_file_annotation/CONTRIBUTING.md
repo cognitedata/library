@@ -157,7 +157,7 @@ Contributions that align with the project's philosophy:
 - **Bug fixes**: Resolve issues, fix edge cases, improve error handling
 - **Performance improvements**: Optimize queries, caching, or processing logic
 - **Documentation**: Improve guides, add examples, clarify confusing sections
-- **New configuration options**: Add flexibility through new config parameters
+- **New configuration options**: Add flexibility through new config parameters for choices that differ between deployments (see [Customizing a constant](detailed_guides/CONFIG.md#customizing-a-constant))
 - **New service implementations**: Create alternative implementations of existing interfaces
 - **Test coverage**: Add unit tests, integration tests, or test utilities
 - **Examples**: Add example configurations or use cases
