@@ -73,7 +73,7 @@ The two container external ids are fixed by the run log and are **not** variable
 | `metricsTieringEnabled` | `false` | tiering is off by default; set `true` together with `metricsTierByTypeCode` to turn it on |
 | `metricsDivisionTagPrefix`, `metricsRetiredTag`, `metricsFreshnessDays`, `metricsMaxDepth` | `""`, `""`, `30`, `8` | the project's settings |
 | `metricsExportRetentionDays` | `30` | how many days the workbook of unlinked items of a run stays in Files |
-| `metricsMaxShards`, `metricsShardTargetEntities`, `metricsMaxConcurrentShards` | `150`, `100000`, `2` | how a run is divided into parallel function calls, and how many run at once (see "Running in parallel shards") |
+| `metricsMaxShards`, `metricsShardTargetEntities`, `metricsShardTargetTimeSeries`, `metricsMaxConcurrentShards` | `150`, `100000`, `20000`, `2` | how a run is divided into parallel function calls, and how many run at once (see "Running in parallel shards") |
 
 A deployment that needs other names sets them in its own `config.<env>.yaml`. Nothing in the function or the workflow
 falls back to a name that is not passed to it.
@@ -178,6 +178,8 @@ additively: a property that is deployed keeps its definition, and a new one is o
 
 ### Prerequisites
 
+- A CDF project where the Records and Streams services are available: the deploy creates a stream and the function
+  writes records to it. Cognite Functions and Data workflows must be available as well.
 - Cognite Toolkit 0.8 or later. The module was built and checked with 0.8.191.
 - The `record_views` alpha flag enabled in `cdf.toml`, because the containers are `usedFor: record` and the views
   are bound to a stream:
@@ -273,6 +275,12 @@ parallel:
   whether an asset has a time series, and so on) with targeted queries, so a space's batches add up to the numbers of
   counting the space whole.
 
+**Time series are cut smaller.** Reading the latest datapoint of every time series costs far more per series than
+reading an asset or a file, so a call gets at most `metricsShardTargetTimeSeries` of them (default 20,000), whatever
+`metricsShardTargetEntities` is. A space that holds more time series than that is split even when it is under the general
+target. Each task carries only the settings that differ from the function's defaults, which keeps the plan's output
+(at most 180 KB of tasks) small enough for a run to have many tasks.
+
 The number of calls follows the size of the project, at most `metricsMaxShards` (default 150). A workflow execution
 may hold 200 tasks, generated ones included, and the plan, the dynamic task and `finalize` are three of them, so keep
 it below 197; when the calls would be more, the target is made larger. At most 50 tasks run at the same time in a
@@ -284,6 +292,38 @@ even one call.
 default) two at a time, `0` all at once, `1` one after the other, `N` in N lanes. The calls are listed heaviest first and a call waits for
 the one N places before it (`dependsOn`), so with `1` a run is a chain; a call that fails stops the ones after it. Use
 it to go easy on the project's data modeling and time series services, or to follow one run in order.
+
+**Making the shards smaller for one run.** The workflow input takes an optional `planning` object that replaces
+`shardTargetEntities`, `shardTargetTimeSeries`, `maxShards` and `maxConcurrentShards` for that run, without a deploy:
+
+```json
+{"extraLinks": [], "scope": "all", "planning": {"shardTargetEntities": 25000}}
+```
+
+Use it when a shard times out (a call may run for 10 minutes): halve `shardTargetEntities` and run again. Other
+keys are rejected, and the usual limits apply (`maxShards` at most 190). To make it permanent, set the matching
+`metrics...` variable and deploy. The schedule passes an empty `planning`, so scheduled runs use the deployed values.
+If the calls would not fit a run, the plan makes the target larger until they do. Roughly, the entities of a project
+divided by about 130 calls (what a run's output holds) is the lowest target a run can have; bigger calls take longer and
+may time out, so for a very big project run fewer dimensions at a time (`scope`).
+
+The plan's response lists `oversizedBatches` (a batch bigger than its target: a slice of ids the plan could not cut) and
+`splitDeadlineReached` (the plan ran out of its time to cut). If the tasks would not fit the output limit, the plan
+makes the target larger instead of failing, so check `oversizedBatches` when a run's batches are bigger than you set.
+If a run is started without the `planning` key and the workflow service does not accept the missing reference, pass
+`"planning": {}`.
+
+**Reading a batch.** A batch reads its slices of external ids, and the chunks of ids when a slice has to be read by id,
+on up to 4 threads. A call holds at most 4 instance reads at once (the project allows 8 in all, and two calls run at the
+same time), so more threads do not earn 429s.
+
+A slice that the service times out on is no longer read by id as one long run: it is cut finer (by the next characters of
+the external ids, counted by the service) into slices of about 5,000 instances, and those are read together.
+
+**A call that does not finish.** The platform stops a function call at ten minutes and a stopped call leaves no
+output and no log. A shard or batch therefore gives up its counting 30 seconds before its 450-second budget ends (the platform's ten minutes include the start of the call) and
+fails with an error that names the step it was in (reading entities, looking up what the batch links to, counting) and
+what had slowed it (failed requests, fallbacks). Read it in the task's response, then make the shards smaller.
 
 **What differs from one call (`compute_metrics`)**, because a call sees only part of the project:
 
@@ -300,7 +340,7 @@ it to go easy on the project's data modeling and time series services, or to fol
   attempt leaves room for it in the call's ten minutes, and the task is retried once by the workflow (`retries: 1`).
   When even listing the ids of a slice times out, the ids are asked for in pages of 500, then 250, then 100 instead of
   the 1000 the SDK always asks for (`PAGE_SIZES`), each size starting the listing over. A call is stopped after ten
-  minutes, so a read gives up after 540 seconds of the call (`CALL_BUDGET`): no retry pause that would not fit, and no
+  minutes, so a read gives up after 450 seconds of the call (`CALL_BUDGET`): no retry pause that would not fit, and no
   smaller page without 60 seconds left, is started, and the error of the service is raised while it can still be said.
   Every `compute_batch` and `compute_shard` returns `timing` (a call that succeeds leaves no log): the `seconds` of
   each step (`count`, `write`, and the `total` since the call began) and, when something slowed it

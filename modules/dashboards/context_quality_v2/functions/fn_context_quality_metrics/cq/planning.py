@@ -27,17 +27,28 @@ def view_key(model: str, view: str) -> str:
     return f"{model}|{view}"
 
 
+def _limit(key: str, target: int, kind_targets: dict[str, int]) -> int:
+    """The most instances of a kind (or configured view) one call gets: its own target when it has one."""
+    return min(target, kind_targets.get(key, target))
+
+
 def _batches_of_space(
-    space: str, facility: str, weights: dict[str, int], target: int, leaves_of: LeafProvider
+    space: str,
+    facility: str,
+    weights: dict[str, int],
+    target: int,
+    leaves_of: LeafProvider,
+    kind_targets: dict[str, int],
 ) -> list[dict[str, Any]]:
     """The work items of one big space. `weights` maps a kind, or a configured view (`view_key`), to its instances."""
     items: list[dict[str, Any]] = []
     whole: dict[str, int] = {}
     for key, count in sorted(weights.items()):
-        if count <= target:
+        limit = _limit(key, target, kind_targets)
+        if count <= limit:
             whole[key] = count
             continue
-        packs = pack_leaves(leaves_of(space, key), target)
+        packs = pack_leaves(leaves_of(space, key), limit)
         for leaves, size in packs:
             items.append(_batch(space, facility, [key], leaves, size, len(packs)))
     for group in pack_kinds(whole, target):
@@ -72,12 +83,17 @@ def plan_work(
     max_tasks: int,
     leaves_of: LeafProvider,
     fits: Callable[[list[dict[str, Any]]], bool] = lambda _items: True,
+    kind_targets: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     """The work items of a run: [{"weight": instances, "data": what the call is told}], heaviest first.
+
+    `kind_targets` gives a kind its own, smaller target, for a kind that costs more per instance than the others: a
+    space that holds more of it than that is split even when it is under the target.
 
     `fits` says whether the calls are acceptable, for example whether their data fits a task's output limit; if not, the
     target is made larger, which gives fewer, bigger calls.
     """
+    kind_targets = kind_targets or {}
     weights: dict[str, dict[str, int]] = {}
     for space in facilities:
         per_space = {kind: counts.get(space, 0) for kind, counts in kind_counts.items() if space in core}
@@ -97,9 +113,13 @@ def plan_work(
         limit = int(current)
         items: list[dict[str, Any]] = []
         for space in sorted(facilities):
-            if size[space] > limit:
-                items += _batches_of_space(space, facilities[space], weights[space], limit, leaves)
-        small = {space: size[space] + 1 for space in facilities if size[space] <= limit}
+            if _is_big(size[space], weights[space], limit, kind_targets):
+                items += _batches_of_space(space, facilities[space], weights[space], limit, leaves, kind_targets)
+        small = {
+            space: size[space] + 1
+            for space in facilities
+            if not _is_big(size[space], weights[space], limit, kind_targets)
+        }
         room = max_tasks - len(items)
         if small and room >= 1:
             for spaces in pack_spaces(small, room, limit):
@@ -110,6 +130,12 @@ def plan_work(
     raise ValueError(
         "The run cannot be divided into few enough calls: raise shardTargetEntities or shorten the configuration."
     )
+
+
+def _is_big(size: int, weights: dict[str, int], limit: int, kind_targets: dict[str, int]) -> bool:
+    """Whether a space is split into batches: it holds more than the target, or more of a kind than that kind's
+    target."""
+    return size > limit or any(weights.get(key, 0) > _limit(key, limit, kind_targets) for key in kind_targets)
 
 
 def _shard(spaces: list[str], core: dict[str, str], facilities: dict[str, str], weight: int) -> dict[str, Any]:

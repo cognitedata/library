@@ -170,6 +170,28 @@ def test_the_plan_starts_the_run_and_returns_one_task_per_shard(monkeypatch: pyt
         assert (data["runId"], data["runTimestamp"]) == (out["runId"], out["runTimestamp"])
 
 
+def test_the_plan_reports_its_own_time_and_whether_it_ran_out_of_time_to_split(monkeypatch: pytest.MonkeyPatch) -> None:
+    plan_world(monkeypatch)
+
+    out = plan(RecordingClient(), shardTargetEntities=45)
+
+    assert out["splitDeadlineReached"] is False
+    assert out["oversizedBatches"] == []
+    assert "total" in out["timing"]["seconds"]
+
+
+def test_a_task_carries_only_the_settings_that_differ_from_the_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    plan_world(monkeypatch)
+
+    deployed = {**SAMPLE_RESOURCES, "shardTargetEntities": 45, "maxDepth": 8}
+
+    out = plan(RecordingClient(), {"config": deployed}, shardTargetEntities=45)
+
+    config = out["tasks"][0]["parameters"]["function"]["data"]["config"]
+    assert config["shardTargetEntities"] == 45
+    assert "maxDepth" not in config  # the default, which the shard fills in itself
+
+
 def test_the_plan_writes_the_locations_that_cover_the_facilities(monkeypatch: pytest.MonkeyPatch) -> None:
     from cq import locations
 

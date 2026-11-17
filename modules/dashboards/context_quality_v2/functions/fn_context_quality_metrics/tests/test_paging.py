@@ -245,7 +245,8 @@ def test_a_slice_whose_reads_all_time_out_at_1000_is_read_through_the_pages() ->
 
     assert found == service.ids
     assert resilience.events() == {"read by id": 1, "ids in pages of 500": 1, "ids in pages of 250": 1, "http 408": 2}
-    assert client.data_modeling.instances.list.call_count == 2  # the read, then the listing of the ids, both at 1000
+    # the read, the same read sorted, then the listing of the ids, all at 1000
+    assert client.data_modeling.instances.list.call_count == 3
 
 
 def test_each_slice_of_a_batch_is_listed_on_its_own_through_the_pages() -> None:
@@ -278,7 +279,7 @@ def test_no_smaller_page_is_started_when_the_call_has_too_little_time_left(monke
 
 
 def test_the_steps_stop_where_the_time_of_the_call_runs_out(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every request that times out takes 130 seconds of the call; the call has 540, and a size needs 60 to start."""
+    """Every request that times out takes 130 seconds of the call; the call has 450, and a size needs 60 to start."""
     monkeypatch.setattr(resilience, "_call_started", None)
     now = [0.0]
     monkeypatch.setattr(resilience, "clock", lambda: now[0])

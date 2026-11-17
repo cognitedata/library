@@ -35,6 +35,9 @@ How it works, the run log format and every option are in [`REFERENCE.md`](REFERE
 
 ### Prerequisites
 
+- A CDF project where the **Records and Streams services are available**. The deploy creates a stream, and the function
+  writes the run log to it as records. If the stream cannot be created, ask Cognite to enable these services for the
+  project before going on. Cognite Functions and Data workflows must be available as well.
 - Cognite Toolkit 0.8 or later, and a Toolkit project with a `cdf.toml`.
 - The `record_views` alpha flag in `cdf.toml` (the containers are record containers):
 
@@ -98,7 +101,8 @@ cdf deploy
 ### Step 5: Run it once and check
 
 The first scheduled run follows the next trigger time. To get data now, start the workflow in Fusion (**Data
-management > Data workflows > `wf_context_quality_metrics` > Run**) with the input `{"extraLinks": [], "scope": "all"}`.
+management > Data workflows > `wf_context_quality_metrics` > Run**) with the input `{"extraLinks": [], "scope": "all", "planning": {}}`. To make shards smaller for one run (a shard timed out), put
+`{"shardTargetEntities": 25000}` in `planning`.
 Or start it from the dashboard: open the app and press **Run built-in checks** on its first-run screen (see
 ["Start a run"](../../tools/apps/context_quality_dashboard/README.md#start-a-run)). The dashboard does not start runs by itself.
 

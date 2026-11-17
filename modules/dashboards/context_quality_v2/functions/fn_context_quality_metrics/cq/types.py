@@ -162,6 +162,7 @@ class RunConfig(TypedDict):
     exportDataSet: str
     exportRetentionDays: int
     shardTargetEntities: int
+    shardTargetTimeSeries: int
     freshnessDays: int
     maxDepth: int
     lowConfidence: float

@@ -7,10 +7,14 @@ caller (and each new kind of query) failing the run on the first one. What a cal
 as reading a smaller piece (cq.reader, cq.lookups), it still does, with the error that is left after the retries.
 """
 
+import json
+import sys
 import threading
 import time
+import traceback
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
@@ -27,10 +31,14 @@ READS = ("aggregate", "list", "retrieve", "retrieve_nodes", "retrieve_edges", "s
 PATIENCE_WAITS = (30.0, 60.0)
 PATIENCE_BUDGET = 300.0
 
-# A call of the function is stopped after ten minutes, whatever it is doing. A read gives up after these seconds of it
-# (`begin_call`), so that the call fails with the error of the service while there is still time to say so, and the
-# task can be tried again with ten minutes of its own.
-CALL_BUDGET = 540.0
+# A call of the function is stopped after ten minutes, whatever it is doing, and those ten minutes start before the
+# handler does: the log of a call that gave up at 510 s of its budget ended after ten minutes, and a call that had a
+# minute more to start was stopped by the platform first, with no message. A read gives up after these seconds of the
+# handler (`begin_call`), which leaves two and a half minutes for the start and for the error to be reported, so the
+# call fails with the error of the service while there is still time to say so, and the task can be tried again.
+CALL_BUDGET = 450.0
+# Counting must end this many seconds before the budget, so that its rows can still be written.
+WRITE_RESERVE = 30.0
 
 sleep: Callable[[float], None] = time.sleep
 clock: Callable[[], float] = time.monotonic
@@ -39,15 +47,48 @@ _call_started: float | None = None
 
 _events: Counter[str] = Counter()
 _events_lock = threading.Lock()
+_phase = "starting"
+_working_on: dict[int, str] = {}
+_working_on_lock = threading.Lock()
+
+
+class CallBudgetExceeded(TimeoutError):
+    """The counting of a call did not finish in its budget. The message says where it was and what had slowed it."""
 
 
 def begin_call() -> None:
     """Marks the start of a call of the function: its budget of `CALL_BUDGET` seconds is counted from here, and the
     events noted by the call before it are forgotten."""
-    global _call_started
+    global _call_started, _phase
     _call_started = clock()
+    _phase = "starting"
     with _events_lock:
         _events.clear()
+
+
+@contextmanager
+def working_on(label: str) -> Iterator[None]:
+    """Says what this thread is reading, for the error of a call that does not finish: with reads on several threads,
+    the ones still listed when the budget ends are the slow ones."""
+    key = threading.get_ident()
+    with _working_on_lock:
+        _working_on[key] = label
+    try:
+        yield
+    finally:
+        with _working_on_lock:
+            _working_on.pop(key, None)
+
+
+def slice_label(part: object) -> str:
+    """A short text for a slice filter."""
+    return json.dumps(part, default=str, separators=(",", ":"))[:140]
+
+
+def phase(name: str) -> None:
+    """Says what the call is doing now, for the error of a call that does not finish (`watched`)."""
+    global _phase
+    _phase = name
 
 
 def note(event: str) -> None:
@@ -73,8 +114,24 @@ def time_left() -> float:
     return float("inf") if _call_started is None else CALL_BUDGET - (clock() - _call_started)
 
 
+# The project allows 8 instance reads at once. A call holds at most this many, so that two calls at the same time stay
+# within it and reads done on several threads (cq.reader) do not earn 429s.
+READ_SLOTS = 4
+_read_slots = threading.BoundedSemaphore(READ_SLOTS)
+
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+def limited(call: Callable[P, R]) -> Callable[P, R]:  # noqa: UP047 - CodeQL cannot read the `[**P, R]` syntax
+    """`call`, run while holding one of the `READ_SLOTS`, which are held only for the request itself."""
+
+    @wraps(call)
+    def run(*args: P.args, **kwargs: P.kwargs) -> R:
+        with _read_slots:
+            return call(*args, **kwargs)
+
+    return run
 
 
 def retrying(call: Callable[P, R]) -> Callable[P, R]:  # noqa: UP047 - CodeQL cannot read the `[**P, R]` syntax
@@ -103,7 +160,7 @@ class _Instances:
         self._api = api
         for name in READS:
             if hasattr(api, name):
-                setattr(self, name, retrying(getattr(api, name)))
+                setattr(self, name, retrying(limited(getattr(api, name))))
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._api, name)
@@ -139,6 +196,64 @@ class _Client:
 def harden(client: CogniteClient) -> CogniteClient:
     """`client`, with the reads of its data modeling instances API retried."""
     return client if isinstance(client, _Client) else _Client(client)  # type: ignore[return-value]
+
+
+def _where_stuck(worker: threading.Thread) -> str:
+    """Where the worker and the threads it started are, one line each: the innermost frames, which show the request or
+    wait a call is stuck in."""
+    frames = sys._current_frames()  # the only way to see where another thread is
+    lines: list[str] = []
+    for thread in threading.enumerate():
+        if thread is threading.current_thread() or thread.ident not in frames:
+            continue
+        if thread is not worker and not thread.name.startswith(("ThreadPoolExecutor", "Thread-")):
+            continue
+        try:
+            last = traceback.extract_stack(frames[thread.ident])[-3:]
+        except (AttributeError, ValueError):  # a thread that ended meanwhile must not stop the error being reported
+            lines.append("unreadable")
+            continue
+        lines.append(" < ".join(f"{frame.name} ({frame.filename.rsplit('/', 1)[-1]}:{frame.lineno})" for frame in last))
+    return "; ".join(lines[:6]) or "unknown"
+
+
+def watched[R](work: Callable[[], R], reserve: float = WRITE_RESERVE) -> R:
+    """`work()`, which must end `reserve` seconds before the call's budget (`WRITE_RESERVE`, which leaves time to write
+    what the work found; none for the writing itself). A call that the platform stops at ten
+    minutes leaves no output and no log, so a read that does not return is given up here instead: the call fails with
+    an error that names the step it was in and what had slowed it. The read itself cannot be stopped; it is left to
+    finish on its own thread. Where no call has begun (a script, a test) `work` is simply run."""
+    if _call_started is None:
+        return work()
+    outcome: list[R] = []
+    failure: list[Exception] = []
+
+    def run() -> None:
+        try:
+            outcome.append(work())
+        except Exception as error:  # handed to the caller below
+            failure.append(error)
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    thread.join(max(0.0, time_left() - reserve))
+    if thread.is_alive():
+        with _working_on_lock:
+            still_reading = list(_working_on.values())[:6]
+        raise CallBudgetExceeded(
+            f"The call used {elapsed():.0f} s without finishing; it was {_phase}. "
+            f"Slowed by: {events() or 'nothing noted'}. "
+            f"Still reading: {still_reading or 'nothing listed'}. "
+            f"Stuck in: {_where_stuck(thread)}. "
+            "If other shards fail the same way, the project is slow, not the shard. If this one always does, make the "
+            "shards smaller: start the run with "
+            '{"planning": {"shardTargetEntities": <half the current value>}}.'
+        )
+    if failure:
+        raise failure[0]
+    if not outcome:
+        raise RuntimeError("The work ended without a result")
+    return outcome[0]
 
 
 def patiently[R](work: Callable[[], R]) -> R:

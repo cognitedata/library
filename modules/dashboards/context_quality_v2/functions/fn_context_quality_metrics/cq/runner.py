@@ -13,7 +13,7 @@ from cognite.client.exceptions import CogniteAPIError
 from cq import export, locations, resilience, writer
 from cq.availability import encode_warnings, extra_link_truncation_warnings, no_source_warnings
 from cq.batching import Leaf, batch_filter, split_leaves
-from cq.config import require_resources
+from cq.config import DEFAULT_CONFIG, require_resources
 from cq.discovery import discover_facility_spaces
 from cq.extra_links import (
     ExtraLink,
@@ -38,7 +38,7 @@ from cq.reader import (
     load_shard,
     validate_extra_links,
 )
-from cq.resilience import patiently
+from cq.resilience import patiently, phase, watched
 from cq.scope import filter_result, parse_scope
 from cq.types import EntityKey, LoadedData, Row, RowProps, RunConfig
 
@@ -54,8 +54,11 @@ def _grain_needs_assets(cfg: RunConfig) -> bool:
 def latest_datapoints(client: CogniteClient, data: LoadedData) -> dict[EntityKey, datetime | None]:
     ids = [NodeId(t["space"], t["id"]) for t in data["timeseries"]]
     out = {(i.space, i.external_id): None for i in ids}
+    if ids:
+        phase(f"reading the latest datapoint of {len(ids)} time series")
+    retrieve = resilience.retrying(client.time_series.data.retrieve_latest)
     for i in range(0, len(ids), 500):
-        res = client.time_series.data.retrieve_latest(instance_id=ids[i : i + 500], ignore_unknown_ids=True)
+        res = retrieve(instance_id=ids[i : i + 500], ignore_unknown_ids=True)
         for r in res:
             ts = r.timestamp
             if isinstance(ts, (list, tuple)) or hasattr(ts, "__len__"):
@@ -65,6 +68,7 @@ def latest_datapoints(client: CogniteClient, data: LoadedData) -> dict[EntityKey
             iid = r.instance_id
             if iid is not None and isinstance(ts, datetime):
                 out[(iid.space, iid.external_id)] = ts.astimezone(UTC)
+    phase("counting")
     return out
 
 
@@ -231,7 +235,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         "runId": run_id,
         "runTimestamp": writer.now_iso(run_ts),
         "extraLinks": payload.get("extraLinks") if scope.configured else [],
-        "config": payload.get("config"),
+        "config": _non_default(payload.get("config")),
         "scope": scope.to_payload(),
     }
 
@@ -244,7 +248,10 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
             space_, xid, edge = KIND_VIEWS[key]
             view_id, total = ViewId(space_, xid, "v1"), by_kind[key][space]
         count_leaves, sample_id = leaf_tools(client, view_id, space, edge=edge)
-        return split_leaves(total, cfg["shardTargetEntities"], count_leaves, sample_id, plan_deadline)
+        target = cfg["shardTargetEntities"]
+        if key == "timeseries":
+            target = min(target, cfg["shardTargetTimeSeries"])
+        return split_leaves(total, target, count_leaves, sample_id, plan_deadline)
 
     def tasks_for(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return finish_tasks(items, function_external_id, common, cfg["maxConcurrentShards"])
@@ -255,11 +262,25 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         kind_counts=scoped_by_kind,
         link_counts=link_counts,
         target=cfg["shardTargetEntities"],
+        kind_targets={"timeseries": cfg["shardTargetTimeSeries"]},
         max_tasks=cfg["maxShards"],
         leaves_of=leaves_of,
         fits=lambda candidate: tasks_fit(tasks_for(candidate)),
     )
     tasks = tasks_for(items)
+    split_deadline_reached = time.monotonic() > plan_deadline
+    # batches bigger than the target: a slice of ids the plan could not cut (its ids cannot be told apart, or they
+    # continue with a character it does not look at), which is the usual reason one call has too much to do
+    oversized = [
+        {
+            "space": item["data"]["space"],
+            "kinds": item["data"]["kinds"],
+            "leaves": item["data"]["leaves"],
+            "count": item["weight"],
+        }
+        for item in items
+        if item["data"]["action"] == "compute_batch" and item["weight"] > _target_of(item["data"]["kinds"], cfg)
+    ][:10]
     # a configured view that holds nothing in any facility still shows up, as not applicable, in every facility
     empty = {key for key, by_space in link_counts.items() if not any(by_space.values())}
     nothing = writer.extra_link_rows(count_links(links, {}, facilities, empty_views=empty) if empty else {}, facilities)
@@ -281,8 +302,30 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         "locations": len(found),
         "batches": sum(1 for task in tasks if task["parameters"]["function"]["data"]["action"] == "compute_batch"),
         "scope": scope.to_payload(),
+        # True when the plan ran out of its time to cut big kinds into slices, so some batches exceed the target
+        "splitDeadlineReached": split_deadline_reached,
+        "oversizedBatches": oversized,
+        "timing": _timing(),
         "tasks": tasks,
     }
+
+
+def _non_default(config: dict[str, Any] | None) -> dict[str, Any]:
+    """Only the settings that differ from the function's defaults, which every task carries: a task's size counts,
+    because what the plan returns may not exceed a task's output limit, and a smaller task lets the run have more of
+    them."""
+    return {
+        key: value
+        for key, value in (config or {}).items()
+        if DEFAULT_CONFIG.get(key) != value or key not in DEFAULT_CONFIG
+    }
+
+
+def _target_of(kinds: list[str], cfg: RunConfig) -> int:
+    """The most instances a batch of these kinds should hold."""
+    if kinds == ["timeseries"]:
+        return min(cfg["shardTargetEntities"], cfg["shardTargetTimeSeries"])
+    return cfg["shardTargetEntities"]
 
 
 def _piece(payload: dict[str, Any]) -> tuple[str, datetime, int]:
@@ -315,7 +358,9 @@ def _finish_piece(
     """Writes the rows of a piece, then its `runPart` record last: the record is how `finalize` knows it finished."""
     run_id, run_ts, shard = _piece(payload)
     if export_rows is not None:
+        phase("uploading the unlinked items of the piece for the workbook")
         warnings = [*warnings, *_export_part(client, cfg, payload, export_rows)]
+    phase("writing the rows of the piece to the stream")
     written = writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, rows)
     part = writer.run_part_row(shard, detail, encode_warnings(warnings), written)
     writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, [part])
@@ -347,7 +392,9 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         scope = parse_scope(payload.get("scope"), links_given=bool(links))
         if spaces and scope.kinds != frozenset():
             if scope.kinds is None:
+                phase("reading the shard's entities")
                 data = load_shard(client, spaces)
+                phase("counting")
                 result = compute(data, cfg, latest_datapoints(client, data))
                 left_to_the_plan: tuple[str, ...] = ("no-source-entities",)  # the plan says that, for the run
             else:
@@ -355,13 +402,16 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
                 # does),
                 # count their kinds, and keep what belongs to the dimensions of the scope
                 needed = scope.kinds | ({"assets"} if _grain_needs_assets(cfg) else frozenset())
+                phase("reading the shard's entities")
                 data = load_shard(client, spaces, needed)
+                phase("counting")
                 result = filter_result(compute(data, cfg, latest_datapoints(client, data), kinds=scope.kinds), scope)
                 left_to_the_plan = _NOT_FROM_A_BATCH
             main_rows = build_rows(result, cfg)
             listed = [*export.item_rows(result["drilldown"]), *export.summary_rows(result["agg"])]
             warnings = [w for w in result["warnings"] if w["code"] not in left_to_the_plan]
         if links and extra_spaces:
+            phase("reading the configured views")
             nodes = load_extra_links(client, links, list(extra_spaces))
             gaps = find_gaps(links, nodes, extra_spaces)
             # the plan writes the rows of a view that is empty everywhere, so nothing is filled in here
@@ -372,9 +422,9 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         return main_rows, warnings, listed
 
     started_at = time.monotonic()
-    main_rows, warnings, listed = patiently(count)
+    main_rows, warnings, listed = watched(lambda: patiently(count))
     counted_at = time.monotonic()
-    written = _finish_piece(client, cfg, payload, "shard", main_rows, warnings, listed)
+    written = watched(lambda: _finish_piece(client, cfg, payload, "shard", main_rows, warnings, listed), reserve=0.0)
     return {
         "status": "succeeded",
         "action": "compute_shard",
@@ -412,8 +462,11 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         warnings: list[dict[str, Any]] = []
         listed: list[tuple[str, ...]] = []
         if kinds:
+            phase(f"reading the batch's entities ({', '.join(sorted(kinds))})")
             data = load_batch(client, space, facility, kinds, flt)
+            phase("looking up what the batch links to outside it")
             cross = fetch_cross(client, data, counted, kinds, space)  # type: ignore[arg-type]
+            phase("counting")
             result = compute(data, counted, latest_datapoints(client, data), kinds=kinds, cross=cross)  # type: ignore[arg-type]
             result = filter_result(result, parse_scope(payload.get("scope"), links_given=None))
             main_rows = build_rows(result, counted)  # type: ignore[arg-type]
@@ -422,6 +475,7 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         links = parse_extra_links(payload.get("extraLinks"))
         for model, view in views:
             of_view = [link for link in links if link["model"] == model and link["view"] == view]
+            phase(f"reading the configured view {view}")
             nodes = load_extra_links(client, of_view, [space], flt)
             gaps = find_gaps(of_view, nodes, {space: facility})
             main_rows += writer.extra_link_rows(
@@ -433,9 +487,10 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
         return main_rows, warnings, listed
 
     started_at = time.monotonic()
-    main_rows, warnings, listed = patiently(count)
+    main_rows, warnings, listed = watched(lambda: patiently(count))
     counted_at = time.monotonic()
-    written = _finish_piece(client, cfg, payload, "batch", _rekey(main_rows, shard), warnings, listed)
+    rekeyed = _rekey(main_rows, shard)
+    written = watched(lambda: _finish_piece(client, cfg, payload, "batch", rekeyed, warnings, listed), reserve=0.0)
     return {
         "status": "succeeded",
         "action": "compute_batch",

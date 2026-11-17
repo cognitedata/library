@@ -70,3 +70,6 @@ Desktop.ini
 .cursor/settings.json
 cdf.toml
 config.dev.yaml
+
+# a function zip built to upload in Fusion
+modules/**/fn_*.zip

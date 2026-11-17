@@ -12,8 +12,9 @@ from typing import Any
 
 from cq.batching import chain_tasks
 
-# What `plan` returns is a task's output, which a workflow limits to 0.2 MB; stay well below it.
-MAX_TASKS_BYTES = 150_000
+# What `plan` returns is a task's output, which a workflow limits to 0.2 MB. The tasks may take 180 KB of it: the rest
+# of the output (counts, timing, the oversized batches) is under 10 KB.
+MAX_TASKS_BYTES = 180_000
 
 # Warnings that say how many of something there was: the shards' counts add up.
 _SUMMED = ("assets", "dropped", "unmapped", "units", "untyped")

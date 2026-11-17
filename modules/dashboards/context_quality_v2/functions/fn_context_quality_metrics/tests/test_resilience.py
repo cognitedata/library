@@ -1,5 +1,7 @@
 """The retry policy for the data modeling reads."""
 
+import threading
+import time
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -206,3 +208,141 @@ def test_the_seconds_of_a_call_count_from_its_start(call_clock: list[float]) -> 
     call_clock[0] = 12.5
 
     assert resilience.elapsed() == 12.5
+
+
+# ---------------------------------------------------------------- the watchdog on a call that does not finish
+
+
+def test_watched_returns_what_the_work_returns() -> None:
+    resilience.begin_call()
+
+    assert resilience.watched(lambda: 42) == 42
+
+
+def test_watched_passes_on_the_error_of_the_work() -> None:
+    resilience.begin_call()
+
+    def fails() -> None:
+        raise ValueError("a bad row")
+
+    with pytest.raises(ValueError, match="a bad row"):
+        resilience.watched(fails)
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_watched_reports_work_that_ends_without_a_result() -> None:
+    resilience.begin_call()
+
+    def exits() -> None:
+        raise SystemExit
+
+    with pytest.raises(RuntimeError, match="without a result"):
+        resilience.watched(exits)
+
+
+def test_watched_gives_up_a_call_that_does_not_finish_and_says_where_it_was(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(resilience, "CALL_BUDGET", 0.2)
+    monkeypatch.setattr(resilience, "WRITE_RESERVE", 0.0)
+    resilience.begin_call()
+    resilience.phase("looking up what the batch links to outside it")
+    resilience.note("http 408")
+    release = threading.Event()
+    try:
+        with pytest.raises(resilience.CallBudgetExceeded) as error:
+            resilience.watched(lambda: release.wait(5))
+    finally:
+        release.set()
+
+    message = str(error.value)
+    assert "looking up what the batch links to outside it" in message
+    assert "'http 408': 1" in message
+    assert "shardTargetEntities" in message
+
+    assert "Stuck in: wait" in message or "wait (threading.py" in message
+
+
+def test_watched_just_runs_the_work_where_no_call_has_begun(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(resilience, "_call_started", None)
+
+    assert resilience.watched(lambda: "done") == "done"
+
+
+def test_a_call_holds_at_most_the_read_slots_instance_reads_at_once() -> None:
+    running = 0
+    most = 0
+    lock = threading.Lock()
+
+    def list_instances(*_args: Any, **_kwargs: Any) -> str:
+        nonlocal running, most
+        with lock:
+            running += 1
+            most = max(most, running)
+        time.sleep(0.02)
+        with lock:
+            running -= 1
+        return "ok"
+
+    client = MagicMock()
+    client.data_modeling.instances.list = list_instances
+    instances = harden(client).data_modeling.instances
+
+    threads = [threading.Thread(target=instances.list) for _ in range(resilience.READ_SLOTS * 3)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert 1 < most <= resilience.READ_SLOTS
+
+
+def test_watched_with_no_reserve_gives_the_writing_the_whole_budget_and_names_the_step(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(resilience, "CALL_BUDGET", 0.2)
+    monkeypatch.setattr(resilience, "WRITE_RESERVE", 10.0)  # counting would already be over; writing is not
+    resilience.begin_call()
+    resilience.phase("writing the rows of the piece to the stream")
+    release = threading.Event()
+    try:
+        with pytest.raises(resilience.CallBudgetExceeded) as error:
+            resilience.watched(lambda: release.wait(5), reserve=0.0)
+    finally:
+        release.set()
+
+    assert "writing the rows of the piece to the stream" in str(error.value)
+
+
+def test_the_error_lists_the_slices_still_being_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(resilience, "CALL_BUDGET", 0.2)
+    monkeypatch.setattr(resilience, "WRITE_RESERVE", 0.0)
+    resilience.begin_call()
+    release = threading.Event()
+
+    def read() -> None:
+        with resilience.working_on(resilience.slice_label({"prefix": {"value": "FLOC-54-"}})):
+            release.wait(5)
+
+    try:
+        with pytest.raises(resilience.CallBudgetExceeded) as error:
+            resilience.watched(read)
+    finally:
+        release.set()
+
+    assert "FLOC-54-" in str(error.value)
+
+
+def test_watched_still_reports_the_timeout_when_a_stack_cannot_be_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(resilience, "CALL_BUDGET", 0.2)
+    monkeypatch.setattr(resilience, "WRITE_RESERVE", 0.0)
+
+    def unreadable(_frame: object) -> None:
+        raise ValueError("the thread ended")
+
+    monkeypatch.setattr(resilience.traceback, "extract_stack", unreadable)
+    resilience.begin_call()
+    release = threading.Event()
+    try:
+        with pytest.raises(resilience.CallBudgetExceeded, match="Stuck in: unreadable"):
+            resilience.watched(lambda: release.wait(5))
+    finally:
+        release.set()

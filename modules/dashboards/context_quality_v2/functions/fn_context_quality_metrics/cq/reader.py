@@ -1,6 +1,9 @@
 """Reads the source views from the data model into plain dicts."""
 
 import re
+import time
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from typing import Any
 
@@ -12,10 +15,10 @@ from cognite.client.data_classes.data_modeling.instances import InstanceSort
 from cognite.client.data_classes.filters import Filter
 from cognite.client.exceptions import CogniteAPIError
 
-from cq.batching import CHARSET, CountLeaves, Leaf, SampleId, counter, leaf_filter
+from cq.batching import CHARSET, CountLeaves, Leaf, SampleId, counter, leaf_filter, split_leaves
 from cq.discovery import ENTITY_KEYS, count_entities_by_space, discover_facility_spaces
 from cq.extra_links import ExtraLink, ViewNodes
-from cq.resilience import note, retrying, time_left
+from cq.resilience import note, retrying, slice_label, time_left, working_on
 from cq.types import (
     LoadedData,
     Ref,
@@ -40,24 +43,37 @@ PAGE_STEP_SECONDS = 60.0
 
 
 def _list_slice(
-    client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
+    client: CogniteClient,
+    instance_type: str,
+    view: ViewId,
+    spaces: list[str] | None,
+    part: Filter | dict[str, Any] | None,
+    in_index_order: bool | None = None,
 ) -> list[Any]:
-    """The instances of a view that match one slice filter, sorted by the whole order of the service's
-    (space, externalId) index, which lets the read page with cursors from that index instead of scanning."""
+    """The instances of a view that match one slice filter.
+
+    A read with no filter is sorted by the whole order of the service's (space, externalId) index, which lets it page
+    with cursors from that index instead of scanning. A slice of a batch is not sorted: with the filter on external
+    ids and the view's data, the service answered a sorted read of 100 instances with a timeout after 13 seconds and
+    the same read unsorted in under one. `in_index_order` says it either way: a slice that the service times out on
+    unsorted is read once sorted, in case the service answers that one, before it is cut finer or read by id."""
+    if in_index_order is None:
+        in_index_order = part is None
+    order = [InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])]
     return list(
         client.data_modeling.instances.list(
             instance_type=instance_type,
             sources=view,
             space=spaces,
             filter=part,
-            sort=[InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])],
+            sort=order if in_index_order else None,
             limit=-1,
         )
     )
 
 
 def _id_pairs_in_pages(
-    client: CogniteClient, instance_type: str, spaces: list[str] | None, part: Any, page: int
+    client: CogniteClient, instance_type: str, spaces: list[str] | None, part: Filter | dict[str, Any] | None, page: int
 ) -> list[tuple[str, str]]:
     """The (space, external id) of every instance that matches a slice, asked for `page` at a time, following the
     cursor of each response to the next page until the service gives none. It is the request the SDK sends for
@@ -84,7 +100,9 @@ def _id_pairs_in_pages(
             return pairs
 
 
-def _id_pairs(client: CogniteClient, instance_type: str, spaces: list[str] | None, part: Any) -> list[tuple[str, str]]:
+def _id_pairs(
+    client: CogniteClient, instance_type: str, spaces: list[str] | None, part: Filter | dict[str, Any] | None
+) -> list[tuple[str, str]]:
     """The (space, external id) of every instance that matches a slice. A request that times out is made again with a
     smaller page (`PAGE_SIZES`); each size starts the listing over, so no instance is listed twice or left out. A size
     is not started when the call has too little time left (cq.resilience): the last timeout is raised instead."""
@@ -114,17 +132,67 @@ def _id_pairs(client: CogniteClient, instance_type: str, spaces: list[str] | Non
     raise timeout
 
 
+# Slices of a batch, and chunks of ids, are read on this many threads. The requests themselves are held to the call's
+# `READ_SLOTS` (cq.resilience), so the threads do not add up to more reads at once than the project allows.
+READ_THREADS = 4
+
+
+# A slice the service times out on is cut finer, by the next characters of its external ids, into slices of about this
+# many instances, and those are read together: listing the ids of one big slice page after page is what ran past the
+# call's time, and smaller slices are listed side by side.
+SLICE_CUT_TARGET = 5000
+SLICE_CUT_SECONDS = 45.0
+
+
+def _prefix_of(part: Filter | dict[str, Any] | None) -> str | None:
+    """The text a slice filter is the prefix of, or None for any other filter."""
+    body = part.dump() if hasattr(part, "dump") else part
+    prefix = body.get("prefix") if isinstance(body, dict) else None
+    return prefix["value"] if isinstance(prefix, dict) and isinstance(prefix.get("value"), str) else None
+
+
+def _cut_slice(client: CogniteClient, instance_type: str, view: ViewId, space: str, text: str) -> list[Leaf]:
+    """The slices a big prefix slice is cut into (cq.batching), or none when it is small or cannot be cut. The service
+    counts the slices; it does not read them."""
+    count_leaves, sample_id = leaf_tools(client, view, space, edge=instance_type == "edge")
+    try:
+        total = count_leaves([("prefix", text)])[0]
+        if total <= SLICE_CUT_TARGET:
+            return []
+        deadline = time.monotonic() + SLICE_CUT_SECONDS
+        return [
+            leaf
+            for leaf, _ in split_leaves(total, SLICE_CUT_TARGET, count_leaves, sample_id, deadline, ("prefix", text))
+        ]
+    except CogniteAPIError:
+        return []
+
+
+def _in_parallel[T, R](work: Callable[[T], R], items: list[T]) -> list[R]:
+    """`work` of each item, in the order of the items."""
+    if len(items) <= 1:
+        return [work(item) for item in items]
+    with ThreadPoolExecutor(max_workers=READ_THREADS) as pool:
+        return list(pool.map(work, items))
+
+
 def _list_slice_by_id(
-    client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
+    client: CogniteClient,
+    instance_type: str,
+    view: ViewId,
+    spaces: list[str] | None,
+    part: Filter | dict[str, Any] | None,
 ) -> list[Any]:
     """The same instances, found another way: list only the ids that match the slice (no "has data" filter, which makes
     the service scan the view's whole container), then read the properties of those ids in chunks. An instance that has
     no data in the view comes back without its properties, and the callers skip it."""
     pairs = _id_pairs(client, instance_type, spaces, part)
-    found: list[Any] = []
-    for start in range(0, len(pairs), RETRIEVE_CHUNK):
-        found.extend(_retrieve(client, instance_type, view, pairs[start : start + RETRIEVE_CHUNK]))
-    return found
+    chunks = [pairs[start : start + RETRIEVE_CHUNK] for start in range(0, len(pairs), RETRIEVE_CHUNK)]
+    return [
+        instance
+        for found in _in_parallel(lambda chunk: _retrieve(client, instance_type, view, chunk), chunks)
+        for instance in found
+    ]
 
 
 def _retrieve(client: CogniteClient, instance_type: str, view: ViewId, pairs: list[tuple[str, str]]) -> list[Any]:
@@ -145,22 +213,51 @@ def _retrieve(client: CogniteClient, instance_type: str, view: ViewId, pairs: li
 
 
 def _read_slice(
-    client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
+    client: CogniteClient,
+    instance_type: str,
+    view: ViewId,
+    spaces: list[str] | None,
+    part: Filter | dict[str, Any] | None,
 ) -> list[Any]:
     """One slice of a view's instances. If the service times out on it (the "has data" filter makes it scan the whole
     container), a slice is read by id (`_list_slice_by_id`), and a read with no filter, which has no slice to list by
     id,
     is cut into one slice per first character of the external id (the same cut as `cq.batching`, which covers every
     instance exactly once) and each of those is read the same way."""
-    try:
-        return _list_slice(client, instance_type, view, spaces, part)
-    except CogniteAPIError as error:
-        if error.code != 408:
-            raise
-        if part is not None:
-            note("read by id")
-            return _list_slice_by_id(client, instance_type, view, spaces, part)
-        note("cut by first character")
+    with working_on(slice_label(part)):
+        try:
+            return _list_slice(client, instance_type, view, spaces, part)
+        except CogniteAPIError as error:
+            if error.code != 408:
+                raise
+            if part is not None:
+                try:
+                    found = _list_slice(client, instance_type, view, spaces, part, in_index_order=True)
+                    note("slice read sorted")
+                    return found
+                except CogniteAPIError as sorted_error:
+                    if sorted_error.code != 408:
+                        raise
+                text = _prefix_of(part)
+                finer = (
+                    _cut_slice(client, instance_type, view, spaces[0], text)
+                    if text and spaces and len(spaces) == 1
+                    else []
+                )
+                if len(finer) > 1:
+                    note("slice cut finer")
+                    edge = instance_type == "edge"
+                    return [
+                        instance
+                        for found in _in_parallel(
+                            lambda leaf: _read_slice(client, instance_type, view, spaces, leaf_filter(leaf, edge)),
+                            finer,
+                        )
+                        for instance in found
+                    ]
+                note("read by id")
+                return _list_slice_by_id(client, instance_type, view, spaces, part)
+            note("cut by first character")
     by_first_character: list[Leaf] = [("prefix", char) for char in CHARSET] + [("rest", "")]
     found: list[Any] = []
     for leaf in by_first_character:
@@ -176,10 +273,11 @@ def _list_instances(
     not overlap, so nothing is read twice. A slice that times out is read as `_read_slice` says."""
     body = flt.dump() if flt is not None else None
     parts: list[Any] = body["or"] if body is not None and "or" in body else [flt]
-    found: list[Any] = []
-    for part in parts:
-        found.extend(_read_slice(client, instance_type, view, spaces, part))
-    return found
+    return [
+        instance
+        for found in _in_parallel(lambda part: _read_slice(client, instance_type, view, spaces, part), parts)
+        for instance in found
+    ]
 
 
 def _nodes(
