@@ -245,6 +245,7 @@ def test_watched_gives_up_a_call_that_does_not_finish_and_says_where_it_was(monk
     assert "looking up what the batch links to outside it" in message
     assert "'http 408': 1" in message
     assert "shardTargetEntities" in message
+    assert "Stuck in: wait" in message or "wait (threading.py" in message
 
 
 def test_watched_just_runs_the_work_where_no_call_has_begun(monkeypatch: pytest.MonkeyPatch) -> None:

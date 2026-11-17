@@ -7,8 +7,10 @@ caller (and each new kind of query) failing the run on the first one. What a cal
 as reading a smaller piece (cq.reader, cq.lookups), it still does, with the error that is left after the retries.
 """
 
+import sys
 import threading
 import time
+import traceback
 from collections import Counter
 from collections.abc import Callable
 from functools import wraps
@@ -155,6 +157,21 @@ def harden(client: CogniteClient) -> CogniteClient:
     return client if isinstance(client, _Client) else _Client(client)  # type: ignore[return-value]
 
 
+def _where_stuck(worker: threading.Thread) -> str:
+    """Where the worker and the threads it started are, one line each: the innermost frames, which show the request or
+    wait a call is stuck in."""
+    frames = sys._current_frames()  # the only way to see where another thread is
+    lines: list[str] = []
+    for thread in threading.enumerate():
+        if thread is threading.current_thread() or thread.ident not in frames:
+            continue
+        if thread is not worker and not thread.name.startswith(("ThreadPoolExecutor", "Thread-")):
+            continue
+        last = traceback.extract_stack(frames[thread.ident])[-3:]
+        lines.append(" < ".join(f"{frame.name} ({frame.filename.rsplit('/', 1)[-1]}:{frame.lineno})" for frame in last))
+    return "; ".join(lines[:6]) or "unknown"
+
+
 def watched[R](work: Callable[[], R]) -> R:
     """`work()`, which must end `WRITE_RESERVE` seconds before the call's budget. A call that the platform stops at ten
     minutes leaves no output and no log, so a read that does not return is given up here instead: the call fails with
@@ -177,7 +194,9 @@ def watched[R](work: Callable[[], R]) -> R:
     if thread.is_alive():
         raise CallBudgetExceeded(
             f"The call used {elapsed():.0f} s without finishing; it was {_phase}. "
-            f"Slowed by: {events() or 'nothing noted'}. Make the shards smaller: start the run with "
+            f"Slowed by: {events() or 'nothing noted'}. Stuck in: {_where_stuck(thread)}. "
+            "If other shards fail the same way, the project is slow, not the shard. If this one always does, make the "
+            "shards smaller: start the run with "
             '{"planning": {"shardTargetEntities": <half the current value>}}.'
         )
     if failure:
