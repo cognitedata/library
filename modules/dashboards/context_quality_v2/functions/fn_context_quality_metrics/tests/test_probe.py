@@ -32,9 +32,9 @@ def test_a_probe_reports_each_request_and_changes_nothing() -> None:
 
     steps = out["steps"]
     assert steps["count of the kind with the prefix"]["count"] == 7
-    assert steps["1000 ids of the space with the prefix, any kind"]["returned"] == 5
-    assert steps["1000 ids of the space with the prefix, any kind"]["sample"] == ["30", "31", "32"]
-    assert steps["ALL ids of the space with the prefix, any kind, paged"]["ids"] == 1
+    assert steps["first 1000 ids of the space with the prefix, any kind"]["returned"] == 5
+    assert steps["first 1000 ids of the space with the prefix, any kind"]["sample"] == ["30", "31", "32"]
+    assert steps["ids of the space with the prefix, any kind, at most 30 pages"]["ids"] == 1
     assert all("seconds" in step for step in steps.values())
 
 
@@ -44,7 +44,7 @@ def test_a_request_the_service_times_out_on_is_reported_not_raised() -> None:
 
     out = handler.handle({"action": "probe_slice", "space": "sp", "prefix": "3"}, client)
 
-    assert out["steps"]["20 instances with their properties"]["error"] == 408
+    assert out["steps"]["100 with properties, prefix, no sort"]["error"] == 408
 
 
 def test_a_probe_needs_a_space() -> None:
