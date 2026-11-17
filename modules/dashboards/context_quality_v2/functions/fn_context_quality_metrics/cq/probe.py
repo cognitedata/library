@@ -114,6 +114,8 @@ def _probe(client: CogniteClient, payload: dict[str, Any]) -> dict[str, Any]:
         return {"ids": len(listed), "pages": pages, "more": True}
 
     def retrieve_some() -> dict[str, Any]:
+        if not listed:
+            return {"asked": 0, "with data in the view": 0}
         found = _retrieve(client, instance_type, view, listed[:500])
         return {
             "asked": min(500, len(listed)),

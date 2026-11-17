@@ -89,3 +89,15 @@ def test_a_prefix_that_fails_is_listed_beside_the_ones_that_answered() -> None:
     sizes = out["steps"]["ids of the space per next character"]["ids per next character, capped at 1000"]
     assert sizes["4"] == "error 408"
     assert sizes["0"] == 1
+
+
+def test_a_slice_with_no_instances_is_probed_without_retrieving_any() -> None:
+    client = client_with([])
+    client.post.return_value.json.return_value = {"items": [], "nextCursor": None}
+    client.data_modeling.instances.retrieve.side_effect = ValueError("nothing to retrieve")
+
+    out = handler.handle({"action": "probe_slice", "space": "sp", "prefix": "9"}, client)
+
+    step = out["steps"]["properties of the first 500 of those ids, read by id"]
+    assert (step["asked"], step["with data in the view"]) == (0, 0)
+    client.data_modeling.instances.retrieve.assert_not_called()
