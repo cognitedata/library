@@ -6,7 +6,7 @@ This module provides a comprehensive framework for automating the process of ann
 
 **Automate Your Document Contextualization with Production-Ready Code**
 
-Building a file annotation solution from scratch is complex and time-consuming. This module delivers **production-ready, battle-tested code** that handles the complete annotation lifecycle, from identifying files to processing results and generating reports.
+Building a file annotation solution from scratch is complex and time-consuming. This module delivers **production-ready code** that handles the complete annotation lifecycle, from identifying files to processing results and generating reports.
 
 **Key Benefits:**
 
@@ -21,16 +21,16 @@ Building a file annotation solution from scratch is complex and time-consuming. 
 
 **Time & Cost Savings:**
 
-- **Development Time**: Save weeks of development by leveraging production-ready annotation logic
-- **Manual Review Reduction**: Automatic pattern promotion dramatically reduces manual review burden
-- **Scalability Built-In**: Optimized caching and batching avoid months of performance tuning
+- **Development Time**: Reuse existing annotation logic instead of building it
+- **Manual Review Reduction**: Automatic pattern promotion reduces manual review
+- **Scalability Built-In**: Caching and batching are already in place
 - **Maintenance**: Interface-based design enables customization without modifying core code
 
 **Real-World Performance:**
 
-- **Batch Processing**: Configurable batch sizes (1-50 files per diagram detect call)
+- **Batch Processing**: Up to 50 files per diagram detect call (`BATCH_SIZE` in `fa_constants.py`)
 - **Cache Efficiency**: Scope-based caching reuses entity context across files in same site/unit
-- **Entity Search**: 50-500x better performance by querying smaller entity dataset vs. annotation edges
+- **Entity Search**: Queries the smaller entity dataset instead of annotation edges
 - **Self-Improving**: Persistent cache accumulates successful mappings over time
 
 ## 🎯 Overview
@@ -431,10 +431,11 @@ Run after finalize and promote so pattern rows have final status values.
 ```yaml
 # Dataset
 annotationDatasetExternalId: ds_file_annotation
+ApplicationOwner: <APPLICATION_OWNER>           # Application owner email id(s)
 
 # Annotation State Data Model
 annotationStateExternalId: FileAnnotationState
-annotationStateSchemaSpace: dm_sol_file_annotation              # Annotation state data model space
+annotationStateSchemaSpace: dm_file_annotation                  # Annotation state data model space
 annotationStateVersion: v1.0.0
 patternModeInstanceSpace: inst_file_annotation_pattern_results
 patternDetectSink: pattern_detection_sink_node
@@ -448,18 +449,24 @@ fileSearchProperty: aliases
 fileResourceProperty: ""
 
 # Extraction Pipeline
-extractionPipelineExternalId: ep_file_annotation
+extractionPipelineExternalId: ep_ctx_file_annotation
 patternMode: true
-structuralAutoPatterns: true
-cleanOldAnnotations: true
-assetAutoApprovalThreshold: 1.0
-assetAutoSuggestThreshold: 1.0
-fileAutoApprovalThreshold: 1.0
-fileAutoSuggestThreshold: 1.0
+structuralAutoPatterns: false
+cleanOldAnnotations: false
+assetAutoApprovalThreshold: 0.85
+assetAutoSuggestThreshold: 0.7
+fileAutoApprovalThreshold: 0.50
+fileAutoSuggestThreshold: 0.30
 primaryScopeProperty: ""
 secondaryScopeProperty: ""
-entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-fileNormalizationPatterns: []
+entityNormalizationPatterns:
+  - '([A-Z]{2,4}[-_.:][0-9]{4,5})'
+  - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[A-Z][-_][A-Z]{1,3})'
+  - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[-_][A-Z]{1,3})'
+  - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})'
+fileNormalizationPatterns:
+  - '(?<![A-Z])([A-Z]{2,4}[-_][A-Z0-9]+[-_][A-Z][-_][0-9]+[-_][0-9]+)'
+  - '(?<![A-Z])([A-Z]{2,4}[-_][A-Z0-9]+[-_][A-Z][-_][0-9]+)(?=[-_][0-9]+)'
 
 # Target Entity View Configuration (UPDATE REQUIRED)
 targetEntitySchemaSpace: <insert>
@@ -472,14 +479,14 @@ targetEntityResourceProperty: ""
 # Authentication
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
-functionSpace: <insert>                         # Space for function code files
+functionSpace: inst_file_annotation_function   # Space for function code files, created by this module
 
 # Function
 functionExternalId: fn_file_annotation
 functionVersion: v1.0.0
 
 # Workflow Settings
-workflowExternalId: wf_file_annotation
+workflowExternalId: wf_ctx_file_annotation
 # 00:00 on 29 February. This cron does not run the workflow.
 # Paste a daily cron when annotation should start unattended, for example "0 0 * * *".
 workflowSchedule: "0 0 29 2 *"
@@ -497,7 +504,9 @@ Toolkit variables in `default.config.yaml`. RAW database and table names, fixed 
 queries, cleanup behavior, and Diagram Detect matching defaults
 (`DiagramDetectConfig` fields such as `minFuzzyScore`, connection flags, and
 fuzziness) live in `functions/fn_file_annotation/fa_constants.py` — edit that file
-and redeploy the function to change them; they are not Toolkit variables. See
+and redeploy the function to change them; they are not Toolkit variables. To change
+one, or make it a variable, see
+[Customizing a constant](./detailed_guides/CONFIG.md#customizing-a-constant). See
 [CONFIG.md](./detailed_guides/CONFIG.md#diagram-detect-matching-diagramdetectconfig)
 for the constant table and SDK / API links.
 
@@ -827,8 +836,9 @@ variables:
   modules:
     cdf_file_annotation:
       annotationDatasetExternalId: ds_file_annotation
+      ApplicationOwner: <APPLICATION_OWNER>     # UPDATE REQUIRED
       annotationStateExternalId: FileAnnotationState
-      annotationStateSchemaSpace: dm_sol_file_annotation
+      annotationStateSchemaSpace: dm_file_annotation
       annotationStateVersion: v1.0.0
       patternModeInstanceSpace: inst_file_annotation_pattern_results
       patternDetectSink: pattern_detection_sink_node
@@ -838,17 +848,23 @@ variables:
       fileVersion: v1.0                         # UPDATE REQUIRED
       fileSearchProperty: aliases
       patternMode: true
-      structuralAutoPatterns: true
-      cleanOldAnnotations: true
-      assetAutoApprovalThreshold: 1.0
-      assetAutoSuggestThreshold: 1.0
-      fileAutoApprovalThreshold: 1.0
-      fileAutoSuggestThreshold: 1.0
+      structuralAutoPatterns: false
+      cleanOldAnnotations: false
+      assetAutoApprovalThreshold: 0.85
+      assetAutoSuggestThreshold: 0.7
+      fileAutoApprovalThreshold: 0.50
+      fileAutoSuggestThreshold: 0.30
       primaryScopeProperty: ""
       secondaryScopeProperty: ""
       filterPatternPromoteByScope: false
-      entityNormalizationPatterns: '([0-9]{2})[-_.:]([A-Z]{2,3})[-_.:]([0-9]{4,5})'
-fileNormalizationPatterns: []
+      entityNormalizationPatterns:
+        - '([A-Z]{2,4}[-_.:][0-9]{4,5})'
+        - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[A-Z][-_][A-Z]{1,3})'
+        - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5}[-_][A-Z]{1,3})'
+        - '([0-9]{2}[-_.:][A-Z]{2,4}[-_.:][0-9]{4,5})'
+      fileNormalizationPatterns:
+        - '(?<![A-Z])([A-Z]{2,4}[-_][A-Z0-9]+[-_][A-Z][-_][0-9]+[-_][0-9]+)'
+        - '(?<![A-Z])([A-Z]{2,4}[-_][A-Z0-9]+[-_][A-Z][-_][0-9]+)(?=[-_][0-9]+)'
       targetEntitySchemaSpace: your_schema_space
       targetEntityInstanceSpace: your_instances
       targetEntityExternalId: YourAsset
@@ -856,10 +872,10 @@ fileNormalizationPatterns: []
       targetEntitySearchProperty: aliases
       functionClientId: ${IDP_CLIENT_ID}
       functionClientSecret: ${IDP_CLIENT_SECRET}
-      functionSpace: your_functions_space       # UPDATE REQUIRED
+      functionSpace: inst_file_annotation_function  # Created by this module
       functionExternalId: fn_file_annotation
       functionVersion: v1.0.0
-      workflowExternalId: wf_file_annotation
+      workflowExternalId: wf_ctx_file_annotation
       # 00:00 on 29 February. This cron does not run the workflow.
       # Paste a daily cron when annotation should start unattended, for example "0 0 * * *".
       workflowSchedule: "0 0 29 2 *"
@@ -896,7 +912,7 @@ cdf workflows deploy
 
 ### 5. Configure Runtime Behavior
 
-Update `ep_file_annotation.config.yaml` with:
+`ep_file_annotation.config.yaml` only substitutes `{{ }}` variables. Set these in your `config.<env>.yaml` (step 3), not in that file:
 1. Data model view references for your file and entity types
 2. Scope properties for your organizational structure
 3. Confidence thresholds based on your quality requirements
@@ -909,7 +925,7 @@ Update `ep_file_annotation.config.yaml` with:
 cdf functions logs fn_file_annotation
 
 # Monitor workflow execution
-cdf workflows status wf_file_annotation
+cdf workflows status wf_ctx_file_annotation
 
 # View annotation results in RAW
 cdf raw rows list raw_file_annotation annotation_documents_tags
@@ -940,9 +956,9 @@ graph TD
     H2 --> J[Finalize Function]
     I2 --> J
 
-    J --> K[doc_tag RAW Table]
-    J --> L[doc_doc RAW Table]
-    J --> M[doc_pattern RAW Table]
+    J --> K[annotation_documents_tags]
+    J --> L[annotation_documents_docs]
+    J --> M[annotation_documents_patterns]
     J --> N[Data Model Edges]
 
     M --> O[Promote Function]
@@ -985,12 +1001,12 @@ graph TD
 ## 📈 Performance Metrics
 
 ### Batch Processing Optimization
-- **Batch Size**: 1-50 files per diagram detect call
+- **Batch Size**: Up to 50 files per diagram detect call (`BATCH_SIZE` in `fa_constants.py`)
 - **Scope Caching**: Reuse entity context across files in same site/unit
 - **Page Chunking**: Process large documents in 50-page increments
 
 ### Entity Search Performance
-- **Query Strategy**: 50-500x faster by querying entities vs. annotation edges
+- **Query Strategy**: Queries entities instead of annotation edges
 - **Multi-Tier Cache**: In-memory → RAW → Data model search hierarchy
 - **Self-Improving**: Cache accumulates successful text→entity mappings
 
@@ -1024,10 +1040,10 @@ The function and both dashboards send anonymous usage events (project, cluster a
 
 ```bash
 # Test the end-to-end workflow
-cdf workflows trigger wf_file_annotation
+cdf workflows trigger wf_ctx_file_annotation
 
 # Monitor test execution
-cdf workflows logs wf_file_annotation
+cdf workflows logs wf_ctx_file_annotation
 
 # Verify results
 cdf raw rows list raw_file_annotation annotation_documents_tags --limit 10
@@ -1062,7 +1078,7 @@ cdf raw rows list raw_file_annotation annotation_documents_tags --limit 10
 5. **Annotation Jobs Failing**
    - Check Diagram Detect API quotas and limits
    - Verify entity data is available in configured views
-   - Review `maxRetryAttempts` setting
+   - Finalize gives up on a file after `MAX_RETRY_ATTEMPTS` (3), a constant in `functions/fn_file_annotation/fa_constants.py`, not a pipeline setting
 
 6. **Pattern Promotion Configuration**
    - Verify `sinkNode` points to a valid node in `patternModeInstanceSpace`
@@ -1084,7 +1100,7 @@ Log level is set per function call, not in the extraction pipeline config. Chang
 data:
   {
     "stage": "promote",
-    "ExtractionPipelineExtId": ep_file_annotation,
+    "ExtractionPipelineExtId": ep_ctx_file_annotation,
     "logLevel": "DEBUG"
   }
 ```
@@ -1096,7 +1112,7 @@ number so repeated passes stay distinguishable:
 ```text
 [2026-09-17 11:36:12.004] [INFO] ================================================
 [2026-09-17 11:36:12.004] [INFO] FUNCTION: Launch
-[2026-09-17 11:36:12.004] [INFO] CONFIG SOURCE: extraction pipeline 'ep_file_annotation'
+[2026-09-17 11:36:12.004] [INFO] CONFIG SOURCE: extraction pipeline 'ep_ctx_file_annotation'
 [2026-09-17 11:36:20.412] [INFO] [run 1] Launched 12 files
 [2026-09-17 11:36:30.031] [INFO] [run 2] No files found to launch
 ```
