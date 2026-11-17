@@ -16,7 +16,7 @@ def fake_world(monkeypatch: pytest.MonkeyPatch, total: int) -> list[str]:
     """A service that times out on the big slice, lists a slice of the pieces' size, and counts leaves."""
     listed: list[str] = []
 
-    def list_slice(_client: Any, _type: str, _view: ViewId, _spaces: Any, part: Any) -> list[str]:
+    def list_slice(_client: Any, _type: str, _view: ViewId, _spaces: Any, part: Any, **_options: Any) -> list[str]:
         text = reader._prefix_of(part)
         if text == "FLOC-5":
             raise CogniteAPIError("timed out", code=408)

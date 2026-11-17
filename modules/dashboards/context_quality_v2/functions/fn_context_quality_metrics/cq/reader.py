@@ -43,14 +43,22 @@ PAGE_STEP_SECONDS = 60.0
 
 
 def _list_slice(
-    client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
+    client: CogniteClient,
+    instance_type: str,
+    view: ViewId,
+    spaces: list[str] | None,
+    part: Any,
+    in_index_order: bool | None = None,
 ) -> list[Any]:
     """The instances of a view that match one slice filter.
 
     A read with no filter is sorted by the whole order of the service's (space, externalId) index, which lets it page
     with cursors from that index instead of scanning. A slice of a batch is not sorted: with the filter on external ids
     and the view's data, the service answered a sorted read of 100 instances with a timeout after 13 seconds and the same
-    read unsorted in under one."""
+    read unsorted in under one. `in_index_order` says it either way: a slice that the service times out on unsorted is
+    read once sorted, in case the service answers that one, before it is cut finer or read by id."""
+    if in_index_order is None:
+        in_index_order = part is None
     order = [InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])]
     return list(
         client.data_modeling.instances.list(
@@ -58,7 +66,7 @@ def _list_slice(
             sources=view,
             space=spaces,
             filter=part,
-            sort=order if part is None else None,
+            sort=order if in_index_order else None,
             limit=-1,
         )
     )
@@ -213,6 +221,13 @@ def _read_slice(
             if error.code != 408:
                 raise
             if part is not None:
+                try:
+                    found = _list_slice(client, instance_type, view, spaces, part, in_index_order=True)
+                    note("slice read sorted")
+                    return found
+                except CogniteAPIError as sorted_error:
+                    if sorted_error.code != 408:
+                        raise
                 text = _prefix_of(part)
                 finer = (
                     _cut_slice(client, instance_type, view, spaces[0], text)

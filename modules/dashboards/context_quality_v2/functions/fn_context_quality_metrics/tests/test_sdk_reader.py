@@ -423,8 +423,8 @@ def test_a_slice_that_times_out_is_read_by_id_and_a_read_without_a_slice_is_cut_
     filters_used = [call.kwargs["filter"] for call in client.data_modeling.instances.list.call_args_list]
     assert (
         filters_used[0] is None
-    )  # the whole read first, then one slice per first character, each tried and read by id
-    assert len(filters_used) == 1 + 2 * (len(CHARSET) + 1)
+    )  # the whole read first, then one slice per first character, each tried unsorted, sorted and read by id
+    assert len(filters_used) == 1 + 3 * (len(CHARSET) + 1)
 
 
 def test_a_chunk_of_ids_that_times_out_is_read_again_in_halves() -> None:

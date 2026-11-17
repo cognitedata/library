@@ -54,3 +54,29 @@ def test_a_slice_of_a_batch_is_read_unsorted_and_a_read_with_no_filter_is_sorted
     sliced, whole = client.data_modeling.instances.list.call_args_list
     assert sliced.kwargs["sort"] is None
     assert whole.kwargs["sort"] is not None
+
+
+def test_a_slice_the_service_times_out_on_unsorted_is_read_sorted_before_it_is_cut_or_read_by_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from cognite.client.exceptions import CogniteAPIError
+    from cq import resilience
+
+    calls: list[Any] = []
+
+    def list_slice(_c: Any, _t: str, _v: ViewId, _s: Any, _p: Any, in_index_order: bool | None = None) -> list[str]:
+        calls.append(in_index_order)
+        if not in_index_order:
+            raise CogniteAPIError("timed out", code=408)
+        return ["row"]
+
+    monkeypatch.setattr(reader, "_list_slice", list_slice)
+    monkeypatch.setattr(reader, "_list_slice_by_id", lambda *_a: ["by id"])
+    resilience.begin_call()
+    part = {"prefix": {"property": ["node", "externalId"], "value": "3"}}
+
+    found = reader._read_slice(None, "node", VIEW, ["sp"], part)  # type: ignore[arg-type]
+
+    assert found == ["row"]
+    assert calls == [None, True]
+    assert resilience.events() == {"slice read sorted": 1}
