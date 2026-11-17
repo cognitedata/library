@@ -27,6 +27,7 @@ describe(RunStatusBanner.name, () => {
       line: '',
       dismiss: null,
       primaryActionLabel: '',
+      dismissLabel: '',
       onPrimaryAction: null,
     });
 
@@ -53,6 +54,7 @@ describe(RunStatusBanner.name, () => {
       line: `${title} — ${body}`,
       dismiss: null,
       primaryActionLabel: '',
+      dismissLabel: '',
       onPrimaryAction: null,
     });
 
@@ -83,6 +85,7 @@ describe(RunStatusBanner.name, () => {
       line: 'Run completed successfully — done',
       dismiss,
       primaryActionLabel: 'View results',
+      dismissLabel: '',
       onPrimaryAction: null,
     });
 
