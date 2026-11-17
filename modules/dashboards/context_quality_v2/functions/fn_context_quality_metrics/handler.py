@@ -30,6 +30,7 @@ from typing import Any
 
 from cognite.client import CogniteClient
 from cq.config import build_config
+from cq.probe import probe_slice
 from cq.resilience import begin_call, harden
 from cq.runner import compute_batch, compute_metrics, compute_shard, export_workbook, finalize, plan, validate
 from cq.types import RunConfig
@@ -43,6 +44,7 @@ ACTIONS: dict[str, Callable[[CogniteClient, RunConfig, dict[str, Any]], dict[str
     "finalize": finalize,
     "export": export_workbook,
     "validate": validate,
+    "probe_slice": probe_slice,
 }
 
 
@@ -52,6 +54,7 @@ REQUIRED_KEYS: dict[str, tuple[str, ...]] = {
     "compute_batch": ("runId", "runTimestamp", "shard"),
     "finalize": ("runId", "runTimestamp"),
     "export": ("runId", "shardCount"),
+    "probe_slice": ("space",),
 }
 
 

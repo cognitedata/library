@@ -131,6 +131,7 @@ def test_the_handler_runs_only_the_production_actions() -> None:
         "export",
         "finalize",
         "plan",
+        "probe_slice",
         "validate",
     ]
 
