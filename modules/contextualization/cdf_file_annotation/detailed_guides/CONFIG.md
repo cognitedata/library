@@ -4,10 +4,10 @@ The extraction pipeline uses the same shape as the entity-matching module: opera
 
 ## Runtime input
 
-Every call requires a stage and the extraction-pipeline external ID:
+Every call requires a stage and the extraction-pipeline external ID. That id is `extractionPipelineExternalId` (`ep_ctx_file_annotation`). The YAML filenames are `ep_file_annotation.*`.
 
 ```json
-{"stage":"prepare","ExtractionPipelineExtId":"ep_file_annotation","logLevel":"INFO"}
+{"stage":"prepare","ExtractionPipelineExtId":"ep_ctx_file_annotation","logLevel":"INFO"}
 ```
 
 The input is validated before any stage runs. Valid stages are `prepare`, `launch`, `finalize`, and `promote`. `logLevel` is optional, defaults to `INFO`, and accepts `DEBUG`, `INFO`, `WARNING`, or `ERROR` (case-insensitive). A missing or invalid field fails the call with a validation error.
@@ -40,10 +40,10 @@ parameters:
 ```
 
 - `patternPromote.patternMode` enables pattern-mode Diagram Detect alongside regular entity matching.
-- `patternPromote.structuralAutoPatterns` (default `true`) makes auto patterns digit/letter **structure** templates such as `00-AA-0000` instead of enumerating letter codes like `[FE|KA|PC|VA]`. Separators from aliases (`_`, `-`, `.`, `:`, `;`, `/`) are never required constants (never `[_]`); they normalize to unbracketed `-`. Set `false` for legacy letter-enum expansion.
+- `patternPromote.structuralAutoPatterns` (`default.config.yaml` ships `false`; the function treats a missing key as `true`). `false` keeps legacy letter-enum expansion such as `[FE|KA|PC|VA]`. Set `true` to use digit/letter **structure** templates such as `00-AA-0000` instead. Separators from aliases (`_`, `-`, `.`, `:`, `;`, `/`) are never required constants (never `[_]`); they normalize to unbracketed `-`. Turn it on only together with text normalization: the extra patterns can add false positives.
 - `patternPromote.filterPatternPromoteByScope` (default `false`) makes Promote apply `primaryScopeProperty` / `secondaryScopeProperty` as filters. The values are read from the annotated file. Primary must match. When a secondary value is set, the entity must match it or carry `ScopeWideDetect` (still inside the primary scope). A file with no value for a configured property is not filtered on that property.
 - `cleanOldAnnotations` removes this function's prior annotations (edges with `sourceCreatedUser = fn_file_annotation`, plus their RAW rows) on the first finalize pass of a file that is re-annotated. Manual and third-party annotations are kept. Files that are no longer selected for annotation are not cleaned.
-  Finalize does not stack a new box on a kept annotation. A Diagram Detect or pattern-mode box on the same page that equals, contains, or lies inside a manual or third-party box is not created; finalize logs the existing edge instead. Boxes that only partly overlap are still created. This check runs whatever the value of `cleanOldAnnotations`.
+- Finalize does not stack a new box on a kept annotation. A Diagram Detect or pattern-mode box on the same page that equals, contains, or lies inside a manual or third-party box is not created; finalize logs the existing edge instead. Boxes that only partly overlap are still created. This check runs whether or not `cleanOldAnnotations` is on.
 - `assetAutoApprovalThreshold` and `assetAutoSuggestThreshold` control regular annotation status for asset links (`diagrams.AssetLink`). `fileAutoApprovalThreshold` and `fileAutoSuggestThreshold` do the same for file links (`diagrams.FileLink`); leave them empty to reuse the asset-link values. A detection at or above the approval threshold is `Approved`, at or above the suggest threshold `Suggested`, and below that it is dropped.
 - `primaryScopeProperty` and `secondaryScopeProperty` group files so launch can reuse a scoped entity cache. Instances with no value for those properties are still matched: files in an unscoped batch against all tagged entities, and unscoped assets against all documents (warning). When both are empty, every file is matched against all targets (warning: false positives).
 - `filesToAnnotateTags` is the Prepare IN filter for files to process (default `ToAnnotate`).
@@ -109,7 +109,7 @@ Pipeline limits and promote cleanup:
 
 - Batch size: 50 files
 - Page range: 50 pages
-- Finalize retries: 3
+- Finalize retries (`MAX_RETRY_ATTEMPTS`): 3
 - Promote entity-search limit: 2 (one match, or a second to detect ambiguity)
 - Function work budget: 7 minutes
 - Local HTTP 429 wait: 900 seconds
@@ -252,7 +252,7 @@ Remove `dataModelViews`, `rawTables`, `prepareFunction`, `launchFunction`, `fina
 
 The `rawDb` / `rawTable*` / `rawManualPatternsCatalog` module variables and the `parameters.rawData` block are removed. RAW names are now the constants listed under [RAW database and tables](#raw-database-and-tables). Delete those keys from your `config.<env>.yaml`. A `parameters.rawData` block left in an extraction-pipeline config is ignored. If you deployed with non-default names, move the existing rows to the fixed tables, or edit the constants and the Toolkit files that repeat them.
 
-`patternMode`, `structuralAutoPatterns`, and `filterPatternPromoteByScope` are read from `parameters.patternPromote`. Left directly under `parameters`, they are ignored. The first two default to `true`; the scope filter defaults to `false`.
+`patternMode`, `structuralAutoPatterns`, and `filterPatternPromoteByScope` are read from `parameters.patternPromote`. If they are left directly under `parameters`, the function ignores them and uses its fallbacks. `patternMode` and `structuralAutoPatterns` fall back to `true`. The scope filter falls back to `false`. `default.config.yaml` ships `structuralAutoPatterns: false`.
 
 Function calls must use `fn_file_annotation` and include `stage`. The supplied workflow
 invokes all four stages in order and finishes with the file-to-asset transformation.
