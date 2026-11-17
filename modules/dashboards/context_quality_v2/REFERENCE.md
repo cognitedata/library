@@ -178,6 +178,8 @@ additively: a property that is deployed keeps its definition, and a new one is o
 
 ### Prerequisites
 
+- A CDF project where the Records and Streams services are available: the deploy creates a stream and the function
+  writes records to it. Cognite Functions and Data workflows must be available as well.
 - Cognite Toolkit 0.8 or later. The module was built and checked with 0.8.191.
 - The `record_views` alpha flag enabled in `cdf.toml`, because the containers are `usedFor: record` and the views
   are bound to a stream:
