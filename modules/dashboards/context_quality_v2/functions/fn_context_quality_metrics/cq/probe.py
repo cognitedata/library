@@ -3,6 +3,7 @@
 A call to `probe_slice` writes nothing, and every step is bounded, so it ends in a few minutes at most.
 """
 
+import sys
 import time
 from collections.abc import Callable
 from typing import Any
@@ -57,7 +58,9 @@ def _probe(client: CogniteClient, payload: dict[str, Any]) -> dict[str, Any]:
     instance_type = "edge" if edge else "node"
     ref = [instance_type, "externalId"]
     by_prefix = f.Prefix(ref, prefix) if prefix else None
-    in_range = f.Range(ref, gte=prefix, lt=prefix[:-1] + chr(ord(prefix[-1]) + 1)) if prefix else None
+    # no range for a prefix that ends in the last code point: there is no character after it to end the range with
+    can_range = bool(prefix) and ord(prefix[-1]) < sys.maxunicode
+    in_range = f.Range(ref, gte=prefix, lt=prefix[:-1] + chr(ord(prefix[-1]) + 1)) if can_range else None
     with_data = f.And(f.HasData(views=[view]), by_prefix) if by_prefix is not None else f.HasData(views=[view])
     order = [InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])]
     instances = client.data_modeling.instances

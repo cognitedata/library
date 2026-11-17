@@ -118,3 +118,13 @@ def test_an_instance_without_properties_is_not_counted_as_having_data() -> None:
 
     step = out["steps"]["properties of the first 500 of those ids, read by id"]
     assert (step["asked"], step["with data in the view"]) == (1, 0)
+
+
+def test_a_prefix_that_ends_in_the_last_code_point_is_probed_without_a_range() -> None:
+    out = handler.handle(
+        {"action": "probe_slice", "space": "sp", "prefix": "3\U0010ffff"},
+        client_with([SimpleNamespace(external_id="30")]),
+    )
+
+    assert "100 with properties, range, sorted" not in out["steps"]
+    assert "count of the kind with the prefix" in out["steps"]
