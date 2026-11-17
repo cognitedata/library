@@ -31,11 +31,11 @@ READS = ("aggregate", "list", "retrieve", "retrieve_nodes", "retrieve_edges", "s
 PATIENCE_WAITS = (30.0, 60.0)
 PATIENCE_BUDGET = 300.0
 
-# A call of the function is stopped after ten minutes, whatever it is doing, and those ten minutes start before the handler
-# does: the log of a call that gave up at 510 s of its budget ended after ten minutes, and a call that had a minute more
-# to start was stopped by the platform first, with no message. A read gives up after these seconds of the handler
-# (`begin_call`), which leaves two and a half minutes for the start and for the error to be reported, so the call fails
-# with the error of the service while there is still time to say so, and the task can be tried again.
+# A call of the function is stopped after ten minutes, whatever it is doing, and those ten minutes start before the
+# handler does: the log of a call that gave up at 510 s of its budget ended after ten minutes, and a call that had a
+# minute more to start was stopped by the platform first, with no message. A read gives up after these seconds of the
+# handler (`begin_call`), which leaves two and a half minutes for the start and for the error to be reported, so the
+# call fails with the error of the service while there is still time to say so, and the task can be tried again.
 CALL_BUDGET = 450.0
 # Counting must end this many seconds before the budget, so that its rows can still be written.
 WRITE_RESERVE = 30.0
@@ -49,6 +49,7 @@ _events: Counter[str] = Counter()
 _events_lock = threading.Lock()
 _phase = "starting"
 _working_on: dict[int, str] = {}
+_working_on_lock = threading.Lock()
 
 
 class CallBudgetExceeded(TimeoutError):
@@ -70,11 +71,13 @@ def working_on(label: str) -> Iterator[None]:
     """Says what this thread is reading, for the error of a call that does not finish: with reads on several threads,
     the ones still listed when the budget ends are the slow ones."""
     key = threading.get_ident()
-    _working_on[key] = label
+    with _working_on_lock:
+        _working_on[key] = label
     try:
         yield
     finally:
-        _working_on.pop(key, None)
+        with _working_on_lock:
+            _working_on.pop(key, None)
 
 
 def slice_label(part: object) -> str:
@@ -231,10 +234,12 @@ def watched[R](work: Callable[[], R], reserve: float = WRITE_RESERVE) -> R:
     thread.start()
     thread.join(max(0.0, time_left() - reserve))
     if thread.is_alive():
+        with _working_on_lock:
+            still_reading = list(_working_on.values())[:6]
         raise CallBudgetExceeded(
             f"The call used {elapsed():.0f} s without finishing; it was {_phase}. "
             f"Slowed by: {events() or 'nothing noted'}. "
-            f"Still reading: {list(_working_on.values())[:6] or 'nothing listed'}. "
+            f"Still reading: {still_reading or 'nothing listed'}. "
             f"Stuck in: {_where_stuck(thread)}. "
             "If other shards fail the same way, the project is slow, not the shard. If this one always does, make the "
             "shards smaller: start the run with "

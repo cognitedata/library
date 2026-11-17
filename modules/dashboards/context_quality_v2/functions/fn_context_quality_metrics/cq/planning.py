@@ -87,8 +87,8 @@ def plan_work(
 ) -> list[dict[str, Any]]:
     """The work items of a run: [{"weight": instances, "data": what the call is told}], heaviest first.
 
-    `kind_targets` gives a kind its own, smaller target, for a kind that costs more per instance than the others: a space
-    that holds more of it than that is split even when it is under the target.
+    `kind_targets` gives a kind its own, smaller target, for a kind that costs more per instance than the others: a
+    space that holds more of it than that is split even when it is under the target.
 
     `fits` says whether the calls are acceptable, for example whether their data fits a task's output limit; if not, the
     target is made larger, which gives fewer, bigger calls.
@@ -133,7 +133,8 @@ def plan_work(
 
 
 def _is_big(size: int, weights: dict[str, int], limit: int, kind_targets: dict[str, int]) -> bool:
-    """Whether a space is split into batches: it holds more than the target, or more of a kind than that kind's target."""
+    """Whether a space is split into batches: it holds more than the target, or more of a kind than that kind's
+    target."""
     return size > limit or any(weights.get(key, 0) > _limit(key, limit, kind_targets) for key in kind_targets)
 
 

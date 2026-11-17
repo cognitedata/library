@@ -302,7 +302,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         "locations": len(found),
         "batches": sum(1 for task in tasks if task["parameters"]["function"]["data"]["action"] == "compute_batch"),
         "scope": scope.to_payload(),
-        # True when the plan ran out of its time to cut big kinds into slices, so some batches are bigger than the target
+        # True when the plan ran out of its time to cut big kinds into slices, so some batches exceed the target
         "splitDeadlineReached": split_deadline_reached,
         "oversizedBatches": oversized,
         "timing": _timing(),
@@ -311,8 +311,9 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
 
 
 def _non_default(config: dict[str, Any] | None) -> dict[str, Any]:
-    """Only the settings that differ from the function's defaults, which every task carries: a task's size counts, because
-    what the plan returns may not exceed a task's output limit, and a smaller task lets the run have more of them."""
+    """Only the settings that differ from the function's defaults, which every task carries: a task's size counts,
+    because what the plan returns may not exceed a task's output limit, and a smaller task lets the run have more of
+    them."""
     return {
         key: value
         for key, value in (config or {}).items()

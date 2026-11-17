@@ -53,10 +53,10 @@ def _list_slice(
     """The instances of a view that match one slice filter.
 
     A read with no filter is sorted by the whole order of the service's (space, externalId) index, which lets it page
-    with cursors from that index instead of scanning. A slice of a batch is not sorted: with the filter on external ids
-    and the view's data, the service answered a sorted read of 100 instances with a timeout after 13 seconds and the same
-    read unsorted in under one. `in_index_order` says it either way: a slice that the service times out on unsorted is
-    read once sorted, in case the service answers that one, before it is cut finer or read by id."""
+    with cursors from that index instead of scanning. A slice of a batch is not sorted: with the filter on external
+    ids and the view's data, the service answered a sorted read of 100 instances with a timeout after 13 seconds and
+    the same read unsorted in under one. `in_index_order` says it either way: a slice that the service times out on
+    unsorted is read once sorted, in case the service answers that one, before it is cut finer or read by id."""
     if in_index_order is None:
         in_index_order = part is None
     order = [InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])]
