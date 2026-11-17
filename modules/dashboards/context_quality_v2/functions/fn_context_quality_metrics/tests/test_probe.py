@@ -50,3 +50,25 @@ def test_a_request_the_service_times_out_on_is_reported_not_raised() -> None:
 def test_a_probe_needs_a_space() -> None:
     with pytest.raises(ValueError, match="needs space"):
         handler.handle({"action": "probe_slice"}, MagicMock())
+
+
+def test_a_payload_with_nulls_uses_the_defaults() -> None:
+    out = handler.handle({"action": "probe_slice", "space": "sp", "kind": None, "prefix": None}, client_with([]))
+
+    assert out["steps"]["count of the kind with the prefix"]["count"] == 7
+
+
+def test_a_kind_that_does_not_exist_is_rejected() -> None:
+    with pytest.raises(ValueError, match="Unknown kind 'pumps'"):
+        handler.handle({"action": "probe_slice", "space": "sp", "kind": "pumps"}, MagicMock())
+
+
+def test_a_busy_service_is_retried_when_listing_ids() -> None:
+    client = client_with([])
+    page = {"items": [{"space": "sp", "externalId": "30"}], "nextCursor": None}
+    client.post.return_value.json.return_value = page
+    client.post.side_effect = [CogniteAPIError("busy", code=429), client.post.return_value]
+
+    out = handler.handle({"action": "probe_slice", "space": "sp", "prefix": "3"}, client)
+
+    assert out["steps"]["ids of the space with the prefix, any kind, at most 30 pages"]["ids"] == 1

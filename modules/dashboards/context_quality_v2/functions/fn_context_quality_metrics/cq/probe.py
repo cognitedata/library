@@ -45,7 +45,11 @@ def probe_slice(client: CogniteClient, _cfg: RunConfig, payload: dict[str, Any])
 
 
 def _probe(client: CogniteClient, payload: dict[str, Any]) -> dict[str, Any]:
-    space, kind, prefix = payload["space"], payload.get("kind", "assets"), payload.get("prefix", "")
+    space = payload["space"]
+    kind = payload.get("kind") or "assets"
+    prefix = payload.get("prefix") or ""
+    if kind not in KIND_VIEWS:
+        raise ValueError(f"Unknown kind {kind!r}. Expected one of {sorted(KIND_VIEWS)}")
     view_space, xid, edge = KIND_VIEWS[kind]
     view = ViewId(view_space, xid, "v1")
     instance_type = "edge" if edge else "node"
@@ -97,7 +101,8 @@ def _probe(client: CogniteClient, payload: dict[str, Any]) -> dict[str, Any]:
             }
             if cursor:
                 body["cursor"] = cursor
-            response = client.post(f"/api/v1/projects/{client.config.project}/models/instances/list", json=body).json()
+            post = resilience.retrying(client.post)
+            response = post(f"/api/v1/projects/{client.config.project}/models/instances/list", json=body).json()
             listed.extend((item["space"], item["externalId"]) for item in response["items"])
             pages += 1
             cursor = response.get("nextCursor")

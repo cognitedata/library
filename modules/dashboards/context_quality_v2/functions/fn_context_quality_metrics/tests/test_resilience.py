@@ -229,6 +229,17 @@ def test_watched_passes_on_the_error_of_the_work() -> None:
         resilience.watched(fails)
 
 
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_watched_reports_work_that_ends_without_a_result() -> None:
+    resilience.begin_call()
+
+    def exits() -> None:
+        raise SystemExit
+
+    with pytest.raises(RuntimeError, match="without a result"):
+        resilience.watched(exits)
+
+
 def test_watched_gives_up_a_call_that_does_not_finish_and_says_where_it_was(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(resilience, "CALL_BUDGET", 0.2)
     monkeypatch.setattr(resilience, "WRITE_RESERVE", 0.0)

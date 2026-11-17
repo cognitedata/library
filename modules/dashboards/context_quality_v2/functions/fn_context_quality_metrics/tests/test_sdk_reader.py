@@ -15,6 +15,7 @@ from cognite.client.data_classes import Datapoints
 from cognite.client.data_classes.data_modeling import Edge, Node, NodeId, ViewId
 from cognite.client.data_classes.data_modeling.instances import Properties
 from cognite.client.exceptions import CogniteAPIError
+from cq import resilience
 from cq.config import build_config
 from cq.reader import load_all
 from cq.runner import latest_datapoints
@@ -245,6 +246,25 @@ def test_latest_datapoints_asks_in_batches_of_500() -> None:
     latest_datapoints(client, data)  # type: ignore[arg-type]
 
     assert [len(batch) for batch in client.time_series.data.requested] == [500, 500, 201]
+
+
+def test_latest_datapoints_retries_a_busy_service(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(resilience, "sleep", lambda _seconds: None)
+    known = NodeId(PLANT, "ts-1")
+    client = FakeClient([], {known: [TS_MS]})
+    real = client.time_series.data.retrieve_latest
+    busy = [CogniteAPIError("busy", code=429)]
+
+    def retrieve_latest(**kwargs: Any) -> list[Datapoints]:
+        if busy:
+            raise busy.pop()
+        return real(**kwargs)
+
+    monkeypatch.setattr(client.time_series.data, "retrieve_latest", retrieve_latest)
+
+    latest = latest_datapoints(client, {"timeseries": [{"space": PLANT, "id": "ts-1"}]})  # type: ignore[arg-type]
+
+    assert latest[(PLANT, "ts-1")] == datetime.fromtimestamp(TS_MS / 1000, tz=UTC)
 
 
 def test_the_installed_sdk_offers_the_calls_the_function_makes() -> None:

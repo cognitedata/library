@@ -56,8 +56,9 @@ def latest_datapoints(client: CogniteClient, data: LoadedData) -> dict[EntityKey
     out = {(i.space, i.external_id): None for i in ids}
     if ids:
         phase(f"reading the latest datapoint of {len(ids)} time series")
+    retrieve = resilience.retrying(client.time_series.data.retrieve_latest)
     for i in range(0, len(ids), 500):
-        res = client.time_series.data.retrieve_latest(instance_id=ids[i : i + 500], ignore_unknown_ids=True)
+        res = retrieve(instance_id=ids[i : i + 500], ignore_unknown_ids=True)
         for r in res:
             ts = r.timestamp
             if isinstance(ts, (list, tuple)) or hasattr(ts, "__len__"):

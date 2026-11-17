@@ -219,12 +219,12 @@ def watched[R](work: Callable[[], R], reserve: float = WRITE_RESERVE) -> R:
     if _call_started is None:
         return work()
     outcome: list[R] = []
-    failure: list[BaseException] = []
+    failure: list[Exception] = []
 
     def run() -> None:
         try:
             outcome.append(work())
-        except BaseException as error:  # handed to the caller below, whatever it is
+        except Exception as error:  # handed to the caller below
             failure.append(error)
 
     thread = threading.Thread(target=run, daemon=True)
@@ -242,6 +242,8 @@ def watched[R](work: Callable[[], R], reserve: float = WRITE_RESERVE) -> R:
         )
     if failure:
         raise failure[0]
+    if not outcome:
+        raise RuntimeError("The work ended without a result")
     return outcome[0]
 
 
