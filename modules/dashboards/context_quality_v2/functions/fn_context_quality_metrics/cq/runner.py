@@ -44,9 +44,6 @@ from cq.types import EntityKey, LoadedData, Row, RowProps, RunConfig
 
 # The plan is one function call, which has ten minutes. Cutting big kinds into slices stops after this long.
 PLAN_SPLIT_SECONDS = 360
-# The plan makes the target larger when the calls would not fit a run, but not by more than this: past it, calls hold
-# several whole kinds and are too big to finish, so the run is refused with the target that would fit.
-MAX_TARGET_GROWTH = 1.6
 
 
 def _grain_needs_assets(cfg: RunConfig) -> bool:
@@ -265,7 +262,6 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         link_counts=link_counts,
         target=cfg["shardTargetEntities"],
         kind_targets={"timeseries": cfg["shardTargetTimeSeries"]},
-        max_growth=MAX_TARGET_GROWTH,
         max_tasks=cfg["maxShards"],
         leaves_of=leaves_of,
         fits=lambda candidate: tasks_fit(tasks_for(candidate)),
