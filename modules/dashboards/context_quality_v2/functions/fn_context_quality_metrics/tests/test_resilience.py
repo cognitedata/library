@@ -246,6 +246,7 @@ def test_watched_gives_up_a_call_that_does_not_finish_and_says_where_it_was(monk
     assert "looking up what the batch links to outside it" in message
     assert "'http 408': 1" in message
     assert "shardTargetEntities" in message
+
     assert "Stuck in: wait" in message or "wait (threading.py" in message
 
 
@@ -298,3 +299,22 @@ def test_watched_with_no_reserve_gives_the_writing_the_whole_budget_and_names_th
         release.set()
 
     assert "writing the rows of the piece to the stream" in str(error.value)
+
+
+def test_the_error_lists_the_slices_still_being_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(resilience, "CALL_BUDGET", 0.2)
+    monkeypatch.setattr(resilience, "WRITE_RESERVE", 0.0)
+    resilience.begin_call()
+    release = threading.Event()
+
+    def read() -> None:
+        with resilience.working_on(resilience.slice_label({"prefix": {"value": "FLOC-54-"}})):
+            release.wait(5)
+
+    try:
+        with pytest.raises(resilience.CallBudgetExceeded) as error:
+            resilience.watched(read)
+    finally:
+        release.set()
+
+    assert "FLOC-54-" in str(error.value)

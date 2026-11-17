@@ -17,7 +17,7 @@ from cognite.client.exceptions import CogniteAPIError
 from cq.batching import CHARSET, CountLeaves, Leaf, SampleId, counter, leaf_filter
 from cq.discovery import ENTITY_KEYS, count_entities_by_space, discover_facility_spaces
 from cq.extra_links import ExtraLink, ViewNodes
-from cq.resilience import note, retrying, time_left
+from cq.resilience import note, retrying, slice_label, time_left, working_on
 from cq.types import (
     LoadedData,
     Ref,
@@ -169,15 +169,16 @@ def _read_slice(
     id,
     is cut into one slice per first character of the external id (the same cut as `cq.batching`, which covers every
     instance exactly once) and each of those is read the same way."""
-    try:
-        return _list_slice(client, instance_type, view, spaces, part)
-    except CogniteAPIError as error:
-        if error.code != 408:
-            raise
-        if part is not None:
-            note("read by id")
-            return _list_slice_by_id(client, instance_type, view, spaces, part)
-        note("cut by first character")
+    with working_on(slice_label(part)):
+        try:
+            return _list_slice(client, instance_type, view, spaces, part)
+        except CogniteAPIError as error:
+            if error.code != 408:
+                raise
+            if part is not None:
+                note("read by id")
+                return _list_slice_by_id(client, instance_type, view, spaces, part)
+            note("cut by first character")
     by_first_character: list[Leaf] = [("prefix", char) for char in CHARSET] + [("rest", "")]
     found: list[Any] = []
     for leaf in by_first_character:

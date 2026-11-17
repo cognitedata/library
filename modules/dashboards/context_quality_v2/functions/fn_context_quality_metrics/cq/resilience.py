@@ -7,12 +7,14 @@ caller (and each new kind of query) failing the run on the first one. What a cal
 as reading a smaller piece (cq.reader, cq.lookups), it still does, with the error that is left after the retries.
 """
 
+import json
 import sys
 import threading
 import time
 import traceback
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
@@ -44,6 +46,7 @@ _call_started: float | None = None
 _events: Counter[str] = Counter()
 _events_lock = threading.Lock()
 _phase = "starting"
+_working_on: dict[int, str] = {}
 
 
 class CallBudgetExceeded(TimeoutError):
@@ -58,6 +61,23 @@ def begin_call() -> None:
     _phase = "starting"
     with _events_lock:
         _events.clear()
+
+
+@contextmanager
+def working_on(label: str) -> Iterator[None]:
+    """Says what this thread is reading, for the error of a call that does not finish: with reads on several threads,
+    the ones still listed when the budget ends are the slow ones."""
+    key = threading.get_ident()
+    _working_on[key] = label
+    try:
+        yield
+    finally:
+        _working_on.pop(key, None)
+
+
+def slice_label(part: object) -> str:
+    """A short text for a slice filter."""
+    return json.dumps(part, default=str, separators=(",", ":"))[:140]
 
 
 def phase(name: str) -> None:
@@ -211,7 +231,9 @@ def watched[R](work: Callable[[], R], reserve: float = WRITE_RESERVE) -> R:
     if thread.is_alive():
         raise CallBudgetExceeded(
             f"The call used {elapsed():.0f} s without finishing; it was {_phase}. "
-            f"Slowed by: {events() or 'nothing noted'}. Stuck in: {_where_stuck(thread)}. "
+            f"Slowed by: {events() or 'nothing noted'}. "
+            f"Still reading: {list(_working_on.values())[:6] or 'nothing listed'}. "
+            f"Stuck in: {_where_stuck(thread)}. "
             "If other shards fail the same way, the project is slow, not the shard. If this one always does, make the "
             "shards smaller: start the run with "
             '{"planning": {"shardTargetEntities": <half the current value>}}.'
