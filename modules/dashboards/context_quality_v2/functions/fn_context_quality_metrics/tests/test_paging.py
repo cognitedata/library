@@ -278,7 +278,7 @@ def test_no_smaller_page_is_started_when_the_call_has_too_little_time_left(monke
 
 
 def test_the_steps_stop_where_the_time_of_the_call_runs_out(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every request that times out takes 130 seconds of the call; the call has 540, and a size needs 60 to start."""
+    """Every request that times out takes 130 seconds of the call; the call has 450, and a size needs 60 to start."""
     monkeypatch.setattr(resilience, "_call_started", None)
     now = [0.0]
     monkeypatch.setattr(resilience, "clock", lambda: now[0])

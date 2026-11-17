@@ -31,10 +31,12 @@ READS = ("aggregate", "list", "retrieve", "retrieve_nodes", "retrieve_edges", "s
 PATIENCE_WAITS = (30.0, 60.0)
 PATIENCE_BUDGET = 300.0
 
-# A call of the function is stopped after ten minutes, whatever it is doing. A read gives up after these seconds of it
-# (`begin_call`), so that the call fails with the error of the service while there is still time to say so, and the
-# task can be tried again with ten minutes of its own.
-CALL_BUDGET = 540.0
+# A call of the function is stopped after ten minutes, whatever it is doing, and those ten minutes start before the handler
+# does: the log of a call that gave up at 510 s of its budget ended after ten minutes, and a call that had a minute more
+# to start was stopped by the platform first, with no message. A read gives up after these seconds of the handler
+# (`begin_call`), which leaves two and a half minutes for the start and for the error to be reported, so the call fails
+# with the error of the service while there is still time to say so, and the task can be tried again.
+CALL_BUDGET = 450.0
 # Counting must end this many seconds before the budget, so that its rows can still be written.
 WRITE_RESERVE = 30.0
 

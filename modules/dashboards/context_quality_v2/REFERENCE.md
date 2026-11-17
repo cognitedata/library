@@ -320,7 +320,7 @@ A slice that the service times out on is no longer read by id as one long run: i
 the external ids, counted by the service) into slices of about 5,000 instances, and those are read together.
 
 **A call that does not finish.** The platform stops a function call at ten minutes and a stopped call leaves no
-output and no log. A shard or batch therefore gives up its counting 30 seconds before its 540-second budget ends and
+output and no log. A shard or batch therefore gives up its counting 30 seconds before its 450-second budget ends (the platform's ten minutes include the start of the call) and
 fails with an error that names the step it was in (reading entities, looking up what the batch links to, counting) and
 what had slowed it (failed requests, fallbacks). Read it in the task's response, then make the shards smaller.
 
@@ -339,7 +339,7 @@ what had slowed it (failed requests, fallbacks). Read it in the task's response,
   attempt leaves room for it in the call's ten minutes, and the task is retried once by the workflow (`retries: 1`).
   When even listing the ids of a slice times out, the ids are asked for in pages of 500, then 250, then 100 instead of
   the 1000 the SDK always asks for (`PAGE_SIZES`), each size starting the listing over. A call is stopped after ten
-  minutes, so a read gives up after 540 seconds of the call (`CALL_BUDGET`): no retry pause that would not fit, and no
+  minutes, so a read gives up after 450 seconds of the call (`CALL_BUDGET`): no retry pause that would not fit, and no
   smaller page without 60 seconds left, is started, and the error of the service is raised while it can still be said.
   Every `compute_batch` and `compute_shard` returns `timing` (a call that succeeds leaves no log): the `seconds` of
   each step (`count`, `write`, and the `total` since the call began) and, when something slowed it
