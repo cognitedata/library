@@ -40,3 +40,17 @@ def test_the_chunks_of_ids_are_read_together_and_returned_in_order(monkeypatch: 
     found = reader._list_slice_by_id(None, "node", VIEW, ["sp"], object())  # type: ignore[arg-type]
 
     assert found == pairs
+
+
+def test_a_slice_of_a_batch_is_read_unsorted_and_a_read_with_no_filter_is_sorted() -> None:
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    client.data_modeling.instances.list.return_value = []
+
+    reader._list_slice(client, "node", VIEW, ["sp"], {"prefix": {"property": ["node", "externalId"], "value": "3"}})
+    reader._list_slice(client, "node", VIEW, ["sp"], None)
+
+    sliced, whole = client.data_modeling.instances.list.call_args_list
+    assert sliced.kwargs["sort"] is None
+    assert whole.kwargs["sort"] is not None

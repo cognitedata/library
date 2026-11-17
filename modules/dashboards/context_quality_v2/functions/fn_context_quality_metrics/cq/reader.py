@@ -45,15 +45,20 @@ PAGE_STEP_SECONDS = 60.0
 def _list_slice(
     client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
 ) -> list[Any]:
-    """The instances of a view that match one slice filter, sorted by the whole order of the service's
-    (space, externalId) index, which lets the read page with cursors from that index instead of scanning."""
+    """The instances of a view that match one slice filter.
+
+    A read with no filter is sorted by the whole order of the service's (space, externalId) index, which lets it page
+    with cursors from that index instead of scanning. A slice of a batch is not sorted: with the filter on external ids
+    and the view's data, the service answered a sorted read of 100 instances with a timeout after 13 seconds and the same
+    read unsorted in under one."""
+    order = [InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])]
     return list(
         client.data_modeling.instances.list(
             instance_type=instance_type,
             sources=view,
             space=spaces,
             filter=part,
-            sort=[InstanceSort([instance_type, "space"]), InstanceSort([instance_type, "externalId"])],
+            sort=order if part is None else None,
             limit=-1,
         )
     )
