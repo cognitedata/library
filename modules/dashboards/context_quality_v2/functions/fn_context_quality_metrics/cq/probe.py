@@ -15,7 +15,7 @@ from cognite.client.data_classes.data_modeling.instances import InstanceSort
 from cognite.client.exceptions import CogniteAPIError
 
 from cq import resilience
-from cq.reader import KIND_VIEWS
+from cq.reader import KIND_VIEWS, _id_pairs_in_pages, _retrieve
 from cq.types import RunConfig
 
 PAGE = 1000
@@ -68,7 +68,34 @@ def probe_slice(client: CogniteClient, _cfg: RunConfig, payload: dict[str, Any])
         )
         return {"returned": len(page)}
 
+    def all_ids() -> dict[str, Any]:
+        pairs = _id_pairs_in_pages(client, instance_type, [space], by_prefix, PAGE)
+        everything["pairs"] = pairs
+        return {"ids": len(pairs)}
+
+    def retrieve_some() -> dict[str, Any]:
+        found = _retrieve(client, instance_type, view, everything.get("pairs", [])[:500])
+        return {
+            "asked": min(500, len(everything.get("pairs", []))),
+            "with data in the view": sum(1 for item in found if item.properties.get(view)),
+        }
+
+    def no_sort(sources: bool) -> Callable[[], dict[str, Any]]:
+        def request() -> dict[str, Any]:
+            flt = by_prefix if sources else with_data
+            page = instances.list(
+                instance_type=instance_type, sources=view if sources else None, space=[space], filter=flt, limit=100
+            )
+            return {"returned": len(page)}
+
+        return request
+
+    everything: dict[str, Any] = {}
     _step(steps, "count of the kind with the prefix", count)
+    _step(steps, "ALL ids of the space with the prefix, any kind, paged", all_ids)
+    _step(steps, "properties of the first 500 of those ids, read by id", retrieve_some)
+    _step(steps, "100 with data in the view, no sort", no_sort(sources=False))
+    _step(steps, "100 with properties, no sort", no_sort(sources=True))
     _step(steps, f"{PAGE} ids of the space with the prefix, any kind", ids(by_prefix))
     _step(steps, f"{PAGE} ids with data in the kind's view and the prefix", ids(with_data))
     _step(steps, "20 instances with their properties", properties)
