@@ -208,7 +208,11 @@ def _where_stuck(worker: threading.Thread) -> str:
             continue
         if thread is not worker and not thread.name.startswith(("ThreadPoolExecutor", "Thread-")):
             continue
-        last = traceback.extract_stack(frames[thread.ident])[-3:]
+        try:
+            last = traceback.extract_stack(frames[thread.ident])[-3:]
+        except (AttributeError, ValueError):  # a thread that ended meanwhile must not stop the error being reported
+            lines.append("unreadable")
+            continue
         lines.append(" < ".join(f"{frame.name} ({frame.filename.rsplit('/', 1)[-1]}:{frame.lineno})" for frame in last))
     return "; ".join(lines[:6]) or "unknown"
 

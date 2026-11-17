@@ -329,3 +329,20 @@ def test_the_error_lists_the_slices_still_being_read(monkeypatch: pytest.MonkeyP
         release.set()
 
     assert "FLOC-54-" in str(error.value)
+
+
+def test_watched_still_reports_the_timeout_when_a_stack_cannot_be_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(resilience, "CALL_BUDGET", 0.2)
+    monkeypatch.setattr(resilience, "WRITE_RESERVE", 0.0)
+
+    def unreadable(_frame: object) -> None:
+        raise ValueError("the thread ended")
+
+    monkeypatch.setattr(resilience.traceback, "extract_stack", unreadable)
+    resilience.begin_call()
+    release = threading.Event()
+    try:
+        with pytest.raises(resilience.CallBudgetExceeded, match="Stuck in: unreadable"):
+            resilience.watched(lambda: release.wait(5))
+    finally:
+        release.set()
