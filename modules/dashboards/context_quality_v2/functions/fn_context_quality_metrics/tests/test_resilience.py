@@ -1,6 +1,7 @@
 """The retry policy for the data modeling reads."""
 
 import threading
+import time
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -252,3 +253,31 @@ def test_watched_just_runs_the_work_where_no_call_has_begun(monkeypatch: pytest.
     monkeypatch.setattr(resilience, "_call_started", None)
 
     assert resilience.watched(lambda: "done") == "done"
+
+
+def test_a_call_holds_at_most_the_read_slots_instance_reads_at_once() -> None:
+    running = 0
+    most = 0
+    lock = threading.Lock()
+
+    def list_instances(*_args: Any, **_kwargs: Any) -> str:
+        nonlocal running, most
+        with lock:
+            running += 1
+            most = max(most, running)
+        time.sleep(0.02)
+        with lock:
+            running -= 1
+        return "ok"
+
+    client = MagicMock()
+    client.data_modeling.instances.list = list_instances
+    instances = harden(client).data_modeling.instances
+
+    threads = [threading.Thread(target=instances.list) for _ in range(resilience.READ_SLOTS * 3)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert 1 < most <= resilience.READ_SLOTS

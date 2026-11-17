@@ -1,6 +1,8 @@
 """Reads the source views from the data model into plain dicts."""
 
 import re
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from typing import Any
 
@@ -114,6 +116,19 @@ def _id_pairs(client: CogniteClient, instance_type: str, spaces: list[str] | Non
     raise timeout
 
 
+# Slices of a batch, and chunks of ids, are read on this many threads. The requests themselves are held to the call's
+# `READ_SLOTS` (cq.resilience), so the threads do not add up to more reads at once than the project allows.
+READ_THREADS = 4
+
+
+def _in_parallel[T, R](work: Callable[[T], R], items: list[T]) -> list[R]:
+    """`work` of each item, in the order of the items."""
+    if len(items) <= 1:
+        return [work(item) for item in items]
+    with ThreadPoolExecutor(max_workers=READ_THREADS) as pool:
+        return list(pool.map(work, items))
+
+
 def _list_slice_by_id(
     client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
 ) -> list[Any]:
@@ -121,10 +136,12 @@ def _list_slice_by_id(
     the service scan the view's whole container), then read the properties of those ids in chunks. An instance that has
     no data in the view comes back without its properties, and the callers skip it."""
     pairs = _id_pairs(client, instance_type, spaces, part)
-    found: list[Any] = []
-    for start in range(0, len(pairs), RETRIEVE_CHUNK):
-        found.extend(_retrieve(client, instance_type, view, pairs[start : start + RETRIEVE_CHUNK]))
-    return found
+    chunks = [pairs[start : start + RETRIEVE_CHUNK] for start in range(0, len(pairs), RETRIEVE_CHUNK)]
+    return [
+        instance
+        for found in _in_parallel(lambda chunk: _retrieve(client, instance_type, view, chunk), chunks)
+        for instance in found
+    ]
 
 
 def _retrieve(client: CogniteClient, instance_type: str, view: ViewId, pairs: list[tuple[str, str]]) -> list[Any]:
@@ -176,10 +193,11 @@ def _list_instances(
     not overlap, so nothing is read twice. A slice that times out is read as `_read_slice` says."""
     body = flt.dump() if flt is not None else None
     parts: list[Any] = body["or"] if body is not None and "or" in body else [flt]
-    found: list[Any] = []
-    for part in parts:
-        found.extend(_read_slice(client, instance_type, view, spaces, part))
-    return found
+    return [
+        instance
+        for found in _in_parallel(lambda part: _read_slice(client, instance_type, view, spaces, part), parts)
+        for instance in found
+    ]
 
 
 def _nodes(

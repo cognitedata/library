@@ -89,8 +89,24 @@ def time_left() -> float:
     return float("inf") if _call_started is None else CALL_BUDGET - (clock() - _call_started)
 
 
+# The project allows 8 instance reads at once. A call holds at most this many, so that two calls at the same time stay
+# within it and reads done on several threads (cq.reader) do not earn 429s.
+READ_SLOTS = 4
+_read_slots = threading.BoundedSemaphore(READ_SLOTS)
+
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+def limited(call: Callable[P, R]) -> Callable[P, R]:  # noqa: UP047 - CodeQL cannot read the `[**P, R]` syntax
+    """`call`, run while holding one of the `READ_SLOTS`, which are held only for the request itself."""
+
+    @wraps(call)
+    def run(*args: P.args, **kwargs: P.kwargs) -> R:
+        with _read_slots:
+            return call(*args, **kwargs)
+
+    return run
 
 
 def retrying(call: Callable[P, R]) -> Callable[P, R]:  # noqa: UP047 - CodeQL cannot read the `[**P, R]` syntax
@@ -119,7 +135,7 @@ class _Instances:
         self._api = api
         for name in READS:
             if hasattr(api, name):
-                setattr(self, name, retrying(getattr(api, name)))
+                setattr(self, name, retrying(limited(getattr(api, name))))
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._api, name)

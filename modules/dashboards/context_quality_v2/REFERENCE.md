@@ -307,6 +307,10 @@ makes the target larger instead of failing, so check `oversizedBatches` when a r
 If a run is started without the `planning` key and the workflow service does not accept the missing reference, pass
 `"planning": {}`.
 
+**Reading a batch.** A batch reads its slices of external ids, and the chunks of ids when a slice has to be read by id,
+on up to 4 threads. A call holds at most 4 instance reads at once (the project allows 8 in all, and two calls run at the
+same time), so more threads do not earn 429s.
+
 **A call that does not finish.** The platform stops a function call at ten minutes and a stopped call leaves no
 output and no log. A shard or batch therefore gives up its counting 30 seconds before its 540-second budget ends and
 fails with an error that names the step it was in (reading entities, looking up what the batch links to, counting) and
