@@ -195,16 +195,16 @@ The identity used by `cdf deploy` (Toolkit `.env` / `IDP_*` service principal or
 | `dataProductsAcl:CREATE` / `UPDATE` / `DELETE` | Create/update/delete DataProducts via `cdf deploy` |
 | `dataProductsAcl:READ` | Bootstrap loading external DataProducts (for example `data_quality_core`) when deploying workflows |
 | `ruleSetsAcl:CREATE` / `READ` / `UPDATE` / `DELETE` | Create/update/delete RuleSets and RuleSetVersions via `cdf deploy` |
-| `streamsAcl:READ` / `CREATE` / `DELETE` | Installation: bootstrap ensuring `recordsStreamId` exists (creates with `BasicArchive` if missing); delete when cleaning up |
+| `streamsAcl:DELETE` | Cleanup only: deleting records streams with `manage_rulesets.ipynb` (`delete_records_streams`). Bootstrap does not need it |
 | `functionsAcl:READ` / `WRITE` | Deploy the bootstrap Function / Schedule; bootstrap identity resolving the function and deleting its Function Schedule after a successful run |
 
 Grant these (typically all actions, scope `all`) in Fusion → Access management on the group linked to that identity — for Toolkit this is often `cognite_toolkit_service_principal`.
 
-The identity used **at runtime** by the CDF Functions (the service principal whose `client-id` / `client-secret` were registered via Toolkit `functionClientId` / `functionClientSecret`) must also have Streams access and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `dq_all_validation_results`). Without these, validation fails when posting results. The same identity needs `functionsAcl:READ` / `WRITE` so the bootstrap function can resolve itself and delete its schedule after success:
+The identity used **at runtime** by the CDF Functions (the service principal whose `client-id` / `client-secret` were registered via Toolkit `functionClientId` / `functionClientSecret`) must also have Streams **READ** / **CREATE** (bootstrap creates the records stream with this identity) and stream records **READ** / **WRITE** on the configured records stream (`recordsStreamId`, default `dq_all_validation_results`). Without these, validation fails when posting results. The same identity needs `functionsAcl:READ` / `WRITE` so the bootstrap function can resolve itself and delete its schedule after success:
 
 | Capability | Needed for |
 | --- | --- |
-| `streamsAcl:READ` | Resolve stream type for `recordsStreamId` |
+| `streamsAcl:READ` / `CREATE` | Bootstrap creating `recordsStreamId` if missing (`BasicArchive`); resolving the stream type at runtime |
 | `streamRecordsAcl:READ` / `WRITE` | Read/write validation result records (scope `all`, or at least `dataQualitySpace`) |
 | `functionsAcl:READ` / `WRITE` | Bootstrap self-delete of Function Schedules for `fn_dataproduct_all_bootstrap_infrastructure` |
 
