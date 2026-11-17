@@ -264,6 +264,18 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
     )
     tasks = tasks_for(items)
     split_deadline_reached = time.monotonic() > plan_deadline
+    # batches bigger than the target: a slice of ids the plan could not cut (its ids cannot be told apart, or they
+    # continue with a character it does not look at), which is the usual reason one call has too much to do
+    oversized = [
+        {
+            "space": item["data"]["space"],
+            "kinds": item["data"]["kinds"],
+            "leaves": item["data"]["leaves"],
+            "count": item["weight"],
+        }
+        for item in items
+        if item["data"]["action"] == "compute_batch" and item["weight"] > cfg["shardTargetEntities"]
+    ][:10]
     # a configured view that holds nothing in any facility still shows up, as not applicable, in every facility
     empty = {key for key, by_space in link_counts.items() if not any(by_space.values())}
     nothing = writer.extra_link_rows(count_links(links, {}, facilities, empty_views=empty) if empty else {}, facilities)
@@ -287,6 +299,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         "scope": scope.to_payload(),
         # True when the plan ran out of its time to cut big kinds into slices, so some batches are bigger than the target
         "splitDeadlineReached": split_deadline_reached,
+        "oversizedBatches": oversized,
         "timing": _timing(),
         "tasks": tasks,
     }

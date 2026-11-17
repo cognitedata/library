@@ -176,6 +176,7 @@ def test_the_plan_reports_its_own_time_and_whether_it_ran_out_of_time_to_split(m
     out = plan(RecordingClient(), shardTargetEntities=45)
 
     assert out["splitDeadlineReached"] is False
+    assert out["oversizedBatches"] == []
     assert "total" in out["timing"]["seconds"]
 
 
