@@ -121,7 +121,7 @@ def _probe(client: CogniteClient, payload: dict[str, Any]) -> dict[str, Any]:
         found = _retrieve(client, instance_type, view, listed[:500])
         return {
             "asked": min(500, len(listed)),
-            "with data in the view": sum(1 for i in found if i.properties.get(view)),
+            "with data in the view": sum(1 for i in found if i.properties and i.properties.get(view)),
         }
 
     def variant(flt: f.Filter | dict[str, Any] | None, sources: bool, sort: bool) -> Callable[[], dict[str, Any]]:

@@ -106,3 +106,15 @@ def test_a_slice_with_no_instances_is_probed_without_retrieving_any() -> None:
 def test_a_prefix_that_is_not_text_is_rejected() -> None:
     with pytest.raises(ValueError, match="prefix must be a string, not int"):
         handler.handle({"action": "probe_slice", "space": "sp", "prefix": 3}, MagicMock())
+
+
+def test_an_instance_without_properties_is_not_counted_as_having_data() -> None:
+    client = client_with([])
+    client.data_modeling.instances.retrieve.return_value = SimpleNamespace(
+        nodes=[SimpleNamespace(properties=None), SimpleNamespace(properties={})]
+    )
+
+    out = handler.handle({"action": "probe_slice", "space": "sp", "prefix": "3"}, client)
+
+    step = out["steps"]["properties of the first 500 of those ids, read by id"]
+    assert (step["asked"], step["with data in the view"]) == (1, 0)
