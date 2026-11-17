@@ -65,6 +65,9 @@ Terms:
 - A Fusion user in the target project with the backend's `gp_context_quality_dashboard_users` group (read access
   to the stream, schema and the workbook files). To start runs from the app, the user also needs permission to run workflows
   (see the backend README, "Running with a config file").
+- To deploy the app: the `apphosting:read` and `apphosting:write` capabilities in the target project, for the user or
+  the client that deploys. Without them `apps deploy` stops with `Missing capability: AppHosting:WRITE` (403). Users
+  who only open the app need `apphosting:read` and `apphosting:run`.
 
 ### 1. Point the app at your project
 
