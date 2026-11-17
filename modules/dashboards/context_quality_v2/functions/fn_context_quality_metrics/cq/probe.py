@@ -75,10 +75,13 @@ def _probe(client: CogniteClient, payload: dict[str, Any]) -> dict[str, Any]:
     def children() -> dict[str, Any]:
         """How many ids (up to 1000) start with the prefix and one more character, for each character."""
 
-        def one(char: str) -> tuple[str, int]:
-            page = instances.list(
-                instance_type=instance_type, space=[space], filter=f.Prefix(ref, prefix + char), limit=PAGE
-            )
+        def one(char: str) -> tuple[str, int | str]:
+            try:
+                page = instances.list(
+                    instance_type=instance_type, space=[space], filter=f.Prefix(ref, prefix + char), limit=PAGE
+                )
+            except CogniteAPIError as error:
+                return char, f"error {error.code}"
             return char, len(page)
 
         sizes = dict(_in_parallel(one, list(CHARSET)))

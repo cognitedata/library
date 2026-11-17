@@ -72,3 +72,20 @@ def test_a_busy_service_is_retried_when_listing_ids() -> None:
     out = handler.handle({"action": "probe_slice", "space": "sp", "prefix": "3"}, client)
 
     assert out["steps"]["ids of the space with the prefix, any kind, at most 30 pages"]["ids"] == 1
+
+
+def test_a_prefix_that_fails_is_listed_beside_the_ones_that_answered() -> None:
+    def list_ids(**options: Any) -> list[Any]:
+        prefix = getattr(options.get("filter"), "_value", None)
+        if prefix == "34":
+            raise CogniteAPIError("timed out", code=408)
+        return [SimpleNamespace(external_id="30")]
+
+    client = client_with([])
+    client.data_modeling.instances.list.side_effect = list_ids
+
+    out = handler.handle({"action": "probe_slice", "space": "sp", "prefix": "3"}, client)
+
+    sizes = out["steps"]["ids of the space per next character"]["ids per next character, capped at 1000"]
+    assert sizes["4"] == "error 408"
+    assert sizes["0"] == 1
