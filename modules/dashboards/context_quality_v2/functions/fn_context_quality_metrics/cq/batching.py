@@ -85,17 +85,24 @@ def _longest_shared_prefix(start: str, count: int, count_leaves: CountLeaves, sa
 
 
 def split_leaves(
-    total: int, target: int, count_leaves: CountLeaves, sample_id: SampleId, deadline: float | None = None
+    total: int,
+    target: int,
+    count_leaves: CountLeaves,
+    sample_id: SampleId,
+    deadline: float | None = None,
+    root: Leaf = ("prefix", ""),
 ) -> list[tuple[Leaf, int]]:
     """Every instance of a kind, as leaves of at most `target` instances where the ids allow it. -> (leaf, count).
 
     The leaves cover each instance exactly once: a leaf that is too big is replaced by one leaf per next character,
     one for the text itself and one for whatever continues with a character not looked at.
 
+    `root` is the leaf to cut, of `total` instances: every instance of the kind by default, or one slice of it.
+
     `deadline` (a `time.monotonic()` value) bounds the work: once it has passed, leaves that are still too big are kept
     as they are, so the plan ends in time with some batches bigger than the target instead of not ending.
     """
-    work: list[tuple[Leaf, int]] = [(("prefix", ""), total)]
+    work: list[tuple[Leaf, int]] = [(root, total)]
     done: list[tuple[Leaf, int]] = []
     while work:
         leaf, count = work.pop()

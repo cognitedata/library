@@ -1,6 +1,7 @@
 """Reads the source views from the data model into plain dicts."""
 
 import re
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
@@ -14,7 +15,7 @@ from cognite.client.data_classes.data_modeling.instances import InstanceSort
 from cognite.client.data_classes.filters import Filter
 from cognite.client.exceptions import CogniteAPIError
 
-from cq.batching import CHARSET, CountLeaves, Leaf, SampleId, counter, leaf_filter
+from cq.batching import CHARSET, CountLeaves, Leaf, SampleId, counter, leaf_filter, split_leaves
 from cq.discovery import ENTITY_KEYS, count_entities_by_space, discover_facility_spaces
 from cq.extra_links import ExtraLink, ViewNodes
 from cq.resilience import note, retrying, slice_label, time_left, working_on
@@ -121,6 +122,37 @@ def _id_pairs(client: CogniteClient, instance_type: str, spaces: list[str] | Non
 READ_THREADS = 4
 
 
+# A slice the service times out on is cut finer, by the next characters of its external ids, into slices of about this
+# many instances, and those are read together: listing the ids of one big slice page after page is what ran past the
+# call's time, and smaller slices are listed side by side.
+SLICE_CUT_TARGET = 5000
+SLICE_CUT_SECONDS = 45.0
+
+
+def _prefix_of(part: Any) -> str | None:
+    """The text a slice filter is the prefix of, or None for any other filter."""
+    body = part.dump() if hasattr(part, "dump") else part
+    prefix = body.get("prefix") if isinstance(body, dict) else None
+    return prefix["value"] if isinstance(prefix, dict) and isinstance(prefix.get("value"), str) else None
+
+
+def _cut_slice(client: CogniteClient, instance_type: str, view: ViewId, space: str, text: str) -> list[Leaf]:
+    """The slices a big prefix slice is cut into (cq.batching), or none when it is small or cannot be cut. The service
+    counts the slices; it does not read them."""
+    count_leaves, sample_id = leaf_tools(client, view, space, edge=instance_type == "edge")
+    try:
+        total = count_leaves([("prefix", text)])[0]
+        if total <= SLICE_CUT_TARGET:
+            return []
+        deadline = time.monotonic() + SLICE_CUT_SECONDS
+        return [
+            leaf
+            for leaf, _ in split_leaves(total, SLICE_CUT_TARGET, count_leaves, sample_id, deadline, ("prefix", text))
+        ]
+    except CogniteAPIError:
+        return []
+
+
 def _in_parallel[T, R](work: Callable[[T], R], items: list[T]) -> list[R]:
     """`work` of each item, in the order of the items."""
     if len(items) <= 1:
@@ -176,6 +208,23 @@ def _read_slice(
             if error.code != 408:
                 raise
             if part is not None:
+                text = _prefix_of(part)
+                finer = (
+                    _cut_slice(client, instance_type, view, spaces[0], text)
+                    if text and spaces and len(spaces) == 1
+                    else []
+                )
+                if len(finer) > 1:
+                    note("slice cut finer")
+                    edge = instance_type == "edge"
+                    return [
+                        instance
+                        for found in _in_parallel(
+                            lambda leaf: _read_slice(client, instance_type, view, spaces, leaf_filter(leaf, edge)),
+                            finer,
+                        )
+                        for instance in found
+                    ]
                 note("read by id")
                 return _list_slice_by_id(client, instance_type, view, spaces, part)
             note("cut by first character")

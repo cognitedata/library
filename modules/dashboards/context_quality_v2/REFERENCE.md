@@ -316,6 +316,9 @@ If a run is started without the `planning` key and the workflow service does not
 on up to 4 threads. A call holds at most 4 instance reads at once (the project allows 8 in all, and two calls run at the
 same time), so more threads do not earn 429s.
 
+A slice that the service times out on is no longer read by id as one long run: it is cut finer (by the next characters of
+the external ids, counted by the service) into slices of about 5,000 instances, and those are read together.
+
 **A call that does not finish.** The platform stops a function call at ten minutes and a stopped call leaves no
 output and no log. A shard or batch therefore gives up its counting 30 seconds before its 540-second budget ends and
 fails with an error that names the step it was in (reading entities, looking up what the batch links to, counting) and
