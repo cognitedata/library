@@ -139,3 +139,31 @@ def test_a_space_with_nothing_to_count_makes_no_call() -> None:
     assert work({"assets": {"a": 0}}, target=100) == [
         {"weight": 1, "data": {"action": "compute_shard", "spaces": {"a": "a"}, "extraSpaces": {"a": "a"}}}
     ]
+
+
+def test_a_kind_with_its_own_target_splits_a_space_that_is_under_the_general_target() -> None:
+    kinds = {"timeseries": {"big": 90}, "assets": {"big": 5}}
+
+    items = work(
+        kinds,
+        target=100,
+        kind_targets={"timeseries": 30},
+        leaves_of=leaves_for({("big", "timeseries"): [30, 30, 30]}),
+    )
+
+    series = [item for item in items if item["data"]["kinds"] == ["timeseries"]]
+    assert actions(items) == ["compute_batch"] * 4
+    assert [item["weight"] for item in series] == [30, 30, 30]
+    assert [item["data"]["kinds"] for item in items if item not in series] == [["assets"]]
+
+
+def test_a_kind_without_its_own_target_is_not_affected_by_the_other_kinds_target() -> None:
+    items = work({"assets": {"big": 90}}, target=100, kind_targets={"timeseries": 30})
+
+    assert actions(items) == ["compute_shard"]
+
+
+def test_a_space_under_the_kinds_own_target_is_still_counted_whole() -> None:
+    items = work({"timeseries": {"a": 20}, "assets": {"a": 50}}, target=100, kind_targets={"timeseries": 30})
+
+    assert actions(items) == ["compute_shard"]

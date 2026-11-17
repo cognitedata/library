@@ -13,7 +13,7 @@ from cognite.client.exceptions import CogniteAPIError
 from cq import export, locations, resilience, writer
 from cq.availability import encode_warnings, extra_link_truncation_warnings, no_source_warnings
 from cq.batching import Leaf, batch_filter, split_leaves
-from cq.config import require_resources
+from cq.config import DEFAULT_CONFIG, require_resources
 from cq.discovery import discover_facility_spaces
 from cq.extra_links import (
     ExtraLink,
@@ -234,7 +234,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         "runId": run_id,
         "runTimestamp": writer.now_iso(run_ts),
         "extraLinks": payload.get("extraLinks") if scope.configured else [],
-        "config": payload.get("config"),
+        "config": _non_default(payload.get("config")),
         "scope": scope.to_payload(),
     }
 
@@ -247,7 +247,10 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
             space_, xid, edge = KIND_VIEWS[key]
             view_id, total = ViewId(space_, xid, "v1"), by_kind[key][space]
         count_leaves, sample_id = leaf_tools(client, view_id, space, edge=edge)
-        return split_leaves(total, cfg["shardTargetEntities"], count_leaves, sample_id, plan_deadline)
+        target = cfg["shardTargetEntities"]
+        if key == "timeseries":
+            target = min(target, cfg["shardTargetTimeSeries"])
+        return split_leaves(total, target, count_leaves, sample_id, plan_deadline)
 
     def tasks_for(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return finish_tasks(items, function_external_id, common, cfg["maxConcurrentShards"])
@@ -258,6 +261,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         kind_counts=scoped_by_kind,
         link_counts=link_counts,
         target=cfg["shardTargetEntities"],
+        kind_targets={"timeseries": cfg["shardTargetTimeSeries"]},
         max_tasks=cfg["maxShards"],
         leaves_of=leaves_of,
         fits=lambda candidate: tasks_fit(tasks_for(candidate)),
@@ -274,7 +278,7 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
             "count": item["weight"],
         }
         for item in items
-        if item["data"]["action"] == "compute_batch" and item["weight"] > cfg["shardTargetEntities"]
+        if item["data"]["action"] == "compute_batch" and item["weight"] > _target_of(item["data"]["kinds"], cfg)
     ][:10]
     # a configured view that holds nothing in any facility still shows up, as not applicable, in every facility
     empty = {key for key, by_space in link_counts.items() if not any(by_space.values())}
@@ -303,6 +307,23 @@ def plan(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]) -> dict
         "timing": _timing(),
         "tasks": tasks,
     }
+
+
+def _non_default(config: dict[str, Any] | None) -> dict[str, Any]:
+    """Only the settings that differ from the function's defaults, which every task carries: a task's size counts, because
+    what the plan returns may not exceed a task's output limit, and a smaller task lets the run have more of them."""
+    return {
+        key: value
+        for key, value in (config or {}).items()
+        if DEFAULT_CONFIG.get(key) != value or key not in DEFAULT_CONFIG
+    }
+
+
+def _target_of(kinds: list[str], cfg: RunConfig) -> int:
+    """The most instances a batch of these kinds should hold."""
+    if kinds == ["timeseries"]:
+        return min(cfg["shardTargetEntities"], cfg["shardTargetTimeSeries"])
+    return cfg["shardTargetEntities"]
 
 
 def _piece(payload: dict[str, Any]) -> tuple[str, datetime, int]:

@@ -46,6 +46,9 @@ metricsMaxDepth: 8
 # small spaces share a shard until it holds shardTargetEntities entities.
 metricsMaxShards: 150
 metricsShardTargetEntities: 100000
+# Time series cost much more per series than other kinds (the latest datapoint of each is read), so one call gets at
+# most this many of them, whatever metricsShardTargetEntities is.
+metricsShardTargetTimeSeries: 20000
 # How many of those calls run at the same time: 0 is all at once (up to the 50 tasks a project runs concurrently),
 # 1 is one after the other. A call that fails stops the ones after it.
 metricsMaxConcurrentShards: 2

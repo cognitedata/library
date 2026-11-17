@@ -73,7 +73,7 @@ The two container external ids are fixed by the run log and are **not** variable
 | `metricsTieringEnabled` | `false` | tiering is off by default; set `true` together with `metricsTierByTypeCode` to turn it on |
 | `metricsDivisionTagPrefix`, `metricsRetiredTag`, `metricsFreshnessDays`, `metricsMaxDepth` | `""`, `""`, `30`, `8` | the project's settings |
 | `metricsExportRetentionDays` | `30` | how many days the workbook of unlinked items of a run stays in Files |
-| `metricsMaxShards`, `metricsShardTargetEntities`, `metricsMaxConcurrentShards` | `150`, `100000`, `2` | how a run is divided into parallel function calls, and how many run at once (see "Running in parallel shards") |
+| `metricsMaxShards`, `metricsShardTargetEntities`, `metricsShardTargetTimeSeries`, `metricsMaxConcurrentShards` | `150`, `100000`, `20000`, `2` | how a run is divided into parallel function calls, and how many run at once (see "Running in parallel shards") |
 
 A deployment that needs other names sets them in its own `config.<env>.yaml`. Nothing in the function or the workflow
 falls back to a name that is not passed to it.
@@ -273,6 +273,12 @@ parallel:
   whether an asset has a time series, and so on) with targeted queries, so a space's batches add up to the numbers of
   counting the space whole.
 
+**Time series are cut smaller.** Reading the latest datapoint of every time series costs far more per series than
+reading an asset or a file, so a call gets at most `metricsShardTargetTimeSeries` of them (default 20,000), whatever
+`metricsShardTargetEntities` is. A space that holds more time series than that is split even when it is under the general
+target. Each task carries only the settings that differ from the function's defaults, which keeps the plan's output
+(at most 180 KB of tasks) small enough for a run to have many tasks.
+
 The number of calls follows the size of the project, at most `metricsMaxShards` (default 150). A workflow execution
 may hold 200 tasks, generated ones included, and the plan, the dynamic task and `finalize` are three of them, so keep
 it below 197; when the calls would be more, the target is made larger. At most 50 tasks run at the same time in a
@@ -286,7 +292,7 @@ the one N places before it (`dependsOn`), so with `1` a run is a chain; a call t
 it to go easy on the project's data modeling and time series services, or to follow one run in order.
 
 **Making the shards smaller for one run.** The workflow input takes an optional `planning` object that replaces
-`shardTargetEntities`, `maxShards` and `maxConcurrentShards` for that run, without a deploy:
+`shardTargetEntities`, `shardTargetTimeSeries`, `maxShards` and `maxConcurrentShards` for that run, without a deploy:
 
 ```json
 {"extraLinks": [], "scope": "all", "planning": {"shardTargetEntities": 25000}}
@@ -295,6 +301,9 @@ it to go easy on the project's data modeling and time series services, or to fol
 Use it when a shard times out (a call may run for 10 minutes): halve `shardTargetEntities` and run again. Other
 keys are rejected, and the usual limits apply (`maxShards` at most 190). To make it permanent, set the matching
 `metrics...` variable and deploy. The schedule passes an empty `planning`, so scheduled runs use the deployed values.
+The plan's response lists `oversizedBatches` (a batch bigger than its target: a slice of ids the plan could not cut) and
+`splitDeadlineReached` (the plan ran out of its time to cut). If the tasks would not fit the output limit, the plan
+makes the target larger instead of failing, so check `oversizedBatches` when a run's batches are bigger than you set.
 If a run is started without the `planning` key and the workflow service does not accept the missing reference, pass
 `"planning": {}`.
 

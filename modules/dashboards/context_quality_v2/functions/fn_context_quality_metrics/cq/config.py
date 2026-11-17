@@ -52,6 +52,9 @@ DEFAULT_CONFIG: RunConfig = {
     # the one before it). A call that fails stops the ones after it.
     "maxConcurrentShards": 2,
     "shardTargetEntities": 100000,
+    # Time series cost much more per series than other kinds (the latest datapoint of each is read), so a call gets at
+    # most this many of them, whatever shardTargetEntities is.
+    "shardTargetTimeSeries": 20000,
     # The workbook of every unlinked item of a run (cq.export) goes to Cognite Files, into this data set (its external
     # id).
     # Empty switches the export off. The workbooks of runs older than exportRetentionDays are deleted.
@@ -137,6 +140,7 @@ def build_config(overrides: dict[str, Any] | None) -> RunConfig:
     for name, lowest in (
         ("maxShards", 1),
         ("shardTargetEntities", 1),
+        ("shardTargetTimeSeries", 1),
         ("maxConcurrentShards", 0),
         ("exportRetentionDays", 1),
     ):

@@ -45,6 +45,7 @@ workflowDefinition:
               maxDepth: {{ metricsMaxDepth }}
               maxShards: {{ metricsMaxShards }}
               shardTargetEntities: {{ metricsShardTargetEntities }}
+              shardTargetTimeSeries: {{ metricsShardTargetTimeSeries }}
               maxConcurrentShards: {{ metricsMaxConcurrentShards }}
               exportDataSet: "{{ metricsDatasetExternalId }}"
               exportRetentionDays: {{ metricsExportRetentionDays }}

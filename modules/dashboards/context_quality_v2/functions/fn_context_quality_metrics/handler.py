@@ -18,8 +18,8 @@ Any key in payload["config"] overrides the matching key in cq.config.DEFAULT_CON
 plan also takes payload["scope"] (cq.scope): "all", "configured" or {"dimensions": [...], "configured": bool}, so that
 a run measures some dimensions only; the pieces it creates carry it, and finalize writes it into the complete marker.
 
-plan also takes payload["planning"], an object with any of shardTargetEntities, maxShards and maxConcurrentShards,
-which replaces those settings for this run only.
+plan also takes payload["planning"], an object with any of shardTargetEntities, shardTargetTimeSeries, maxShards and
+maxConcurrentShards, which replaces those settings for this run only.
 
 compute_metrics also takes payload["extraLinks"], a list of {"model": "space:externalId:version", "links":
 ["View.property", ...]}. Each link is measured per facility next to the built-in metrics (cq.extra_links).
@@ -74,7 +74,7 @@ class Payload(BaseModel):
 
 
 # The settings of how a run is divided that the workflow input may change for one run (see REFERENCE.md)
-PLANNING_KEYS = ("shardTargetEntities", "maxShards", "maxConcurrentShards")
+PLANNING_KEYS = ("shardTargetEntities", "shardTargetTimeSeries", "maxShards", "maxConcurrentShards")
 
 
 def _config_for(payload: dict[str, Any]) -> dict[str, Any] | None:
