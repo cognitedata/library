@@ -71,3 +71,19 @@ def test_a_bad_planning_fails_the_plan_before_anything_is_read(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         plan_config(monkeypatch, {"planning": planning})
+
+
+def test_the_plan_hands_the_settings_it_used_to_its_tasks(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, Any] = {}
+
+    def fake_plan(client: Any, cfg: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        seen.update(payload["config"])
+        return {}
+
+    monkeypatch.setitem(handler.ACTIONS, "plan", fake_plan)
+    handler.handle(
+        {"action": "plan", "config": {"stream": "s"}, "planning": {"shardTargetEntities": 25000}},
+        object(),  # type: ignore[arg-type]
+    )
+
+    assert seen == {"stream": "s", "shardTargetEntities": 25000}

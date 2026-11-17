@@ -93,7 +93,9 @@ def _config_for(payload: dict[str, Any]) -> dict[str, Any] | None:
 
 def handle(data: dict[str, Any], client: CogniteClient) -> dict[str, Any]:
     payload = Payload.model_validate(data or {}).model_dump()
-    cfg = build_config(_config_for(payload))
+    config = _config_for(payload)
+    cfg = build_config(config)
+    payload["config"] = config  # what a plan hands on to its tasks is then the settings the run was planned with
     begin_call()
     return ACTIONS[payload["action"]](harden(client), cfg, payload)
 
