@@ -84,11 +84,15 @@ def plan_work(
     leaves_of: LeafProvider,
     fits: Callable[[list[dict[str, Any]]], bool] = lambda _items: True,
     kind_targets: dict[str, int] | None = None,
+    max_growth: float | None = None,
 ) -> list[dict[str, Any]]:
     """The work items of a run: [{"weight": instances, "data": what the call is told}], heaviest first.
 
     `kind_targets` gives a kind its own, smaller target, for a kind that costs more per instance than the others: a space
     that holds more of it than that is split even when it is under the target.
+
+    `max_growth` refuses a run whose target would have to grow past that many times the one asked for: a target that has
+    grown a lot makes whole kinds share one call, which defeats the split, so the run says what target fits instead.
 
     `fits` says whether the calls are acceptable, for example whether their data fits a task's output limit; if not, the
     target is made larger, which gives fewer, bigger calls.
@@ -125,6 +129,11 @@ def plan_work(
             for spaces in pack_spaces(small, room, limit):
                 items.append(_shard(spaces, core, facilities, sum(small[s] for s in spaces)))
         if (not small or room >= 1) and len(items) <= max_tasks and fits(items):
+            if max_growth is not None and limit > target * max_growth:
+                raise ValueError(
+                    f"A target of {target} entities per call would need more calls than a run can hold. The smallest "
+                    f"target that fits is about {limit}: use {limit} or more, or run fewer dimensions at a time."
+                )
             return sorted(items, key=lambda item: -item["weight"])
         current *= GROWTH
     raise ValueError(

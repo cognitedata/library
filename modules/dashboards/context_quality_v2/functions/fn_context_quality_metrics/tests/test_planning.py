@@ -167,3 +167,20 @@ def test_a_space_under_the_kinds_own_target_is_still_counted_whole() -> None:
     items = work({"timeseries": {"a": 20}, "assets": {"a": 50}}, target=100, kind_targets={"timeseries": 30})
 
     assert actions(items) == ["compute_shard"]
+
+
+def test_a_target_that_would_have_to_grow_a_lot_is_refused_with_the_one_that_fits() -> None:
+    kinds = {"assets": {"big": 1000}}
+    leaves = leaves_for({("big", "assets"): [10] * 100})
+
+    with pytest.raises(ValueError, match="smallest target that fits is about"):
+        work(kinds, target=20, leaves_of=leaves, max_tasks=10, max_growth=1.6)
+
+
+def test_a_target_that_grows_a_little_is_accepted() -> None:
+    kinds = {"assets": {"big": 1000}}
+    leaves = leaves_for({("big", "assets"): [10] * 100})
+
+    items = work(kinds, target=80, leaves_of=leaves, max_tasks=10, max_growth=1.6)
+
+    assert len(items) <= 10

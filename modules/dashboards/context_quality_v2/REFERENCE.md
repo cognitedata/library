@@ -301,6 +301,11 @@ it to go easy on the project's data modeling and time series services, or to fol
 Use it when a shard times out (a call may run for 10 minutes): halve `shardTargetEntities` and run again. Other
 keys are rejected, and the usual limits apply (`maxShards` at most 190). To make it permanent, set the matching
 `metrics...` variable and deploy. The schedule passes an empty `planning`, so scheduled runs use the deployed values.
+The plan makes the target larger by at most 1.6 times. A target that would have to grow more is refused, and the error
+names the smallest target that fits: below it, calls would hold several whole kinds each and be too big to finish.
+Roughly, the entities of a project divided by about 130 calls (what a run's output holds) is the lowest target a run can
+have; below that, run fewer dimensions at a time (`scope`).
+
 The plan's response lists `oversizedBatches` (a batch bigger than its target: a slice of ids the plan could not cut) and
 `splitDeadlineReached` (the plan ran out of its time to cut). If the tasks would not fit the output limit, the plan
 makes the target larger instead of failing, so check `oversizedBatches` when a run's batches are bigger than you set.
