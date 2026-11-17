@@ -122,7 +122,7 @@ def _probe(client: CogniteClient, payload: dict[str, Any]) -> dict[str, Any]:
             "with data in the view": sum(1 for i in found if i.properties.get(view)),
         }
 
-    def variant(flt: Any, sources: bool, sort: bool) -> Callable[[], dict[str, Any]]:
+    def variant(flt: f.Filter | dict[str, Any] | None, sources: bool, sort: bool) -> Callable[[], dict[str, Any]]:
         def request() -> dict[str, Any]:
             page = instances.list(
                 instance_type=instance_type,

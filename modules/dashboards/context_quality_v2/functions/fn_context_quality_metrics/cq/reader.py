@@ -47,7 +47,7 @@ def _list_slice(
     instance_type: str,
     view: ViewId,
     spaces: list[str] | None,
-    part: Any,
+    part: Filter | dict[str, Any] | None,
     in_index_order: bool | None = None,
 ) -> list[Any]:
     """The instances of a view that match one slice filter.
@@ -73,7 +73,7 @@ def _list_slice(
 
 
 def _id_pairs_in_pages(
-    client: CogniteClient, instance_type: str, spaces: list[str] | None, part: Any, page: int
+    client: CogniteClient, instance_type: str, spaces: list[str] | None, part: Filter | dict[str, Any] | None, page: int
 ) -> list[tuple[str, str]]:
     """The (space, external id) of every instance that matches a slice, asked for `page` at a time, following the
     cursor of each response to the next page until the service gives none. It is the request the SDK sends for
@@ -100,7 +100,9 @@ def _id_pairs_in_pages(
             return pairs
 
 
-def _id_pairs(client: CogniteClient, instance_type: str, spaces: list[str] | None, part: Any) -> list[tuple[str, str]]:
+def _id_pairs(
+    client: CogniteClient, instance_type: str, spaces: list[str] | None, part: Filter | dict[str, Any] | None
+) -> list[tuple[str, str]]:
     """The (space, external id) of every instance that matches a slice. A request that times out is made again with a
     smaller page (`PAGE_SIZES`); each size starts the listing over, so no instance is listed twice or left out. A size
     is not started when the call has too little time left (cq.resilience): the last timeout is raised instead."""
@@ -142,7 +144,7 @@ SLICE_CUT_TARGET = 5000
 SLICE_CUT_SECONDS = 45.0
 
 
-def _prefix_of(part: Any) -> str | None:
+def _prefix_of(part: Filter | dict[str, Any] | None) -> str | None:
     """The text a slice filter is the prefix of, or None for any other filter."""
     body = part.dump() if hasattr(part, "dump") else part
     prefix = body.get("prefix") if isinstance(body, dict) else None
@@ -175,7 +177,11 @@ def _in_parallel[T, R](work: Callable[[T], R], items: list[T]) -> list[R]:
 
 
 def _list_slice_by_id(
-    client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
+    client: CogniteClient,
+    instance_type: str,
+    view: ViewId,
+    spaces: list[str] | None,
+    part: Filter | dict[str, Any] | None,
 ) -> list[Any]:
     """The same instances, found another way: list only the ids that match the slice (no "has data" filter, which makes
     the service scan the view's whole container), then read the properties of those ids in chunks. An instance that has
@@ -207,7 +213,11 @@ def _retrieve(client: CogniteClient, instance_type: str, view: ViewId, pairs: li
 
 
 def _read_slice(
-    client: CogniteClient, instance_type: str, view: ViewId, spaces: list[str] | None, part: Any
+    client: CogniteClient,
+    instance_type: str,
+    view: ViewId,
+    spaces: list[str] | None,
+    part: Filter | dict[str, Any] | None,
 ) -> list[Any]:
     """One slice of a view's instances. If the service times out on it (the "has data" filter makes it scan the whole
     container), a slice is read by id (`_list_slice_by_id`), and a read with no filter, which has no slice to list by
