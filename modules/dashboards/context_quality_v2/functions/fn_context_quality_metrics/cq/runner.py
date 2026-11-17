@@ -356,7 +356,9 @@ def _finish_piece(
     """Writes the rows of a piece, then its `runPart` record last: the record is how `finalize` knows it finished."""
     run_id, run_ts, shard = _piece(payload)
     if export_rows is not None:
+        phase("uploading the unlinked items of the piece for the workbook")
         warnings = [*warnings, *_export_part(client, cfg, payload, export_rows)]
+    phase("writing the rows of the piece to the stream")
     written = writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, rows)
     part = writer.run_part_row(shard, detail, encode_warnings(warnings), written)
     writer.ingest(client, cfg, "relationshipContainer", run_id, run_ts, [part])
@@ -420,7 +422,7 @@ def compute_shard(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     started_at = time.monotonic()
     main_rows, warnings, listed = watched(lambda: patiently(count))
     counted_at = time.monotonic()
-    written = _finish_piece(client, cfg, payload, "shard", main_rows, warnings, listed)
+    written = watched(lambda: _finish_piece(client, cfg, payload, "shard", main_rows, warnings, listed), reserve=0.0)
     return {
         "status": "succeeded",
         "action": "compute_shard",
@@ -485,7 +487,8 @@ def compute_batch(client: CogniteClient, cfg: RunConfig, payload: dict[str, Any]
     started_at = time.monotonic()
     main_rows, warnings, listed = watched(lambda: patiently(count))
     counted_at = time.monotonic()
-    written = _finish_piece(client, cfg, payload, "batch", _rekey(main_rows, shard), warnings, listed)
+    rekeyed = _rekey(main_rows, shard)
+    written = watched(lambda: _finish_piece(client, cfg, payload, "batch", rekeyed, warnings, listed), reserve=0.0)
     return {
         "status": "succeeded",
         "action": "compute_batch",

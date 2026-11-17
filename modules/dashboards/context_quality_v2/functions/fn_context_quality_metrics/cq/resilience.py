@@ -188,8 +188,9 @@ def _where_stuck(worker: threading.Thread) -> str:
     return "; ".join(lines[:6]) or "unknown"
 
 
-def watched[R](work: Callable[[], R]) -> R:
-    """`work()`, which must end `WRITE_RESERVE` seconds before the call's budget. A call that the platform stops at ten
+def watched[R](work: Callable[[], R], reserve: float = WRITE_RESERVE) -> R:
+    """`work()`, which must end `reserve` seconds before the call's budget (`WRITE_RESERVE`, which leaves time to write
+    what the work found; none for the writing itself). A call that the platform stops at ten
     minutes leaves no output and no log, so a read that does not return is given up here instead: the call fails with
     an error that names the step it was in and what had slowed it. The read itself cannot be stopped; it is left to
     finish on its own thread. Where no call has begun (a script, a test) `work` is simply run."""
@@ -206,7 +207,7 @@ def watched[R](work: Callable[[], R]) -> R:
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
-    thread.join(max(0.0, time_left() - WRITE_RESERVE))
+    thread.join(max(0.0, time_left() - reserve))
     if thread.is_alive():
         raise CallBudgetExceeded(
             f"The call used {elapsed():.0f} s without finishing; it was {_phase}. "

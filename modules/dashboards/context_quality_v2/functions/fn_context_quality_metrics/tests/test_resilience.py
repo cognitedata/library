@@ -281,3 +281,20 @@ def test_a_call_holds_at_most_the_read_slots_instance_reads_at_once() -> None:
         thread.join()
 
     assert 1 < most <= resilience.READ_SLOTS
+
+
+def test_watched_with_no_reserve_gives_the_writing_the_whole_budget_and_names_the_step(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(resilience, "CALL_BUDGET", 0.2)
+    monkeypatch.setattr(resilience, "WRITE_RESERVE", 10.0)  # counting would already be over; writing is not
+    resilience.begin_call()
+    resilience.phase("writing the rows of the piece to the stream")
+    release = threading.Event()
+    try:
+        with pytest.raises(resilience.CallBudgetExceeded) as error:
+            resilience.watched(lambda: release.wait(5), reserve=0.0)
+    finally:
+        release.set()
+
+    assert "writing the rows of the piece to the stream" in str(error.value)
