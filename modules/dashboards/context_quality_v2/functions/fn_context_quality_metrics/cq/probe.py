@@ -48,6 +48,8 @@ def _probe(client: CogniteClient, payload: dict[str, Any]) -> dict[str, Any]:
     space = payload["space"]
     kind = payload.get("kind") or "assets"
     prefix = payload.get("prefix") or ""
+    if not isinstance(prefix, str):
+        raise ValueError(f"prefix must be a string, not {type(prefix).__name__}")
     if kind not in KIND_VIEWS:
         raise ValueError(f"Unknown kind {kind!r}. Expected one of {sorted(KIND_VIEWS)}")
     view_space, xid, edge = KIND_VIEWS[kind]

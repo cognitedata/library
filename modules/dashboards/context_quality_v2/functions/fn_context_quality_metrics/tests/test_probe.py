@@ -101,3 +101,8 @@ def test_a_slice_with_no_instances_is_probed_without_retrieving_any() -> None:
     step = out["steps"]["properties of the first 500 of those ids, read by id"]
     assert (step["asked"], step["with data in the view"]) == (0, 0)
     client.data_modeling.instances.retrieve.assert_not_called()
+
+
+def test_a_prefix_that_is_not_text_is_rejected() -> None:
+    with pytest.raises(ValueError, match="prefix must be a string, not int"):
+        handler.handle({"action": "probe_slice", "space": "sp", "prefix": 3}, MagicMock())
