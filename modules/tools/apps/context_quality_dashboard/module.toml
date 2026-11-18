@@ -1,4 +1,4 @@
 [module]
-title = "Contextualization Quality Dashboard"
-id = "dp:tool:context_quality_dashboard"
-package_id = "tool"
+title = "Contextualization Quality Dashboard Flows"
+id = "dp:context_quality_v2:dashboard"
+package_id = "dp:context_quality_v2"

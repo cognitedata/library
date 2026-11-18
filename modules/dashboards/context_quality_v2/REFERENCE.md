@@ -518,7 +518,7 @@ context_quality_v2/
 ├── streams/
 │   └── context_quality_metrics.Streams.yaml
 ├── default.config.yaml
-├── module.toml              # id: dp:dashboards:context_quality_v2
+├── module.toml              # id: dp:context_quality_v2:backend
 └── README.md, REFERENCE.md
 ```
 

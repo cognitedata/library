@@ -56,7 +56,7 @@ How it works, the run log format and every option are in [`REFERENCE.md`](REFERE
 cdf modules init .      # in a new project; otherwise: cdf modules add .
 ```
 
-Select **Dashboards** > **Contextualization Quality Dashboard — Records & Streams Backend**. Toolkit adds `context_quality_v2` to
+Select **Contextualization Quality Dashboard** > **Contextualization Quality Dashboard Backend**. Toolkit adds `context_quality_v2` to
 your `config.<env>.yaml`.
 
 ### Step 2: Set the environment values

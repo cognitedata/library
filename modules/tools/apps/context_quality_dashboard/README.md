@@ -59,6 +59,9 @@ Terms:
 
 ### Prerequisites
 
+This app is the **Contextualization Quality Dashboard Flows** module of the **Contextualization Quality Dashboard** pack (`dp:context_quality_v2`), next to
+the **Dashboard Backend** module.
+
 - The backend [`context_quality_v2`](../../../dashboards/context_quality_v2/README.md) is deployed and has completed
   at least one run. Until then the app shows a first-run screen where you start one (see "Start a run").
 - Node.js 20+ and npm.

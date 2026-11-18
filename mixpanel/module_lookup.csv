@@ -9,6 +9,8 @@ dp:cdm_maintain:cdf_sample_data,Maintain Sample Data
 dp:common:cdf_common,CDF Common
 dp:common:cdf_ingestion,Ingestion Workflow
 dp:common:cdf_search,Search configuration with location filter
+dp:context_quality_v2:backend,Contextualization Quality Dashboard Backend
+dp:context_quality_v2:dashboard,Contextualization Quality Dashboard Flows
 dp:contextualization:cdf_connection_sql,Contextualization Direct Relation Transformations
 dp:contextualization:cdf_entity_matching,Contextualization Entity Matching
 dp:contextualization:cdf_file_annotation,Contextualization File Annotation
@@ -17,18 +19,30 @@ dp:contextualization:cdf_p_and_id_parser,Contextualization P&ID Diagram Parser
 dp:dashboards:context_quality,Contextualization Quality Dashboard
 dp:dashboards:project_health,CDF Project Health Dashboard
 dp:dashboards:report_quality,Quality Reports - Contextualization Rate
+dp:data_quality:cdf_dq_runtime,Data Quality Validation
+dp:emptymodule:my_module,Empty Module
+dp:foundation:cdf_db_extractor,DB Extractor
+dp:foundation:cdf_files_extractor,Files Extractor
+dp:foundation:cdf_opcua_extractor,OPC-UA Extractor
+dp:foundation:cdf_pi_extractor,PI Extractor
+dp:foundation:cdf_project_foundation,CDF Project Foundation
+dp:foundation:cdf_sap_extractor,SAP Extractor
 dp:infield:cdf_infield_location,Infield Location
 dp:models:cdf_process_industry_extension,Example of Minimum Extension of the Cognite Process Industry Model
 dp:models:cfihos_oil_and_gas_extension,CFIHOS Oil And Gas Data Model template
 dp:models:cfihos_oil_and_gas_extension_search,CFIHOS Oil And Gas Search Solution Model
 dp:models:isa_manufacturing_extension,ISA 88/95 Manufacturing Data Model template
+dp:models:isa_manufacturing_extension_search,ISA 88/95 Manufacturing Search Data Model template
 dp:models:qs_enterprise_dm,Quick Start Enterprise Data Model
 dp:models:rmdm,Reliability Maintenance Data Model
 dp:sourcesystem:cdf_oid_sync,Open Industrial Data Sync
 dp:sourcesystem:cdf_pi,OSIsoft/AVEVA PI Data Source
+dp:sourcesystem:cdf_pi_data_dump,PI Source System (CFIHOS)
 dp:sourcesystem:cdf_sap_assets,SAP Source System Asset/Equipment Metadata
+dp:sourcesystem:cdf_sap_data_dump,SAP Source System (CFIHOS)
 dp:sourcesystem:cdf_sap_events,SAP Source System Events
 dp:sourcesystem:cdf_sharepoint,Sharepoint Files
+dp:sourcesystem:cdf_sharepoint_data_dump,SharePoint Source System (CFIHOS)
 dp:tool:qualitizer,CDF Qualitizer Application
 dp:acc:cdf_oid_sync,Open Industrial Data Sync
 dp:atlas_ai_extractor,AI Property Extractor Function
@@ -38,4 +52,6 @@ dp:cdf_file_annotation,Contextualization File Annotation
 dp:cdf_p_and_id_annotation,Contextualization P&ID Annotation
 dp:cdf_p_and_id_parser,Contextualization P&ID Diagram Parser
 dp:context_quality,Contextualization Quality Dashboard
+dp:dashboards:context_quality_v2,Contextualization Quality Dashboard Backend
 dp:project_health,CDF Project Health Dashboard
+dp:tool:context_quality_dashboard,Contextualization Quality Dashboard Flows

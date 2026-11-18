@@ -487,7 +487,9 @@ def test_no_production_file_refers_to_the_demo_module_a_seed_action_or_the_legac
 def test_only_the_production_module_is_registered() -> None:
     import tomllib
 
-    registry = tomllib.loads((REPO_ROOT / "modules" / "packages.toml").read_text())["packages"]["dashboards"]["modules"]
+    registry = tomllib.loads((REPO_ROOT / "modules" / "packages.toml").read_text())["packages"]["context_quality"][
+        "modules"
+    ]
 
     assert "dashboards/context_quality_v2" in registry
     assert not [name for name in registry if name.startswith("dashboards/context_quality_v2_")]

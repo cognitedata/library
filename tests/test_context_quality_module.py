@@ -94,10 +94,11 @@ def test_the_function_resource_is_named_after_its_folder_and_data_set() -> None:
     assert functions[0]["functionPath"] == "handler.py"
 
 
-def test_module_is_registered_with_the_dashboards_package() -> None:
+def test_module_is_registered_with_the_context_quality_package() -> None:
     module = tomllib.loads((MODULE / "module.toml").read_text())["module"]
     registry = tomllib.loads((REPO_ROOT / "modules" / "packages.toml").read_text())
 
-    assert module["id"] == "dp:dashboards:context_quality_v2"
-    assert module["package_id"] == "dp:dashboards"
-    assert "dashboards/context_quality_v2" in registry["packages"]["dashboards"]["modules"]
+    assert module["title"] == "Contextualization Quality Dashboard Backend"
+    assert module["id"] == "dp:context_quality_v2:backend"
+    assert module["package_id"] == "dp:context_quality_v2"
+    assert "dashboards/context_quality_v2" in registry["packages"]["context_quality"]["modules"]

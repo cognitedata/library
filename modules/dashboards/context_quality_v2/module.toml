@@ -1,4 +1,4 @@
 [module]
-title = "Contextualization Quality Dashboard — Records & Streams Backend"
-id = "dp:dashboards:context_quality_v2"
-package_id = "dp:dashboards"
+title = "Contextualization Quality Dashboard Backend"
+id = "dp:context_quality_v2:backend"
+package_id = "dp:context_quality_v2"
