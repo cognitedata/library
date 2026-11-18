@@ -7,6 +7,19 @@ Python coding conventions, test-driven development, and commit message rules are
 [.gemini/styleguide.md](.gemini/styleguide.md). The folder layout is in [modules/README.md](modules/README.md), and
 naming conventions are in the [root README](README.md#naming-conventions).
 
+### Using AI coding agents
+
+If you use an AI agent (Claude Code, Cursor, Copilot, …), it follows
+[.claude/skills/ai-agent-coding-workflow/SKILL.md](.claude/skills/ai-agent-coding-workflow/SKILL.md). Key points for contributors:
+
+- Approve the agent's **plan** before it writes code.
+- Branches are named after the Jira ticket (`AT-123`); split work uses stacked `AT-123-part-N` branches, each with
+  its own PR targeting its parent. PR titles start with the ticket: `[AT-123] feat(scope): description`.
+- The agent stages changes only. **You** review the diff, commit, push, and merge, and you are accountable for it.
+- SQL transformations and business logic always need your review.
+
+For AI-assisted work this ticket-based branch naming takes precedence over the `feat/`/`fix/` examples below.
+
 ## Prerequisites
 
 - Python 3.13+ and [uv](https://docs.astral.sh/uv/) (`uv sync --group dev` installs the dev tools).
@@ -154,17 +167,16 @@ A module is not complete without its README; add or update it in the same PR as 
 
 1. Open `modules/packages.toml`.
 2. Add a `[packages.<key>]` block with `id`, `title`, `description`, and `modules` (non-empty list of module folder paths).
-3. Optional: `canCherryPick = true` so users can toggle individual modules during `cdf modules add`.
+3. Optional: `canCherryPick = true` so users can toggle individual modules during `cdf modules add`. Set it to `false` for a pack with a single module, so users do not have to go a level further down to select it (the `tool` pack is the exception: it is an open-ended collection of accelerators).
 4. Document intent in the package or module `README.md`.
 
 ```toml
 [packages.contextualization]
 id = "dp:contextualization"
 title = "Contextualization"
-description = "Automate P&ID annotation, file tagging, and entity matching."
+description = "Automate file annotation and entity matching."
 canCherryPick = true
 modules = [
-    "contextualization/cdf_p_and_id_annotation",
     "contextualization/cdf_file_annotation",
     "contextualization/cdf_entity_matching",
 ]
