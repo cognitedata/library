@@ -1,20 +1,18 @@
 """Structure tests for modules/dashboards/context_quality_v2: its containers, views, stream, variables and registration."""
 
-import tomllib
-
 import pytest
 
 from tests.context_quality_module import (
     CONTAINERS,
     DEFAULTS,
     MODULE,
-    REPO_ROOT,
     container_definition,
     module_files,
     render,
     variables_used,
     view_definition,
 )
+from tests.registry_helpers import PACKAGES_TOML, load_module_spec, load_packages
 
 
 @pytest.mark.parametrize("container_key", list(CONTAINERS))
@@ -95,10 +93,10 @@ def test_the_function_resource_is_named_after_its_folder_and_data_set() -> None:
 
 
 def test_module_is_registered_with_the_context_quality_package() -> None:
-    module = tomllib.loads((MODULE / "module.toml").read_text())["module"]
-    registry = tomllib.loads((REPO_ROOT / "modules" / "packages.toml").read_text())
+    module = load_module_spec(MODULE / "module.toml")
+    packages = load_packages(PACKAGES_TOML)
 
-    assert module["title"] == "Contextualization Quality Dashboard Backend"
-    assert module["id"] == "dp:context_quality_v2:backend"
-    assert module["package_id"] == "dp:context_quality_v2"
-    assert "dashboards/context_quality_v2" in registry["packages"]["context_quality"]["modules"]
+    assert module.title == "Contextualization Quality Dashboard Backend"
+    assert module.id == "dp:context_quality_v2:backend"
+    assert module.package_id == "dp:context_quality_v2"
+    assert "dashboards/context_quality_v2" in packages["context_quality"].modules

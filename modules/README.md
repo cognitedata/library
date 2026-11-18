@@ -44,7 +44,7 @@ modules/
 │   ├── cdf_sap_data_dump/       # Demo: synthetic SAP-shaped sample data
 │   └── cdf_sharepoint_data_dump/ # Demo: synthetic SharePoint-shaped sample data
 │
-├── dashboards/                  # Streamlit apps & reporting
+├── dashboards/                  # Contextualization Quality Dashboard backend + the old Streamlit dashboard
 │   ├── context_quality/         # Old Streamlit dashboard; not in any pack (unregistered)
 │   └── context_quality_v2/      # Contextualization Quality Dashboard backend (dp:context_quality_v2)
 │
@@ -79,7 +79,7 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 
 Some modules appear in more than one pack (for example `contextualization/cdf_file_annotation` is in `dp:foundation`, `dp:quickstart`, and `dp:contextualization`). See [CONTRIBUTING.md](../CONTRIBUTING.md) for how `package_id` relates to multi-pack membership.
 
-A pack with a single module has `canCherryPick = false`, so users select the pack and do not have to pick the module a level further down. Packs with several modules (for example `dp:context_quality_v2`) can be cherry-picked.
+A pack with a single module has `canCherryPick = false`, so users select the pack and do not have to pick the module a level further down. The exception is `tool`, an open-ended collection of accelerators that stays cherry-pickable. Packs with several modules usually set `canCherryPick = true` (for example `dp:context_quality_v2`); `dp:quickstart` is a fixed bundle and sets it to `false`.
 
 ## Module IDs
 
