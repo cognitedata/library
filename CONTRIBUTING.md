@@ -167,16 +167,17 @@ A module is not complete without its README; add or update it in the same PR as 
 
 1. Open `modules/packages.toml`.
 2. Add a `[packages.<key>]` block with `id`, `title`, `description`, and `modules` (non-empty list of module folder paths).
-3. Optional: `canCherryPick = true` so users can toggle individual modules during `cdf modules add`. Set it to `false` for a pack with a single module, so users do not have to go a level further down to select it (the `tool` pack is the exception: it is an open-ended collection of accelerators).
+3. Optional: `canCherryPick = true` so users can toggle individual modules during `cdf modules add`.
 4. Document intent in the package or module `README.md`.
 
 ```toml
 [packages.contextualization]
 id = "dp:contextualization"
 title = "Contextualization"
-description = "Automate file annotation and entity matching."
+description = "Automate P&ID annotation, file tagging, and entity matching."
 canCherryPick = true
 modules = [
+    "contextualization/cdf_p_and_id_annotation",
     "contextualization/cdf_file_annotation",
     "contextualization/cdf_entity_matching",
 ]
