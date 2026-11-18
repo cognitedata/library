@@ -164,9 +164,11 @@ describe("retrieve-data/template-canvases", () => {
 					],
 				},
 			});
-			const retrieve = vi.fn().mockResolvedValue([
-				{ userIdentifier: "user-hash", displayName: "Ada Lovelace" },
-			]);
+			const retrieve = vi
+				.fn()
+				.mockResolvedValue([
+					{ userIdentifier: "user-hash", displayName: "Ada Lovelace" },
+				]);
 			client = cdfClientTestDouble({
 				instances: { query },
 				profiles: { retrieve },

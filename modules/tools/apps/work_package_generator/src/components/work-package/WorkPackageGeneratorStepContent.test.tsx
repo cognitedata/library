@@ -4,22 +4,27 @@ import { getResourceConfigs } from "@/__mocks__/app-config";
 import type { WorkPackageGeneratorPageViewModel } from "@/hooks/useWorkPackageGeneratorPage";
 import { WorkPackageGeneratorStepContent } from "./WorkPackageGeneratorStepContent";
 
-// vi.mock: step children are covered in dedicated suites; stubs verify step routing only.
+// Step children have their own suites; this stub checks routing only.
 vi.mock("./WorkOrderSearchPanel", () => ({
 	WorkOrderSearchPanel: () => <div data-testid="step-search" />,
 }));
+// Step children have their own suites; this stub checks routing only.
 vi.mock("./WorkOrderDetailStep", () => ({
 	WorkOrderDetailStep: () => <div data-testid="step-detail" />,
 }));
+// Step children have their own suites; this stub checks routing only.
 vi.mock("./TemplateSelectionStep", () => ({
 	TemplateSelectionStep: () => <div data-testid="step-template" />,
 }));
+// Step children have their own suites; this stub checks routing only.
 vi.mock("./ResourcesStep", () => ({
 	ResourcesStep: () => <div data-testid="step-resources" />,
 }));
+// Step children have their own suites; this stub checks routing only.
 vi.mock("./SelectionsStep", () => ({
 	SelectionsStep: () => <div data-testid="step-selections" />,
 }));
+// Step children have their own suites; this stub checks routing only.
 vi.mock("./CanvasCreationSection", () => ({
 	CanvasCreationSection: () => <div data-testid="step-create" />,
 }));

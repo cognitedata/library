@@ -89,7 +89,9 @@ describe("TemplateSelectionStep", () => {
 			templateCanvasId: "base",
 			aiSelectedCanvasId: "t2",
 		});
-		const cards = screen.getAllByRole("button", { name: /template_|All Resources/i });
+		const cards = screen.getAllByRole("button", {
+			name: /template_|All Resources/i,
+		});
 		expect(cards.map((card) => card.textContent)).toEqual([
 			expect.stringContaining("All Resources"),
 			expect.stringContaining("template_valve"),

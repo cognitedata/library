@@ -34,6 +34,7 @@ const ZoomButton: React.FC<{
 		onClick={onClick}
 		disabled={disabled}
 		title={title}
+		aria-label={title.replace(/ \([^)]*\)$/, "")}
 		style={{
 			display: "flex",
 			alignItems: "center",

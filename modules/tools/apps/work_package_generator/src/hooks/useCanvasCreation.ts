@@ -1,65 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
 import { createContext, useContext } from "react";
-import {
-	createCanvasFromTemplateAndSelections,
-	generateCanvasLink,
-	updateCanvasFromTemplateAndSelections,
-} from "../api";
-import { buildBaseTemplateItems } from "../api/canvas-builder/base-template";
-import {
-	getTemplateCanvasAnnotations,
-	getTemplateCanvasInstances,
-} from "../api/retrieve-data";
-import {
-	fusionOrganizationFromRuntime,
-	getAppConfig,
-	useAppConfig,
-} from "../app-config";
-import { useWorkPackageStore } from "../store";
+import { useAppConfig } from "../app-config";
 import { getErrorMessage, toUserFacingErrorMessage } from "../utils/errors";
-import { useCdfClientInfo } from "./useClientInfo";
-
-const defaultCanvasCreationDeps = {
-	createCanvasFromTemplateAndSelections,
-	updateCanvasFromTemplateAndSelections,
-	generateCanvasLink,
-	buildBaseTemplateItems,
-	getTemplateCanvasInstances,
-	getTemplateCanvasAnnotations,
-	useWorkPackageStore,
-	useCdfClientInfo,
-	getOrg: () => {
-		const config = getAppConfig();
-		const organization =
-			fusionOrganizationFromRuntime(
-				{
-					hostname: window.location.hostname,
-					ancestorOrigins: readAncestorOrigins(),
-					referrer: document.referrer,
-				},
-				config.fusion.hostSuffix
-			) ?? config.fusion.fallbackOrganization;
-		if (!organization) {
-			throw new Error(
-				"Fusion organization is not available. Open the app from Fusion, or set fusion.fallbackOrganization on the config node."
-			);
-		}
-		return organization;
-	},
-};
+import { defaultCanvasCreationDeps } from "./useCanvasCreation.deps";
 
 export type UseCanvasCreationContextType = typeof defaultCanvasCreationDeps;
 export const UseCanvasCreationContext =
 	createContext<UseCanvasCreationContextType>(defaultCanvasCreationDeps);
-
-function readAncestorOrigins(): string[] {
-	const location = window.location as Location & {
-		ancestorOrigins?: ArrayLike<string>;
-	};
-	const origins = location.ancestorOrigins;
-	if (!origins) return [];
-	return Array.from(origins);
-}
 
 export function useCanvasCreation() {
 	const {

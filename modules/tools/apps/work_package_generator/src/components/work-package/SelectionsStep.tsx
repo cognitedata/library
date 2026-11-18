@@ -1,7 +1,6 @@
-import { Check, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { isBaseTemplateId, useAppConfig } from "@/app-config";
-import { Badge, Button } from "@/components/ui";
 import { AI_UNAVAILABLE_MESSAGE, useAiRunUi } from "@/hooks/useAiSelections";
 import type {
 	AiSelections,
@@ -12,6 +11,7 @@ import type {
 import { selectionSlotKey } from "@/utils/canvas-item-helpers";
 import { PickResourceModal } from "./PickResourceModal";
 import { AutomationReviewSection } from "./selections-step/AutomationReviewSection";
+import { SelectionProgress } from "./selections-step/SelectionProgress";
 import { SelectionSlotCard } from "./selections-step/SelectionSlotCard";
 import { SelectionsEmptyState } from "./selections-step/SelectionsEmptyState";
 import { getCandidatesForSlotType } from "./slot-helpers";
@@ -79,6 +79,10 @@ export function SelectionsStep({
 		return { filled: f, total: templateFields.length, emptySlots: empty };
 	}, [templateFields, aiSelections]);
 
+	const pickedField = templateFields.find(
+		(field) => selectionSlotKey(field) === pickModalSlot
+	);
+
 	return (
 		<div className="p-3 space-y-3">
 			<h3 className="text-sm font-semibold flex items-center gap-2">
@@ -102,32 +106,12 @@ export function SelectionsStep({
 					{AI_UNAVAILABLE_MESSAGE}
 				</p>
 			)}
-			{total > 0 && rerunAi && !isRunningAiSelection && (
-				<Button type="button" variant="outline" size="sm" onClick={rerunAi}>
-					Re-run AI
-				</Button>
-			)}
-			{total > 0 && (
-				<div className="flex items-center gap-2 text-xs text-muted-foreground">
-					<span>
-						{filled} of {total} canvas slot{total !== 1 ? "s" : ""} filled
-					</span>
-					{filled === total && filled > 0 && (
-						<Badge
-							variant="success"
-							className="text-[10px] px-1.5 py-0 bg-green-600 text-white hover:bg-green-600"
-						>
-							<Check className="h-2.5 w-2.5" />
-							All filled
-						</Badge>
-					)}
-					{filled > 0 && filled < total && (
-						<Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-							Partial
-						</Badge>
-					)}
-				</div>
-			)}
+			<SelectionProgress
+				filled={filled}
+				total={total}
+				isRunningAiSelection={isRunningAiSelection}
+				onRerunAi={rerunAi ?? undefined}
+			/>
 			{total === 0 ? (
 				<SelectionsEmptyState
 					workOrder={workOrder}
@@ -161,13 +145,9 @@ export function SelectionsStep({
 				<PickResourceModal
 					open
 					slotKey={pickModalSlot}
-					slotLabel={
-						templateFields.find((f) => selectionSlotKey(f) === pickModalSlot)
-							?.label ?? pickModalSlot
-					}
+					slotLabel={pickedField?.label ?? pickModalSlot}
 					candidates={getCandidatesForSlotType(
-						templateFields.find((f) => selectionSlotKey(f) === pickModalSlot)
-							?.type ?? "",
+						pickedField?.type ?? "",
 						candidatesByType
 					)}
 					currentSelection={aiSelections[pickModalSlot]}

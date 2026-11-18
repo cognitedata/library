@@ -193,7 +193,9 @@ export const VideoNode: React.FC<NodeComponentProps<VideoNodeData>> = ({
 				{/* Play/Pause overlay */}
 				{!isLoading && (
 					<button
+						type="button"
 						onClick={togglePlay}
+						aria-label={isPlaying ? "Pause video" : "Play video"}
 						style={{
 							position: "absolute",
 							top: "50%",
@@ -243,7 +245,9 @@ export const VideoNode: React.FC<NodeComponentProps<VideoNodeData>> = ({
 				}}
 			>
 				<button
+					type="button"
 					onClick={togglePlay}
+					aria-label={isPlaying ? "Pause video" : "Play video"}
 					style={{
 						background: "none",
 						border: "none",
@@ -269,6 +273,7 @@ export const VideoNode: React.FC<NodeComponentProps<VideoNodeData>> = ({
 
 				<input
 					type="range"
+					aria-label="Video position"
 					min={0}
 					max={duration || 100}
 					value={currentTime}

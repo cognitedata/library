@@ -22,9 +22,6 @@ import {
 const mockCreate = vi.fn();
 const mockUpdate = vi.fn();
 const mockLink = vi.fn();
-const mockBuildBase = vi.fn();
-const mockGetInstances = vi.fn();
-const mockGetAnnotations = vi.fn();
 
 const cdfRuntime: CdfRuntimeContextValue = {
 	client: createStubCdfClient({
@@ -46,9 +43,6 @@ function makeWrapper() {
 		createCanvasFromTemplateAndSelections: mockCreate,
 		updateCanvasFromTemplateAndSelections: mockUpdate,
 		generateCanvasLink: mockLink,
-		buildBaseTemplateItems: mockBuildBase,
-		getTemplateCanvasInstances: mockGetInstances,
-		getTemplateCanvasAnnotations: mockGetAnnotations,
 		useWorkPackageStore,
 		useCdfClientInfo: () => cdfRuntime,
 		getOrg: () => "acme",
@@ -91,8 +85,6 @@ describe("useCanvasCreation", () => {
 		mockCreate.mockResolvedValue("new-canvas");
 		mockUpdate.mockResolvedValue("existing");
 		mockLink.mockReturnValue("https://link");
-		mockGetInstances.mockResolvedValue([]);
-		mockGetAnnotations.mockResolvedValue([]);
 		useWorkPackageStore.setState({
 			workOrder: { externalId: "w", space: "s" },
 			asset: { assetExternalId: "a", space: "s" },
@@ -171,7 +163,6 @@ describe("useCanvasCreation", () => {
 
 	it("C11: does not validate the canvas after a base-template save", async () => {
 		useWorkPackageStore.setState({ templateCanvasId: BASE_TEMPLATE_ID });
-		mockBuildBase.mockReturnValue([{ id: "a" }, { id: "b" }]);
 		const { result } = renderHook(() => useCanvasCreation(), {
 			wrapper: makeWrapper(),
 		});
@@ -180,8 +171,7 @@ describe("useCanvasCreation", () => {
 			expect(created.validation.success).toBe(true);
 			expect(created.isUpdate).toBe(false);
 		});
-		expect(mockBuildBase).not.toHaveBeenCalled();
-		expect(mockGetInstances).not.toHaveBeenCalled();
+		expect(mockCreate).toHaveBeenCalled();
 	});
 
 	it("requires a CDF client", async () => {
@@ -192,9 +182,6 @@ describe("useCanvasCreation", () => {
 			createCanvasFromTemplateAndSelections: mockCreate,
 			updateCanvasFromTemplateAndSelections: mockUpdate,
 			generateCanvasLink: mockLink,
-			buildBaseTemplateItems: mockBuildBase,
-			getTemplateCanvasInstances: mockGetInstances,
-			getTemplateCanvasAnnotations: mockGetAnnotations,
 			useWorkPackageStore,
 			useCdfClientInfo: () => ({
 				client: undefined,
@@ -222,8 +209,6 @@ describe("useCanvasCreation", () => {
 	});
 
 	it("C11: does not re-read the template to verify an update", async () => {
-		mockGetInstances.mockResolvedValue([{ id: "i1" }, { id: "i2" }]);
-		mockGetAnnotations.mockResolvedValue([{ id: "a1" }]);
 		const { result } = renderHook(() => useCanvasCreation(), {
 			wrapper: makeWrapper(),
 		});
@@ -235,8 +220,7 @@ describe("useCanvasCreation", () => {
 			expect(created.isUpdate).toBe(true);
 			expect(created.validation.success).toBe(true);
 		});
-		expect(mockGetInstances).not.toHaveBeenCalled();
-		expect(mockGetAnnotations).not.toHaveBeenCalled();
+		expect(mockUpdate).toHaveBeenCalled();
 		expect(useWorkPackageStore.getState().isLoading).toBe(false);
 	});
 });

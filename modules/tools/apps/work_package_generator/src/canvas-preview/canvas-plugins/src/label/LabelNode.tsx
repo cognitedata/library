@@ -99,6 +99,7 @@ export const LabelNode: React.FC<NodeComponentProps<LabelNodeData>> = ({
 				<input
 					ref={inputRef}
 					type="text"
+					aria-label="Label text"
 					value={data.text}
 					onChange={handleChange}
 					onBlur={handleBlur}

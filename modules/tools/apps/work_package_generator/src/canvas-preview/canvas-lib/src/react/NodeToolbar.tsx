@@ -32,6 +32,7 @@ export const ToolbarButton: React.FC<ToolbarButtonProps> = ({
 		<button
 			onClick={onClick}
 			title={title}
+			aria-label={title}
 			disabled={disabled}
 			style={{
 				display: "flex",

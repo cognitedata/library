@@ -203,6 +203,7 @@ export const CauseMapNode: React.FC<NodeComponentProps<CauseMapNodeData>> = ({
 				{isEditing ? (
 					<textarea
 						ref={textareaRef}
+						aria-label="Cause description"
 						value={data.text}
 						onChange={handleChange}
 						onBlur={handleBlur}

@@ -156,7 +156,11 @@ export const CommentNode: React.FC<NodeComponentProps<CommentNodeData>> = ({
 
 				{/* Resolve button */}
 				<button
+					type="button"
 					onClick={toggleResolved}
+					aria-label={
+						data.resolved ? "Mark comment unresolved" : "Mark comment resolved"
+					}
 					style={{
 						background: "none",
 						border: "none",
@@ -209,6 +213,7 @@ export const CommentNode: React.FC<NodeComponentProps<CommentNodeData>> = ({
 				{isEditing ? (
 					<textarea
 						ref={textareaRef}
+						aria-label="Comment"
 						value={data.text}
 						onChange={handleChange}
 						onBlur={handleBlur}

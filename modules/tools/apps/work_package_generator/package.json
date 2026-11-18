@@ -28,20 +28,20 @@
     "setup-https": "npx @cognite/cli@latest apps setup-https"
   },
   "dependencies": {
-    "@cognite/app-sdk": "^0.11.0",
-    "@cognite/aura": "^1.47284.0",
-    "@cognite/sdk": "^10.14.0",
+    "@cognite/app-sdk": "^0.11.49496",
+    "@cognite/aura": "1.47527.0",
+    "@cognite/sdk": "^10.20.0",
     "@preact/signals-react": "^3.10.0",
-    "@tanstack/react-query": "^5.99.2",
+    "@tanstack/react-query": "^5.107.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.33.0",
-    "pdfjs-dist": "^6.2.108",
+    "lucide-react": "^1.72.0",
+    "pdfjs-dist": "^6.5.438",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwind-merge": "^3.5.0",
     "uplot": "^1.6.32",
     "use-sync-external-store": "^1.6.0",
-    "zustand": "^5.0.12"
+    "zustand": "^5.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
@@ -56,7 +56,7 @@
     "@vitejs/plugin-react": "^6.0.5",
     "@vitest/coverage-v8": "^5.0.5",
     "@vitest/ui": "^5.0.5",
-    "eslint": "9.39.4",
+    "eslint": "^10.14.0",
     "happy-dom": "^21.0.4",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
@@ -76,7 +76,7 @@
     "@vitest/mocker": ">=5.0.5",
     "rollup": ">=4.59.0",
     "axios": ">=1.15.0",
-    "minimatch": ">=9.0.7",
+    "minimatch": ">=11.0.1",
     "esbuild": ">=0.25.0",
     "picomatch": ">=4.0.4",
     "brace-expansion": ">=5.0.5",
@@ -85,6 +85,6 @@
     "ws": ">=8.21.0",
     "js-yaml": ">=4.3.1",
     "katex": ">=0.18.2",
-    "pdfjs-dist": "^6.2.108"
+    "pdfjs-dist": "^6.5.438"
   }
 }

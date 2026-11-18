@@ -25,6 +25,7 @@ vi.mock("pdfjs-dist", () => {
 	};
 });
 
+// The worker URL import has no runtime under happy-dom.
 vi.mock("pdfjs-dist/build/pdf.worker.min.mjs?url", () => ({
 	default: "worker.js",
 }));

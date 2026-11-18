@@ -91,7 +91,23 @@ const PDFJS_CONFIG = {
 // PDF Render Service
 // ============================================================================
 
-class PDFRenderServiceImpl {
+export interface PDFRenderService {
+	getConcurrencyLimit(): number;
+	setConcurrencyLimit(limit: number): void;
+	queueRender(request: RenderRequest): () => void;
+	cancelRender(id: string): void;
+	updatePriority(id: string, priority: RenderPriority): void;
+	cancelLowPriority(): void;
+	getStats(): {
+		queued: number;
+		active: number;
+		cached: number;
+		maxConcurrent: number;
+	};
+	clearCache(): void;
+}
+
+class PDFRenderServiceImpl implements PDFRenderService {
 	private queue: QueuedRequest[] = [];
 	private activeRenders: Map<string, ActiveRender> = new Map();
 	private documentCache: Map<string, PDFDocumentProxy> = new Map();
@@ -444,4 +460,4 @@ export async function getPageCount(url: string): Promise<number | null> {
  * Singleton PDF render service instance.
  * Shared across all PDF nodes for coordinated rendering.
  */
-export const PDFRenderService = new PDFRenderServiceImpl();
+export const PDFRenderService: PDFRenderService = new PDFRenderServiceImpl();

@@ -114,6 +114,7 @@ export const StickyNode: React.FC<NodeComponentProps<StickyNodeData>> = ({
 				{isEditing ? (
 					<textarea
 						ref={textareaRef}
+						aria-label="Note"
 						value={data.content}
 						onChange={handleChange}
 						onBlur={handleBlur}

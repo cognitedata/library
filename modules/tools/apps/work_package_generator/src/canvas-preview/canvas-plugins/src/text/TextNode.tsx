@@ -85,6 +85,7 @@ export const TextNode: React.FC<NodeComponentProps<TextNodeData>> = ({
 		return (
 			<textarea
 				ref={textareaRef}
+				aria-label="Text"
 				value={data.content}
 				onChange={handleChange}
 				onBlur={handleBlur}

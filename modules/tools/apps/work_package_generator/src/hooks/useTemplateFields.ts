@@ -1,23 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { createContext, useContext, useEffect } from "react";
-import { getTemplateCanvasInstances } from "../api";
 import {
 	getResourceConfigs,
 	isBaseTemplateId,
 	useAppConfig,
 } from "../app-config";
-import { useWorkPackageStore } from "../store";
 import type { TemplateField } from "../types";
 import { isMainAsset, isMainWorkOrder } from "../utils/canvas-item-helpers";
-import { useCdfClientInfo } from "./useClientInfo";
-
-const defaultTemplateFieldsDeps = {
-	getTemplateCanvasInstances: (
-		...args: Parameters<typeof getTemplateCanvasInstances>
-	) => getTemplateCanvasInstances(...args),
-	useWorkPackageStore,
-	useCdfClientInfo,
-};
+import { defaultTemplateFieldsDeps } from "./useTemplateFields.deps";
 
 export type UseTemplateFieldsContextType = typeof defaultTemplateFieldsDeps;
 export const UseTemplateFieldsContext =
