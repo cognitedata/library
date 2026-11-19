@@ -13,7 +13,7 @@ refer to, writes the diagram annotations as `CogniteDiagramAnnotation` edges and
 
 ## Module Components
 
-- `raw/` — database `raw_database_sharepoint` with tables `file` and `diagram_annotation`.
+- `raw/` — database `db_industry_sample` with tables `file` and `diagram_annotation`.
 - `upload_data/` — manifests and CSV rows for both tables, plus `file_content.Manifest.yaml` and the 11 sample PDFs in
   `data/` that upload the file content.
 - `transformations/`
@@ -23,7 +23,7 @@ refer to, writes the diagram annotations as `CogniteDiagramAnnotation` edges and
     distinct union of the file's own `asset_externalId` and every tag it is annotated with; this transformation is the
     single owner of `Document.assets`. Sample `currentRevision` values are revision tokens (e.g. `A`).
   - `tr_sharepoint_all_to_industry_diagram_annotation` — `diagram_annotation` → `CogniteDiagramAnnotation` edges.
-    The edge, the start node (document) and the end node (Tag) all use `instance_space`.
+    The edge, the start node (document) and the end node (Tag) all use `inst_location`.
   - `tr_sharepoint_all_to_industry_equipment_document_connection` — **overlay** on existing `Equipment` nodes
     (`cdf_nodes` join so stubs are never created): writes `Equipment.files` for documents annotated with the
     equipment's tag, with `ignoreNullFields: true`. Requires the SAP dump workflow first.
@@ -36,26 +36,41 @@ Transformations are full loads with `upsert`; this is a sample-data choice. For 
 
 ### Prerequisites
 
-- Cognite Toolkit.
-- The `datamodels/industry_domain_extension` module deployed, so the model and the data set `dataset_external_id`
+- Cognite Toolkit ≥ 0.9 (sample-data upload uses `cdf data upload dir --cdf-project`).
+- The `datamodels/industry_domain_extension` module deployed, so the model and the data set `ds_industry_all`
   exist.
 - `sourcesystem/cdf_sap_industry_data_dump` deployed first: the equipment link reads its `equipment` table from
-  `raw_database_sap`, and the `Tag` and `Equipment` nodes must exist before the annotation edges and the overlay run.
+  `db_industry_sample`, and the `Tag` and `Equipment` nodes must exist before the annotation edges and the overlay run.
 - Load order: `tr_sharepoint_all_to_industry_document` before `tr_sharepoint_all_to_industry_diagram_annotation`
   (edges need existing start and end nodes), and the equipment overlay last.
 
 ### Adding to an existing Toolkit project
 
-Add `sourcesystem/cdf_sharepoint_industry_data_dump` to your module list and set the variables under
-`variables.modules.cdf_sharepoint_industry_data_dump` in `config.<env>.yaml`. The variables are shared with the other
-`*_industry_*` modules and must have the same values everywhere. `ingestion_client_id` and `ingestion_client_secret`
-come from `${IDP_CLIENT_ID}` and `${IDP_CLIENT_SECRET}`.
+Add `sourcesystem/cdf_sharepoint_industry_data_dump` to your module list. Defaults live in `default.config.yaml`;
+override under `variables.modules.sourcesystem.cdf_sharepoint_industry_data_dump` in `config.<env>.yaml` only when
+needed. Keep the shared identifiers (`dm_dom_industry`, `inst_location`, `db_industry_sample`, `ds_industry_all`)
+in sync with the other `*_industry_*` modules.
 
 ### Starting from scratch
 
 ```bash
-cdf build --env <your-env>
-cdf deploy --env <your-env>
+cdf build -c config.dev.yaml
+cdf deploy
+```
+
+### Upload sample RAW
+
+Enable the data plugin in `cdf.toml` once:
+
+```toml
+[plugins]
+data = true
+```
+
+Then upload this module's sample rows and PDF content (prepend your organization directory if `modules/` sits under one):
+
+```bash
+cdf data upload dir modules/sourcesystem/cdf_sharepoint_industry_data_dump/upload_data --cdf-project <project>
 ```
 
 Run this module's workflow `wf_sharepoint_all_to_industry` (schedule never fires by default — start

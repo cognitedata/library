@@ -8,9 +8,9 @@ Synthetic SAP sample data and the transformations that load it into the industry
 The sample rows are copied from the CFIHOS SAP data dump (`cdf_sap_data_dump`) so both setups
 describe the same plant, plus one new `material` table. Only the tables the generic model needs are
 included — CFIHOS class tables (pump, valve, compressor, …), `functional_location`,
-`maintenance_integrity` and `failure_mode` are intentionally not copied. All RAW rows live in a
-separate database (`{{ raw_database_sap }}`) and every transformation id contains `industry`, so this
-module can be deployed next to `cdf_sap_data_dump` without overwriting anything.
+`maintenance_integrity` and `failure_mode` are intentionally not copied. All RAW rows live in
+`db_industry_sample` and every transformation id contains `industry`, so this module can be
+deployed next to `cdf_sap_data_dump` without overwriting anything.
 
 Loads are full loads with `conflictMode: upsert` and `ignoreNullFields: false`. This is a
 sample-data choice; for incremental loads on a real source, follow the `cdf-transformation` skill
@@ -18,7 +18,7 @@ sample-data choice; for incremental loads on a real source, follow the `cdf-tran
 
 ## Module Components
 
-- `raw/sap.Database.yaml` — the RAW database `{{ raw_database_sap }}`.
+- `raw/sap.Database.yaml` — the RAW database `db_industry_sample`.
 - `raw/*.Table.yaml` — RAW tables `tag`, `equipment`, `instrument_equipment`, `material`,
   `work_order`, `work_order_operation`, `notification`.
 - `upload_data/` — a `Manifest.yaml` and `RawRows.csv` per table. `instrument_equipment` is not read by
@@ -35,7 +35,7 @@ sample-data choice; for incremental loads on a real source, follow the `cdf-tran
 | `tr_sap_all_to_industry_work_order_operation` | `work_order_operation` | `WorkOrderOperation` |
 | `tr_sap_all_to_industry_notification` | `notification` | `Notification` |
 
-Direct relations use `node_reference('{{ instance_space }}', key)` and are `NULL` when the source value is empty,
+Direct relations use `node_reference('inst_location', key)` and are `NULL` when the source value is empty,
 so the loads do not depend on each other and can run in parallel. `Tag.labels` is written as `AS labels`
 (the view alias of `CogniteDescribable.tags`) and always contains `DetectInDiagrams`.
 
@@ -43,34 +43,40 @@ so the loads do not depend on each other and can run in parallel. `Tag.labels` i
 
 ### Prerequisites
 
-- Cognite Toolkit.
-- The `industry_domain_extension` data model module deployed with the same `enterprise_space`,
-  `instance_space` (`inst_location`), `enterprise_data_model_external_id` and `dm_enterprise_version`.
-- The data set `{{ dataset_external_id }}` and an ingestion service principal with write access to the
-  instance space, RAW and the data set.
-
-### Variables
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `enterprise_space` | `dm_dom_industry` | Space of the enterprise views |
-| `instance_space` | `inst_location` | Space the nodes are written to |
-| `enterprise_data_model_external_id` | `Industry_DOM` | Target data model |
-| `dm_enterprise_version` | `v1` | Data model and view version |
-| `dataset_external_id` | `ds_industry_all` | Data set for the transformations |
-| `raw_database_sap` | `db_industry_sample` | RAW database |
-| `ingestion_client_id` / `ingestion_client_secret` | `${IDP_CLIENT_ID}` / `${IDP_CLIENT_SECRET}` | Transformation credentials |
+- Cognite Toolkit ≥ 0.9 (sample-data upload uses `cdf data upload dir --cdf-project`).
+- The `industry_domain_extension` data model module deployed with the same identifiers:
+  space `dm_dom_industry`, instance space `inst_location`, data model `Industry_DOM` `v1`,
+  and data set `ds_industry_all`.
+- An ingestion service principal with write access to the instance space, RAW and the data set.
 
 ### Adding to an existing Toolkit project
 
-Add `sourcesystem/cdf_sap_industry_data_dump` to your package's module list and configure the variables
-under `variables.modules.cdf_sap_industry_data_dump` in your `config.<env>.yaml`.
+Add `sourcesystem/cdf_sap_industry_data_dump` to your package's module list. Defaults live in
+`default.config.yaml`; override under `variables.modules.sourcesystem.cdf_sap_industry_data_dump`
+in `config.<env>.yaml` only when needed. Keep the shared identifiers (`dm_dom_industry`,
+`inst_location`, `db_industry_sample`, `ds_industry_all`) in sync with the other `*_industry_*`
+modules.
 
 ### Starting from scratch
 
 ```bash
-cdf build --env <your-env>
-cdf deploy --env <your-env>
+cdf build -c config.dev.yaml
+cdf deploy
+```
+
+### Upload sample RAW
+
+Enable the data plugin in `cdf.toml` once:
+
+```toml
+[plugins]
+data = true
+```
+
+Then upload this module's sample rows (prepend your organization directory if `modules/` sits under one):
+
+```bash
+cdf data upload dir modules/sourcesystem/cdf_sap_industry_data_dump/upload_data --cdf-project <project>
 ```
 
 Then run this module's workflow `wf_sap_all_to_industry` (schedule never fires by default — start it
@@ -84,6 +90,7 @@ types, 10 materials, 11 work orders, 17 operations and 10 notifications.
 cdf_sap_industry_data_dump/
 ├── module.toml
 ├── default.config.yaml
+├── README.md
 ├── raw/
 │   ├── sap.Database.yaml
 │   └── <tag|equipment|instrument_equipment|material|work_order|work_order_operation|notification>.Table.yaml

@@ -17,7 +17,7 @@ It covers two kinds of PI data:
 
 ## Module Components
 
-- `raw/` — database `raw_database_pi` with tables `timeseries` and `alarm_event`.
+- `raw/` — database `db_industry_sample` with tables `timeseries` and `alarm_event`.
 - `upload_data/` — manifests and CSV rows: 375 PI tags (copied from `cdf_pi_data_dump`) and 30 synthetic alarm
   events (Raised → Acknowledged → Cleared for two limit crossings on each of the five instruments that have set
   points in the SAP sample).
@@ -27,10 +27,10 @@ It covers two kinds of PI data:
   - `tr_pi_all_to_industry_operating_limit` — SAP `instrument_equipment` ⋈ `timeseries` → `OperatingLimit`
     (`<instrument key>_limit`), for instruments with `setPointHigh` / `setPointLow`. Sets local `name`,
     `description`, and `aliases` (`name` + `tagNumber`).
-- `data_modeling/function.Space.yaml` — the code space `function_space` for the Function (code only, never
+- `data_modeling/function.Space.yaml` — the code space `sp_function_industry` for the Function (code only, never
   instances).
 - `functions/` — `ingest_alarm_event.Function.yaml` and the `fn_pi_all_ingest_alarm_event` handler, which reads
-  `alarm_event` and ingests the records that are not yet in the stream `alarm_stream_external_id`.
+  `alarm_event` and ingests the records that are not yet in the stream `pi_all_alarm_event`.
 
 Transformations are full loads with `upsert`; this is a sample-data choice. For real sources use incremental loads
 (see the `cdf-transformation` skill).
@@ -39,16 +39,16 @@ Transformations are full loads with `upsert`; this is a sample-data choice. For 
 
 | `data` key | Required | Meaning |
 |------------|----------|---------|
-| `stream_external_id` | yes | Stream to ingest into (`alarm_stream_external_id`) |
-| `instance_space` | yes | Space of the records and of every direct (`asset`, `timeSeries`, `operatingLimit`) |
-| `enterprise_space` | yes | Space of the `AlarmEvent` container |
-| `raw_database` | yes | `raw_database_pi` |
+| `stream_external_id` | yes | Stream to ingest into (`pi_all_alarm_event`) |
+| `instance_space` | yes | Space of the records and of every direct (`asset`, `timeSeries`, `operatingLimit`) — `inst_location` |
+| `enterprise_space` | yes | Space of the `AlarmEvent` container — `dm_dom_industry` |
+| `raw_database` | yes | `db_industry_sample` |
 | `raw_table` | yes | `alarm_event` |
 | `last_updated_time_gt` | no | ISO-8601 lower bound for the duplicate check (required by immutable streams); defaults to epoch so sample re-runs stay idempotent. Filter API returns at most 1000 records (no pagination). |
 
 The Function returns `read`, `invalid`, `skipped` (already in the stream) and `ingested`. It carries no secrets; the
 injected client holds the credentials. Rows are mapped to the `AlarmEvent` record container. `asset`,
-`timeSeries` and `operatingLimit` all point at nodes in `instance_space`.
+`timeSeries` and `operatingLimit` all point at nodes in `inst_location`.
 
 The deployed Function needs `cognite-sdk` 8.24 or later (Records API); `requirements.txt` pins it.
 
@@ -56,26 +56,41 @@ The deployed Function needs `cognite-sdk` 8.24 or later (Records API); `requirem
 
 ### Prerequisites
 
-- Cognite Toolkit with Records / streams support.
-- The `datamodels/industry_domain_extension` module deployed, so the model, the data set `dataset_external_id`
-  and the alarm stream exist.
+- Cognite Toolkit ≥ 0.9 with Records / streams support (sample-data upload uses `cdf data upload dir --cdf-project`).
+- The `datamodels/industry_domain_extension` module deployed, so the model, the data set `ds_industry_all`
+  and the alarm stream `pi_all_alarm_event` exist.
 - `sourcesystem/cdf_sap_industry_data_dump` deployed first: the transformations read its `equipment` and
-  `instrument_equipment` tables from `raw_database_sap`.
+  `instrument_equipment` tables from `db_industry_sample`.
 - Load order: `Tag` nodes (SAP module) before the alarm Function, since records do not validate their direct
   relations.
 
 ### Adding to an existing Toolkit project
 
-Add `sourcesystem/cdf_pi_industry_data_dump` to your module list and set the variables under
-`variables.modules.cdf_pi_industry_data_dump` in `config.<env>.yaml`. The variables are shared with the other
-`*_industry_*` modules and must have the same values everywhere. `ingestion_client_id` and
-`ingestion_client_secret` come from `${IDP_CLIENT_ID}` and `${IDP_CLIENT_SECRET}`.
+Add `sourcesystem/cdf_pi_industry_data_dump` to your module list. Defaults live in `default.config.yaml`;
+override under `variables.modules.sourcesystem.cdf_pi_industry_data_dump` in `config.<env>.yaml` only when
+needed. Keep the shared identifiers (`dm_dom_industry`, `inst_location`, `db_industry_sample`, `ds_industry_all`,
+`pi_all_alarm_event`) in sync with the other `*_industry_*` modules.
 
 ### Starting from scratch
 
 ```bash
-cdf build --env <your-env>
-cdf deploy --env <your-env>
+cdf build -c config.dev.yaml
+cdf deploy
+```
+
+### Upload sample RAW
+
+Enable the data plugin in `cdf.toml` once:
+
+```toml
+[plugins]
+data = true
+```
+
+Then upload this module's sample rows (prepend your organization directory if `modules/` sits under one):
+
+```bash
+cdf data upload dir modules/sourcesystem/cdf_pi_industry_data_dump/upload_data --cdf-project <project>
 ```
 
 Run this module's workflow `wf_pi_all_to_industry` (schedule never fires by default — start it from
