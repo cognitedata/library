@@ -5,9 +5,11 @@ import type { CogniteClient } from "@cognite/sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cdfClientTestDouble } from "@/__mocks__/cdf-client-test-double";
 import { installInlineApiRuntime } from "@/__mocks__/inline-api-runtime";
+import { patchApiRuntimeDeps } from "../runtime-deps";
 import {
 	combineQueryNodeFilter,
 	listInstanceNodesWithCap,
+	queryInstanceNodesPage,
 	retrieveInstanceNodes,
 } from "./list-nodes";
 
@@ -41,6 +43,32 @@ describe("combineQueryNodeFilter", () => {
 	it("returns only the extra filter when no sources are given", () => {
 		const extra = { equals: { property: ["node", "space"], value: "s" } };
 		expect(combineQueryNodeFilter([], extra)).toEqual(extra);
+	});
+});
+
+describe("queryInstanceNodesPage", () => {
+	it("logs and rethrows when the query fails", async () => {
+		// Arrange
+		const logError = vi.fn();
+		patchApiRuntimeDeps({ logError });
+		const failure = new Error("query failed");
+		const query = vi.fn().mockRejectedValue(failure);
+		const client = cdfClientTestDouble({ instances: { query } });
+
+		// Act
+		const result = queryInstanceNodesPage(client, {
+			sources: [canvasSource],
+			limit: 10,
+		});
+
+		// Assert
+		await expect(result).rejects.toBe(failure);
+		expect(logError).toHaveBeenCalledWith(
+			expect.objectContaining({
+				scope: "retrieve-data.queryInstanceNodesPage",
+				cause: failure,
+			})
+		);
 	});
 });
 
@@ -131,6 +159,12 @@ describe("listInstanceNodesWithCap", () => {
 describe("retrieveInstanceNodes", () => {
 	const sources = [canvasSource];
 	const refs = [{ space: "valhall-events", externalId: "WO-2023-001" }];
+	let logError: ReturnType<typeof vi.fn>;
+
+	beforeEach(() => {
+		logError = vi.fn();
+		patchApiRuntimeDeps({ logError });
+	});
 
 	it("retrieves nodes without ignoreUnknownIds", async () => {
 		const retrieve = vi
@@ -157,6 +191,7 @@ describe("retrieveInstanceNodes", () => {
 		await expect(retrieveInstanceNodes(client, refs, sources)).resolves.toEqual(
 			[]
 		);
+		expect(logError).not.toHaveBeenCalled();
 	});
 
 	it("rethrows retrieve failures that are not missing ids", async () => {
@@ -170,5 +205,8 @@ describe("retrieveInstanceNodes", () => {
 			status: 400,
 			errorMessage: "Unexpected field - ignoreUnknownIds",
 		});
+		expect(logError).toHaveBeenCalledWith(
+			expect.objectContaining({ scope: "retrieve-data.retrieveInstanceNodes" })
+		);
 	});
 });

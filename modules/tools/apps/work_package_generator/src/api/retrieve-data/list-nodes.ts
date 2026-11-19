@@ -68,14 +68,27 @@ export async function queryInstanceNodesPage(
 		cursors: options.cursor ? { nodes: options.cursor } : {},
 	};
 
-	const response = await resolveApiRuntime().schedule(() =>
-		client.instances.query(query)
-	);
-
-	return {
-		items: response.items?.nodes ?? [],
-		nextCursor: response.nextCursor?.nodes,
-	};
+	try {
+		const response = await resolveApiRuntime().schedule(() =>
+			client.instances.query(query)
+		);
+		return {
+			items: response.items?.nodes ?? [],
+			nextCursor: response.nextCursor?.nodes,
+		};
+	} catch (error) {
+		resolveApiRuntime().logError({
+			scope: "retrieve-data.queryInstanceNodesPage",
+			message: "Failed to query instance nodes",
+			cause: error,
+			context: {
+				limit: options.limit,
+				sourceCount: sourceList.length,
+				hasCursor: Boolean(options.cursor),
+			},
+		});
+		throw error;
+	}
 }
 
 /**
@@ -115,6 +128,12 @@ export async function retrieveInstanceNodes(
 		return response.items ?? [];
 	} catch (error) {
 		if (isMissingInstancesError(error)) return [];
+		resolveApiRuntime().logError({
+			scope: "retrieve-data.retrieveInstanceNodes",
+			message: "Failed to retrieve instance nodes",
+			cause: error,
+			context: { itemCount: items.length, sourceCount: sources.length },
+		});
 		throw error;
 	}
 }
