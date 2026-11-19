@@ -5,7 +5,7 @@
 This module provides synthetic PI historian data for the industry-neutral enterprise model
 `Industry_DOM` (`datamodels/industry_domain_extension`). It is the Industry counterpart of
 `cdf_pi_data_dump`: the sample data is copied from the CFIHOS PI sample so the two setups can be deployed side by
-side, but everything is renamed (`raw_sample_all_pi`, `tr_pi_all_to_industry_*`) and written to the Industry model.
+side, but everything is renamed (`industry_test_data`, `tr_pi_all_to_industry_*`) and written to the Industry model.
 
 It covers two kinds of PI data:
 

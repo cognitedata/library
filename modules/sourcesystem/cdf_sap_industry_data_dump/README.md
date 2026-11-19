@@ -58,7 +58,7 @@ so the loads do not depend on each other and can run in parallel. `Tag.labels` i
 | `enterprise_data_model_external_id` | `Industry_DOM` | Target data model |
 | `dm_enterprise_version` | `v1` | Data model and view version |
 | `dataset_external_id` | `ds_industry_all` | Data set for the transformations |
-| `raw_database_sap` | `raw_sample_all_sap` | RAW database |
+| `raw_database_sap` | `industry_test_data` | RAW database |
 | `ingestion_client_id` / `ingestion_client_secret` | `${IDP_CLIENT_ID}` / `${IDP_CLIENT_SECRET}` | Transformation credentials |
 
 ### Adding to an existing Toolkit project
