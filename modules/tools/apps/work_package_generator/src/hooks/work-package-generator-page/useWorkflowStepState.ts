@@ -119,7 +119,7 @@ export function useWorkflowStepState({
 					: "Finding work order...",
 			};
 		if (!asset) {
-			if (assetLookupPending || isSelectingWorkOrder || isFindingWorkOrder) {
+			if (assetLookupPending) {
 				return { step: 1, message: "Resolving asset..." };
 			}
 			return {

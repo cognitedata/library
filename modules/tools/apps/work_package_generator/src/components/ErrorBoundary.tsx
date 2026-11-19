@@ -9,7 +9,6 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
 	hasError: boolean;
-	error: Error | null;
 }
 
 /**
@@ -22,11 +21,11 @@ export class ErrorBoundary extends Component<
 > {
 	constructor(props: ErrorBoundaryProps) {
 		super(props);
-		this.state = { hasError: false, error: null };
+		this.state = { hasError: false };
 	}
 
-	static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-		return { hasError: true, error };
+	static getDerivedStateFromError(): ErrorBoundaryState {
+		return { hasError: true };
 	}
 
 	override componentDidCatch(error: Error, info: ErrorInfo) {
@@ -56,7 +55,7 @@ export class ErrorBoundary extends Component<
 					<Button
 						type="button"
 						variant="outline"
-						onClick={() => this.setState({ hasError: false, error: null })}
+						onClick={() => this.setState({ hasError: false })}
 					>
 						Try again
 					</Button>

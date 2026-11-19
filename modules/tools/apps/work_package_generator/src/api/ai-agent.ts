@@ -549,7 +549,8 @@ async function postAgentChat(
 	const { cdfApiFetch, parseJsonResponse } = resolveApiRuntime();
 	const chatUrl = `${client.getBaseUrl()}/api/v1/projects/${project}/ai/agents/chat`;
 	let response: Awaited<ReturnType<typeof cdfApiFetch>> | undefined;
-	for (let attempt = 0; attempt <= AGENT_RETRY_DELAYS_MS.length; attempt += 1) {
+	const maxAttempts = AGENT_RETRY_DELAYS_MS.length + 1;
+	for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
 		response = await cdfApiFetch(client, chatUrl, {
 			method: "POST",
 			body: JSON.stringify({
@@ -563,8 +564,8 @@ async function postAgentChat(
 			}),
 		});
 		if (!RETRYABLE_STATUSES.has(response.status) || response.ok) break;
+		if (attempt >= AGENT_RETRY_DELAYS_MS.length) break;
 		const fallbackWait = AGENT_RETRY_DELAYS_MS[attempt];
-		if (fallbackWait === undefined) break;
 		await delay(readRetryAfterMs(response) ?? fallbackWait);
 	}
 	if (!response?.ok) {
