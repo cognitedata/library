@@ -125,6 +125,8 @@ python build_packages.py   # optional; do not commit packages.zip
 
 `validate_packages.py` checks `packages.toml`, every module path, and `extra_resources` targets.
 
+`build_packages.py` ships only what `packages.toml` registers: the module folders it lists (all their files) and their `extra_resources`. An unregistered module is left out of `packages.zip`, and so are loose files such as this README.
+
 ## Further reading
 
 - [../README.md](../README.md) — consuming the library from `cdf.toml`

@@ -194,6 +194,8 @@ python validate_packages.py
 python build_packages.py   # optional local smoke test; produces packages.zip (do not commit)
 ```
 
+`packages.zip` holds `packages.toml` and the modules it lists, every file of each module, plus any shared files a module references with `[[extra_resources]]`. A module that is not registered in `packages.toml` is not shipped, even when its folder stays in the repo. Loose files such as `modules/README.md` and pack-level READMEs are not shipped either; `cdf modules init` does not read them.
+
 On merge to `main`, GitHub Actions ([build-packages.yml](.github/workflows/build-packages.yml)) validates, builds `packages.zip`, and overwrites the single `latest` release — there are no versioned releases. The Cognite Toolkit ships `[library.cognite]` pointing at this release by default, so consumers pick up new content without editing `cdf.toml`, and anything merged to `main` is live for every new `cdf modules add` immediately.
 
 ## Quick reference
