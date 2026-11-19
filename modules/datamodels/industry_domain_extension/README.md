@@ -87,6 +87,78 @@ Full procedure, touch map, and rename recipes: [SPEC.md](SPEC.md).
 
 `ImmutableTestStream` is for sample/dev only (short retention). The stream template **cannot be changed** after creation — set `BasicArchive` in `config.<env>.yaml` **before** the first non-dev deploy.
 
+### Querying — cursor reads and indexes
+
+Always scope with `space = {{ instance_space }}`. Prefer `/sync` over unbounded `/list` or `/query` for large volumes. Do not filter or cursor on `lastUpdatedTime` / `createdTime` for DMS instance reads — use `/sync` for change tracking.
+
+**Read all of one view (backfill + live changes)**
+
+1. Filter with `hasData` on the view (and `space`).
+2. Use `/sync` with `mode: twoPhase` so the backfill can use an index.
+3. Set `backfillSort` to match a **cursorable** btree (property order and direction must match the index). Live sync does not support custom sort.
+4. Page with the returned cursor (limit ~500–1000). Sync cursors expire after ~3 days.
+
+If you only filter by a single space (no `hasData`), `mode: onePhase` is enough — built-in cursorable indexes on `space` / `externalId` cover that path.
+
+**Filter vs cursor**
+
+| Index kind | Use for |
+|------------|---------|
+| `cursorable: true` | Full-type sync backfill (`backfillSort`), `/list` or `/query` sort + cursor at scale |
+| `cursorable: false` (btree) | Equality / range filters only — not for ordered pagination |
+| CDM `CogniteSchedulable` times | Cursor on WorkOrder / Notification / WorkOrderOperation when you prefer CDM timestamps |
+| CDM `asset` / `assets` | On Equipment / TimeSeriesData / File — stored in `cdf_cdm`; cannot add enterprise indexes there |
+
+**Per-view guidance**
+
+| View | Cursor for “all of type” (`backfillSort`) | Filter with enterprise btree |
+|------|-------------------------------------------|------------------------------|
+| **Tag** | `site` (cursorable) | `site`, `area`, `system` |
+| **Equipment** | No enterprise cursorable index — use `space` / `externalId`, or CDM Schedulable N/A. `asset` lives on `cdf_cdm:CogniteEquipment` (immutable). Optional weak fallback: filter/sort on `modelNumber` (not cursorable). | `modelNumber` |
+| **Document** | `documentNumber` (cursorable) | `documentNumber`, `site`, `area`, `system` |
+| **TimeSeriesData** | No enterprise cursorable on asset — `assets` is a CDM list on `CogniteTimeSeries`. Use `space` / `externalId`, or filter on `historianTagName` / `timeSeriesSource` (not cursorable). | `historianTagName`, `timeSeriesSource` |
+| **WorkOrder** | `workOrderNumber` (cursorable), or CDM Schedulable `startTime` / `scheduledStartTime` | `workOrderNumber` |
+| **WorkOrderOperation** | No local container — use CDM Schedulable times or `space` / `externalId` | (CDM only) |
+| **Notification** | Prefer CDM Schedulable times or `space` / `externalId` | `failureModeCode`, `detectionMethodCode` |
+| **Material** | `equipment` or `asset` (both cursorable); pick the relation you always populate | `equipment`, `asset` |
+| **OperatingLimit** | `timeSeries` (cursorable) | `timeSeries` |
+| **AlarmEvent** | Records — no container indexes. Query the stream with a `lastUpdatedTime` range; chunk `in` filters on `asset` (≤ 100 ids). | — |
+
+Example: sync all Tags with `hasData`, backfill via the cursorable `site` index (`POST /models/instances/sync`):
+
+```yaml
+with:
+  tags:
+    nodes:
+      filter:
+        and:
+          - equals: { property: [node, space], value: "{{ instance_space }}" }
+          - hasData:
+              - type: view
+                space: "{{ enterprise_space }}"
+                externalId: Tag
+                version: "{{ dm_enterprise_version }}"
+    limit: 1000
+    mode: twoPhase
+    backfillSort:
+      - property: [ "{{ enterprise_space }}", Tag, site ]
+        direction: ascending
+        nullsFirst: false
+select:
+  tags:
+    sources:
+      - source:
+          type: view
+          space: "{{ enterprise_space }}"
+          externalId: Tag
+          version: "{{ dm_enterprise_version }}"
+        properties: [name, site, area, system]
+```
+
+Follow `nextCursor` until a page returns fewer than `limit` rows (backfill done), then keep following for live creates/deletes. Same pattern for other views: swap the view id and set `backfillSort` to that view’s cursorable property from the table above.
+
+For `/query` pagination, the `sort` clause must match the cursorable index (e.g. Document: sort by `documentNumber` ascending, nulls last). Mismatched sort triggers `sortNotBackedByIndex`.
+
 ## Deployment
 
 ### Prerequisites

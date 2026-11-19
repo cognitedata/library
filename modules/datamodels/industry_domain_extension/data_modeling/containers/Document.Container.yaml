@@ -58,7 +58,7 @@ indexes:
     indexType: btree
     properties:
       - documentNumber
-    cursorable: false
+    cursorable: true
 
   site:
     indexType: btree

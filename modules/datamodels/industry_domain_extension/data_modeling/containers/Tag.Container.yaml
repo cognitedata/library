@@ -44,7 +44,7 @@ indexes:
     indexType: btree
     properties:
       - site
-    cursorable: false
+    cursorable: true
 
   area:
     indexType: btree
