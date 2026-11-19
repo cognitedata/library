@@ -11,30 +11,48 @@ version: "{{ dm_enterprise_version }}"
 properties:
   timeSeriesSource:
     name: Time series source
-    description: "SOURCE_SCAFFOLD: Source family for the time series. Example: Historian."
+    description: "SOURCE_SCAFFOLD: Source family for the time series. Example: PI."
     container:
       space: "{{ enterprise_space }}"
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: timeSeriesSource
 
-  historianTagName:
-    name: Historian tag name
-    description: "SOURCE_SCAFFOLD: Historian tag name. Example: PI-TAG-001."
+  piSourceTag:
+    name: PI source tag
+    description: "SOURCE_SCAFFOLD: PI SourceTag attribute. Example: \\SERVER\\TAG.Value."
     container:
       space: "{{ enterprise_space }}"
       externalId: TimeSeriesData
       type: container
-    containerPropertyIdentifier: historianTagName
+    containerPropertyIdentifier: piSourceTag
 
-  historianPointSource:
-    name: Historian point source
-    description: "SOURCE_SCAFFOLD: Historian point source. Example: L."
+  piPointSource:
+    name: PI point source
+    description: "SOURCE_SCAFFOLD: PI PointSource attribute. Example: L."
     container:
       space: "{{ enterprise_space }}"
       externalId: TimeSeriesData
       type: container
-    containerPropertyIdentifier: historianPointSource
+    containerPropertyIdentifier: piPointSource
+
+  opcUaNodeId:
+    name: OPC UA node id
+    description: "SOURCE_SCAFFOLD: OPC UA NodeId. Example: ns=2;s=Pump.Pressure."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: opcUaNodeId
+
+  opcUaBrowseName:
+    name: OPC UA browse name
+    description: "SOURCE_SCAFFOLD: OPC UA BrowseName. Example: 2:Pressure."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: opcUaBrowseName
 
   assets:
     name: Assets

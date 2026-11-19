@@ -68,7 +68,7 @@ Out of the box this pack does **not** add a `_SRC` schema layer, per-source huma
 | Kind | Keep |
 |------|------|
 | CONTRACT | `implements`, typed `source`, DataModel membership, Search as schema only |
-| SOURCE_SCAFFOLD | Demo properties (`site`, `documentNumber`, `historianTagName`, …) — rename or delete before the first production deploy |
+| SOURCE_SCAFFOLD | Demo properties (`site`, `documentNumber`, `piSourceTag`, …) — rename or delete before the first production deploy |
 | RECORD | `AlarmEvent` `usedFor: record`, no constraints or indexes, record view with `streamId` |
 
 ### How to extend
@@ -116,7 +116,7 @@ If you only filter by a single space (no `hasData`), `mode: onePhase` is enough 
 | **Tag** | `site` (cursorable) | `site`, `area`, `system` |
 | **Equipment** | No enterprise cursorable index — use `space` / `externalId`, or CDM Schedulable N/A. `asset` lives on `cdf_cdm:CogniteEquipment` (immutable). Optional weak fallback: filter/sort on `modelNumber` (not cursorable). | `modelNumber` |
 | **Document** | `documentNumber` (cursorable) | `documentNumber`, `site`, `area`, `system` |
-| **TimeSeriesData** | No enterprise cursorable on asset — `assets` is a CDM list on `CogniteTimeSeries`. Use `space` / `externalId`, or filter on `historianTagName` / `timeSeriesSource` (not cursorable). | `historianTagName`, `timeSeriesSource` |
+| **TimeSeriesData** | No enterprise cursorable on asset — `assets` is a CDM list on `CogniteTimeSeries`. Use `space` / `externalId`, or filter on `piSourceTag` / `timeSeriesSource` (not cursorable). | `piSourceTag`, `timeSeriesSource` |
 | **WorkOrder** | `workOrderNumber` (cursorable), or CDM Schedulable `startTime` / `scheduledStartTime` | `workOrderNumber` |
 | **WorkOrderOperation** | No local container — use CDM Schedulable times or `space` / `externalId` | (CDM only) |
 | **Notification** | Prefer CDM Schedulable times or `space` / `externalId` | `failureModeCode`, `detectionMethodCode` |

@@ -15,8 +15,8 @@ WITH equipment_lookup AS (
     , upper(trim(cast(timeSeriesType AS STRING)))        AS time_series_type
     , lower(trim(cast(isString AS STRING)))              AS is_string
     , lower(trim(cast(isStep AS STRING)))                AS is_step
-    , nullif(trim(cast(pi_tag AS STRING)), '')           AS historian_tag_name
-    , nullif(trim(cast(pi_pointSource AS STRING)), '')   AS historian_point_source
+    , nullif(trim(cast(pi_sourceTag AS STRING)), '')     AS pi_source_tag
+    , nullif(trim(cast(pi_pointSource AS STRING)), '')   AS pi_point_source
     , nullif(trim(cast(engunits AS STRING)), '')         AS source_unit
     , nullif(trim(cast(asset_externalId AS STRING)), '') AS asset_key
     , nullif(trim(cast(sourceId AS STRING)), '')         AS source_id
@@ -30,9 +30,9 @@ SELECT
   , s.description                                        AS description
   , CASE WHEN s.is_string = 'true' THEN 'string' ELSE 'numeric' END AS `type`
   , s.is_step = 'true'                                   AS isStep
-  , CASE WHEN s.time_series_type = 'PI' THEN 'Historian' ELSE 'Other' END AS timeSeriesSource
-  , s.historian_tag_name                                 AS historianTagName
-  , s.historian_point_source                             AS historianPointSource
+  , CASE WHEN s.time_series_type = 'PI' THEN 'PI' ELSE 'Other' END AS timeSeriesSource
+  , s.pi_source_tag                                      AS piSourceTag
+  , s.pi_point_source                                    AS piPointSource
   , s.source_unit                                        AS sourceUnit
   , CASE
       WHEN s.asset_key IS NULL THEN NULL

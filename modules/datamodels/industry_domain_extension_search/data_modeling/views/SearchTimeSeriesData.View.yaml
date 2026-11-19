@@ -77,23 +77,41 @@ properties:
       type: container
     containerPropertyIdentifier: timeSeriesSource
 
-  historianTagName:
-    name: Historian tag name
-    description: "SOURCE_SCAFFOLD: Historian tag name."
+  piSourceTag:
+    name: PI source tag
+    description: "SOURCE_SCAFFOLD: PI SourceTag attribute."
     container:
       space: "{{ enterprise_space }}"
       externalId: TimeSeriesData
       type: container
-    containerPropertyIdentifier: historianTagName
+    containerPropertyIdentifier: piSourceTag
 
-  historianPointSource:
-    name: Historian point source
-    description: "SOURCE_SCAFFOLD: Historian point source."
+  piPointSource:
+    name: PI point source
+    description: "SOURCE_SCAFFOLD: PI PointSource attribute."
     container:
       space: "{{ enterprise_space }}"
       externalId: TimeSeriesData
       type: container
-    containerPropertyIdentifier: historianPointSource
+    containerPropertyIdentifier: piPointSource
+
+  opcUaNodeId:
+    name: OPC UA node id
+    description: "SOURCE_SCAFFOLD: OPC UA NodeId."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: opcUaNodeId
+
+  opcUaBrowseName:
+    name: OPC UA browse name
+    description: "SOURCE_SCAFFOLD: OPC UA BrowseName."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: opcUaBrowseName
 
   operatingLimits:
     name: Operating limits

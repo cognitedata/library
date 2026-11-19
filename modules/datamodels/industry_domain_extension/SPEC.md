@@ -95,7 +95,7 @@ rg -n "raw_sample_all_|industry_data_dump" modules/sourcesystem
 | Kind | Examples | Agent action |
 |------|----------|--------------|
 | CONTRACT | `implements`, `requires`, typed `source` on CDM/IDM directs, DataModel membership of core types, search module = schema only | Keep; change only with model-owner approval |
-| SOURCE_SCAFFOLD | `site`, `documentNumber`, `historianTagName`, `workOrderNumber`, `failureModeCode`, … | Rename/replace/delete to match the source before first prod deploy |
+| SOURCE_SCAFFOLD | `site`, `documentNumber`, `piSourceTag`, `workOrderNumber`, `failureModeCode`, … | Rename/replace/delete to match the source before first prod deploy |
 | CUSTOM type | Material, OperatingLimit | Keep pattern (local describable fields, no CogniteDescribable); replace props freely |
 | RECORD type | `AlarmEvent` container + record view + stream | Keep `usedFor: record`, no constraints/indexes, `streamId`; rename/replace scaffold props **before** the first record is ingested |
 | Sample data | `*_industry_data_dump` modules (each with its own workflow) | Replace with real extractors/RAW before production |
@@ -119,7 +119,7 @@ replace those rows with the real mapping; do not ship the demo worksheet as the 
 | Tag | ERP functional locations, tag register, asset registry | `Tag` scaffold props; keep CogniteAsset hierarchy (`parent` written by ingest) |
 | Equipment | ERP / EAM equipment master | `modelNumber`; map class/code to CogniteEquipmentType nodes; use CDM `manufacturer` / `serialNumber` |
 | Document | Document management, SharePoint, engineering systems | Document scaffolds; document type → CogniteFileCategory nodes; keep CogniteFile maps |
-| TimeSeriesData | Historian, OPC UA, SCADA, IoT platform | Replace/remove `historian*`; add source-family props (e.g. `opcUaNodeId`); keep CogniteTimeSeries maps; leave CDM `unit` for UoM |
+| TimeSeriesData | PI, OPC UA, SCADA, IoT platform | Replace/remove `pi*` / `opcUa*`; keep CogniteTimeSeries maps; leave CDM `unit` for UoM |
 | WorkOrder / Operation / Notification | ERP / EAM work management | Keep IDM implements; map status/type/priority/schedule to IDM properties; custom props only for what IDM lacks |
 | Material / OperatingLimit | MRO catalog, operating envelopes | Local describable fields on own container only; never `implements`/`requires` CogniteDescribable |
 
