@@ -1,6 +1,0 @@
-pyodide-http>=0.2.1
-cognite-sdk>=7.89.0,<8
-packaging
-plotly
-matplotlib
-fpdf2>=2.7.0
