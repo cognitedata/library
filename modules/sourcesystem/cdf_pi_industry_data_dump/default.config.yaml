@@ -12,7 +12,6 @@ function_space: sp_function_industry
 dataset_external_id: ds_industry_all
 
 # RAW databases (shared industry test dump; SAP owned by cdf_sap_industry_data_dump)
-raw_database_sap: db_industry_sample
 raw_database_pi: db_industry_sample
 
 # Alarm records
