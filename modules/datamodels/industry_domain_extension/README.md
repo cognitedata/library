@@ -92,7 +92,7 @@ cdf modules add
 # select dp:models → industry_domain_extension (and ideally industry_domain_extension_search)
 ```
 
-Override variables under `variables.modules` in `config.<env>.yaml` (see `default.config.yaml`). Deploy enterprise before search and before the `*_industry_data_dump` companions (each dump owns its load workflow).
+Override variables under `variables.modules` in `config.<env>.yaml` (see `default.config.yaml`). Deploy enterprise before search and before the sample dumps (see [Sample data](#sample-data)).
 
 ### Validation
 
@@ -101,6 +101,46 @@ uv run cdf build --config-yaml <org_dir>/config.dev.yaml
 uv run cdf deploy --dry-run
 python validate_packages.py
 ```
+
+## Sample data
+
+This module defines schema only. Sample RAW, transformations and load workflows live in the companion dumps
+(or install the whole pack with `dp:industry_quickstart`):
+
+| Module | Workflow | Role |
+|--------|----------|------|
+| [`cdf_sap_industry_data_dump`](../../sourcesystem/cdf_sap_industry_data_dump/README.md) | `wf_sap_all_to_industry` | Tag, Equipment, Material, work management |
+| [`cdf_pi_industry_data_dump`](../../sourcesystem/cdf_pi_industry_data_dump/README.md) | `wf_pi_all_to_industry` | Time series, operating limits, alarm records |
+| [`cdf_sharepoint_industry_data_dump`](../../sourcesystem/cdf_sharepoint_industry_data_dump/README.md) | `wf_sharepoint_all_to_industry` | Documents, diagram annotations, equipment–file links |
+
+### Deploy order
+
+1. `industry_domain_extension` (this module — schema, stream, `pp`/`wf` groups)
+2. `industry_domain_extension_search`
+3. `cdf_sap_industry_data_dump`, then `cdf_pi_industry_data_dump` and `cdf_sharepoint_industry_data_dump`
+
+### Env vars
+
+Set these in `.env` (mapped into `default.config.yaml` / `config.<env>.yaml`):
+
+```bash
+IDP_CLIENT_ID=<service principal client id>           # dump workflow triggers + transformations
+IDP_CLIENT_SECRET=<service principal client secret>
+INGESTION_GROUP_SOURCE_ID=<IdP group for producer_industry_pp_*>
+OPERATOR_GROUP_SOURCE_ID=<IdP group for producer_industry_wf_*>
+ADMIN_GROUP_SOURCE_ID=<IdP group for admin_industry_all_*>
+DOM_PRODUCER_GROUP_SOURCE_ID=<IdP group for producer_industry_dom_*>
+```
+
+Map the SP used by `IDP_CLIENT_ID` into the ingestion (`pp`) group. Search UI also needs
+`SOL_CONSUMER_GROUP_SOURCE_ID` on the search module.
+
+### Run order
+
+Schedules never fire by default (`0 0 29 2 *`). After deploy, start the workflows from the CDF UI:
+
+1. `wf_sap_all_to_industry` **first** (Tags / Equipment must exist)
+2. `wf_pi_all_to_industry` and `wf_sharepoint_all_to_industry` (either order)
 
 ## Module Structure
 
