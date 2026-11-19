@@ -11,8 +11,9 @@ def test_stale_modules_and_the_dashboards_pack_are_removed() -> None:
 
     assert "dashboards" not in PACKAGES
     assert "contextualization/cdf_p_and_id_annotation" not in registered
-    assert not (MODULES / "contextualization" / "cdf_p_and_id_annotation").exists()
+    assert not (MODULES / "contextualization" / "cdf_p_and_id_annotation" / "module.toml").exists()
     assert not (MODULES / "dashboards" / "context_quality" / "streamlit").exists()
+    assert not (MODULES / "dashboards" / "context_quality_v2" / "module.toml").exists()
 
 
 def test_context_quality_package_is_cherry_pickable_and_holds_the_backend_and_the_dashboard() -> None:

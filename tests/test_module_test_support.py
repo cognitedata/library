@@ -28,8 +28,11 @@ def test_function_dir_for_test_file_maps_module_tests_to_function_dir() -> None:
     )
 
 
-def test_function_dir_for_test_file_keeps_legacy_in_function_dir_layout() -> None:
-    path = Path("modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching/test_submit.py")
+def test_function_dir_for_test_file_keeps_legacy_in_function_dir_layout(tmp_path: Path) -> None:
+    path = tmp_path / "modules/contextualization/legacy_module/functions/fn_legacy/test_pipeline.py"
+    path.parent.mkdir(parents=True)
+    path.write_text("")
+
     assert function_dir_for_test_file(path) == path.parent
 
 
