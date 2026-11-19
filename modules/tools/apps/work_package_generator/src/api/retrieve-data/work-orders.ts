@@ -3,6 +3,7 @@
  */
 
 import type { CogniteClient } from "@cognite/sdk";
+
 import {
 	type AppConfig,
 	dataModelView,
@@ -260,25 +261,27 @@ export async function searchWorkOrders(
 	}
 }
 
+/** Property path prefix for the activity view. */
+function activityPropPrefix(config?: AppConfig): string[] {
+	const view = dataModelView("activity", config);
+	return [view.space, `${view.externalId}/${view.version}`];
+}
+
 /**
- * List the most recently scheduled work orders, with optional filtering by date range,
- * status, and priority. Sorted by scheduledStartTime descending server-side.
- * Pass `cursor` to fetch subsequent pages; the response includes `nextCursor` when more exist.
+ * Build the DMS filter clauses (status, priority, scheduled date range) for a work order list.
+ *
+ * @param filters - Optional user-selected filters.
+ * @param config - Optional app config override.
+ * @param timeZone - Time zone used to compute local-day date bounds.
+ * @returns One clause per active filter; empty when no filter is set.
  */
-export async function listRecentWorkOrders(
-	client: CogniteClient,
+export function buildFilterClauses(
 	filters?: WorkOrderFilters,
-	cursor?: string,
 	config?: AppConfig,
 	timeZone?: string
-): Promise<PaginatedWorkOrders> {
-	const appConfig = resolveAppConfig(config);
-	const fields = appConfig.workOrderProperties;
-	const viewPropPrefix = [
-		dataModelView("activity", config).space,
-		`${dataModelView("activity", config).externalId}/${dataModelView("activity", config).version}`,
-	];
-
+): unknown[] {
+	const fields = resolveAppConfig(config).workOrderProperties;
+	const viewPropPrefix = activityPropPrefix(config);
 	const filterClauses: unknown[] = [];
 
 	if (filters?.status) {
@@ -314,6 +317,25 @@ export async function listRecentWorkOrders(
 			},
 		});
 	}
+
+	return filterClauses;
+}
+
+/**
+ * List the most recently scheduled work orders, with optional filtering by date range,
+ * status, and priority. Sorted by scheduledStartTime descending server-side.
+ * Pass `cursor` to fetch subsequent pages; the response includes `nextCursor` when more exist.
+ */
+export async function listRecentWorkOrders(
+	client: CogniteClient,
+	filters?: WorkOrderFilters,
+	cursor?: string,
+	config?: AppConfig,
+	timeZone?: string
+): Promise<PaginatedWorkOrders> {
+	const fields = resolveAppConfig(config).workOrderProperties;
+	const viewPropPrefix = activityPropPrefix(config);
+	const filterClauses = buildFilterClauses(filters, config, timeZone);
 
 	const filter =
 		filterClauses.length === 0

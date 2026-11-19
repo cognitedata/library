@@ -96,14 +96,22 @@ type AgentChatApiResponse = AgentChatResponse | AgentChatResponseWrapper;
 // ============================================================================
 
 /**
- * Format a key for display (snake_case to Title Case)
+ * Format a key for display (snake_case to Title Case).
+ *
+ * @param key - Property key such as `scheduled_start`.
+ * @returns The key in Title Case, such as `Scheduled Start`.
  */
 function formatKeyForDisplay(key: string): string {
 	return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**
- * Build a context section from a context object
+ * Build a prompt section from a context object.
+ *
+ * @param context - Context values keyed by property name; empty and "Unknown" values are skipped.
+ * @param sectionTitle - Heading line for the section.
+ * @param emptyMessage - Text used when `context` has no entries.
+ * @returns The section as newline-separated text.
  */
 function buildContextSection(
 	context: Record<string, string>,
@@ -126,7 +134,10 @@ function buildContextSection(
 }
 
 /**
- * Build context section for work order
+ * Build the work order context section of the prompt.
+ *
+ * @param woContext - Extracted work order context values.
+ * @returns The "WORK ORDER CONTEXT" section text.
  */
 function buildWorkOrderContextSection(
 	woContext: Record<string, string>
@@ -139,7 +150,10 @@ function buildWorkOrderContextSection(
 }
 
 /**
- * Build context section for asset
+ * Build the asset context section of the prompt.
+ *
+ * @param assetContext - Extracted asset context values.
+ * @returns The "ASSET CONTEXT" section text.
  */
 function buildAssetContextSection(
 	assetContext: Record<string, string>
@@ -152,7 +166,12 @@ function buildAssetContextSection(
 }
 
 /**
- * Format resource options for AI prompt
+ * Format resource options for the AI prompt.
+ *
+ * @param instances - Candidate resource instances.
+ * @param resourceType - Resource type key used to look up which properties to show.
+ * @param appConfig - Optional app config override.
+ * @returns The options as prompt text, or "No options available" when none can be shown.
  */
 function formatResourceOptions(
 	instances: ResourceInstance[],
@@ -233,7 +252,14 @@ function rankAndCap<T extends { externalId: string }>(
 }
 
 /**
- * Build AI prompt for resource selection
+ * Build the AI prompt for resource selection.
+ *
+ * @param resourceType - Resource type key being selected.
+ * @param label - Template field label the resource fills.
+ * @param context - Work order and asset context.
+ * @param optionsText - Formatted candidate options.
+ * @param appConfig - Optional app config override.
+ * @returns The rendered prompt text.
  */
 function buildAiPrompt(
 	resourceType: string,
@@ -275,13 +301,6 @@ function buildAiPrompt(
 // Agent API
 // ============================================================================
 
-/**
- * Get or create the Work Package Generator agent
- *
- * This function efficiently checks for agent existence by using the byids endpoint
- * to retrieve only the specific agent needed, rather than listing all agents.
- * This approach scales better and avoids pagination issues when there are many agents.
- */
 type LiveAgent = {
 	externalId: string;
 	model?: string;
@@ -370,6 +389,16 @@ async function syncLiveAgent(
 	}
 }
 
+/**
+ * Get or create the Work Package Generator agent.
+ * Checks existence through the byids endpoint instead of listing all agents,
+ * which avoids pagination issues when many agents exist.
+ *
+ * @param client - Cognite client.
+ * @param project - CDF project name.
+ * @param appConfig - Optional app config override.
+ * @returns The agent external id.
+ */
 export async function getOrCreateAgent(
 	client: CogniteClient,
 	project: string,
@@ -461,6 +490,10 @@ function cleanIdToken(raw: string): string {
 /**
  * Pull exactly one candidate id out of free text.
  * Bold, `ID:` lines, and fenced JSON count. An id outside the candidate set is rejected.
+ *
+ * @param text - Free text returned by the agent.
+ * @param candidateIds - Allowed candidate ids.
+ * @returns The matching candidate id, or `null` when none or several match.
  */
 export function parseCandidateId(
 	text: string,
@@ -595,7 +628,14 @@ async function postAgentChat(
 
 /**
  * Query AI agent for selection.
- * The returned id is the raw assistant text. Callers validate it against candidates.
+ * Without `candidateIds`, the returned id is the raw assistant text and callers validate it.
+ *
+ * @param client - Cognite client.
+ * @param project - CDF project name.
+ * @param agentExternalId - Agent to query.
+ * @param prompt - Prompt text to send.
+ * @param candidateIds - Allowed ids; when set, the reply is parsed against them.
+ * @returns A match, no match, or an error result. Never throws.
  */
 export async function queryAiForSelection(
 	client: CogniteClient,
@@ -630,7 +670,18 @@ export async function queryAiForSelection(
 // ============================================================================
 
 /**
- * AI select the best resource for a template field
+ * AI select the best resource for a template field.
+ *
+ * @param client - Cognite client.
+ * @param project - CDF project name.
+ * @param agentExternalId - Agent to query.
+ * @param instances - Candidate resource instances.
+ * @param resourceType - Resource type key being selected.
+ * @param label - Template field label the resource fills.
+ * @param context - Work order and asset context.
+ * @param selectedResources - External ids already chosen; these are excluded.
+ * @param appConfig - Optional app config override.
+ * @returns The selected resource, an error result, or `null` when nothing matches.
  */
 export async function aiSelectResource(
 	client: CogniteClient,
@@ -707,7 +758,17 @@ export async function aiSelectResource(
 }
 
 /**
- * AI select the best canvas template
+ * AI select the best canvas template.
+ *
+ * @param client - Cognite client.
+ * @param project - CDF project name.
+ * @param agentExternalId - Agent to query.
+ * @param canvasList - Template canvases to choose from.
+ * @param workOrder - Work order the package is for.
+ * @param asset - Asset linked to the work order.
+ * @param availableResources - Candidate resources keyed by resource type.
+ * @param appConfig - Optional app config override.
+ * @returns The selected canvas external id, or `null` when none is chosen.
  */
 export async function aiSelectBestCanvasTemplate(
 	client: CogniteClient,

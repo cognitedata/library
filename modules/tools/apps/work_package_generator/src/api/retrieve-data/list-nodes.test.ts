@@ -2,10 +2,10 @@
  * Tests for listInstanceNodesWithCap — shared DMS query paginator.
  */
 import type { CogniteClient } from "@cognite/sdk";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { cdfClientTestDouble } from "@/__mocks__/cdf-client-test-double";
 import { installInlineApiRuntime } from "@/__mocks__/inline-api-runtime";
-import { patchApiRuntimeDeps } from "../runtime-deps";
+import { type ApiRuntimeDeps, patchApiRuntimeDeps } from "../runtime-deps";
 import {
 	combineQueryNodeFilter,
 	listInstanceNodesWithCap,
@@ -49,7 +49,7 @@ describe("combineQueryNodeFilter", () => {
 describe("queryInstanceNodesPage", () => {
 	it("logs and rethrows when the query fails", async () => {
 		// Arrange
-		const logError = vi.fn();
+		const logError = vi.fn<ApiRuntimeDeps["logError"]>();
 		patchApiRuntimeDeps({ logError });
 		const failure = new Error("query failed");
 		const query = vi.fn().mockRejectedValue(failure);
@@ -159,10 +159,10 @@ describe("listInstanceNodesWithCap", () => {
 describe("retrieveInstanceNodes", () => {
 	const sources = [canvasSource];
 	const refs = [{ space: "valhall-events", externalId: "WO-2023-001" }];
-	let logError: ReturnType<typeof vi.fn>;
+	let logError: Mock<ApiRuntimeDeps["logError"]>;
 
 	beforeEach(() => {
-		logError = vi.fn();
+		logError = vi.fn<ApiRuntimeDeps["logError"]>();
 		patchApiRuntimeDeps({ logError });
 	});
 

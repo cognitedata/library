@@ -33,68 +33,62 @@ interface PrimarySource {
 	viewVersion: string;
 }
 
-function groupWidth(): number {
-	return COLS * CARD_W + (COLS - 1) * GAP;
+/** A resource-type section placed at `x` with a fixed `width`. */
+interface SectionSpec {
+	title: string;
+	sources: PrimarySource[];
+	x: number;
+	width: number;
 }
 
-/**
- * Place a section at (xCursor, 0): sticky header, then cards stacked below.
- * Returns the next x cursor after this section.
- */
-function appendGroup(
-	items: CanvasItem[],
-	config: CanvasConfig,
-	title: string,
-	sources: PrimarySource[],
-	xCursor: number,
-	appConfig?: AppConfig
-): number {
-	if (sources.length === 0) return xCursor;
+type ResolvedCanvas = ReturnType<typeof resolveAppConfig>["canvas"];
 
-	const width = groupWidth();
-
-	items.push({
+/** Sticky header annotation for a section. */
+function createSectionHeader(
+	section: SectionSpec,
+	containerId: string,
+	style: ResolvedCanvas["style"]
+): CanvasItem {
+	return {
 		type: "CanvasAnnotation",
-		containerId: config.canvasAnnotationContainerId,
+		containerId,
 		annotationType: "stickyAnnotation",
 		properties: {
-			x: xCursor,
+			x: section.x,
 			y: 0,
-			width,
+			width: section.width,
 			height: HEADER_H,
-			text: title,
-			style: { ...resolveAppConfig(appConfig).canvas.style },
+			text: section.title,
+			style: { ...style },
 		},
-	});
-
-	const cardsTop = HEADER_H + GAP;
-	for (let i = 0; i < sources.length; i++) {
-		const col = i % COLS;
-		const row = Math.floor(i / COLS);
-		const source = sources[i];
-
-		items.push({
-			type: "fdmInstance",
-			containerId: config.canvasInstanceContainerId,
-			instanceExternalId: source.externalId,
-			instanceSpace: source.space,
-			viewExternalId: source.viewExternalId,
-			viewSpace: source.viewSpace,
-			viewVersion: source.viewVersion,
-			label: source.label,
-			properties: {},
-			x: xCursor + col * (CARD_W + GAP),
-			y: cardsTop + row * (CARD_H + GAP),
-			width: CARD_W,
-			height: CARD_H,
-			maxWidth: resolveAppConfig(appConfig).canvas.dimensions.maxWidth,
-			maxHeight: resolveAppConfig(appConfig).canvas.dimensions.maxHeight,
-		});
-	}
-
-	return xCursor + width + SECTION_GAP;
+	};
 }
 
+/** Cards of a section laid out in a 2-column grid under its header. */
+function createSectionCards(
+	section: SectionSpec,
+	containerId: string,
+	dimensions: ResolvedCanvas["dimensions"]
+): CanvasItem[] {
+	const cardsTop = HEADER_H + GAP;
+	return section.sources.map((source, i) => ({
+		type: "fdmInstance",
+		containerId,
+		instanceExternalId: source.externalId,
+		instanceSpace: source.space,
+		viewExternalId: source.viewExternalId,
+		viewSpace: source.viewSpace,
+		viewVersion: source.viewVersion,
+		label: source.label,
+		properties: {},
+		x: section.x + (i % COLS) * (CARD_W + GAP),
+		y: cardsTop + Math.floor(i / COLS) * (CARD_H + GAP),
+		width: CARD_W,
+		height: CARD_H,
+		maxWidth: dimensions.maxWidth,
+		maxHeight: dimensions.maxHeight,
+	}));
+}
 function resourceInstanceToSource(
 	instance: ResourceInstance,
 	typeKey: string,
@@ -137,6 +131,8 @@ export function buildBaseTemplateItems(
 	let xCursor = 0;
 
 	const resourceConfigs = getResourceConfigs(appConfig);
+	const resolvedCanvas = resolveAppConfig(appConfig).canvas;
+	const width = COLS * CARD_W + (COLS - 1) * GAP;
 	for (const typeKey of Object.keys(candidatesByType).sort()) {
 		const candidates = candidatesByType[typeKey] ?? [];
 		if (candidates.length === 0) continue;
@@ -148,14 +144,27 @@ export function buildBaseTemplateItems(
 			)
 			.filter((source): source is PrimarySource => source !== null);
 
-		xCursor = appendGroup(
-			items,
-			config,
-			displayName,
+		if (sources.length === 0) continue;
+
+		const section: SectionSpec = {
+			title: displayName,
 			sources,
-			xCursor,
-			appConfig
+			x: xCursor,
+			width,
+		};
+		items.push(
+			createSectionHeader(
+				section,
+				config.canvasAnnotationContainerId,
+				resolvedCanvas.style
+			),
+			...createSectionCards(
+				section,
+				config.canvasInstanceContainerId,
+				resolvedCanvas.dimensions
+			)
 		);
+		xCursor += width + SECTION_GAP;
 	}
 
 	return items;

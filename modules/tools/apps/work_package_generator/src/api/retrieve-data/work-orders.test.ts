@@ -9,6 +9,7 @@ import {
 import { cdfClientTestDouble } from "@/__mocks__/cdf-client-test-double";
 import { installInlineApiRuntime } from "@/__mocks__/inline-api-runtime";
 import {
+	buildFilterClauses,
 	findWorkOrder,
 	getAssetForWorkOrder,
 	listRecentWorkOrders,
@@ -447,6 +448,56 @@ describe("retrieve-data/work-orders", () => {
 			await expect(
 				getAssetForWorkOrder(client, { externalId: "wo", space: "s" })
 			).rejects.toThrow("network");
+		});
+	});
+});
+
+describe("buildFilterClauses", () => {
+	const config = createMockAppConfig();
+
+	it("returns no clauses when no filters are set", () => {
+		// Arrange
+		const filters = undefined;
+
+		// Act
+		const clauses = buildFilterClauses(filters, config);
+
+		// Assert
+		expect(clauses).toEqual([]);
+	});
+
+	it("builds one equals clause for a single status filter", () => {
+		// Arrange
+		const filters = { status: "Open" };
+
+		// Act
+		const clauses = buildFilterClauses(filters, config);
+
+		// Assert
+		expect(clauses).toHaveLength(1);
+		expect(clauses[0]).toMatchObject({ equals: { value: "Open" } });
+	});
+
+	it("builds status, priority, and range clauses with the supplied time zone", () => {
+		// Arrange
+		const filters = {
+			status: "Open",
+			priority: "High",
+			dateFrom: "2024-01-01",
+			dateTo: "2024-01-02",
+		};
+		const timeZone = "Europe/Oslo";
+
+		// Act
+		const clauses = buildFilterClauses(filters, config, timeZone);
+
+		// Assert
+		expect(clauses).toHaveLength(3);
+		expect(clauses[2]).toMatchObject({
+			range: {
+				gte: localDayBoundIso("2024-01-01", "start", timeZone),
+				lte: localDayBoundIso("2024-01-02", "end", timeZone),
+			},
 		});
 	});
 });
