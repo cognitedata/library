@@ -42,7 +42,6 @@ workflowDefinition:
             enterprise_space: {{ enterprise_space }}
             raw_database: {{ raw_database_pi }}
             raw_table: alarm_event
-          isAsyncComplete: false
       retries: 3
       timeout: 3600
       onFailure: abortWorkflow

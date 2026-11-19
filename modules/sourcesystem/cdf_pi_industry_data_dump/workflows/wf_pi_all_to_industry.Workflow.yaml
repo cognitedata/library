@@ -1,4 +1,3 @@
 externalId: {{ workflow_external_id }}
-name: Industry PI sample load
 description: Loads TimeSeriesData and OperatingLimit nodes from the PI industry sample dump, then ingests AlarmEvent records
 dataSetExternalId: {{ dataset_external_id }}

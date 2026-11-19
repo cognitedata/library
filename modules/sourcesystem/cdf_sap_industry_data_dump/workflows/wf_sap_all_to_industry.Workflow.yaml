@@ -1,4 +1,3 @@
 externalId: {{ workflow_external_id }}
-name: Industry SAP sample load
 description: Loads Tag, Equipment, Material and work-management nodes from the SAP industry sample dump into Industry_DOM
 dataSetExternalId: {{ dataset_external_id }}
