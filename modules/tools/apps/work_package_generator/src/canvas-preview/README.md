@@ -1,6 +1,7 @@
 # Canvas preview
 
 This tree is the subset the work-package create-step preview imports:
+
 - `canvas-preview-lib` — `CanvasPreviewProvider`, `PreviewCanvas`, and `aggregateCanvasNodes`.
 - `canvas-lib` — read-only canvas (pan, zoom, fit-on-load, zoom toolbar). Drawing tools and the PDF export pipeline are not included.
 - `canvas-plugins` registered in `canvas-preview-lib/src/register.ts`: text, sticky, label, comment, shape, polyline, svg, image, cause-map, pdf, timeseries, table, and video. 3D model instances render as table nodes. Charts, frames, containers, property lists, and data grids are not included.
