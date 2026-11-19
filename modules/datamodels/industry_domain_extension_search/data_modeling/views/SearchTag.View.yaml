@@ -32,6 +32,20 @@ properties:
       version: "{{ dm_search_version }}"
       type: view
 
+  root:
+    name: Root
+    description: "CONTRACT: Hierarchy root; sourced to SearchTag."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_root
+    source:
+      space: "{{ search_space }}"
+      externalId: SearchTag
+      version: "{{ dm_search_version }}"
+      type: view
+
   name:
     name: Name
     description: "CONTRACT: Display name from CogniteDescribable."

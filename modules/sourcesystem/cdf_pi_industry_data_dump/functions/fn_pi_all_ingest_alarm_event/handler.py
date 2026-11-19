@@ -9,7 +9,7 @@ That keeps the mapping and duplicate-filter logic importable (and unit-testable)
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Literal
 
 from cognite.client import CogniteClient
@@ -18,7 +18,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 log = logging.getLogger(__name__)
 
 ALARM_CONTAINER_EXTERNAL_ID = "AlarmEvent"
-DEFAULT_WINDOW_DAYS = 7
+# Immutable streams require a lastUpdatedTime lower bound; epoch keeps sample re-runs idempotent.
+DEFAULT_LAST_UPDATED_TIME_GT = "1970-01-01T00:00:00.000Z"
+# Records filter returns a single page of up to 1000 rows; no SDK pagination.
 FILTER_LIMIT = 1000
 INGEST_BATCH_SIZE = 1000
 
@@ -84,11 +86,6 @@ class IngestPlan(BaseModel):
     invalid: int
     skipped: int
     new_records: list[AlarmRecord]
-
-
-def default_last_updated_time_gt(now: datetime) -> str:
-    """Lower bound for the ``lastUpdatedTime`` range filter: the sample window before ``now``."""
-    return (now - timedelta(days=DEFAULT_WINDOW_DAYS)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
 def _direct(space: str, external_id: str | None) -> dict[str, str] | None:
@@ -168,7 +165,10 @@ def read_raw_rows(client: CogniteClient, raw_database: str, raw_table: str) -> l
 
 
 def fetch_existing_external_ids(client: CogniteClient, params: HandlerInput, last_updated_time_gt: str) -> set[str]:
-    """Return external ids of ``AlarmEvent`` records in the stream updated after ``last_updated_time_gt``."""
+    """Return external ids of ``AlarmEvent`` records in the stream updated after ``last_updated_time_gt``.
+
+    Immutable streams require a lower bound. The filter endpoint returns one page (max 1000) with no pagination.
+    """
     from cognite.client.data_classes.data_modeling.records import RecordContainerId, TimeRange
     from cognite.client.data_classes.filters import HasData
 
@@ -180,7 +180,10 @@ def fetch_existing_external_ids(client: CogniteClient, params: HandlerInput, las
         limit=FILTER_LIMIT,
     )
     if len(existing) >= FILTER_LIMIT:
-        log.warning(f"Duplicate check hit the {FILTER_LIMIT} record limit; narrow last_updated_time_gt")
+        log.warning(
+            f"Duplicate check hit the {FILTER_LIMIT} record API limit; "
+            "raise last_updated_time_gt or split the sample stream"
+        )
     return {record.external_id for record in existing if record.space == params.instance_space}
 
 
@@ -218,7 +221,7 @@ def handle(data: dict, client: CogniteClient) -> dict[str, int]:
     """
     logging.basicConfig(level=logging.INFO)
     params = HandlerInput.model_validate(data)
-    last_updated_time_gt = params.last_updated_time_gt or default_last_updated_time_gt(datetime.now(UTC))
+    last_updated_time_gt = params.last_updated_time_gt or DEFAULT_LAST_UPDATED_TIME_GT
 
     raw_rows = read_raw_rows(client, params.raw_database, params.raw_table)
     existing = fetch_existing_external_ids(client, params, last_updated_time_gt)

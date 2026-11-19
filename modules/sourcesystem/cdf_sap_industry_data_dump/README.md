@@ -28,7 +28,7 @@ sample-data choice; for incremental loads on a real source, follow the `cdf-tran
 | Transformation | RAW table | Target view |
 |----------------|-----------|-------------|
 | `tr_sap_all_to_industry_tag` | `tag` | `Tag` |
-| `tr_sap_all_to_industry_equipment_type` | `equipment` | `cdf_cdm:CogniteEquipmentType` |
+| `tr_sap_all_to_industry_equipment_type` | `equipment` | `CogniteEquipmentType` (via `Industry_DOM`) |
 | `tr_sap_all_to_industry_equipment` | `equipment` | `Equipment` |
 | `tr_sap_all_to_industry_material` | `material` | `Material` |
 | `tr_sap_all_to_industry_work_order` | `work_order` | `WorkOrder` |

@@ -14,6 +14,8 @@ dataset_external_id: ds_industry_all
 dataset_name: Industry domain model
 enterprise_location_filter_external_id: loc_industry_all
 enterprise_location_filter_name: Industry all locations
+# Owned by industry_domain_extension_search; listed here so admin can scope locationFiltersAcl.
+search_location_filter_external_id: loc_industry_search_all
 
 # Access groups — persona-led; environment token only here (override per config.<env>.yaml)
 # Type tokens: all | dom | sol | pp | wf (dom/sol/wf are template-specific; documented in SPEC §8.8)

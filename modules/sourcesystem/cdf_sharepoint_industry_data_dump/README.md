@@ -21,12 +21,12 @@ refer to, writes the diagram annotations as `CogniteDiagramAnnotation` edges and
   - `tr_sharepoint_all_to_industry_document` — `file` ⋈ `diagram_annotation` → `Document`. Sets `isUploaded` and
     `uploadedTime` (the issue date) so the file syncer and Search treat the sample PDFs as uploaded. `assets` is the
     distinct union of the file's own `asset_externalId` and every tag it is annotated with; this transformation is the
-    single owner of `Document.assets`. `currentRevision` from the sample is carried into `revision` as is.
+    single owner of `Document.assets`. Sample `currentRevision` values are revision tokens (e.g. `A`).
   - `tr_sharepoint_all_to_industry_diagram_annotation` — `diagram_annotation` → `CogniteDiagramAnnotation` edges.
     The edge, the start node (document) and the end node (Tag) all use `instance_space`.
-  - `tr_sharepoint_all_to_industry_equipment_document_connection` — **overlay** on `Equipment` nodes in
-    `instance_space`: writes `Equipment.files` for documents annotated with the equipment's tag, with
-    `ignoreNullFields: true`.
+  - `tr_sharepoint_all_to_industry_equipment_document_connection` — **overlay** on existing `Equipment` nodes
+    (`cdf_nodes` join so stubs are never created): writes `Equipment.files` for documents annotated with the
+    equipment's tag, with `ignoreNullFields: true`. Requires the SAP dump workflow first.
 
 Document nodes use the external id `file_<file name>`, matching the file content manifest and the annotation edges.
 Transformations are full loads with `upsert`; this is a sample-data choice. For real sources use incremental loads

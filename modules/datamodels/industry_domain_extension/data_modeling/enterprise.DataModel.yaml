@@ -44,6 +44,10 @@ views:
   version: "{{ dm_enterprise_version }}"
   type: view
 - space: cdf_cdm
+  externalId: CogniteAssetType
+  version: v1
+  type: view
+- space: cdf_cdm
   externalId: CogniteEquipmentType
   version: v1
   type: view

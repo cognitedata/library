@@ -60,6 +60,7 @@ nosetests.xml
 coverage.xml
 *.cover
 *.pytest_cache/
+**/pytest-cache-files*/
 
 # OS generated files
 Thumbs.db

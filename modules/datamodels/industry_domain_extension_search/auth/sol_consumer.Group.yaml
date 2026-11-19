@@ -21,4 +21,6 @@ capabilities:
   - locationFiltersAcl:
       actions: [READ]
       scope:
-        all: {}
+        idScope:
+          ids:
+            - "{{ search_location_filter_external_id }}"

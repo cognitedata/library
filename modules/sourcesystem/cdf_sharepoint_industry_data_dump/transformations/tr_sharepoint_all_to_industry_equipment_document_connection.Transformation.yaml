@@ -1,4 +1,4 @@
-# Overlay: writes Equipment.files on nodes created by tr_sap_all_to_industry_equipment, so nulls must not overwrite.
+# Overlay: writes Equipment.files only on existing Equipment nodes (cdf_nodes join); nulls must not overwrite.
 externalId: tr_sharepoint_all_to_industry_equipment_document_connection
 name: Industry equipment document connection from SharePoint
 destination:
