@@ -102,7 +102,7 @@ def test_handler_input_requires_contract_keys_and_optional_lower_bound() -> None
         "stream_external_id": "pi_all_alarm_event",
         "instance_space": INSTANCE_SPACE,
         "enterprise_space": "dm_dom_industry",
-        "raw_database": "raw_industry_all_sample",
+        "raw_database": "db_industry_sample",
         "raw_table": "alarm_event",
     }
 

@@ -5,7 +5,7 @@
 This module provides synthetic SharePoint document data for the industry-neutral enterprise model `Industry_DOM`
 (`datamodels/industry_domain_extension`). It is the Industry counterpart of `cdf_sharepoint_data_dump`: the sample
 files and P&ID diagram annotations are copied from the CFIHOS sample so the two setups can be deployed side by side,
-but everything is renamed (`raw_industry_all_sample`, `tr_sharepoint_all_to_industry_*`) and written to the Industry
+but everything is renamed (`db_industry_sample`, `tr_sharepoint_all_to_industry_*`) and written to the Industry
 model.
 
 The module loads document metadata into the `Document` view, creates the `CogniteFileCategory` nodes the documents

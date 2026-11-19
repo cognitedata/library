@@ -216,9 +216,26 @@ DOM_PRODUCER_GROUP_SOURCE_ID=<IdP group for producer_industry_dom_*>
 Map the SP used by `IDP_CLIENT_ID` into the ingestion (`pp`) group. Search UI also needs
 `SOL_CONSUMER_GROUP_SOURCE_ID` on the search module.
 
+### Upload sample RAW
+
+Requires Cognite Toolkit ≥ 0.9. Enable the data plugin in `cdf.toml` once:
+
+```toml
+[plugins]
+data = true
+```
+
+Then upload each dump's `upload_data/` (prepend your organization directory if `modules/` sits under one):
+
+```bash
+cdf data upload dir modules/sourcesystem/cdf_sap_industry_data_dump/upload_data --cdf-project <project>
+cdf data upload dir modules/sourcesystem/cdf_pi_industry_data_dump/upload_data --cdf-project <project>
+cdf data upload dir modules/sourcesystem/cdf_sharepoint_industry_data_dump/upload_data --cdf-project <project>
+```
+
 ### Run order
 
-Schedules never fire by default (`0 0 29 2 *`). After deploy, start the workflows from the CDF UI.
+Schedules never fire by default (`0 0 29 2 *`). After deploy and upload, start the workflows from the CDF UI.
 **Cross-module order is mandatory and not enforced by workflow `dependsOn`:**
 
 1. `wf_sap_all_to_industry` **first** (Tags / Equipment must exist)
