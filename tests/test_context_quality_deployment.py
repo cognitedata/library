@@ -488,6 +488,6 @@ def test_no_production_file_refers_to_the_demo_module_a_seed_action_or_the_legac
 def test_only_the_production_module_is_registered() -> None:
     registry = load_packages(PACKAGES_TOML)["context_quality"].modules
 
-    assert "dashboards/context_quality_v2" in registry
+    assert "dashboards/context_quality" in registry
     assert not [name for name in registry if name.startswith("dashboards/context_quality_v2_")]
     assert not (MODULE.parent / "context_quality_v2_demo").exists()

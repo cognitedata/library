@@ -652,7 +652,7 @@ requires-dist = [
 [[package]]
 name = "fn-context-quality-metrics"
 version = "0.0.0"
-source = { virtual = "modules/dashboards/context_quality_v2/functions/fn_context_quality_metrics" }
+source = { virtual = "modules/dashboards/context_quality/functions/fn_context_quality_metrics" }
 dependencies = [
     { name = "cognite-sdk" },
     { name = "pydantic" },

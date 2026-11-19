@@ -3,23 +3,22 @@
 from tests.registry_helpers import MODULES, PACKAGES_TOML, load_mixpanel_lookup, load_module_spec, load_packages
 
 PACKAGES = load_packages(PACKAGES_TOML)
-CONTEXT_QUALITY_MODULES = ["dashboards/context_quality_v2", "tools/apps/context_quality_dashboard"]
+CONTEXT_QUALITY_MODULES = ["dashboards/context_quality", "tools/apps/context_quality_dashboard"]
 
 
-def test_removed_packs_are_unregistered_but_their_folders_are_kept() -> None:
+def test_stale_modules_and_the_dashboards_pack_are_removed() -> None:
     registered = {module for package in PACKAGES.values() for module in package.modules}
 
     assert "dashboards" not in PACKAGES
     assert "contextualization/cdf_p_and_id_annotation" not in registered
-    assert "dashboards/context_quality" not in registered
-    assert (MODULES / "contextualization" / "cdf_p_and_id_annotation" / "module.toml").is_file()
-    assert (MODULES / "dashboards" / "context_quality" / "module.toml").is_file()
+    assert not (MODULES / "contextualization" / "cdf_p_and_id_annotation").exists()
+    assert not (MODULES / "dashboards" / "context_quality" / "streamlit").exists()
 
 
 def test_context_quality_package_is_cherry_pickable_and_holds_the_backend_and_the_dashboard() -> None:
     package = PACKAGES["context_quality"]
 
-    assert package.id == "dp:context_quality_v2"
+    assert package.id == "dp:context_quality"
     assert package.can_cherry_pick is True
     assert package.modules == CONTEXT_QUALITY_MODULES
     assert "tools/apps/context_quality_dashboard" not in PACKAGES["tools"].modules
@@ -31,13 +30,13 @@ def test_context_quality_modules_are_named_in_their_module_toml() -> None:
 
     assert (backend.title, backend.id) == (
         "Contextualization Quality Dashboard Backend",
-        "dp:context_quality_v2:backend",
+        "dp:context_quality:backend",
     )
     assert (dashboard.title, dashboard.id) == (
-        "Contextualization Quality Dashboard Flows",
-        "dp:context_quality_v2:dashboard",
+        "Contextualization Quality Dashboard App",
+        "dp:context_quality:dashboard",
     )
-    assert backend.package_id == dashboard.package_id == "dp:context_quality_v2"
+    assert backend.package_id == dashboard.package_id == "dp:context_quality"
 
 
 def test_packs_with_a_single_module_are_not_cherry_pickable() -> None:
@@ -59,12 +58,10 @@ def test_every_module_id_has_a_mixpanel_lookup_row() -> None:
     assert [module_id for module_id in module_ids if module_id not in lookup] == []
 
 
-def test_mixpanel_lookup_names_the_context_quality_modules_and_keeps_their_previous_ids() -> None:
+def test_mixpanel_lookup_names_the_context_quality_modules_and_drops_the_removed_ones() -> None:
     lookup = load_mixpanel_lookup()
 
-    assert lookup["dp:context_quality_v2:backend"] == "Contextualization Quality Dashboard Backend"
-    assert lookup["dp:context_quality_v2:dashboard"] == "Contextualization Quality Dashboard Flows"
-    assert lookup["dp:dashboards:context_quality_v2"] == "Contextualization Quality Dashboard Backend"
-    assert lookup["dp:tool:context_quality_dashboard"] == "Contextualization Quality Dashboard Flows"
-    assert "dp:dashboards:context_quality" in lookup
-    assert "dp:contextualization:cdf_p_and_id_annotation" in lookup
+    assert lookup["dp:context_quality:backend"] == "Contextualization Quality Dashboard Backend"
+    assert lookup["dp:context_quality:dashboard"] == "Contextualization Quality Dashboard App"
+    removed = {"dp:contextualization:cdf_p_and_id_annotation", "dp:dashboards:context_quality"}
+    assert removed.isdisjoint(lookup)

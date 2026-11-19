@@ -56,7 +56,7 @@ How it works, the run log format and every option are in [`REFERENCE.md`](REFERE
 cdf modules init .      # in a new project; otherwise: cdf modules add .
 ```
 
-Select **Contextualization Quality Dashboard** > **Contextualization Quality Dashboard Backend**. Toolkit adds `context_quality_v2` to
+Select **Contextualization Quality Dashboard** > **Contextualization Quality Dashboard Backend**. Toolkit adds `context_quality` to
 your `config.<env>.yaml`.
 
 ### Step 2: Set the environment values
@@ -113,7 +113,7 @@ shown and the previous one stays current. Then deploy the
 ## Module Structure
 
 ```
-context_quality_v2/
+context_quality/
 ├── auth/                  # function group and dashboard-users group
 ├── data_modeling/         # spaces, container, view
 ├── data_sets/
@@ -128,7 +128,7 @@ context_quality_v2/
 └── REFERENCE.md           # how it works, run log format, every option
 ```
 
-Function tests: `uv run pytest modules/dashboards/context_quality_v2/functions/fn_context_quality_metrics/ --rootdir=. -q`
+Function tests: `uv run pytest modules/dashboards/context_quality/functions/fn_context_quality_metrics/ --rootdir=. -q`
 
 ## Support
 

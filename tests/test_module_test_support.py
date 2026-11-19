@@ -29,9 +29,7 @@ def test_function_dir_for_test_file_maps_module_tests_to_function_dir() -> None:
 
 
 def test_function_dir_for_test_file_keeps_legacy_in_function_dir_layout() -> None:
-    path = Path(
-        "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/test_pipeline.py"
-    )
+    path = Path("modules/contextualization/cdf_entity_matching/functions/fn_dm_context_entity_matching/test_submit.py")
     assert function_dir_for_test_file(path) == path.parent
 
 

@@ -127,12 +127,12 @@ modules = [
 ]
 
 [packages.context_quality]
-id = "dp:context_quality_v2"
+id = "dp:context_quality"
 title = "Contextualization Quality Dashboard"
 description = "Measure how well your data is contextualised: a backend that computes the metrics and a dashboard app that shows them."
 canCherryPick = true
 modules = [
-    "dashboards/context_quality_v2",
+    "dashboards/context_quality",
     "tools/apps/context_quality_dashboard",
 ]
 

@@ -19,8 +19,7 @@ modules/
 │
 ├── contextualization/         # Contextualization pipelines & transforms
 │   ├── cdf_file_annotation/
-│   ├── cdf_entity_matching/
-│   └── cdf_p_and_id_annotation/ # Not in any pack (unregistered)
+│   └── cdf_entity_matching/
 │
 ├── datamodels/                  # Industry & extension data models
 │   ├── rmdm/
@@ -44,14 +43,13 @@ modules/
 │   ├── cdf_sap_data_dump/       # Demo: synthetic SAP-shaped sample data
 │   └── cdf_sharepoint_data_dump/ # Demo: synthetic SharePoint-shaped sample data
 │
-├── dashboards/                  # Contextualization Quality Dashboard backend + the old Streamlit dashboard
-│   ├── context_quality/         # Old Streamlit dashboard; not in any pack (unregistered)
-│   └── context_quality_v2/      # Contextualization Quality Dashboard backend (dp:context_quality_v2)
+├── dashboards/                  # Contextualization Quality Dashboard backend
+│   └── context_quality/         # dp:context_quality
 │
 ├── tools/
 │   └── apps/
 │       ├── qualitizer/
-│       └── context_quality_dashboard/ # Contextualization Quality Dashboard app (dp:context_quality_v2)
+│       └── context_quality_dashboard/ # Contextualization Quality Dashboard app (dp:context_quality)
 │
 └── custom/
     └── my_module/               # Empty template (see custom/README.md)
@@ -69,7 +67,7 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 | `dp:common` | Common | `common/` |
 | `dp:sourcesystem` | Source Systems | `sourcesystem/*_extractor` (real connector configs), `sourcesystem/*_data_dump` (synthetic sample data) |
 | `dp:models` | Data models | `datamodels/` |
-| `dp:context_quality_v2` | Contextualization Quality Dashboard | `dashboards/context_quality_v2` (Dashboard Backend), `tools/apps/context_quality_dashboard` (Dashboard Flows) |
+| `dp:context_quality` | Contextualization Quality Dashboard | `dashboards/context_quality` (Dashboard Backend), `tools/apps/context_quality_dashboard` (Dashboard App) |
 | `dp:data_quality` | Data Quality Validation | `common/cdf_dq_runtime` |
 | `dp:atlas_ai` | Atlas AI Deployment Pack | `solutions/cdf_ai_extractor` |
 | `dp:cdm_maintain` | CDM Maintain | `solutions/cdm_maintain/*` |
@@ -79,7 +77,7 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 
 Some modules appear in more than one pack (for example `contextualization/cdf_file_annotation` is in `dp:foundation`, `dp:quickstart`, and `dp:contextualization`). See [CONTRIBUTING.md](../CONTRIBUTING.md) for how `package_id` relates to multi-pack membership.
 
-A pack with a single module has `canCherryPick = false`, so users select the pack and do not have to pick the module a level further down. The exception is `tool`, an open-ended collection of accelerators that stays cherry-pickable. Packs with several modules usually set `canCherryPick = true` (for example `dp:context_quality_v2`); `dp:quickstart` is a fixed bundle and sets it to `false`.
+A pack with a single module has `canCherryPick = false`, so users select the pack and do not have to pick the module a level further down. The exception is `tool`, an open-ended collection of accelerators that stays cherry-pickable. Packs with several modules usually set `canCherryPick = true` (for example `dp:context_quality`); `dp:quickstart` is a fixed bundle and sets it to `false`.
 
 ## Module IDs
 

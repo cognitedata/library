@@ -1,4 +1,4 @@
-"""Structure tests for modules/dashboards/context_quality_v2: its containers, views, stream, variables and registration."""
+"""Structure tests for modules/dashboards/context_quality: its containers, views, stream, variables and registration."""
 
 import pytest
 
@@ -97,6 +97,6 @@ def test_module_is_registered_with_the_context_quality_package() -> None:
     packages = load_packages(PACKAGES_TOML)
 
     assert module.title == "Contextualization Quality Dashboard Backend"
-    assert module.id == "dp:context_quality_v2:backend"
-    assert module.package_id == "dp:context_quality_v2"
-    assert "dashboards/context_quality_v2" in packages["context_quality"].modules
+    assert module.id == "dp:context_quality:backend"
+    assert module.package_id == "dp:context_quality"
+    assert "dashboards/context_quality" in packages["context_quality"].modules

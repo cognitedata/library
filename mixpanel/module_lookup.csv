@@ -9,14 +9,12 @@ dp:cdm_maintain:cdf_sample_data,Maintain Sample Data
 dp:common:cdf_common,CDF Common
 dp:common:cdf_ingestion,Ingestion Workflow
 dp:common:cdf_search,Search configuration with location filter
-dp:context_quality_v2:backend,Contextualization Quality Dashboard Backend
-dp:context_quality_v2:dashboard,Contextualization Quality Dashboard Flows
+dp:context_quality:backend,Contextualization Quality Dashboard Backend
+dp:context_quality:dashboard,Contextualization Quality Dashboard App
 dp:contextualization:cdf_connection_sql,Contextualization Direct Relation Transformations
 dp:contextualization:cdf_entity_matching,Contextualization Entity Matching
 dp:contextualization:cdf_file_annotation,Contextualization File Annotation
-dp:contextualization:cdf_p_and_id_annotation,Contextualization P&ID Annotation
 dp:contextualization:cdf_p_and_id_parser,Contextualization P&ID Diagram Parser
-dp:dashboards:context_quality,Contextualization Quality Dashboard
 dp:dashboards:project_health,CDF Project Health Dashboard
 dp:dashboards:report_quality,Quality Reports - Contextualization Rate
 dp:data_quality:cdf_dq_runtime,Data Quality Validation
@@ -49,9 +47,5 @@ dp:atlas_ai_extractor,AI Property Extractor Function
 dp:cdf_common,CDF Common
 dp:cdf_entity_matching,Contextualization Entity Matching
 dp:cdf_file_annotation,Contextualization File Annotation
-dp:cdf_p_and_id_annotation,Contextualization P&ID Annotation
 dp:cdf_p_and_id_parser,Contextualization P&ID Diagram Parser
-dp:context_quality,Contextualization Quality Dashboard
-dp:dashboards:context_quality_v2,Contextualization Quality Dashboard Backend
 dp:project_health,CDF Project Health Dashboard
-dp:tool:context_quality_dashboard,Contextualization Quality Dashboard Flows

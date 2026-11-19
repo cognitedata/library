@@ -161,7 +161,7 @@ looks standalone (an orphan, not a root).
 Tests live beside the function and run with:
 
 ```bash
-uv run pytest modules/dashboards/context_quality_v2/functions/fn_context_quality_metrics/ --rootdir=. -q
+uv run pytest modules/dashboards/context_quality/functions/fn_context_quality_metrics/ --rootdir=. -q
 ```
 
 They cover the discovery rules, the output against the baseline, the reader and the latest-datapoints lookup using
@@ -495,7 +495,7 @@ runtime. See [`scripts/README.md`](../../../scripts/README.md).
 ## Module Structure
 
 ```
-context_quality_v2/
+context_quality/
 ├── data_sets/
 │   └── context_quality.DataSet.yaml
 ├── functions/
@@ -518,7 +518,7 @@ context_quality_v2/
 ├── streams/
 │   └── context_quality_metrics.Streams.yaml
 ├── default.config.yaml
-├── module.toml              # id: dp:context_quality_v2:backend
+├── module.toml              # id: dp:context_quality:backend
 └── README.md, REFERENCE.md
 ```
 
