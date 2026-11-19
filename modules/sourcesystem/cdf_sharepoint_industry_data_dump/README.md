@@ -58,7 +58,9 @@ cdf build --env <your-env>
 cdf deploy --env <your-env>
 ```
 
-Run the transformations through the `common/cdf_industry_ingestion` workflow.
+Run this module's workflow `wf_sharepoint_all_to_industry` (schedule never fires by default — start
+it from the CDF UI). Run `wf_sap_all_to_industry` first so Tag and Equipment nodes exist for
+annotation edges and the equipment–document overlay.
 
 ## Module Structure
 
@@ -78,12 +80,15 @@ cdf_sharepoint_industry_data_dump/
 │   ├── diagram_annotation.RawRows.csv
 │   ├── file_content.Manifest.yaml
 │   └── data/                      # 11 sample PDFs
-└── transformations/
-    ├── tr_sharepoint_all_to_industry_file_category.Transformation.{yaml,sql}
-    ├── tr_sharepoint_all_to_industry_document.Transformation.{yaml,sql}
-    ├── tr_sharepoint_all_to_industry_diagram_annotation.Transformation.{yaml,sql}
-    └── tr_sharepoint_all_to_industry_equipment_document_connection.Transformation.{yaml,sql}
+├── transformations/
+│   ├── tr_sharepoint_all_to_industry_file_category.Transformation.{yaml,sql}
+│   ├── tr_sharepoint_all_to_industry_document.Transformation.{yaml,sql}
+│   ├── tr_sharepoint_all_to_industry_diagram_annotation.Transformation.{yaml,sql}
+│   └── tr_sharepoint_all_to_industry_equipment_document_connection.Transformation.{yaml,sql}
+└── workflows/
+    └── wf_sharepoint_all_to_industry.Workflow{,Version,Trigger}.yaml
 ```
+
 
 ## Support
 

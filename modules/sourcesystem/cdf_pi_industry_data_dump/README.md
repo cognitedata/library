@@ -77,7 +77,8 @@ cdf build --env <your-env>
 cdf deploy --env <your-env>
 ```
 
-Run the transformations and the Function through the `common/cdf_industry_ingestion` workflow.
+Run this module's workflow `wf_pi_all_to_industry` (schedule never fires by default — start it from
+the CDF UI). Run `wf_sap_all_to_industry` first so Tag nodes exist for alarm record directs.
 
 ### Local tests
 
@@ -108,14 +109,17 @@ cdf_pi_industry_data_dump/
 │   └── tr_pi_all_to_industry_operating_limit.Transformation.{yaml,sql}
 ├── data_modeling/
 │   └── function.Space.yaml
-└── functions/
-    ├── ingest_alarm_event.Function.yaml
-    └── fn_pi_all_ingest_alarm_event/
-        ├── handler.py
-        ├── test_handler.py
-        ├── pyproject.toml
-        └── requirements.txt
+├── functions/
+│   ├── ingest_alarm_event.Function.yaml
+│   └── fn_pi_all_ingest_alarm_event/
+│       ├── handler.py
+│       ├── test_handler.py
+│       ├── pyproject.toml
+│       └── requirements.txt
+└── workflows/
+    └── wf_pi_all_to_industry.Workflow{,Version,Trigger}.yaml
 ```
+
 
 ## Support
 

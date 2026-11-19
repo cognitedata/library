@@ -73,7 +73,8 @@ cdf build --env <your-env>
 cdf deploy --env <your-env>
 ```
 
-Then run the transformations (or the `cdf_industry_ingestion` workflow, when deployed). Expected row
+Then run this module's workflow `wf_sap_all_to_industry` (schedule never fires by default — start it
+from the CDF UI). Run it **before** the PI and SharePoint industry dump workflows. Expected row
 counts: 1154 tags, 10 equipment, 10 equipment types, 10 materials, 11 work orders, 17 operations and
 10 notifications.
 
@@ -88,9 +89,12 @@ cdf_sap_industry_data_dump/
 │   └── <tag|equipment|instrument_equipment|material|work_order|work_order_operation|notification>.Table.yaml
 ├── upload_data/
 │   └── <Manifest.yaml + RawRows.csv for each table above>
-└── transformations/
-    └── <7 tr_sap_all_to_industry_*.Transformation.{yaml,sql} pairs>
+├── transformations/
+│   └── <7 tr_sap_all_to_industry_*.Transformation.{yaml,sql} pairs>
+└── workflows/
+    └── wf_sap_all_to_industry.Workflow{,Version,Trigger}.yaml
 ```
+
 
 ## Support
 

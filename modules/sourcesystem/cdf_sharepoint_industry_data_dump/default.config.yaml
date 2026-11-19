@@ -12,6 +12,11 @@ dataset_external_id: ds_industry_all
 raw_database_sap: raw_sample_all_sap
 raw_database_sharepoint: raw_sample_all_sharepoint
 
-# Transformation runtime identity
+# Transformation / workflow runtime identity
 ingestion_client_id: ${IDP_CLIENT_ID}
 ingestion_client_secret: ${IDP_CLIENT_SECRET}
+
+# Workflow — default schedule never fires; run manually after SAP dump workflow.
+workflow_external_id: wf_sharepoint_all_to_industry
+workflow_trigger_external_id: trigger_wf_sharepoint_all_to_industry
+run_workflow_schedule: "0 0 29 2 *"

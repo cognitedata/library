@@ -20,7 +20,7 @@ capabilities:
         - CREATE
       scope:
         all: {}
-  # sample sources read by the transformations and the alarm function
+  # sample sources read by the dump transformations and the alarm function
   - rawAcl:
       actions:
         - READ

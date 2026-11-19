@@ -46,7 +46,7 @@ modules = [
 [packages.industry_quickstart]
 id = "dp:industry_quickstart"
 title = "Industry Domain Deployment Pack Demo"
-description = "Industry-neutral domain model demo: enterprise + search + sample SAP/PI/SharePoint dumps + ingestion."
+description = "Industry-neutral domain model demo: enterprise + search + sample SAP/PI/SharePoint dumps with per-source workflows."
 canCherryPick = false
 modules = [
     "common/cdf_project_foundation",
@@ -55,7 +55,6 @@ modules = [
     "sourcesystem/cdf_sap_industry_data_dump",
     "sourcesystem/cdf_pi_industry_data_dump",
     "sourcesystem/cdf_sharepoint_industry_data_dump",
-    "common/cdf_industry_ingestion",
 ]
 
 [packages.common]
@@ -66,7 +65,6 @@ canCherryPick = true
 modules = [
     "common/cdf_common",
     "common/cdf_ingestion",
-    "common/cdf_industry_ingestion",
     "common/cdf_search",
 ]
 

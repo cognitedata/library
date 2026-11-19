@@ -12,7 +12,7 @@ Industry-neutral enterprise (`_DOM`) data model template for asset-heavy industr
 
 - Search UI via `IndustrySearch_SOL` (pinned to `{{ dm_search_version }}`)
 - InField-shaped work views on `WorkOrder` / `Notification` / `WorkOrderOperation`
-- Sample workflow `wf_all_industry_ingestion`
+- Sample dump workflows `wf_sap_all_to_industry`, `wf_pi_all_to_industry`, `wf_sharepoint_all_to_industry` (run SAP first)
 
 ## Module Components
 
@@ -23,7 +23,7 @@ Industry-neutral enterprise (`_DOM`) data model template for asset-heavy industr
 | Views | Matching domain views (`implements` CDM/IDM where applicable) + `AlarmEvent` record view (`streamId`, not in the DataModel) |
 | Data model | `Industry_DOM` + `CogniteEquipmentType` / `CogniteFileCategory` |
 | Stream | `{{ alarm_stream_external_id }}` (default template `ImmutableTestStream` — **dev only**) |
-| Auth | `admin_industry_all_*` (schema on enterprise + search), `producer_industry_dom_*` |
+| Auth | `admin_industry_all_*` (schema on enterprise + search), `producer_industry_dom_*`, pipeline `producer_industry_pp_*` / `producer_industry_wf_*` |
 | Governance | Dataset + enterprise location filter |
 
 ### Naming note — `labels` vs `tags`
@@ -92,7 +92,7 @@ cdf modules add
 # select dp:models → industry_domain_extension (and ideally industry_domain_extension_search)
 ```
 
-Override variables under `variables.modules` in `config.<env>.yaml` (see `default.config.yaml`). Deploy enterprise before search and before the `*_industry_data_dump` / `cdf_industry_ingestion` companions.
+Override variables under `variables.modules` in `config.<env>.yaml` (see `default.config.yaml`). Deploy enterprise before search and before the `*_industry_data_dump` companions (each dump owns its load workflow).
 
 ### Validation
 
@@ -110,7 +110,7 @@ industry_domain_extension/
   default.config.yaml
   README.md
   SPEC.md                         # full agent adaptation contract
-  auth/
+  auth/                           # admin, dom_producer, ingestion (pp), operator (wf)
   data_sets/
   locations/
   streams/

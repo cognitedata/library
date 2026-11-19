@@ -62,7 +62,7 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 |------------|-------|----------------|
 | `dp:foundation` | Foundation Deployment Pack | `datamodels/*` (ISA, CFIHOS), `sourcesystem/*_extractor`, `common/cdf_project_foundation`, `contextualization/cdf_file_annotation`, `contextualization/cdf_entity_matching`, `tools/apps/qualitizer` |
 | `dp:quickstart` | Foundation Deployment Pack Demo | `common/cdf_ingestion`, `common/cdf_project_foundation`, `contextualization/cdf_file_annotation`, `contextualization/cdf_entity_matching`, `sourcesystem/*_data_dump`, `datamodels/cfihos_oil_and_gas_extension*` |
-| `dp:industry_quickstart` | Industry Domain Deployment Pack Demo | `common/cdf_project_foundation`, `datamodels/industry_domain_extension*`, `sourcesystem/*_industry_data_dump`, `common/cdf_industry_ingestion` |
+| `dp:industry_quickstart` | Industry Domain Deployment Pack Demo | `common/cdf_project_foundation`, `datamodels/industry_domain_extension*`, `sourcesystem/*_industry_data_dump` (each with its own workflow) |
 | `dp:contextualization` | Contextualization | `contextualization/` |
 | `dp:common` | Common | `common/` |
 | `dp:sourcesystem` | Source Systems | `sourcesystem/*_extractor` (real connector configs), `sourcesystem/*_data_dump` (synthetic sample data) |

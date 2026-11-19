@@ -70,14 +70,12 @@ valid for a *delivery project* that needs more — they are out of scope for thi
 |--------|------|------|
 | Enterprise | `modules/datamodels/industry_domain_extension` | Node containers + domain views (`implements` CDM/IDM), `AlarmEvent` record container + record view + stream, auth groups, data set, enterprise location filter |
 | Search | `modules/datamodels/industry_domain_extension_search` | Schema only: Search views mapping enterprise/CDM/IDM containers, reverses, DataModel, search location filter |
-| SAP sample data | `modules/sourcesystem/cdf_sap_industry_data_dump` | RAW db + tables, sample rows, SAP transformations into `Industry_DOM` |
-| PI sample data | `modules/sourcesystem/cdf_pi_industry_data_dump` | RAW db + tables, sample rows, time series + operating limit transformations, alarm event record ingestion Function |
-| SharePoint sample data | `modules/sourcesystem/cdf_sharepoint_industry_data_dump` | RAW db + tables, sample rows, document + diagram annotation transformations |
-| Ingestion | `modules/common/cdf_industry_ingestion` | One workflow that runs all industry transformations, its trigger, and auth groups |
+| SAP sample data | `modules/sourcesystem/cdf_sap_industry_data_dump` | RAW db + tables, sample rows, SAP transformations into `Industry_DOM`, workflow `wf_sap_all_to_industry` |
+| PI sample data | `modules/sourcesystem/cdf_pi_industry_data_dump` | RAW db + tables, sample rows, time series + operating limit transformations, alarm event record ingestion Function, workflow `wf_pi_all_to_industry` |
+| SharePoint sample data | `modules/sourcesystem/cdf_sharepoint_industry_data_dump` | RAW db + tables, sample rows, document + diagram annotation transformations, workflow `wf_sharepoint_all_to_industry` |
 
-The split mirrors CFIHOS: `cfihos_oil_and_gas_extension` owns schema/auth/data set/location; the
-`cdf_sap_data_dump`, `cdf_pi_data_dump`, `cdf_sharepoint_data_dump` modules own RAW data and transformations;
-`common/cdf_ingestion` owns the orchestration workflow (§12).
+Pipeline `pp` / `wf` auth groups live on the enterprise module. Each dump owns its load workflow (run SAP
+before PI / SharePoint). Unlike CFIHOS (`common/cdf_ingestion`), there is no central industry ingestion module.
 
 ### 3.1 Target tree (data model modules)
 
@@ -90,6 +88,8 @@ industry_domain_extension/
   auth/
     admin.Group.yaml             # name {{ admin_group_name }} — schema WRITE on enterprise + search
     dom_producer.Group.yaml      # name {{ dom_producer_group_name }}
+    ingestion.Group.yaml         # name {{ ingestion_group_name }} — pipeline pp
+    operator.Group.yaml          # name {{ operator_group_name }} — pipeline wf
   data_sets/
     dataset.DataSet.yaml         # externalId {{ dataset_external_id }}
   locations/
@@ -198,12 +198,13 @@ alarm_function_external_id: fn_pi_all_ingest_alarm_event
 raw_database_sap: raw_sample_all_sap
 raw_database_pi: raw_sample_all_pi
 raw_database_sharepoint: raw_sample_all_sharepoint
-workflow_external_id: wf_all_industry_ingestion
-workflow_trigger_external_id: trigger_wf_all_industry_ingestion
+# Per-dump workflows (each *_industry_data_dump module sets its own workflow_external_id)
+# wf_sap_all_to_industry | wf_pi_all_to_industry | wf_sharepoint_all_to_industry
 ingestion_client_id: ${IDP_CLIENT_ID}
 ingestion_client_secret: ${IDP_CLIENT_SECRET}
-run_workflow_schedule: "0 0 29 2 *"   # intentionally never; the sample workflow is run manually
+run_workflow_schedule: "0 0 29 2 *"   # intentionally never; sample workflows are run manually
 ```
+
 
 Naming checks applied (cog-vd `cdf-naming-conventions` + `cdf-data-model-limits`):
 
@@ -691,7 +692,7 @@ end to end. Adopting it means swapping that demo surface for the project's real 
 ```bash
 # Inventory every scaffold property (from a Toolkit / library checkout)
 rg -n "SOURCE_SCAFFOLD:" modules/datamodels/industry_domain_extension modules/datamodels/industry_domain_extension_search
-rg -n "raw_sample_all_|industry_data_dump" modules/sourcesystem modules/common/cdf_industry_ingestion
+rg -n "raw_sample_all_|industry_data_dump" modules/sourcesystem
 ```
 
 #### Ordered procedure (do not skip)
@@ -763,7 +764,7 @@ rg -n "raw_sample_all_|industry_data_dump" modules/sourcesystem modules/common/c
 | SOURCE_SCAFFOLD | `site`, `documentNumber`, `historianTagName`, `workOrderNumber`, `failureModeCode`, … | Rename/replace/delete to match the source before first prod deploy |
 | CUSTOM type | Material, OperatingLimit | Keep pattern (no Describable); replace props freely |
 | RECORD type | `AlarmEvent` container + record view + stream | Keep `usedFor: record`, no constraints/indexes, `streamId`; rename/replace scaffold props **before** the first record is ingested |
-| Sample data | `*_industry_data_dump` modules, `cdf_industry_ingestion` | Replace with real extractors/RAW before production |
+| Sample data | `*_industry_data_dump` modules (each with its own workflow) | Replace with real extractors/RAW before production |
 
 The enterprise containers are **adopter-owned scaffolding**, not an upstream contract: adapting them in place before
 the first production deploy satisfies W1a step 5. After that, new properties go on a new extension container.
@@ -865,8 +866,8 @@ Use the touch map (§8.9) for the type being removed:
 | Stream | `{source}_{location}_{concept}` (snake_case) | `pi_all_alarm_event` |
 | Record | `{source}_{location}_{machine}_{id}` (snake_case) | `pi_all_<tag>_<eventTime>_<eventType>` |
 | Function | `fn_{source}_{location}_{intent}_{target}` | `fn_pi_all_ingest_alarm_event` |
-| Workflow | `wf_{location}_{intent}` | `wf_all_industry_ingestion` |
-| Workflow trigger | `trigger_` + workflow id (cog-vd workflow skill) | `trigger_wf_all_industry_ingestion` |
+| Workflow | `wf_{source}_{location}_to_{target}` | `wf_sap_all_to_industry`, `wf_pi_all_to_industry`, `wf_sharepoint_all_to_industry` |
+| Workflow trigger | `trigger_` + workflow id (cog-vd workflow skill) | `trigger_wf_sap_all_to_industry`, … |
 | Access group / service principal | persona-led `<persona>_[segment_]<type>_<environment>`; persona `admin` / `producer` / `consumer`; segment `industry`; **type** from the vocabulary below | `consumer_industry_sol_prod` |
 | Function space | `sp_function_{snake_case}` — code upload only; never reuse `instance_space` | `sp_function_industry` |
 
@@ -907,7 +908,7 @@ shipping the pack as documented.
 
 | AlarmEvent (record) | `AlarmEvent.Container` (`usedFor: record`), `AlarmEvent.View` (record view), `alarm.Streams.yaml` — **no** DataModel entry | none | `fn_pi_all_ingest_alarm_event` (+ `pyproject.toml`, `requirements.txt`, `PACKAGE_SPECS` entry), `raw_sample_all_pi.alarm_event`, workflow task |
 
-Every transformation and function id also appears as a variable in `cdf_industry_ingestion/default.config.yaml`.
+Each dump module owns its workflow; transformation and function ids are referenced from that module's WorkflowVersion.
 
 ### 8.10 Rename recipes
 
@@ -1151,7 +1152,7 @@ flowchart LR
   ingestion -->|"WRITE + records"| inst[instance_space]
   domProducer[producer_industry_dom] -->|WRITE| inst
   domProducer -->|READ| dom
-  operator[producer_industry_wf] -->|"run / monitor"| wf[wf_all_industry_ingestion]
+  operator[producer_industry_wf] -->|"run / monitor"| wf[wf_*_all_to_industry]
   solConsumer[consumer_industry_sol] -->|READ| sol
   solConsumer -->|"READ (mapped containers)"| dom
   solConsumer -->|READ| inst
@@ -1163,8 +1164,8 @@ flowchart LR
 | `admin.Group.yaml` → `{{ admin_group_name }}` (enterprise) | Schema admin (enterprise + search) | `dataModelsAcl` READ/WRITE on `{{ enterprise_space }}` and `{{ search_space }}`, READ on `cdf_cdm`, `cdf_idm`, `cdf_cdm_units`; `dataModelInstancesAcl` READ on `{{ instance_space }}`; `datasetsAcl` OWNER/READ/WRITE on `{{ dataset_external_id }}`; `streamsAcl` READ/CREATE/DELETE; `streamRecordsAcl` READ on `{{ instance_space }}`; `locationFiltersAcl` READ/WRITE | WRITE on any `cdf_*` space; instance or record WRITE |
 | `dom_producer.Group.yaml` → `{{ dom_producer_group_name }}` (enterprise) | Domain producer (interactive / domain data work on `Industry_DOM`) | `dataModelsAcl` READ on `{{ enterprise_space }}`, `cdf_cdm`, `cdf_idm`, `cdf_cdm_units`; `dataModelInstancesAcl` READ/WRITE/WRITE_PROPERTIES on `{{ instance_space }}`, READ on `cdf_cdm_units`; `streamsAcl` READ; `streamRecordsAcl` READ/WRITE on `{{ instance_space }}` (alarms); `locationFiltersAcl` READ | Schema WRITE; search-space WRITE; RAW |
 | `sol_consumer.Group.yaml` → `{{ sol_consumer_group_name }}` (search) | Search data product consumer (Search UI, apps) | `dataModelsAcl` READ on `{{ search_space }}` **and** `{{ enterprise_space }}`, `cdf_cdm`, `cdf_idm`, `cdf_cdm_units` (search views map containers there); `dataModelInstancesAcl` READ on `{{ instance_space }}`, `cdf_cdm_units`; `locationFiltersAcl` READ | Any WRITE; RAW; records (alarms via DOM producer); transformations / workflows |
-| `ingestion.Group.yaml` → `{{ ingestion_group_name }}` (ingestion) | Pipeline runtime — the service principal `{{ ingestion_client_id }}` used by transformations, the workflow trigger and the function task | see §12.6 | `dataModelsAcl` WRITE; search space; `datasetsAcl` OWNER |
-| `operator.Group.yaml` → `{{ operator_group_name }}` (ingestion) | Pipeline operator (runs / monitors) | `workflowOrchestrationAcl` READ/WRITE, `transformationsAcl` READ, on `{{ dataset_external_id }}`; `functionsAcl` READ; `rawAcl` READ on the three databases; `sessionsAcl` CREATE; `projectsAcl` READ/LIST; `groupsAcl` LIST | Instance / record WRITE; schema WRITE |
+| `ingestion.Group.yaml` → `{{ ingestion_group_name }}` (enterprise) | Pipeline runtime — the service principal `{{ ingestion_client_id }}` used by dump transformations, workflow triggers and the function task | see §12.6 | `dataModelsAcl` WRITE; search space; `datasetsAcl` OWNER |
+| `operator.Group.yaml` → `{{ operator_group_name }}` (enterprise) | Pipeline operator (runs / monitors dump workflows) | `workflowOrchestrationAcl` READ/WRITE, `transformationsAcl` READ, on `{{ dataset_external_id }}`; `functionsAcl` READ; `rawAcl` READ on the three databases; `sessionsAcl` CREATE; `projectsAcl` READ/LIST; `groupsAcl` LIST | Instance / record WRITE; schema WRITE |
 
 Scope rules: data models, instances and records are scoped by **space** (`spaceIdScope`); transformations and
 workflows by **data set** (`datasetScope`); RAW by **database** (`tableScope.dbsToTables`); functions, streams,
@@ -1271,23 +1272,33 @@ flowchart LR
     fileRaw[file]
     annotationRaw[diagram_annotation]
   end
-  subgraph wf [wf_all_industry_ingestion]
-    baseLoads["Wave 1: base loads"]
-    annotations["Wave 2: diagram annotations"]
-    overlays["Wave 3: equipment document links"]
-    alarmFn["Wave 2: fn_pi_all_ingest_alarm_event"]
+  subgraph sapWf [wf_sap_all_to_industry]
+    sapLoads["SAP base loads"]
   end
-  sapRaw --> baseLoads
-  timeseriesRaw --> baseLoads
-  spRaw --> baseLoads
+  subgraph piWf [wf_pi_all_to_industry]
+    piLoads["PI time series + limits"]
+    alarmFn["fn_pi_all_ingest_alarm_event"]
+  end
+  subgraph spWf [wf_sharepoint_all_to_industry]
+    spLoads["SharePoint documents"]
+    annotations["diagram annotations"]
+    overlays["equipment document links"]
+  end
+  sapRaw --> sapLoads
+  timeseriesRaw --> piLoads
+  spRaw --> spLoads
   alarmRaw --> alarmFn
-  baseLoads --> annotations --> overlays
-  baseLoads --> alarmFn
-  baseLoads --> dom[Industry_DOM]
+  sapLoads -->|"run first (manual)"| piLoads
+  sapLoads -->|"run first (manual)"| spLoads
+  piLoads --> alarmFn
+  spLoads --> annotations --> overlays
+  sapLoads --> dom[Industry_DOM]
+  piLoads --> dom
   overlays --> dom
   alarmFn --> stream["Stream pi_all_alarm_event"]
   dom -.->|"same containers, read through views"| sol[IndustrySearch_SOL]
 ```
+
 
 ### 12.1 Module trees
 
@@ -1302,6 +1313,7 @@ sourcesystem/cdf_sap_industry_data_dump/
     work_order.Table.yaml  work_order_operation.Table.yaml  notification.Table.yaml
   upload_data/                 # <table>.Manifest.yaml + <table>.RawRows.csv per table
   transformations/             # tr_*.Transformation.yaml + .sql pairs (§12.3)
+  workflows/                   # wf_sap_all_to_industry (+ Version, Trigger)
 
 sourcesystem/cdf_pi_industry_data_dump/
   module.toml  default.config.yaml  README.md
@@ -1314,23 +1326,21 @@ sourcesystem/cdf_pi_industry_data_dump/
     ingest_alarm_event.Function.yaml     # externalId {{ alarm_function_external_id }}; space {{ function_space }}; runtime py311
     fn_pi_all_ingest_alarm_event/        # folder name MUST equal externalId
       handler.py  pyproject.toml  requirements.txt  test_handler.py
+  workflows/                   # wf_pi_all_to_industry (+ Version, Trigger)
 
 sourcesystem/cdf_sharepoint_industry_data_dump/
   module.toml  default.config.yaml  README.md
   raw/         sharepoint.Database.yaml  file.Table.yaml  diagram_annotation.Table.yaml
   upload_data/ file + diagram_annotation manifests/CSVs, file content manifest
   transformations/
+  workflows/                   # wf_sharepoint_all_to_industry (+ Version, Trigger)
 
-common/cdf_industry_ingestion/
-  module.toml                  # id = dp:common:cdf_industry_ingestion
-  default.config.yaml          # shared variables (§3.2) + one <entity>_transformation_external_id per task
-  README.md
-  auth/        ingestion.Group.yaml  operator.Group.yaml
-  workflows/   ingestion.Workflow.yaml  ingestion.WorkflowVersion.yaml  ingestion.WorkflowTrigger.yaml
+# Pipeline pp/wf auth lives on the enterprise module (not a separate ingestion module):
+# industry_domain_extension/auth/ingestion.Group.yaml + operator.Group.yaml
 ```
 
-No separate ingestion data set: the workflow and every transformation use `{{ dataset_external_id }}`, so the
-workflow group's transformation scope matches the transformations it runs.
+No separate ingestion data set: each dump workflow and every transformation use `{{ dataset_external_id }}`, so the
+pipeline group's transformation scope matches the transformations it runs.
 
 ### 12.2 Sample data (copied from the CFIHOS data dumps)
 
@@ -1423,25 +1433,18 @@ WHERE tag_key IS NOT NULL
 Loads are full loads with `upsert` (no `is_new()`); the README states this is a sample-data choice and points to
 the `cdf-transformation` skill for incremental loads on real sources.
 
-### 12.4 Workflow (`common/cdf_industry_ingestion`)
+### 12.4 Workflows (per dump module)
 
-Mirrors `common/cdf_ingestion`: workflow `{{ workflow_external_id }}` (name "Industry ingestion",
-`dataSetExternalId: {{ dataset_external_id }}`), version `v1`, schedule trigger `{{ workflow_trigger_external_id }}`
-with `{{ ingestion_client_id }}` / `{{ ingestion_client_secret }}` and `{{ run_workflow_schedule }}` (never fires —
-run manually). Transformation ids are config variables.
+Each `*_industry_data_dump` owns its workflow (`wf_{source}_all_to_industry`), version `v1`, and a schedule
+trigger that never fires by default (`run_workflow_schedule: "0 0 29 2 *"`). Run order across modules is manual:
+**SAP first**, then PI and SharePoint (cross-source Tag/Equipment nodes are not expressed as `dependsOn` across
+workflows).
 
-Dependencies are derived from the SQL (cog-vd workflow skill). Base loads read only RAW and use `node_reference()`,
-which does not need the target node to exist, so they run in parallel:
-
-| Wave | Tasks | dependsOn | onFailure |
-|------|-------|-----------|-----------|
-| 1 | tag, equipment type, equipment, material, work order, work order operation, notification, time series, operating limit, file category, document | — | `abortWorkflow` |
-| 2 | diagram annotation (edges need existing start/end nodes) | document, tag | `skipTask` |
-| 2 | alarm event records — **function** task `{{ alarm_function_external_id }}` (records don't validate target nodes, so referenced nodes must exist first) | tag, time series, operating limit | `abortWorkflow` |
-| 3 | equipment document connection (same Equipment nodes as the equipment load) | equipment, document | `skipTask` |
-
-Alarm Function uses `abortWorkflow` so a broken ingest fails the sample pack loudly (required for the dual-run
-check in §9.8). Diagram annotation and equipment–document overlay stay `skipTask` as optional enrichment.
+| Module | Workflow | Tasks | Notes |
+|--------|----------|-------|-------|
+| SAP | `wf_sap_all_to_industry` | 7 SAP transforms in parallel | `abortWorkflow` |
+| PI | `wf_pi_all_to_industry` | time series + operating limit → alarm Function | Prefer SAP first; Function `abortWorkflow` |
+| SharePoint | `wf_sharepoint_all_to_industry` | file category + document → diagram annotation / equipment–document | Prefer SAP first; enrichment tasks `skipTask` |
 
 No search tasks: once the enterprise loads finish, the data is visible through `IndustrySearch_SOL`.
 
@@ -1498,11 +1501,12 @@ Packaging follows AGENTS.md + `cdf-function` / `cdf_common`:
   support) and `pydantic` only.
 - Function is in `{{ dataset_external_id }}`.
 
-### 12.6 Ingestion and operator groups (`common/cdf_industry_ingestion/auth`)
+### 12.6 Ingestion and operator groups (`industry_domain_extension/auth`)
 
-One runtime identity runs everything: the trigger uses `{{ ingestion_client_id }}`, the workflow session runs the
-transformations and the function task, and every transformation's `authentication` uses the same client. Its IdP
-group is mapped to `{{ ingestion_group_name }}` via `{{ ingestion_source_id }}`.
+One runtime identity runs the dump pipelines: each dump trigger uses `{{ ingestion_client_id }}`, the workflow
+session runs the transformations and the function task, and every transformation's `authentication` uses the same
+client. Its IdP group is mapped to `{{ ingestion_group_name }}` via `{{ ingestion_source_id }}`. The `pp` / `wf`
+group YAML lives on the enterprise module so the dump modules stay sample-data + workflow only.
 
 `ingestion.Group.yaml` → `{{ ingestion_group_name }}` (`producer_industry_pp_<env>`):
 
@@ -1552,7 +1556,7 @@ over-permission a pack that has no EPs.
 |---------|-----|
 | `dp:models` | `datamodels/industry_domain_extension`, `datamodels/industry_domain_extension_search` |
 | `dp:sourcesystem` | the three `*_industry_data_dump` modules (synthetic data-dump group) |
-| `dp:common` | `common/cdf_industry_ingestion` |
+| `dp:common` | *(no industry ingestion module — workflows live on each dump)* |
 | new `dp:industry_quickstart` | all six industry modules + `common/cdf_project_foundation`; `canCherryPick = false`; title "Industry Domain Deployment Pack Demo" |
 
 Docs:
@@ -1591,7 +1595,7 @@ Split the enterprise delivery so PRs stay reviewable (~500 lines):
 6. `fn_pi_all_ingest_alarm_event`: failing tests first, then handler (`data` contract §12.5), `runtime: py311`,
    `space: {{ function_space }}`, `alarm_event` sample CSV, uv workspace registration (`PACKAGE_SPECS`, `uv lock`,
    export requirements).
-7. `cdf_industry_ingestion`: workflow (alarm task `abortWorkflow`), trigger, `ingestion` / `operator` groups.
+7. Move `ingestion` / `operator` groups onto `industry_domain_extension`; add per-dump workflows (SAP first, then PI with alarm `abortWorkflow`, then SharePoint).
 8. `packages.toml` + repo docs; `python validate_packages.py`.
 9. Run the §9 validation gate; dev deploy order: enterprise → search → SAP data dump → PI and SharePoint data
    dumps → ingestion; run the workflow twice and compare instance and record counts with §12.2.
@@ -1618,7 +1622,7 @@ Split the enterprise delivery so PRs stay reviewable (~500 lines):
 - [ ] SAP industry data dump (RAW, sample data incl. synthetic `material`, transformations; `AS labels`)
 - [ ] PI and SharePoint industry data dumps (incl. `function_space`, file sync fields)
 - [ ] `fn_pi_all_ingest_alarm_event` records Function + `alarm_event` sample data (test-first, py311)
-- [ ] `common/cdf_industry_ingestion` workflow (alarm `abortWorkflow`), trigger, auth
+- [ ] Per-dump workflows (SAP / PI alarm `abortWorkflow` / SharePoint), pp/wf auth on enterprise module
 - [ ] `packages.toml` (`dp:models`, `dp:sourcesystem`, `dp:common`, `dp:industry_quickstart`) and repo docs
 - [ ] Pass the §9 validation gate and dev workflow run
 - [ ] Cognite docs package page and cog-vd marketplace PR (record-view skill fix)

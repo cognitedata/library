@@ -27,7 +27,7 @@ end to end. Adopting it means swapping that demo surface for the project's real 
 ```bash
 # Inventory every scaffold property (from a Toolkit / library checkout)
 rg -n "SOURCE_SCAFFOLD:" modules/datamodels/industry_domain_extension modules/datamodels/industry_domain_extension_search
-rg -n "raw_sample_all_|industry_data_dump" modules/sourcesystem modules/common/cdf_industry_ingestion
+rg -n "raw_sample_all_|industry_data_dump" modules/sourcesystem
 ```
 
 #### Ordered procedure (do not skip)
@@ -98,7 +98,7 @@ rg -n "raw_sample_all_|industry_data_dump" modules/sourcesystem modules/common/c
 | SOURCE_SCAFFOLD | `site`, `documentNumber`, `historianTagName`, `workOrderNumber`, `failureModeCode`, … | Rename/replace/delete to match the source before first prod deploy |
 | CUSTOM type | Material, OperatingLimit | Keep pattern (no Describable); replace props freely |
 | RECORD type | `AlarmEvent` container + record view + stream | Keep `usedFor: record`, no constraints/indexes, `streamId`; rename/replace scaffold props **before** the first record is ingested |
-| Sample data | `*_industry_data_dump` modules, `cdf_industry_ingestion` | Replace with real extractors/RAW before production |
+| Sample data | `*_industry_data_dump` modules (each with its own workflow) | Replace with real extractors/RAW before production |
 
 The enterprise containers are **adopter-owned scaffolding**, not an upstream contract: adapting them in place before
 the first production deploy satisfies W1a step 5. After that, new properties go on a new extension container.
@@ -200,8 +200,8 @@ Use the touch map (§8.9) for the type being removed:
 | Stream | `{source}_{location}_{concept}` (snake_case) | `pi_all_alarm_event` |
 | Record | `{source}_{location}_{machine}_{id}` (snake_case) | `pi_all_<tag>_<eventTime>_<eventType>` |
 | Function | `fn_{source}_{location}_{intent}_{target}` | `fn_pi_all_ingest_alarm_event` |
-| Workflow | `wf_{location}_{intent}` | `wf_all_industry_ingestion` |
-| Workflow trigger | `trigger_` + workflow id (cog-vd workflow skill) | `trigger_wf_all_industry_ingestion` |
+| Workflow | `wf_{source}_{location}_to_{target}` | `wf_sap_all_to_industry`, `wf_pi_all_to_industry`, `wf_sharepoint_all_to_industry` |
+| Workflow trigger | `trigger_` + workflow id (cog-vd workflow skill) | `trigger_wf_sap_all_to_industry`, … |
 | Access group / service principal | persona-led `<persona>_[segment_]<type>_<environment>`; persona `admin` / `producer` / `consumer`; segment `industry`; **type** from the vocabulary below | `consumer_industry_sol_prod` |
 | Function space | `sp_function_{snake_case}` — code upload only; never reuse `instance_space` | `sp_function_industry` |
 
@@ -238,7 +238,7 @@ unknown types.
 
 | AlarmEvent (record) | `AlarmEvent.Container` (`usedFor: record`), `AlarmEvent.View` (record view), `alarm.Streams.yaml` — **no** DataModel entry | none | `fn_pi_all_ingest_alarm_event` (+ `pyproject.toml`, `requirements.txt`, `PACKAGE_SPECS` entry), `raw_sample_all_pi.alarm_event`, workflow task |
 
-Every transformation and function id also appears as a variable in `cdf_industry_ingestion/default.config.yaml`.
+Each dump module owns its workflow; transformation and function ids are referenced from that module's WorkflowVersion.
 
 ### 8.10 Rename recipes
 

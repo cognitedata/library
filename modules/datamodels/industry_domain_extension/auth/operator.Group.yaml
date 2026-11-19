@@ -20,7 +20,7 @@ capabilities:
         - CREATE
       scope:
         all: {}
-  # run and monitor the workflow; no instance, record or schema WRITE
+  # run and monitor dump workflows; no instance, record or schema WRITE
   - workflowOrchestrationAcl:
       actions:
         - READ
