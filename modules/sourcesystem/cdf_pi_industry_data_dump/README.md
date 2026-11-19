@@ -5,7 +5,7 @@
 This module provides synthetic PI historian data for the industry-neutral enterprise model
 `Industry_DOM` (`datamodels/industry_domain_extension`). It is the Industry counterpart of
 `cdf_pi_data_dump`: the sample data is copied from the CFIHOS PI sample so the two setups can be deployed side by
-side, but everything is renamed (`industry_test_data`, `tr_pi_all_to_industry_*`) and written to the Industry model.
+side, but everything is renamed (`raw_industry_all_sample`, `tr_pi_all_to_industry_*`) and written to the Industry model.
 
 It covers two kinds of PI data:
 
@@ -79,7 +79,8 @@ cdf deploy --env <your-env>
 ```
 
 Run this module's workflow `wf_pi_all_to_industry` (schedule never fires by default — start it from
-the CDF UI). Run `wf_sap_all_to_industry` first so Tag nodes exist for alarm record directs.
+the CDF UI). **Required:** run `wf_sap_all_to_industry` first so Tag / Equipment nodes exist for alarm
+record directs and PI lookups. Cross-module order is not enforced by `dependsOn`.
 
 ### Local tests
 

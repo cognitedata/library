@@ -58,7 +58,7 @@ so the loads do not depend on each other and can run in parallel. `Tag.labels` i
 | `enterprise_data_model_external_id` | `Industry_DOM` | Target data model |
 | `dm_enterprise_version` | `v1` | Data model and view version |
 | `dataset_external_id` | `ds_industry_all` | Data set for the transformations |
-| `raw_database_sap` | `industry_test_data` | RAW database |
+| `raw_database_sap` | `raw_industry_all_sample` | RAW database |
 | `ingestion_client_id` / `ingestion_client_secret` | `${IDP_CLIENT_ID}` / `${IDP_CLIENT_SECRET}` | Transformation credentials |
 
 ### Adding to an existing Toolkit project
@@ -74,9 +74,9 @@ cdf deploy --env <your-env>
 ```
 
 Then run this module's workflow `wf_sap_all_to_industry` (schedule never fires by default — start it
-from the CDF UI). Run it **before** the PI and SharePoint industry dump workflows. Expected row
-counts: 1154 tags, 10 equipment, 10 equipment types, 10 materials, 11 work orders, 17 operations and
-10 notifications.
+from the CDF UI). **Required first** in the pack run order (before PI and SharePoint); cross-module
+order is not enforced by `dependsOn`. Expected row counts: 1154 tags, 10 equipment, 10 equipment
+types, 10 materials, 11 work orders, 17 operations and 10 notifications.
 
 ## Module Structure
 

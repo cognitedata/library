@@ -9,10 +9,13 @@ That keeps the mapping and duplicate-filter logic importable (and unit-testable)
 """
 
 import logging
+import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Literal
 
 from cognite.client import CogniteClient
+from cognite.client.exceptions import CogniteAPIError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 log = logging.getLogger(__name__)
@@ -23,6 +26,8 @@ DEFAULT_LAST_UPDATED_TIME_GT = "1970-01-01T00:00:00.000Z"
 # Records filter returns a single page of up to 1000 rows; no SDK pagination.
 FILTER_LIMIT = 1000
 INGEST_BATCH_SIZE = 1000
+RETRY_ATTEMPTS = 3
+RETRY_BASE_DELAY_S = 1.0
 
 
 class HandlerInput(BaseModel):
@@ -90,6 +95,25 @@ class IngestPlan(BaseModel):
 
 def _direct(space: str, external_id: str | None) -> dict[str, str] | None:
     return {"space": space, "externalId": external_id} if external_id else None
+
+
+def _is_transient(error: CogniteAPIError) -> bool:
+    code = error.code
+    return code in (408, 429) or (isinstance(code, int) and code >= 500)
+
+
+def with_retry[T](operation: Callable[[], T], *, label: str) -> T:
+    """Retry transient Cognite API failures (408/429/5xx) with linear backoff."""
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        try:
+            return operation()
+        except CogniteAPIError as error:
+            if not _is_transient(error) or attempt == RETRY_ATTEMPTS:
+                raise
+            delay = RETRY_BASE_DELAY_S * attempt
+            log.warning(f"{label} failed with {error.code}; retry {attempt}/{RETRY_ATTEMPTS} in {delay}s")
+            time.sleep(delay)
+    raise RuntimeError(f"{label}: retry loop exited without result")
 
 
 def row_to_record(row: AlarmRow, instance_space: str) -> AlarmRecord:
@@ -160,7 +184,10 @@ def plan_ingest(
 
 def read_raw_rows(client: CogniteClient, raw_database: str, raw_table: str) -> list[dict[str, object]]:
     """Read all rows of a RAW table, adding the row key as ``key`` when it is not a column."""
-    rows = client.raw.rows.list(raw_database, raw_table, limit=-1)
+    rows = with_retry(
+        lambda: client.raw.rows.list(raw_database, raw_table, limit=-1),
+        label=f"RAW list {raw_database}.{raw_table}",
+    )
     return [{"key": row.key, **(row.columns or {})} for row in rows]
 
 
@@ -173,11 +200,15 @@ def fetch_existing_external_ids(client: CogniteClient, params: HandlerInput, las
     from cognite.client.data_classes.filters import HasData
 
     container = RecordContainerId(space=params.enterprise_space, external_id=ALARM_CONTAINER_EXTERNAL_ID)
-    existing = client.data_modeling.records.filter(
-        stream_id=params.stream_external_id,
-        last_updated_time=TimeRange(gt=last_updated_time_gt),
-        filter=HasData(containers=[container]),
-        limit=FILTER_LIMIT,
+
+    existing = with_retry(
+        lambda: client.data_modeling.records.filter(
+            stream_id=params.stream_external_id,
+            last_updated_time=TimeRange(gt=last_updated_time_gt),
+            filter=HasData(containers=[container]),
+            limit=FILTER_LIMIT,
+        ),
+        label=f"records.filter {params.stream_external_id}",
     )
     if len(existing) >= FILTER_LIMIT:
         log.warning(
@@ -194,21 +225,25 @@ def ingest_records(client: CogniteClient, params: HandlerInput, records: list[Al
     container = RecordContainerId(space=params.enterprise_space, external_id=ALARM_CONTAINER_EXTERNAL_ID)
     for start in range(0, len(records), INGEST_BATCH_SIZE):
         batch = records[start : start + INGEST_BATCH_SIZE]
-        client.data_modeling.records.ingest(
-            [
-                RecordWrite(
-                    space=record.space,
-                    external_id=record.external_id,
-                    sources=[RecordSource(source=container, properties=record.properties)],
-                )
-                for record in batch
-            ],
-            stream_id=params.stream_external_id,
+        writes = [
+            RecordWrite(
+                space=record.space,
+                external_id=record.external_id,
+                sources=[RecordSource(source=container, properties=record.properties)],
+            )
+            for record in batch
+        ]
+        with_retry(
+            lambda writes=writes: client.data_modeling.records.ingest(
+                writes,
+                stream_id=params.stream_external_id,
+            ),
+            label=f"records.ingest batch@{start}",
         )
     return len(records)
 
 
-def handle(data: dict, client: CogniteClient) -> dict[str, int]:
+def handle(data: dict, client: CogniteClient) -> dict[str, int | str]:
     """CDF Function entry point.
 
     Args:
@@ -217,7 +252,7 @@ def handle(data: dict, client: CogniteClient) -> dict[str, int]:
         client: Injected client; its session carries the credentials.
 
     Returns:
-        Counts: ``read``, ``invalid``, ``skipped`` (already in the stream) and ``ingested``.
+        ``status`` plus counts: ``read``, ``invalid``, ``skipped``, ``ingested``.
     """
     logging.basicConfig(level=logging.INFO)
     params = HandlerInput.model_validate(data)
@@ -228,6 +263,45 @@ def handle(data: dict, client: CogniteClient) -> dict[str, int]:
     plan = plan_ingest(raw_rows, params.instance_space, existing)
     ingested = ingest_records(client, params, plan.new_records)
 
-    counts = {"read": plan.read, "invalid": plan.invalid, "skipped": plan.skipped, "ingested": ingested}
-    log.info(f"Alarm events for stream {params.stream_external_id}: {counts}")
-    return counts
+    result: dict[str, int | str] = {
+        "status": "succeeded",
+        "read": plan.read,
+        "invalid": plan.invalid,
+        "skipped": plan.skipped,
+        "ingested": ingested,
+    }
+    log.info(f"Alarm events for stream {params.stream_external_id}: {result}")
+    return result
+
+
+def run_local() -> None:
+    """Run against the project in the environment: ``python handler.py '{"stream_external_id":"..."}'``."""
+    import json
+    import os
+    import sys
+
+    from cognite.client import ClientConfig
+    from cognite.client.credentials import OAuthClientCredentials
+
+    project, cluster = os.environ["CDF_PROJECT"], os.environ["CDF_CLUSTER"]
+    credentials = OAuthClientCredentials(
+        token_url=os.environ["IDP_TOKEN_URL"],
+        client_id=os.environ["IDP_CLIENT_ID"],
+        client_secret=os.environ["IDP_CLIENT_SECRET"],
+        scopes=[f"https://{cluster}.cognitedata.com/.default"],
+    )
+    client = CogniteClient(
+        ClientConfig(
+            client_name="pi-alarm-ingest-local",
+            project=project,
+            credentials=credentials,
+            base_url=f"https://{cluster}.cognitedata.com",
+        )
+    )
+    if len(sys.argv) < 2:
+        raise SystemExit('Usage: python handler.py \'{"stream_external_id":"...", ...}\'')
+    print(json.dumps(handle(json.loads(sys.argv[1]), client), indent=2, default=str))
+
+
+if __name__ == "__main__":
+    run_local()

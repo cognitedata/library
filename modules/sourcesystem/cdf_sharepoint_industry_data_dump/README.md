@@ -5,7 +5,7 @@
 This module provides synthetic SharePoint document data for the industry-neutral enterprise model `Industry_DOM`
 (`datamodels/industry_domain_extension`). It is the Industry counterpart of `cdf_sharepoint_data_dump`: the sample
 files and P&ID diagram annotations are copied from the CFIHOS sample so the two setups can be deployed side by side,
-but everything is renamed (`industry_test_data`, `tr_sharepoint_all_to_industry_*`) and written to the Industry
+but everything is renamed (`raw_industry_all_sample`, `tr_sharepoint_all_to_industry_*`) and written to the Industry
 model.
 
 The module loads document metadata into the `Document` view, creates the `CogniteFileCategory` nodes the documents
@@ -59,8 +59,9 @@ cdf deploy --env <your-env>
 ```
 
 Run this module's workflow `wf_sharepoint_all_to_industry` (schedule never fires by default — start
-it from the CDF UI). Run `wf_sap_all_to_industry` first so Tag and Equipment nodes exist for
-annotation edges and the equipment–document overlay.
+it from the CDF UI). **Required:** run `wf_sap_all_to_industry` first so Tag and Equipment nodes
+exist for annotation edges and the equipment–document overlay. Cross-module order is not enforced
+by `dependsOn`; the overlay skips missing Equipment via `cdf_nodes`, but Tag links still need SAP.
 
 ## Module Structure
 

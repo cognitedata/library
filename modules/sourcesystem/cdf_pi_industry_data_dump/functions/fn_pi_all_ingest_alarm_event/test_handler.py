@@ -1,6 +1,9 @@
 """Unit tests for the alarm event ingest handler. No network access."""
 
+from unittest.mock import MagicMock
+
 import pytest
+from cognite.client.exceptions import CogniteAPIError
 from handler import (
     DEFAULT_LAST_UPDATED_TIME_GT,
     AlarmRow,
@@ -8,6 +11,7 @@ from handler import (
     filter_missing,
     plan_ingest,
     row_to_record,
+    with_retry,
 )
 from pydantic import ValidationError
 
@@ -98,10 +102,32 @@ def test_handler_input_requires_contract_keys_and_optional_lower_bound() -> None
         "stream_external_id": "pi_all_alarm_event",
         "instance_space": INSTANCE_SPACE,
         "enterprise_space": "dm_dom_industry",
-        "raw_database": "raw_sample_all_pi",
+        "raw_database": "raw_industry_all_sample",
         "raw_table": "alarm_event",
     }
 
     assert HandlerInput.model_validate(data).last_updated_time_gt is None
     with pytest.raises(ValidationError):
         HandlerInput.model_validate({k: v for k, v in data.items() if k != "raw_table"})
+
+
+def test_with_retry_retries_transient_api_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("handler.time.sleep", lambda _seconds: None)
+    calls = {"n": 0}
+
+    def flaky() -> str:
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise CogniteAPIError(message="busy", code=429)
+        return "ok"
+
+    assert with_retry(flaky, label="test") == "ok"
+    assert calls["n"] == 3
+
+
+def test_with_retry_does_not_retry_client_errors() -> None:
+    operation = MagicMock(side_effect=CogniteAPIError(message="bad request", code=400))
+
+    with pytest.raises(CogniteAPIError):
+        with_retry(operation, label="test")
+    assert operation.call_count == 1

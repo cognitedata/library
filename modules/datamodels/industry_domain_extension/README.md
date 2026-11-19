@@ -218,7 +218,8 @@ Map the SP used by `IDP_CLIENT_ID` into the ingestion (`pp`) group. Search UI al
 
 ### Run order
 
-Schedules never fire by default (`0 0 29 2 *`). After deploy, start the workflows from the CDF UI:
+Schedules never fire by default (`0 0 29 2 *`). After deploy, start the workflows from the CDF UI.
+**Cross-module order is mandatory and not enforced by workflow `dependsOn`:**
 
 1. `wf_sap_all_to_industry` **first** (Tags / Equipment must exist)
 2. `wf_pi_all_to_industry` and `wf_sharepoint_all_to_industry` (either order)

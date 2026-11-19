@@ -2,7 +2,7 @@ workflowExternalId: {{ workflow_external_id }}
 version: v1
 workflowDefinition:
   tasks:
-    # Wave 1: RAW → nodes (parallel). Prefer running the SAP dump workflow first so Tag/Equipment exist.
+    # Wave 1: RAW → nodes (parallel). Required: run wf_sap_all_to_industry first (not enforced by dependsOn).
     - externalId: tr_pi_all_to_industry_time_series
       type: transformation
       name: Time series

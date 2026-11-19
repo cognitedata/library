@@ -1,5 +1,5 @@
 # The directory with the function code must have the same name as the externalId below.
-- name: 'pi:all:ingest:alarm_event'
+- name: PI all ingest alarm event
   externalId: '{{ alarm_function_external_id }}'
   owner: 'Cognite'
   description: 'Sample stand-in for a PI alarm extractor: reads RAW alarm_event rows and ingests missing AlarmEvent records into the alarm stream'
