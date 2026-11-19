@@ -1,7 +1,9 @@
 space: "{{ enterprise_space }}"
 externalId: OperatingLimit
 name: Operating limit
-description: Operating limit access view. No CogniteDescribable.
+description: >-
+  Operating limit access view. Maps local name/description/aliases on the
+  enterprise container; does not implement CogniteDescribable.
 version: "{{ dm_enterprise_version }}"
 properties:
   name:
@@ -12,6 +14,24 @@ properties:
       externalId: OperatingLimit
       type: container
     containerPropertyIdentifier: name
+
+  description:
+    name: Description
+    description: "SOURCE_SCAFFOLD: Free-text description of the operating limit. Local property (not CogniteDescribable)."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: description
+
+  aliases:
+    name: Aliases
+    description: "SOURCE_SCAFFOLD: Alternative names for the operating limit. Local property (not CogniteDescribable)."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: aliases
 
   timeSeries:
     name: Time series

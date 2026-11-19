@@ -1,7 +1,9 @@
 space: "{{ search_space }}"
 externalId: SearchOperatingLimit
 name: Operating limit
-description: Search view for OperatingLimit. Maps enterprise container only; no CogniteDescribable.
+description: >-
+  Search view for OperatingLimit. Maps enterprise container
+  name/description/aliases locally; no CogniteDescribable.
 version: "{{ dm_search_version }}"
 properties:
   name:
@@ -12,6 +14,24 @@ properties:
       externalId: OperatingLimit
       type: container
     containerPropertyIdentifier: name
+
+  description:
+    name: Description
+    description: "SOURCE_SCAFFOLD: Free-text description of the operating limit. Local property (not CogniteDescribable)."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: description
+
+  aliases:
+    name: Aliases
+    description: "SOURCE_SCAFFOLD: Alternative names for the operating limit. Local property (not CogniteDescribable)."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: OperatingLimit
+      type: container
+    containerPropertyIdentifier: aliases
 
   timeSeries:
     name: Time series

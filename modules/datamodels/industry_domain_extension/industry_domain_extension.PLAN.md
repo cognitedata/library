@@ -39,7 +39,7 @@ Ship a **small, industry-neutral** reusable domain data model template that work
 | Asset hub | `Tag` implements `cdf_cdm:CogniteAsset` (one asset view per model) |
 | Industry standards | **Excluded** — no CFIHOS, ISA-95/88, RDS or other standard-specific classes or coded properties |
 | CDM/IDM reuse | IDM `status` / `type` / `priority`, CDM `equipmentType`, `category`, `manufacturer`, `serialNumber` instead of custom duplicates |
-| Custom types | Local `name` only — **no** `CogniteDescribable` |
+| Custom types | Local describable fields on own containers — **no** `CogniteDescribable` (`Material`: `name`; `OperatingLimit`: `name` / `description` / `aliases`) |
 | Location | Canonical on `Tag` in enterprise; search reaches it by navigating the asset relation (no copies) |
 | Search `_SOL` | Schema-only data product: views + data model in `{{ search_space }}` mapping enterprise / CDM / IDM containers; **no** containers, transformations, instance writes, or search instance space |
 | Reverse directs | On Search `_SOL` only — **not** on domain views |
@@ -402,7 +402,7 @@ live in `{{ instance_space }}`; their external IDs are the source codes.
 | View / Container | Pattern | Properties |
 |------------------|---------|------------|
 | **Material** | Local `name` text; `usedFor: node`; **no** CDM requires | `name`, `materialType`, `equipment` → Equipment, `asset` → Tag |
-| **OperatingLimit** | Local `name`; operating limits for a measured value | `name`, `timeSeries` → TimeSeriesData, `limitHigh`, `limitLow` (float64), `limitHighConsequence`, `limitLowConsequence`, `limitHighCorrectiveAction`, `limitLowCorrectiveAction` |
+| **OperatingLimit** | Local `name` / `description` / `aliases` (no CogniteDescribable); operating limits for a measured value | `name`, `description`, `aliases` (text list, max 1000), `timeSeries` → TimeSeriesData, `limitHigh`, `limitLow` (float64), `limitHighConsequence`, `limitLowConsequence`, `limitHighCorrectiveAction`, `limitLowCorrectiveAction` |
 
 Domain views: **no** `implements`. Every navigated direct has view `source` + container btree index.
 
@@ -650,7 +650,7 @@ type recognition. **Search UX maps** — also required for this template so Sear
 | SearchWorkOrder | IDM `mainAsset` → `SearchTag`; `status`, `type`, `priority` | `name`, `description` (from IDM/CDM Describable maps) |
 | SearchNotification | IDM `asset` → `SearchTag`; `maintenanceOrder`, `status`, `priority` | `name`, `description` |
 | SearchWorkOrderOperation | IDM `maintenanceOrder` → `SearchWorkOrder`; `status`, `sequence` | `name` when present on the IDM/CDM maps |
-| SearchMaterial / SearchOperatingLimit | Local enterprise containers only (no Describable `implements`) | Local `name` (+ other enterprise props); no CDM Describable map |
+| SearchMaterial / SearchOperatingLimit | Local enterprise containers only (no Describable `implements`) | Local `name` (+ `description`/`aliases` on OperatingLimit); no CDM Describable map |
 
 Search README "do not copy" box: CFIHOS `_search` still `implements` CDM/IDM — that is legacy **[WARN]**; this
 module maps containers only.
@@ -1377,7 +1377,7 @@ transformation creates → `ignoreNullFields: true`; all others `false`.
 | SAP | `tr_sap_all_to_industry_work_order_operation` | `work_order_operation` → WorkOrderOperation | `userStatusCode`→`status`; `operationCounter`→`sequence`; `wctrDiscipline`→`mainDiscipline`; `plannedWork`→`personHours`; `maintenanceOrder_externalId`→`maintenanceOrder`; `mainAsset_externalId`→`mainAsset`/`assets` |
 | SAP | `tr_sap_all_to_industry_notification` | `notification` → Notification | `systemStatusCode`→`status`; `notificationPriorityType`→`priority`; `failureModeCode`, `detectionMethodCode`; `sourceId`; `asset_externalId`→`asset`; `maintenanceOrder_externalId`→`maintenanceOrder` |
 | PI | `tr_pi_all_to_industry_time_series` | `timeseries` → TimeSeriesData | `type`/`isStep` from `isString`/`isStep`; `timeSeriesType` `PI`→`timeSeriesSource: Historian`; `pi_tag`→`historianTagName`; `pi_pointSource`→`historianPointSource`; `engunits`→`sourceUnit`; `asset_externalId`→`assets`; `equipment` via lookup join to `equipment.asset_externalId` |
-| PI | `tr_pi_all_to_industry_operating_limit` | `instrument_equipment` ⋈ `timeseries` → OperatingLimit | rows with `setPointHigh`/`setPointLow`; `limitHigh`/`limitLow`; `timeSeries` = first time series whose `asset_externalId` = instrument `key` |
+| PI | `tr_pi_all_to_industry_operating_limit` | `instrument_equipment` ⋈ `timeseries` → OperatingLimit | rows with `setPointHigh`/`setPointLow`; local `name`/`description`/`aliases` (`name`+`tagNumber`); `limitHigh`/`limitLow`; `timeSeries` = first time series whose `asset_externalId` = instrument `key` |
 | SharePoint | `tr_sharepoint_all_to_industry_file_category` | `file` → `cdf_cdm:CogniteFileCategory` | distinct `documentTypeCode`→externalId and `code` |
 | SharePoint | `tr_sharepoint_all_to_industry_document` | `file` ⋈ `diagram_annotation` → Document | `documentNumber`, `disciplineCode`; `currentRevision`→`revision`; `documentTypeCode`→`category`; `facility`→`site`; `area`, `system`; `name` / `description` from file metadata; `mimeType`; **`isUploaded`** and **`uploadedTime`** populated so the CogniteFile syncer and Search (§6.2) work (same pattern as CFIHOS file load — confirm against the SharePoint file-content manifest); `assets` = distinct union of `asset_externalId` and annotated tags (single owner of `CogniteFile.assets`) |
 | SharePoint | `tr_sharepoint_all_to_industry_diagram_annotation` | `diagram_annotation` → `cdf_cdm:CogniteDiagramAnnotation` edges | Edge, start (document) and end (Tag) in `{{ instance_space }}` |

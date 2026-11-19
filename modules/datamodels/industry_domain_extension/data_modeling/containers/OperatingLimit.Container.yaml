@@ -1,7 +1,10 @@
 space: "{{ enterprise_space }}"
 externalId: OperatingLimit
 name: Operating limit
-description: Operating limits for a measured value. Label-only; no CogniteDescribable.
+description: >-
+  Operating limits for a measured value. Local name/description/aliases on this
+  container (same property names as CogniteDescribable) — no implements/requires
+  of CogniteDescribable, so queries avoid the CDM Describable join.
 usedFor: node
 properties:
   name:
@@ -11,6 +14,26 @@ properties:
     immutable: false
     name: Name
     description: "SOURCE_SCAFFOLD: Display label for the operating limit. Example: High pressure limit."
+
+  description:
+    type: { list: false, collation: ucs_basic, type: text }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Description
+    description: "SOURCE_SCAFFOLD: Free-text description of the operating limit. Local property (not CogniteDescribable)."
+
+  aliases:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+      maxListSize: 1000
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Aliases
+    description: "SOURCE_SCAFFOLD: Alternative names for the operating limit. Local property (not CogniteDescribable)."
 
   timeSeries:
     type:

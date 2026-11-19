@@ -2,6 +2,8 @@ WITH instruments AS (
   SELECT
       cast(`key` AS STRING)                              AS instrument_key
     , nullif(trim(cast(name AS STRING)), '')             AS name
+    , nullif(trim(cast(description AS STRING)), '')      AS description
+    , nullif(trim(cast(tagNumber AS STRING)), '')        AS tag_number
     , cast(nullif(trim(cast(setPointHigh AS STRING)), '') AS DOUBLE) AS limit_high
     , cast(nullif(trim(cast(setPointLow AS STRING)), '') AS DOUBLE)  AS limit_low
   FROM `{{ raw_database_sap }}`.`instrument_equipment`
@@ -19,6 +21,10 @@ WITH instruments AS (
 SELECT
     concat(i.instrument_key, '_limit')                   AS externalId
   , i.name                                               AS name
+  , i.description                                        AS description
+  , array_distinct(
+      filter(array(i.name, i.tag_number), x -> x IS NOT NULL)
+    )                                                    AS aliases
   , i.limit_high                                         AS limitHigh
   , i.limit_low                                          AS limitLow
   , CASE

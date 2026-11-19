@@ -25,7 +25,8 @@ It covers two kinds of PI data:
   - `tr_pi_all_to_industry_time_series` — `timeseries` → `TimeSeriesData`; links each time series to its `Tag` and,
     through a lookup on the SAP `equipment` table, to its `Equipment`.
   - `tr_pi_all_to_industry_operating_limit` — SAP `instrument_equipment` ⋈ `timeseries` → `OperatingLimit`
-    (`<instrument key>_limit`), for instruments with `setPointHigh` / `setPointLow`.
+    (`<instrument key>_limit`), for instruments with `setPointHigh` / `setPointLow`. Sets local `name`,
+    `description`, and `aliases` (`name` + `tagNumber`).
 - `data_modeling/function.Space.yaml` — the code space `function_space` for the Function (code only, never
   instances).
 - `functions/` — `ingest_alarm_event.Function.yaml` and the `fn_pi_all_ingest_alarm_event` handler, which reads

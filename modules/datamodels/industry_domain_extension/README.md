@@ -30,6 +30,15 @@ Industry-neutral enterprise (`_DOM`) data model template for asset-heavy industr
 
 Because the CogniteAsset view is named `Tag`, CogniteDescribable `tags` is exposed as view property `labels` on `Tag` (and on `SearchTag`). Transformations must write `AS labels`, never `AS tags`.
 
+### Label-only custom types — local describable fields
+
+`Material` and `OperatingLimit` do **not** `implements` or `requires` `CogniteDescribable` (avoids the CDM Describable join on those nodes). They keep the same property *names* on their own containers where needed:
+
+- `Material`: local `name`
+- `OperatingLimit`: local `name`, `description`, and `aliases` (list of text, max 1000)
+
+Do not also map those fields from `cdf_cdm:CogniteDescribable` on these views — that would reintroduce the join and dual-source the same concepts.
+
 ### One instance space (no Source schema layer)
 
 This template has no `_SRC` model — transformations write RAW straight into `Industry_DOM`. Nodes, edges and alarm records all live in **one** instance space, `{{ instance_space }}` (default `inst_location`). Every direct, including links from PI or SharePoint data to a Tag, uses that same space.
