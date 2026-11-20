@@ -1,0 +1,16 @@
+{
+	"name": "Work Package Generator",
+	"description": "A tool to easily create, manage, and customize work packages in canvas for team projects.",
+	"externalId": "work-package-generator",
+	"versionTag": "0.1.0",
+	"infra": "appsApi",
+	"deployments": [
+		{
+			"org": "ORG",
+			"project": "PROJECT",
+			"baseUrl": "BASE_URL",
+			"deployClientId": "CLIENT_ID",
+			"deploySecretName": "SECRET_NAME"
+		}
+	]
+}
