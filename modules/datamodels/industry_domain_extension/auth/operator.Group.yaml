@@ -47,6 +47,6 @@ capabilities:
       scope:
         tableScope:
           dbsToTables:
-            {{ raw_database_sap }}: []
-            {{ raw_database_pi }}: []
-            {{ raw_database_sharepoint }}: []
+            {%- for db in [raw_database_sap, raw_database_pi, raw_database_sharepoint] | unique %}
+            "{{ db }}": []
+            {%- endfor %}

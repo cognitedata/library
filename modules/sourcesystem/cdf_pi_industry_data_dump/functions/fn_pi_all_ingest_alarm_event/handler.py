@@ -177,11 +177,18 @@ def plan_ingest(
             invalid += 1
             _log({"event": "invalid_row", "key": raw_row.get("key"), "error": str(error)})
     new_records = filter_missing(records, existing_external_ids)
+    seen: set[str] = set()
+    deduped_records: list[AlarmRecord] = []
+    for record in new_records:
+        if record.external_id in seen:
+            continue
+        seen.add(record.external_id)
+        deduped_records.append(record)
     return IngestPlan(
         read=len(raw_rows),
         invalid=invalid,
-        skipped=len(records) - len(new_records),
-        new_records=new_records,
+        skipped=len(records) - len(deduped_records),
+        new_records=deduped_records,
     )
 
 

@@ -92,6 +92,20 @@ def test_plan_ingest_counts_read_invalid_skipped_and_new() -> None:
     assert [record.external_id for record in plan.new_records] == ["alm_2"]
 
 
+def test_plan_ingest_dedupes_duplicate_external_ids() -> None:
+    """Duplicate RAW keys must not inflate new_records; verify_ingested compares unique ids."""
+    raw_rows = [
+        make_raw_row(key="alm_dup"),
+        make_raw_row(key="alm_keep"),
+        make_raw_row(key="alm_dup"),
+    ]
+
+    plan = plan_ingest(raw_rows, INSTANCE_SPACE, existing_external_ids=set())
+
+    assert (plan.read, plan.invalid, plan.skipped) == (3, 0, 1)
+    assert [record.external_id for record in plan.new_records] == ["alm_dup", "alm_keep"]
+
+
 def test_handler_input_defaults_sync_cursor_and_requires_contract_keys() -> None:
     data = {
         "stream_external_id": "pi_all_alarm_event",
