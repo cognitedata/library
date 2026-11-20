@@ -89,10 +89,9 @@ modules = [
 [packages.contextualization]
 id = "dp:contextualization"
 title = "Contextualization"
-description = "Automate P&ID annotation, file tagging, and entity matching."
+description = "Automate file annotation and entity matching."
 canCherryPick = true
 modules = [
-    "contextualization/cdf_p_and_id_annotation",
     "contextualization/cdf_file_annotation",
     "contextualization/cdf_entity_matching",
 ]
@@ -101,7 +100,7 @@ modules = [
 id = "dp:atlas_ai"
 title = "Atlas AI Deployment Pack"
 description = "AI property extractor: fill structured data model properties from free text with an Atlas AI agent."
-canCherryPick = true
+canCherryPick = false
 modules = [
     "solutions/cdf_ai_extractor",
 ]
@@ -110,7 +109,7 @@ modules = [
 id = "dp:infield"
 title = "Infield"
 description = "Infield location configuration for CDM-backed deployments."
-canCherryPick = true
+canCherryPick = false
 modules = [
     "solutions/cdf_infield/cdf_infield_location",
 ]
@@ -128,21 +127,21 @@ modules = [
     "solutions/cdm_maintain/cdf_sample_data",
 ]
 
-[packages.dashboards]
-id = "dp:dashboards"
-title = "Dashboards"
-description = "Dashboards for data quality and reporting."
+[packages.context_quality]
+id = "dp:context_quality"
+title = "Contextualization Quality Dashboard"
+description = "Measure how well your data is contextualised: a backend that computes the metrics and a dashboard app that shows them."
 canCherryPick = true
 modules = [
     "dashboards/context_quality",
-    "dashboards/context_quality_v2",
+    "tools/apps/context_quality_dashboard",
 ]
 
 [packages.data_quality]
 id = "dp:data_quality"
 title = "Data Quality Validation"
 description = "Data quality validation for Data Products."
-canCherryPick = true
+canCherryPick = false
 modules = [
     "common/cdf_dq_runtime",
 ]
@@ -155,7 +154,6 @@ canCherryPick = true
 modules = [
     "tools/apps/qualitizer",
     "tools/apps/work_package_generator",
-    "tools/apps/context_quality_dashboard",
 ]
 
 [packages.custom]

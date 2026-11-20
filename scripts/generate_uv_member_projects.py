@@ -133,59 +133,7 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "deploy_dependencies": FILE_ANNOTATION_STREAMLIT_DEPLOY,
     },
     {
-        "path": "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation",
-        "name": "fn-dm-context-files-annotation",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": [
-            "cognite-extractor-utils>=7",
-            "cognite-sdk>=7,<8",
-            "pyyaml>=6.0.1",
-            "mixpanel>=4.10.0",
-        ],
-        "deploy_dependencies": [
-            "cognite-extractor-utils>=7",
-            "cognite-sdk == 7.*",
-            "pyyaml >= 6.0.1",
-            "mixpanel>=4.10.0",
-        ],
-        "pytest": True,
-    },
-    {
-        "path": "modules/dashboards/context_quality/functions/context_quality_handler",
-        "name": "context-quality-handler",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": [
-            "cognite-sdk>=7.89.0,<8",
-            "mixpanel>=4.10.0",
-        ],
-        "deploy_dependencies": [
-            "cognite-sdk>=7.89.0,<8",
-            "mixpanel>=4.10.0",
-        ],
-    },
-    {
-        "path": "modules/dashboards/context_quality/streamlit/context_quality_dashboard",
-        "name": "context-quality-dashboard",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": [
-            "pyodide-http>=0.2.1",
-            "cognite-sdk>=7.89.0,<8",
-            "packaging",
-            "plotly",
-            "matplotlib",
-            "fpdf2>=2.7.0",
-        ],
-        "deploy_dependencies": [
-            "pyodide-http>=0.2.1",
-            "cognite-sdk>=7.89.0,<8",
-            "packaging",
-            "plotly",
-            "matplotlib",
-            "fpdf2>=2.7.0",
-        ],
-    },
-    {
-        "path": "modules/dashboards/context_quality_v2/functions/fn_context_quality_metrics",
+        "path": "modules/dashboards/context_quality/functions/fn_context_quality_metrics",
         "name": "fn-context-quality-metrics",
         "requires_python": ">=3.11,<3.14",
         "dependencies": [

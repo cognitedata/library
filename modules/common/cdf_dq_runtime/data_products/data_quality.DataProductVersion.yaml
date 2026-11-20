@@ -53,8 +53,6 @@ quality:
       version: "{{ ruleSetVersion }}"
     - externalId: maintenance_order_shacl_rules
       version: "{{ ruleSetVersion }}"
-    - externalId: maintenance_order_rule_logic_test_shacl_rules
-      version: "{{ ruleSetVersion }}"
     - externalId: notification_shacl_rules
       version: "{{ ruleSetVersion }}"
     - externalId: operation_shacl_rules
