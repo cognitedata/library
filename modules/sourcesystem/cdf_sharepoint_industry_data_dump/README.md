@@ -18,10 +18,11 @@ refer to, writes the diagram annotations as `CogniteDiagramAnnotation` edges and
   `data/` that upload the file content.
 - `transformations/`
   - `tr_sharepoint_all_to_industry_file_category` — distinct `documentTypeCode` → `CogniteFileCategory`.
-  - `tr_sharepoint_all_to_industry_document` — `file` ⋈ `diagram_annotation` → `Document`. Sets `isUploaded` and
-    `uploadedTime` (the issue date) so the file syncer and Search treat the sample PDFs as uploaded. `assets` is the
-    distinct union of the file's own `asset_externalId` and every tag it is annotated with; this transformation is the
-    single owner of `Document.assets`. Sample `currentRevision` values are revision tokens (e.g. `A`).
+  - `tr_sharepoint_all_to_industry_document` — `file` ⋈ `diagram_annotation` → `Document`. Does not set
+    `isUploaded` / `uploadedTime` (system-managed on `CogniteFile`); those are set when sample PDF content is uploaded
+    via `file_content.Manifest.yaml`. `assets` is the distinct union of the file's own `asset_externalId` and every
+    tag it is annotated with; this transformation is the single owner of `Document.assets`. Sample `currentRevision`
+    values are revision tokens (e.g. `A`).
   - `tr_sharepoint_all_to_industry_diagram_annotation` — `diagram_annotation` → `CogniteDiagramAnnotation` edges.
     The edge, the start node (document) and the end node (Tag) all use `inst_location`.
   - `tr_sharepoint_all_to_industry_equipment_document_connection` — **overlay** on existing `Equipment` nodes

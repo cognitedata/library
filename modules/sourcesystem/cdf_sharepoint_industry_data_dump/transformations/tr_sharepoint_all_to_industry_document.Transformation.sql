@@ -14,10 +14,6 @@ WITH source AS (
     , nullif(trim(cast(asset_externalId AS STRING)), '')          AS asset_key
     , nullif(trim(cast(sourceId AS STRING)), '')                  AS source_id
     , nullif(trim(cast(source AS STRING)), '')                    AS source_context
-    , CASE
-        WHEN nullif(trim(cast(issueDate AS STRING)), '') IS NULL THEN NULL
-        ELSE to_timestamp(cast(issueDate AS STRING), 'M/d/yyyy')
-      END                                                         AS issue_date
   FROM `{{ raw_database_sharepoint }}`.`file`
   WHERE nullif(trim(cast(name AS STRING)), '') IS NOT NULL
 )
@@ -61,8 +57,6 @@ SELECT
   , s.mime_type                                          AS mimeType
   , array('ToAnnotate', 'DetectInDiagrams')              AS tags
   , array(regexp_replace(s.name, '(?i)\\.pdf$', ''))     AS aliases
-  , true                                                 AS isUploaded
-  , s.issue_date                                         AS uploadedTime
   , d.assets                                             AS assets
   , s.source_id                                          AS sourceId
   , s.source_context                                     AS sourceContext

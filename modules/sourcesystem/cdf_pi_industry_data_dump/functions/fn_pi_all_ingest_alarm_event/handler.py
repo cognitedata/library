@@ -12,7 +12,7 @@ import logging
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Literal, TypeVar
 
 from cognite.client import CogniteClient
 from cognite.client.exceptions import CogniteAPIError
@@ -28,6 +28,8 @@ FILTER_LIMIT = 1000
 INGEST_BATCH_SIZE = 1000
 RETRY_ATTEMPTS = 3
 RETRY_BASE_DELAY_S = 1.0
+
+T = TypeVar("T")
 
 
 class HandlerInput(BaseModel):
@@ -102,7 +104,7 @@ def _is_transient(error: CogniteAPIError) -> bool:
     return code in (408, 429) or (isinstance(code, int) and code >= 500)
 
 
-def with_retry[T](operation: Callable[[], T], *, label: str) -> T:
+def with_retry(operation: Callable[[], T], *, label: str) -> T:
     """Retry transient Cognite API failures (408/429/5xx) with linear backoff."""
     for attempt in range(1, RETRY_ATTEMPTS + 1):
         try:
