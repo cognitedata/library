@@ -10,6 +10,7 @@ dataset_external_id: ds_industry_all
 
 # RAW databases (shared industry test dump; SAP owned by cdf_sap_industry_data_dump)
 raw_database_sharepoint: db_industry_sample
+raw_database_sap: db_industry_sample
 
 # Transformation / workflow runtime identity
 ingestion_client_id: ${IDP_CLIENT_ID}
