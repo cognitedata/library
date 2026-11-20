@@ -101,7 +101,9 @@ def load_spec(path: Path) -> dict[str, Any]:
 
 - **Group imports**: Standard library, third-party, local application
 - **Absolute imports**: Always use absolute imports for clarity
-- **Sort alphabetically** within groups
+- **Sort alphabetically** within groups, following ruff's isort order (the `I` rule in `pyproject.toml`): plain
+  `import x` statements come before `from x import y` statements, each sorted by module name. Do not reorder imports
+  to interleave the two; `ruff check` flags that as `I001`.
 - **Type checking imports**: Use `TYPE_CHECKING` for type-only imports
 
 ## Naming Conventions

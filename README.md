@@ -13,13 +13,13 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 | Folder | Purpose |
 |--------|---------|
 | [`common/`](modules/common/) | Shared CDF platform modules (`cdf_common`, `cdf_ingestion`, `cdf_project_foundation`, `cdf_search`) |
-| [`contextualization/`](modules/contextualization/) | File annotation, entity matching, P&ID annotation |
+| [`contextualization/`](modules/contextualization/) | File annotation, entity matching |
 | [`datamodels/`](modules/datamodels/) | Industry and extension data models (`rmdm`, ISA, CFIHOS, …) |
 | [`solutions/`](modules/solutions/) | Product verticals (`cdm_maintain`, `cdf_infield`, `cdf_ai_extractor`) |
 | [`sourcesystem/`](modules/sourcesystem/) | Extraction pipeline configs (PI, OPC-UA, SAP, database, files) and synthetic data dumps |
-| [`dashboards/`](modules/dashboards/) | Streamlit dashboards and reporting |
+| [`dashboards/`](modules/dashboards/) | Contextualization Quality Dashboard backend (`context_quality`) |
 | [`common/cdf_dq_runtime/`](modules/common/cdf_dq_runtime/) | SHACL data-quality validation (`cdf_dq_runtime`) |
-| [`tools/`](modules/tools/) | Qualitizer |
+| [`tools/`](modules/tools/) | Qualitizer and the Contextualization Quality Dashboard app (`context_quality_dashboard`) |
 | [`custom/`](modules/custom/) | Empty module template |
 
 [`scripts/`](scripts/) — contributor tooling for the uv workspace and CDF deploy `requirements.txt` generation ([scripts/README.md](scripts/README.md)).

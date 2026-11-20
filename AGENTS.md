@@ -108,7 +108,7 @@ uv lock
 python scripts/export_deploy_requirements.py
 
 # Run a function's tests
-uv run pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/ -q
+uv run pytest modules/dashboards/context_quality/functions/fn_context_quality_metrics/ -q
 ```
 
 When you add a new CDF Function with Python deps: add a `pyproject.toml` in the function
