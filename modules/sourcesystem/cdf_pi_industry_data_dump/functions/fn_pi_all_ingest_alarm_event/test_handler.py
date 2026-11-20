@@ -1,13 +1,15 @@
 """Unit tests for the alarm event ingest handler. No network access."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
 from cognite.client.exceptions import CogniteAPIError
 from handler import (
-    DEFAULT_LAST_UPDATED_TIME_GT,
+    MAX_FILTER_INTERVAL,
     AlarmRow,
     HandlerInput,
+    default_last_updated_time_gt,
     filter_missing,
     plan_ingest,
     row_to_record,
@@ -93,8 +95,11 @@ def test_plan_ingest_counts_read_invalid_skipped_and_new() -> None:
     assert [record.external_id for record in plan.new_records] == ["ALM-2"]
 
 
-def test_default_last_updated_time_gt_is_epoch() -> None:
-    assert DEFAULT_LAST_UPDATED_TIME_GT == "1970-01-01T00:00:00.000Z"
+def test_default_last_updated_time_gt_is_within_max_filter_interval() -> None:
+    now = datetime(2026, 11, 20, 10, 0, 0, tzinfo=UTC)
+
+    assert default_last_updated_time_gt(now=now) == "2026-11-13T10:00:00.000Z"
+    assert MAX_FILTER_INTERVAL.days == 7
 
 
 def test_handler_input_requires_contract_keys_and_optional_lower_bound() -> None:

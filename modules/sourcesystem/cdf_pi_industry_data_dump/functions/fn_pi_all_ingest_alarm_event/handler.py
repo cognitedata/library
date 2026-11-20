@@ -11,7 +11,7 @@ That keeps the mapping and duplicate-filter logic importable (and unit-testable)
 import logging
 import time
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal, TypeVar
 
 from cognite.client import CogniteClient
@@ -21,8 +21,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 log = logging.getLogger(__name__)
 
 ALARM_CONTAINER_EXTERNAL_ID = "AlarmEvent"
-# Immutable streams require a lastUpdatedTime lower bound; epoch keeps sample re-runs idempotent.
-DEFAULT_LAST_UPDATED_TIME_GT = "1970-01-01T00:00:00.000Z"
+# ImmutableTestStream maxFilteringInterval is 7d; wider lastUpdatedTime windows are rejected (400).
+MAX_FILTER_INTERVAL = timedelta(days=7)
 # Records filter returns a single page of up to 1000 rows; no SDK pagination.
 FILTER_LIMIT = 1000
 INGEST_BATCH_SIZE = 1000
@@ -30,6 +30,22 @@ RETRY_ATTEMPTS = 3
 RETRY_BASE_DELAY_S = 1.0
 
 T = TypeVar("T")
+
+
+def default_last_updated_time_gt(*, now: datetime | None = None) -> str:
+    """ISO-8601 lower bound within the stream's maxFilteringInterval.
+
+    Args:
+        now: Reference time (UTC). Defaults to the current time.
+
+    Returns:
+        ``now - MAX_FILTER_INTERVAL`` formatted for ``TimeRange(gt=...)``.
+    """
+    reference = now if now is not None else datetime.now(UTC)
+    if reference.tzinfo is None:
+        reference = reference.replace(tzinfo=UTC)
+    lower = reference.astimezone(UTC) - MAX_FILTER_INTERVAL
+    return lower.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
 class HandlerInput(BaseModel):
@@ -104,7 +120,7 @@ def _is_transient(error: CogniteAPIError) -> bool:
     return code in (408, 429) or (isinstance(code, int) and code >= 500)
 
 
-def with_retry(operation: Callable[[], T], *, label: str) -> T:
+def with_retry(operation: Callable[[], T], *, label: str) -> T:  # noqa: UP047 - CDF runtime is py311
     """Retry transient Cognite API failures (408/429/5xx) with linear backoff."""
     for attempt in range(1, RETRY_ATTEMPTS + 1):
         try:
@@ -250,7 +266,8 @@ def handle(data: dict, client: CogniteClient) -> dict[str, int | str]:
 
     Args:
         data: Contract with ``stream_external_id``, ``instance_space``, ``enterprise_space``,
-            ``raw_database``, ``raw_table`` and optional ``last_updated_time_gt`` (ISO-8601).
+            ``raw_database``, ``raw_table`` and optional ``last_updated_time_gt`` (ISO-8601,
+            must stay within the stream ``maxFilteringInterval``, 7d for ImmutableTestStream).
         client: Injected client; its session carries the credentials.
 
     Returns:
@@ -258,7 +275,7 @@ def handle(data: dict, client: CogniteClient) -> dict[str, int | str]:
     """
     logging.basicConfig(level=logging.INFO)
     params = HandlerInput.model_validate(data)
-    last_updated_time_gt = params.last_updated_time_gt or DEFAULT_LAST_UPDATED_TIME_GT
+    last_updated_time_gt = params.last_updated_time_gt or default_last_updated_time_gt()
 
     raw_rows = read_raw_rows(client, params.raw_database, params.raw_table)
     existing = fetch_existing_external_ids(client, params, last_updated_time_gt)

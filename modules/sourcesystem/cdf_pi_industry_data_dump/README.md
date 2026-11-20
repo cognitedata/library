@@ -44,7 +44,7 @@ Transformations are full loads with `upsert`; this is a sample-data choice. For 
 | `enterprise_space` | yes | Space of the `AlarmEvent` container — `dm_dom_industry` |
 | `raw_database` | yes | `db_industry_sample` |
 | `raw_table` | yes | `alarm_event` |
-| `last_updated_time_gt` | no | ISO-8601 lower bound for the duplicate check (required by immutable streams); defaults to epoch so sample re-runs stay idempotent. Filter API returns at most 1000 records (no pagination). |
+| `last_updated_time_gt` | no | ISO-8601 lower bound for the duplicate check (required by immutable streams). Defaults to now minus 7 days (`ImmutableTestStream` `maxFilteringInterval`). Wider windows are rejected by the API. Filter returns at most 1000 records (no pagination). |
 
 The Function returns `read`, `invalid`, `skipped` (already in the stream) and `ingested`. It carries no secrets; the
 injected client holds the credentials. Rows are mapped to the `AlarmEvent` record container. `asset`,
