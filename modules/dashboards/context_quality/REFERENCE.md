@@ -218,7 +218,7 @@ default cannot be offered without making the line mandatory for every project.
 cdf modules add .
 ```
 
-Select **Dashboards** → **Contextualization Quality Dashboard — Records & Streams Backend**. Then:
+Select **Contextualization Quality Dashboard** > **Contextualization Quality Dashboard Backend**. Then:
 
 ```bash
 cdf build
