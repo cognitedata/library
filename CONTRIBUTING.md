@@ -7,6 +7,19 @@ Python coding conventions, test-driven development, and commit message rules are
 [.gemini/styleguide.md](.gemini/styleguide.md). The folder layout is in [modules/README.md](modules/README.md), and
 naming conventions are in the [root README](README.md#naming-conventions).
 
+### Using AI coding agents
+
+If you use an AI agent (Claude Code, Cursor, Copilot, …), it follows
+[.claude/skills/ai-agent-coding-workflow/SKILL.md](.claude/skills/ai-agent-coding-workflow/SKILL.md). Key points for contributors:
+
+- Approve the agent's **plan** before it writes code.
+- Branches are named after the Jira ticket (`AT-123`); split work uses stacked `AT-123-part-N` branches, each with
+  its own PR targeting its parent. PR titles start with the ticket: `[AT-123] feat(scope): description`.
+- The agent stages changes only. **You** review the diff, commit, push, and merge, and you are accountable for it.
+- SQL transformations and business logic always need your review.
+
+For AI-assisted work this ticket-based branch naming takes precedence over the `feat/`/`fix/` examples below.
+
 ## Prerequisites
 
 - Python 3.13+ and [uv](https://docs.astral.sh/uv/) (`uv sync --group dev` installs the dev tools).
