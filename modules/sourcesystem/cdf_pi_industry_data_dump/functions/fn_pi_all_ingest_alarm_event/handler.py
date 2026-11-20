@@ -319,7 +319,7 @@ def ingest_records(client: CogniteClient, params: HandlerInput, records: list[Al
     return len(records)
 
 
-def handle(data: dict, client: CogniteClient) -> dict[str, int | str | None]:
+def handle(data: dict[str, object], client: CogniteClient) -> dict[str, int | str | None]:
     """CDF Function entry point.
 
     Args:
