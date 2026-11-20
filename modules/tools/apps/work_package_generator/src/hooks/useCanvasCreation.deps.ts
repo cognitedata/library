@@ -1,4 +1,5 @@
 import {
+	consumeCanvasCleanupIncomplete,
 	createCanvasFromTemplateAndSelections,
 	generateCanvasLink,
 	updateCanvasFromTemplateAndSelections,
@@ -17,6 +18,7 @@ function readAncestorOrigins(): string[] {
 }
 
 export const defaultCanvasCreationDeps = {
+	consumeCanvasCleanupIncomplete,
 	createCanvasFromTemplateAndSelections,
 	updateCanvasFromTemplateAndSelections,
 	generateCanvasLink,

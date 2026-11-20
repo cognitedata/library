@@ -285,6 +285,33 @@ describe("retrieve-data/template-canvases", () => {
 			expect(result[0].width).toBe(DEFAULT_CANVAS_DIMENSIONS.width);
 		});
 
+		it("C10: exposes the bare item uuid as itemId alongside the node externalId", async () => {
+			query.mockResolvedValueOnce({
+				items: {
+					nodes: [
+						makeNode(
+							"tmpl_itemA",
+							"s",
+							CANVAS_INSTANCE_VIEW_ID.space,
+							instanceKey,
+							{ id: "itemA", label: "A" }
+						),
+						makeNode(
+							"tmpl_itemB",
+							"s",
+							CANVAS_INSTANCE_VIEW_ID.space,
+							instanceKey,
+							{ label: "B" }
+						),
+					],
+				},
+			});
+			const result = await getTemplateCanvasInstances(client, "tmpl");
+			expect(result[0].id).toBe("tmpl_itemA");
+			expect(result[0].itemId).toBe("itemA");
+			expect(result[1].itemId).toBeUndefined();
+		});
+
 		it("N13: throws when the instance read fails", async () => {
 			query.mockRejectedValueOnce(new Error("fail"));
 			await expect(getTemplateCanvasInstances(client, "t")).rejects.toThrow(
@@ -324,6 +351,33 @@ describe("retrieve-data/template-canvases", () => {
 			expect(result[0].type).toBe("note");
 			expect(result[0].id).toBe("a1");
 			expect(result[0].containerId).toBe("shape-1");
+		});
+
+		it("C10: exposes the bare annotation uuid as itemId", async () => {
+			query.mockResolvedValueOnce({
+				items: {
+					nodes: [
+						makeNode(
+							"tmpl_ann1",
+							"s",
+							CANVAS_ANNOTATION_VIEW_ID.space,
+							annotationKey,
+							{ id: "ann1", annotationType: "note" }
+						),
+						makeNode(
+							"tmpl_ann2",
+							"s",
+							CANVAS_ANNOTATION_VIEW_ID.space,
+							annotationKey,
+							{ annotationType: "note" }
+						),
+					],
+				},
+			});
+			const result = await getTemplateCanvasAnnotations(client, "tmpl");
+			expect(result[0].id).toBe("tmpl_ann1");
+			expect(result[0].itemId).toBe("ann1");
+			expect(result[1].itemId).toBeUndefined();
 		});
 
 		it("C20: throws when the annotation read fails", async () => {

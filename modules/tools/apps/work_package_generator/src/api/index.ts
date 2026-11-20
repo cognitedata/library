@@ -10,6 +10,7 @@ export {
 } from "./ai-agent";
 // Canvas builder
 export {
+	consumeCanvasCleanupIncomplete,
 	createCanvasFromTemplateAndSelections,
 	extractClusterFromUrl,
 	generateCanvasLink,

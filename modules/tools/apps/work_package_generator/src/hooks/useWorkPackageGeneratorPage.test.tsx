@@ -625,6 +625,7 @@ describe("useWorkPackageGeneratorPage", () => {
 						canvasId: "c",
 					},
 					isUpdate: false,
+					cleanupIncomplete: false,
 				},
 			})
 		);

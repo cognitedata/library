@@ -35,12 +35,16 @@ describe("WorkOrderResultsTable", () => {
 
 	it("renders rows and selects on click", () => {
 		const onSelect = vi.fn();
+		const config = createMockAppConfig();
+		config.viewCapabilities = { hasStatus: true, hasPriority: true };
 		render(
-			<WorkOrderResultsTable
-				rows={rows}
-				isConfirming={false}
-				onSelect={onSelect}
-			/>
+			<AppConfigProvider value={config}>
+				<WorkOrderResultsTable
+					rows={rows}
+					isConfirming={false}
+					onSelect={onSelect}
+				/>
+			</AppConfigProvider>
 		);
 		expect(screen.getByText("wo-1")).toBeInTheDocument();
 		expect(screen.getByText("Pump WO")).toBeInTheDocument();

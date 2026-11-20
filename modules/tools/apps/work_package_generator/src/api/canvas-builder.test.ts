@@ -31,12 +31,14 @@ const tmpl = {
 
 import {
 	buildCanvasItemsFromTemplate,
+	consumeCanvasCleanupIncomplete,
 	createCanvasFromItems,
 	createCanvasFromTemplateAndSelections,
 	extractClusterFromUrl,
 	generateCanvasLink,
 	updateCanvasFromTemplateAndSelections,
 } from "./canvas-builder";
+import { resolveApiRuntime } from "./runtime-deps";
 
 const getTemplateCanvasInstances = vi.fn();
 const getTemplateCanvasAnnotations = vi.fn();
@@ -525,7 +527,8 @@ describe("createCanvasFromTemplateAndSelections / updateCanvasFromTemplateAndSel
 		vi.mocked(generateUuid).mockImplementation(() => `id-${nextId++}`);
 		getTemplateCanvasInstances.mockResolvedValue([
 			{
-				id: "old-asset",
+				id: "tmpl_old-asset",
+				itemId: "old-asset",
 				label: "Main asset",
 				viewExternalId: "CogniteAsset",
 				viewSpace: "cdf_cdm",
@@ -533,7 +536,8 @@ describe("createCanvasFromTemplateAndSelections / updateCanvasFromTemplateAndSel
 				...tmpl,
 			},
 			{
-				id: "old-diagram",
+				id: "tmpl_old-diagram",
+				itemId: "old-diagram",
 				label: "Diagram",
 				viewExternalId: "NotAResource",
 				viewSpace: "cdf_cdm",
@@ -541,7 +545,8 @@ describe("createCanvasFromTemplateAndSelections / updateCanvasFromTemplateAndSel
 				...tmpl,
 			},
 			{
-				id: "old-file",
+				id: "tmpl_old-file",
+				itemId: "old-file",
 				label: "P&ID",
 				viewExternalId: "CogniteFile",
 				viewSpace: "cdf_cdm",
@@ -1035,7 +1040,7 @@ describe("updateCanvasFromTemplateAndSelections", () => {
 		expect(deletedIds).not.toContain("existing-id_old");
 	});
 
-	it("C09: rolls back new items and throws when deleting previous children fails", async () => {
+	it("C09: retries deleting previous children once and reports clean when the retry succeeds", async () => {
 		getTemplateCanvasInstances.mockResolvedValue([
 			{
 				label: "Main asset",
@@ -1090,19 +1095,17 @@ describe("updateCanvasFromTemplateAndSelections", () => {
 				undefined,
 				templateReads
 			)
-		).rejects.toThrow(/old child delete failed/);
+		).resolves.toBe("existing-id");
 
-		const rollbackIds = deleteFn.mock.calls.slice(1).flatMap((call) => {
-			const batch = call[0] as Array<{ externalId: string }>;
-			return batch.map((item) => item.externalId);
-		});
-		expect(rollbackIds).toContain("existing-id_uuid-fixed");
-		expect(rollbackIds).toContain("existing-id_existing-id_uuid-fixed");
-		expect(rollbackIds).not.toContain("existing-id_old");
-		expect(canvasRootProperties(upsert)).toBeUndefined();
+		const deletedIds = deleteFn.mock.calls.map((call) =>
+			(call[0] as Array<{ externalId: string }>).map((item) => item.externalId)
+		);
+		expect(deletedIds).toEqual([["existing-id_old"], ["existing-id_old"]]);
+		expect(canvasRootProperties(upsert)).toBeDefined();
+		expect(consumeCanvasCleanupIncomplete("existing-id")).toBe(false);
 	});
 
-	it("C09: reports both errors when deleting previous children and rolling back new items both fail", async () => {
+	it("C09: keeps the new items and flags incomplete cleanup when deleting previous children fails twice", async () => {
 		getTemplateCanvasInstances.mockResolvedValue([
 			{
 				label: "Main asset",
@@ -1117,8 +1120,7 @@ describe("updateCanvasFromTemplateAndSelections", () => {
 		const upsert = vi.fn().mockResolvedValue(undefined);
 		const deleteFn = vi
 			.fn()
-			.mockRejectedValueOnce(new Error("old child delete failed"))
-			.mockRejectedValueOnce(new Error("rollback failed"));
+			.mockRejectedValue(new Error("old child delete failed"));
 		const query = vi.fn().mockResolvedValue({
 			items: {
 				nodes: [
@@ -1157,7 +1159,18 @@ describe("updateCanvasFromTemplateAndSelections", () => {
 				undefined,
 				templateReads
 			)
-		).rejects.toThrow(/old child delete failed[\s\S]*rollback failed/);
+		).resolves.toBe("existing-id");
+
+		const deletedIds = deleteFn.mock.calls.flatMap((call) =>
+			(call[0] as Array<{ externalId: string }>).map((item) => item.externalId)
+		);
+		expect(deletedIds).toEqual(["existing-id_old", "existing-id_old"]);
+		expect(resolveApiRuntime().logError).toHaveBeenCalledWith(
+			expect.objectContaining({ scope: "canvas-builder" })
+		);
+		expect(canvasRootProperties(upsert)).toBeDefined();
+		expect(consumeCanvasCleanupIncomplete("existing-id")).toBe(true);
+		expect(consumeCanvasCleanupIncomplete("existing-id")).toBe(false);
 	});
 
 	it("C09: keeps the new items if the final root upsert fails after old children are deleted", async () => {

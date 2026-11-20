@@ -15,11 +15,25 @@ describe("extractWorkOrderContext", () => {
 			externalId: "e",
 			space: "s",
 			name: "WO",
-			status: "open",
+			category: "Corrective",
 		};
 		const ctx = extractWorkOrderContext(wo);
 		expect(ctx.name).toBe("WO");
-		expect(ctx.status).toBe("open");
+		expect(ctx.category).toBe("Corrective");
+	});
+
+	it("C34c: reads configured properties from contextProperties", () => {
+		const wo: WorkOrder = {
+			externalId: "e",
+			space: "s",
+			name: "Mapped",
+			contextProperties: { name: "Raw", criticality: "High", requester: "Sam" },
+		};
+		expect(extractWorkOrderContext(wo)).toMatchObject({
+			name: "Mapped",
+			criticality: "High",
+			requester: "Sam",
+		});
 	});
 });
 
@@ -36,6 +50,24 @@ describe("extractAssetContext", () => {
 		};
 		const ctx = extractAssetContext(asset);
 		expect(ctx.name).toBe("AN");
+	});
+
+	it("C34c: reads configured properties from contextProperties", () => {
+		const asset: Asset = {
+			assetExternalId: "a",
+			space: "s",
+			assetName: "Pump",
+			contextProperties: {
+				name: "Raw",
+				manufacturer: "Acme",
+				location: "Hall",
+			},
+		};
+		expect(extractAssetContext(asset)).toMatchObject({
+			name: "Pump",
+			manufacturer: "Acme",
+			location: "Hall",
+		});
 	});
 
 	it("uses name when no assetName", () => {

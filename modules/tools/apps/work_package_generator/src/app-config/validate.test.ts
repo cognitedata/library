@@ -141,16 +141,19 @@ describe(parseConfigNode.name, () => {
 	});
 
 	it("N04: sets status and priority only when those property names are on the work-order list", () => {
-		const present = parseConfigNode(rawConfig);
+		const withBoth = structuredClone(rawConfig);
+		withBoth.context.workOrder.properties = [
+			...withBoth.context.workOrder.properties,
+			"status",
+			"priority",
+		];
+		const present = parseConfigNode(withBoth);
 		expect(present.viewCapabilities).toEqual({
 			hasStatus: true,
 			hasPriority: true,
 		});
 
 		const raw = structuredClone(rawConfig);
-		raw.context.workOrder.properties = raw.context.workOrder.properties.filter(
-			(name) => name !== "status" && name !== "priority"
-		);
 		const missing = parseConfigNode(raw);
 		expect(missing.viewCapabilities).toEqual({
 			hasStatus: false,
@@ -160,9 +163,10 @@ describe(parseConfigNode.name, () => {
 
 	it("N04: warns when status or priority options do nothing", () => {
 		const raw = structuredClone(rawConfig);
-		raw.context.workOrder.properties = raw.context.workOrder.properties.filter(
-			(name) => name !== "priority"
-		);
+		raw.context.workOrder.properties = [
+			...raw.context.workOrder.properties,
+			"status",
+		];
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const parsed = parseConfigNode(raw);
 		expect(parsed.viewCapabilities.hasPriority).toBe(false);

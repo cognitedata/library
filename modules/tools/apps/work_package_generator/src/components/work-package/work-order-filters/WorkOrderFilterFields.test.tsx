@@ -18,6 +18,16 @@ function Harness({ initial = {} }: { initial?: WorkOrderFilters }) {
 	);
 }
 
+function renderWithStatusAndPriority() {
+	const config = createMockAppConfig();
+	config.viewCapabilities = { hasStatus: true, hasPriority: true };
+	return render(
+		<AppConfigProvider value={config}>
+			<Harness />
+		</AppConfigProvider>
+	);
+}
+
 describe("WorkOrderFilterFields", () => {
 	it("sets and clears scheduled dates", () => {
 		render(<Harness />);
@@ -43,7 +53,7 @@ describe("WorkOrderFilterFields", () => {
 
 	it("sets and clears status and priority", async () => {
 		const user = userEvent.setup();
-		render(<Harness />);
+		renderWithStatusAndPriority();
 
 		const [status, priority] = screen.getAllByRole("combobox");
 		await user.click(status);
@@ -75,8 +85,14 @@ describe("WorkOrderFilterFields", () => {
 		expect(screen.queryByRole("combobox", { name: "Priority" })).toBeNull();
 	});
 
-	it("C27 labels the status and priority selects", () => {
+	it("N04 hides Status and Priority with the shipped default config", () => {
 		render(<Harness />);
+		expect(screen.queryByRole("combobox", { name: "Status" })).toBeNull();
+		expect(screen.queryByRole("combobox", { name: "Priority" })).toBeNull();
+	});
+
+	it("C27 labels the status and priority selects", () => {
+		renderWithStatusAndPriority();
 		expect(
 			screen.getByRole("combobox", { name: "Status" })
 		).toBeInTheDocument();

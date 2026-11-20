@@ -8,6 +8,7 @@ import {
 } from "@/__mocks__/app-config";
 import { cdfClientTestDouble } from "@/__mocks__/cdf-client-test-double";
 import { installInlineApiRuntime } from "@/__mocks__/inline-api-runtime";
+import { extractAssetContext, extractWorkOrderContext } from "@/utils";
 import {
 	buildFilterClauses,
 	findWorkOrder,
@@ -202,6 +203,36 @@ describe("retrieve-data/work-orders", () => {
 			});
 		});
 
+		it("C34c: keeps configured work-order context properties for AI prompts", async () => {
+			query.mockResolvedValueOnce({
+				items: {
+					nodes: [
+						activityNode("wo-ctx", {
+							criticality: "High",
+							category: "Corrective",
+							requester: "Sam",
+							estimatedDuration: 4,
+							notConfigured: "dropped",
+						}),
+					],
+				},
+			});
+			const { items } = await listRecentWorkOrders(client);
+			expect(items[0].contextProperties).toEqual({
+				name: "WO",
+				criticality: "High",
+				category: "Corrective",
+				requester: "Sam",
+				estimatedDuration: 4,
+			});
+			expect(extractWorkOrderContext(items[0])).toMatchObject({
+				criticality: "High",
+				category: "Corrective",
+				requester: "Sam",
+				estimatedDuration: "4",
+			});
+		});
+
 		it("ands hasData with a single status filter", async () => {
 			query.mockResolvedValueOnce({ items: { nodes: [] } });
 			await listRecentWorkOrders(client, { status: "open" });
@@ -363,6 +394,53 @@ describe("retrieve-data/work-orders", () => {
 			await expect(
 				getAssetForWorkOrder(client, { externalId: "wo", space: "s" })
 			).resolves.toMatchObject({ assetExternalId: "a1", assetName: "First" });
+		});
+
+		it("C34c: keeps configured asset context properties for AI prompts", async () => {
+			retrieve
+				.mockResolvedValueOnce({
+					items: [
+						activityNode("wo", { assets: [{ externalId: "a1", space: "s" }] }),
+					],
+				})
+				.mockResolvedValueOnce({
+					items: [
+						{
+							externalId: "a1",
+							space: "s",
+							properties: {
+								[ASSET_VIEW_ID.space]: {
+									[assetKey]: {
+										name: "Pump",
+										criticality: "A",
+										manufacturer: "Acme",
+										serialNumber: "SN-1",
+										location: "Hall 2",
+										notConfigured: "dropped",
+									},
+								},
+							},
+						},
+					],
+				});
+			const asset = await getAssetForWorkOrder(client, {
+				externalId: "wo",
+				space: "s",
+			});
+			expect(asset?.contextProperties).toEqual({
+				name: "Pump",
+				criticality: "A",
+				manufacturer: "Acme",
+				serialNumber: "SN-1",
+				location: "Hall 2",
+			});
+			expect(extractAssetContext(asset ?? undefined)).toMatchObject({
+				name: "Pump",
+				criticality: "A",
+				manufacturer: "Acme",
+				serialNumber: "SN-1",
+				location: "Hall 2",
+			});
 		});
 
 		it("C13 reads the asset link property from workOrderProperties", async () => {

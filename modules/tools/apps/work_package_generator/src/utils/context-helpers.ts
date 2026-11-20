@@ -53,6 +53,27 @@ function extractContextFromProps(
 }
 
 /**
+ * Merge `contextProperties` (raw configured DMS properties) under the defined
+ * top-level fields, so mapped values win and raw fixtures still work.
+ */
+function withContextProperties(
+	props: Record<string, unknown>
+): Record<string, unknown> {
+	const { contextProperties } = props;
+	if (
+		!contextProperties ||
+		typeof contextProperties !== "object" ||
+		Array.isArray(contextProperties)
+	) {
+		return props;
+	}
+	const defined = Object.fromEntries(
+		Object.entries(props).filter(([, value]) => value !== undefined)
+	);
+	return { ...(contextProperties as Record<string, unknown>), ...defined };
+}
+
+/**
  * Extract work order context from instance
  */
 export function extractWorkOrderContext(
@@ -61,7 +82,7 @@ export function extractWorkOrderContext(
 ): Record<string, string> {
 	if (!workOrder) return {};
 
-	const props = workOrder as Record<string, unknown>;
+	const props = withContextProperties(workOrder as Record<string, unknown>);
 	const contextConfig = getContextConfigs(config).workOrder;
 	return extractContextFromProps(props, contextConfig.properties);
 }
@@ -75,7 +96,7 @@ export function extractAssetContext(
 ): Record<string, string> {
 	if (!asset) return {};
 
-	const props = asset as Record<string, unknown>;
+	const props = withContextProperties(asset as Record<string, unknown>);
 	const context: Record<string, string> = {};
 
 	// Handle both Asset interface and raw properties
@@ -87,5 +108,5 @@ export function extractAssetContext(
 
 	const contextConfig = getContextConfigs(config).asset;
 	const extracted = extractContextFromProps(props, contextConfig.properties);
-	return { ...context, ...extracted };
+	return { ...extracted, ...context };
 }

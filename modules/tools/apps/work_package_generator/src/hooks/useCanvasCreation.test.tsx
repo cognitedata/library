@@ -22,6 +22,7 @@ import {
 const mockCreate = vi.fn();
 const mockUpdate = vi.fn();
 const mockLink = vi.fn();
+const mockConsumeCleanup = vi.fn();
 
 const cdfRuntime: CdfRuntimeContextValue = {
 	client: createStubCdfClient({
@@ -40,6 +41,7 @@ function makeWrapper() {
 		},
 	});
 	const deps: UseCanvasCreationContextType = {
+		consumeCanvasCleanupIncomplete: mockConsumeCleanup,
 		createCanvasFromTemplateAndSelections: mockCreate,
 		updateCanvasFromTemplateAndSelections: mockUpdate,
 		generateCanvasLink: mockLink,
@@ -85,6 +87,7 @@ describe("useCanvasCreation", () => {
 		mockCreate.mockResolvedValue("new-canvas");
 		mockUpdate.mockResolvedValue("existing");
 		mockLink.mockReturnValue("https://link");
+		mockConsumeCleanup.mockReturnValue(false);
 		useWorkPackageStore.setState({
 			workOrder: { externalId: "w", space: "s" },
 			asset: { assetExternalId: "a", space: "s" },
@@ -179,6 +182,7 @@ describe("useCanvasCreation", () => {
 			defaultOptions: { mutations: { retry: false } },
 		});
 		const deps: UseCanvasCreationContextType = {
+			consumeCanvasCleanupIncomplete: mockConsumeCleanup,
 			createCanvasFromTemplateAndSelections: mockCreate,
 			updateCanvasFromTemplateAndSelections: mockUpdate,
 			generateCanvasLink: mockLink,
@@ -206,6 +210,21 @@ describe("useCanvasCreation", () => {
 				result.current.mutateAsync({ canvasName: "N" })
 			).rejects.toThrow(/client/i);
 		});
+	});
+
+	it("C09: flags an update whose old-child cleanup was incomplete", async () => {
+		mockConsumeCleanup.mockReturnValue(true);
+		const { result } = renderHook(() => useCanvasCreation(), {
+			wrapper: makeWrapper(),
+		});
+		await act(async () => {
+			const created = await result.current.mutateAsync({
+				canvasName: "N",
+				existingCanvasId: "ex",
+			});
+			expect(created.cleanupIncomplete).toBe(true);
+		});
+		expect(mockConsumeCleanup).toHaveBeenCalledWith("existing");
 	});
 
 	it("C11: does not re-read the template to verify an update", async () => {

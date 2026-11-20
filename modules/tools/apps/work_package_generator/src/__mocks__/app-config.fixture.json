@@ -120,8 +120,6 @@
 				"name",
 				"description",
 				"type",
-				"status",
-				"priority",
 				"category",
 				"workOrderType",
 				"maintenanceType",

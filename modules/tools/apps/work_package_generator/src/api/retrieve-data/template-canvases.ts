@@ -29,6 +29,8 @@ import { listInstanceNodesWithCap } from "./list-nodes";
 /** Annotation row plus the node id and container the builder writes back. */
 export interface TemplateAnnotationItem extends TemplateAnnotation {
 	id: string;
+	/** Bare item uuid (view property `id`); template arrows/connectors reference this. */
+	itemId?: string;
 	containerId: string;
 }
 
@@ -336,6 +338,7 @@ export async function getTemplateCanvasInstances(
 
 			return {
 				id: node.externalId,
+				itemId: getOptionalStringProp(props, "id"),
 				label: getStringProp(props, "label", "Unlabeled"),
 				viewExternalId: getStringProp(props, "viewExternalId"),
 				viewSpace: getStringProp(props, "viewSpace"),
@@ -403,7 +406,7 @@ export async function getTemplateCanvasAnnotations(
 	markChildTruncated(templateId, truncated);
 
 	return items
-		.map((item) => {
+		.map((item): TemplateAnnotationItem | null => {
 			const node = toCdfNode(item);
 			if (!node) return null;
 
@@ -414,6 +417,7 @@ export async function getTemplateCanvasAnnotations(
 
 			return {
 				id: node.externalId,
+				itemId: getOptionalStringProp(props, "id"),
 				containerId: getStringProp(props, "containerId", ""),
 				type: getStringProp(props, "annotationType", "Unknown"),
 				properties: (props.properties as Record<string, unknown>) || {},

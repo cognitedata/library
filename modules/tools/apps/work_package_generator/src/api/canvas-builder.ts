@@ -69,12 +69,13 @@ const defaultTemplateReads: TemplateCanvasReadDeps = {
 };
 
 /** Source canvas item externalId for a copied item, used to remap annotation anchors. */
-const sourceItemIds = new WeakMap<CanvasItem, string>();
+const sourceItemIds = new WeakMap<CanvasItem, readonly string[]>();
 /** Annotation containerId from the template, before it is rewritten to a new item id. */
 const sourceAnnotationContainerIds = new WeakMap<CanvasItem, string>();
 
 type TemplateAnnotationSource = TemplateAnnotation & {
 	id?: string;
+	itemId?: string;
 	containerId?: string;
 };
 
@@ -99,10 +100,12 @@ type EdgeDeleteItem = DeleteItem & { instanceType: "edge" };
 
 function rememberSourceItem(
 	item: CanvasItem,
-	sourceId: string | undefined
+	...sourceIds: Array<string | undefined>
 ): CanvasItem {
-	const id = sourceId?.trim();
-	if (id) sourceItemIds.set(item, id);
+	const ids = sourceIds
+		.map((id) => id?.trim())
+		.filter((id): id is string => Boolean(id));
+	if (ids.length > 0) sourceItemIds.set(item, ids);
 	return item;
 }
 
@@ -127,11 +130,11 @@ function remapAnnotationAnchors(
 ): void {
 	const newIdBySource = new Map<string, string>();
 	for (let index = 0; index < items.length; index++) {
-		const sourceId = sourceItemIds.get(items[index]);
+		const sourceIds = sourceItemIds.get(items[index]);
 		const props = nodeProperties(nodes[index]);
 		const newId = props?.id;
-		if (!sourceId || typeof newId !== "string" || !newId) continue;
-		newIdBySource.set(sourceId, newId);
+		if (!sourceIds || typeof newId !== "string" || !newId) continue;
+		for (const sourceId of sourceIds) newIdBySource.set(sourceId, newId);
 	}
 
 	const dropIndices: number[] = [];
@@ -218,7 +221,7 @@ export function buildCanvasItemsFromTemplate(
 			annotationType: ann.type,
 			properties: { ...(ann.properties ?? {}) },
 		};
-		rememberSourceItem(item, ann.id);
+		rememberSourceItem(item, ann.itemId, ann.id);
 		const anchor = ann.containerId?.trim();
 		if (anchor) sourceAnnotationContainerIds.set(item, anchor);
 		items.push(item);
@@ -249,11 +252,19 @@ export function buildCanvasItemsFromTemplate(
 		// Apply replacements based on instance type
 		if (isMainAsset(inst, appConfig)) {
 			items.push(
-				rememberSourceItem(applyAssetReplacement(item, asset), inst.id)
+				rememberSourceItem(
+					applyAssetReplacement(item, asset),
+					inst.itemId,
+					inst.id
+				)
 			);
 		} else if (isMainWorkOrder(inst, appConfig)) {
 			items.push(
-				rememberSourceItem(applyWorkOrderReplacement(item, workOrder), inst.id)
+				rememberSourceItem(
+					applyWorkOrderReplacement(item, workOrder),
+					inst.itemId,
+					inst.id
+				)
 			);
 		} else {
 			const replacement = selections[selectionSlotKey(inst)];
@@ -261,12 +272,13 @@ export function buildCanvasItemsFromTemplate(
 				items.push(
 					rememberSourceItem(
 						applySelectionReplacement(item, replacement),
+						inst.itemId,
 						inst.id
 					)
 				);
 			} else if (!isSelectableResourceSlot(inst, appConfig, resourceConfigs)) {
 				// Auto template items (not user/AI-filled slots) stay on the canvas
-				items.push(rememberSourceItem(item, inst.id));
+				items.push(rememberSourceItem(item, inst.itemId, inst.id));
 			}
 			// Selectable slots with no resource chosen are left empty
 		}
@@ -368,7 +380,8 @@ async function upsertTracked(
 async function deleteCanvasInstances(
 	client: CogniteClient,
 	items: DeleteItem[],
-	appConfig?: AppConfig
+	appConfig?: AppConfig,
+	deleted?: Set<DeleteItem>
 ): Promise<void> {
 	if (items.length === 0) return;
 	const edges = items.filter((item) => item.instanceType === "edge");
@@ -382,7 +395,55 @@ async function deleteCanvasInstances(
 			await resolveApiRuntime().scheduleDelete(() =>
 				client.instances.delete(batch)
 			);
+			for (const item of batch) deleted?.add(item);
 		}
+	}
+}
+
+/** Canvas ids whose last update left previous children behind. */
+const cleanupIncompleteCanvasIds = new Set<string>();
+
+/**
+ * Returns whether the last update of `canvasId` could not remove all previous
+ * children, and clears that flag.
+ */
+export function consumeCanvasCleanupIncomplete(canvasId: string): boolean {
+	return cleanupIncompleteCanvasIds.delete(canvasId);
+}
+
+/**
+ * Delete the previous canvas children after the new ones are written. Retries
+ * the not-yet-deleted items once; never throws so the new content is kept.
+ *
+ * @returns `true` when every previous child was deleted.
+ */
+async function deletePreviousChildrenBestEffort(
+	client: CogniteClient,
+	canvasId: string,
+	previousChildren: DeleteItem[],
+	appConfig?: AppConfig
+): Promise<boolean> {
+	const deleted = new Set<DeleteItem>();
+	try {
+		await deleteCanvasInstances(client, previousChildren, appConfig, deleted);
+		return true;
+	} catch {
+		// Retry the remaining items once below.
+	}
+	const remaining = previousChildren.filter((item) => !deleted.has(item));
+	try {
+		await deleteCanvasInstances(client, remaining, appConfig);
+		return true;
+	} catch (retryError) {
+		resolveApiRuntime().logError({
+			scope: "canvas-builder",
+			message:
+				"Saved updated canvas items, but failed to delete all previous canvas children",
+			context: { canvasId, remainingCount: remaining.length },
+			cause: retryError,
+		});
+		cleanupIncompleteCanvasIds.add(canvasId);
+		return false;
 	}
 }
 
@@ -694,6 +755,7 @@ export async function updateCanvasFromTemplateAndSelections(
 		);
 	}
 
+	cleanupIncompleteCanvasIds.delete(canvasId);
 	const previousChildren = await listCanvasChildren(
 		client,
 		canvasId,
@@ -720,10 +782,15 @@ export async function updateCanvasFromTemplateAndSelections(
 	try {
 		await upsertTracked(client, itemNodes, appConfig, written);
 		await upsertTracked(client, edges, appConfig, written);
-		await deleteCanvasInstances(client, previousChildren, appConfig);
 	} catch (error) {
 		return rollbackWrittenInstances(client, written, error, appConfig);
 	}
+	await deletePreviousChildrenBestEffort(
+		client,
+		canvasId,
+		previousChildren,
+		appConfig
+	);
 
 	const canvasNode = {
 		instanceType: "node" as const,

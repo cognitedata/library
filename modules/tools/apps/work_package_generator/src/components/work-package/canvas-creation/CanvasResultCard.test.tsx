@@ -86,6 +86,29 @@ describe(CanvasResultCard.name, () => {
 		).toBeInTheDocument();
 	});
 
+	it("C09: warns about incomplete cleanup while keeping the share actions", () => {
+		render(
+			<CanvasResultCard
+				result={result({ isUpdate: true, cleanupIncomplete: true })}
+				canvasName="Package A"
+				recoveryHints={[]}
+			/>
+		);
+
+		expect(
+			screen.getByText("Canvas saved, cleanup incomplete")
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("link", { name: /Open in Fusion/i })
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /Copy link/i })
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /Email link/i })
+		).toBeInTheDocument();
+	});
+
 	it("should show verification messages when save validation failed", () => {
 		render(
 			<CanvasResultCard

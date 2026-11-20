@@ -135,6 +135,18 @@ function mergeWorkOrders(
 	return deduped.slice(0, limit);
 }
 
+/** Copy the non-nullish properties named in `names`. */
+function pickContextProperties(
+	props: Record<string, unknown>,
+	names: readonly string[]
+): Record<string, unknown> {
+	const picked: Record<string, unknown> = {};
+	for (const name of names) {
+		if (props[name] != null) picked[name] = props[name];
+	}
+	return picked;
+}
+
 function mapNodeToWorkOrder(
 	item: unknown,
 	config?: AppConfig
@@ -161,6 +173,10 @@ function mapNodeToWorkOrder(
 		assets: getArrayProp<{ space: string; externalId: string }>(
 			props,
 			fields.assets
+		),
+		contextProperties: pickContextProperties(
+			props,
+			resolveAppConfig(config).context.workOrder.properties
 		),
 	};
 }
@@ -481,6 +497,10 @@ export async function getAssetForWorkOrder(
 			assetName: getOptionalStringProp(assetProps, "name"),
 			description: getOptionalStringProp(assetProps, "description"),
 			type: getOptionalStringProp(assetProps, "type"),
+			contextProperties: pickContextProperties(
+				assetProps,
+				resolveAppConfig(config).context.asset.properties
+			),
 		};
 	} catch (error) {
 		resolveApiRuntime().logError({

@@ -35,6 +35,8 @@ export interface WorkOrder {
 	frequency?: string;
 	criticality?: string;
 	assets?: DirectRelationReference[];
+	/** Configured `context.workOrder.properties` read from the DMS node, for AI prompts. */
+	contextProperties?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -76,6 +78,8 @@ export interface Asset {
 	building?: string;
 	floor?: string;
 	room?: string;
+	/** Configured `context.asset.properties` read from the DMS node, for AI prompts. */
+	contextProperties?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -125,6 +129,8 @@ export interface TemplateField {
 export interface TemplateInstance {
 	/** Canvas item node externalId. */
 	id?: string;
+	/** Bare item uuid (view property `id`); template arrows/connectors reference this. */
+	itemId?: string;
 	label: string;
 	viewExternalId: string;
 	viewSpace: string;

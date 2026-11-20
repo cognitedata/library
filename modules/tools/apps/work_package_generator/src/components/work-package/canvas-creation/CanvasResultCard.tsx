@@ -56,6 +56,16 @@ export function CanvasResultCard({
 							: "Canvas saved, but we couldn’t fully verify it"}
 					</p>
 
+					{isSuccess && result.cleanupIncomplete && (
+						<div className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+							<p className="font-medium">Canvas saved, cleanup incomplete</p>
+							<p>
+								Your updated work package is ready to open, but some previous
+								items could not be removed.
+							</p>
+						</div>
+					)}
+
 					{userMessages.length > 0 && (
 						<ul className="text-xs mt-1 text-amber-700 dark:text-amber-300 list-disc list-inside space-y-1">
 							{userMessages.map((line) => (

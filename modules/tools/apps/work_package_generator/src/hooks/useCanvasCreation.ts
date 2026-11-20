@@ -10,6 +10,7 @@ export const UseCanvasCreationContext =
 
 export function useCanvasCreation() {
 	const {
+		consumeCanvasCleanupIncomplete: consumeCleanupIncomplete,
 		createCanvasFromTemplateAndSelections: createCanvas,
 		updateCanvasFromTemplateAndSelections: updateCanvas,
 		generateCanvasLink: generateLink,
@@ -93,6 +94,9 @@ export function useCanvasCreation() {
 					errors: [],
 				},
 				isUpdate: !!existingCanvasId,
+				cleanupIncomplete: existingCanvasId
+					? consumeCleanupIncomplete(canvasId)
+					: false,
 			};
 		},
 		onMutate: () => {
