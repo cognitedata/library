@@ -478,6 +478,7 @@ async function rollbackWrittenInstances(
 async function listCanvasChildren(
 	client: CogniteClient,
 	canvasId: string,
+	canvasSpace: string,
 	appConfig?: AppConfig
 ): Promise<DeleteItem[]> {
 	const childPrefix = `${canvasId}_`;
@@ -496,10 +497,15 @@ async function listCanvasChildren(
 		do {
 			const nodeResponse = await queryInstanceNodesPage(client, {
 				filter: {
-					prefix: {
-						property: ["node", "externalId"],
-						value: childPrefix,
-					},
+					and: [
+						{ equals: { property: ["node", "space"], value: canvasSpace } },
+						{
+							prefix: {
+								property: ["node", "externalId"],
+								value: childPrefix,
+							},
+						},
+					],
 				},
 				limit: resolveAppConfig(appConfig).limits.instancePageSize,
 				cursor: nodeCursor,
@@ -541,10 +547,20 @@ async function listCanvasChildren(
 							limit: resolveAppConfig(appConfig).limits.instancePageSize,
 							edges: {
 								filter: {
-									prefix: {
-										property: ["edge", "externalId"],
-										value: childPrefix,
-									},
+									and: [
+										{
+											equals: {
+												property: ["edge", "space"],
+												value: canvasSpace,
+											},
+										},
+										{
+											prefix: {
+												property: ["edge", "externalId"],
+												value: childPrefix,
+											},
+										},
+									],
 								},
 							},
 						},
@@ -759,6 +775,7 @@ export async function updateCanvasFromTemplateAndSelections(
 	const previousChildren = await listCanvasChildren(
 		client,
 		canvasId,
+		config.canvasSpaceInstance,
 		appConfig
 	);
 	await ensureWorkPackageSolutionTag(client, appConfig);
