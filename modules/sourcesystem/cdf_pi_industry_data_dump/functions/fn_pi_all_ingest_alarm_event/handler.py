@@ -23,6 +23,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 ALARM_CONTAINER_EXTERNAL_ID = "AlarmEvent"
 # sync page size; also used as the ingest batch size (within per-request caps).
 PAGE_SIZE = 1000
+# Per-clause cap for ``In`` filters on Records (see cdf-records limits).
+IN_FILTER_CHUNK_SIZE = 100
 # Steady pacing between ingest batches so a larger sample does not burst the 10-minute stream budget.
 BATCH_PAUSE_S = 0.5
 # Cap SDK retries inside a Function so retries cannot overrun the ~9 minute execution window.
@@ -212,37 +214,29 @@ def collect_existing_external_ids(chunks: Iterable[Iterable[object]], instance_s
     return existing
 
 
-def fetch_existing_external_ids(client: CogniteClient, params: HandlerInput) -> set[str]:
-    """Return external ids of ``AlarmEvent`` records already in the stream via ``sync``.
+def fetch_existing_external_ids(
+    client: CogniteClient,
+    params: HandlerInput,
+    candidate_ids: list[str],
+) -> set[str]:
+    """Return which of ``candidate_ids`` already exist as live ``AlarmEvent`` records.
 
-    ``sync`` pages with a cursor, so this covers more than one ``filter`` page (max 1000).
-    Tombstones (``status == deleted``) are ignored. Idempotency still relies on deterministic
-    external ids and byte-identical payloads on immutable re-ingest.
+    Uses ``sync`` with chunked ``In(["externalId"], …)`` (max 100 values per clause) so
+    existence checks do not pull the whole stream. Tombstones (``status == deleted``) are
+    ignored. Idempotency still relies on deterministic external ids and byte-identical
+    payloads on immutable re-ingest.
     """
-    from cognite.client.data_classes.data_modeling.records import RecordContainerId
-    from cognite.client.data_classes.filters import HasData
+    if not candidate_ids:
+        return set()
 
-    container = RecordContainerId(space=params.enterprise_space, external_id=ALARM_CONTAINER_EXTERNAL_ID)
-    chunks = client.data_modeling.records.sync(
-        stream_id=params.stream_external_id,
-        filter=HasData(containers=[container]),
-        chunk_size=PAGE_SIZE,
-        initialize_cursor=params.sync_initialize_cursor,
-    )
-    return collect_existing_external_ids(chunks, params.instance_space)
-
-
-def _count_ids_in_stream(client: CogniteClient, params: HandlerInput, external_ids: list[str]) -> int:
-    """One-shot sync count of how many of ``external_ids`` are visible in the stream."""
     from cognite.client.data_classes.data_modeling.records import RecordContainerId
     from cognite.client.data_classes.filters import And, Equals, HasData, In
 
     container = RecordContainerId(space=params.enterprise_space, external_id=ALARM_CONTAINER_EXTERNAL_ID)
     found: set[str] = set()
-    chunk_size = 100
-    for start in range(0, len(external_ids), chunk_size):
-        chunk = external_ids[start : start + chunk_size]
-        for sync_chunk in client.data_modeling.records.sync(
+    for start in range(0, len(candidate_ids), IN_FILTER_CHUNK_SIZE):
+        chunk = candidate_ids[start : start + IN_FILTER_CHUNK_SIZE]
+        sync_chunks = client.data_modeling.records.sync(
             stream_id=params.stream_external_id,
             filter=And(
                 HasData(containers=[container]),
@@ -251,14 +245,14 @@ def _count_ids_in_stream(client: CogniteClient, params: HandlerInput, external_i
             ),
             chunk_size=PAGE_SIZE,
             initialize_cursor=params.sync_initialize_cursor,
-        ):
-            for record in sync_chunk:
-                if getattr(record, "status", None) == "deleted":
-                    continue
-                external_id = getattr(record, "external_id", None)
-                if isinstance(external_id, str):
-                    found.add(external_id)
-    return len(found)
+        )
+        found.update(collect_existing_external_ids(sync_chunks, params.instance_space))
+    return found
+
+
+def _count_ids_in_stream(client: CogniteClient, params: HandlerInput, external_ids: list[str]) -> int:
+    """One-shot sync count of how many of ``external_ids`` are visible in the stream."""
+    return len(fetch_existing_external_ids(client, params, external_ids))
 
 
 def verify_ingested(
@@ -334,7 +328,8 @@ def handle(data: dict[str, object], client: CogniteClient) -> dict[str, int | st
     params = HandlerInput.model_validate(data)
 
     raw_rows = read_raw_rows(client, params.raw_database, params.raw_table)
-    existing = fetch_existing_external_ids(client, params)
+    candidate_ids = [str(row["key"]) for row in raw_rows if row.get("key") is not None]
+    existing = fetch_existing_external_ids(client, params, candidate_ids)
     plan = plan_ingest(raw_rows, params.instance_space, existing)
     ingested = ingest_records(client, params, plan.new_records)
 

@@ -4,10 +4,12 @@ import pytest
 from handler import (
     DEFAULT_SYNC_INITIALIZE_CURSOR,
     FUNCTION_MAX_RETRIES,
+    IN_FILTER_CHUNK_SIZE,
     AlarmRow,
     FunctionOutput,
     HandlerInput,
     configure_sdk_retries,
+    fetch_existing_external_ids,
     filter_missing,
     plan_ingest,
     row_to_record,
@@ -159,3 +161,28 @@ def test_collect_existing_external_ids_skips_deleted_and_other_spaces() -> None:
     ]
 
     assert collect_existing_external_ids(chunks, INSTANCE_SPACE) == {"alm_1"}
+
+
+def test_fetch_existing_external_ids_short_circuits_empty_candidates() -> None:
+    """Empty candidate list must not call Records sync."""
+
+    class BoomClient:
+        class data_modeling:
+            class records:
+                @staticmethod
+                def sync(**_kwargs: object) -> None:
+                    raise AssertionError("sync must not be called for empty candidates")
+
+    params = HandlerInput(
+        stream_external_id="pi_all_alarm_event",
+        instance_space=INSTANCE_SPACE,
+        enterprise_space="dm_dom_industry",
+        raw_database="db_industry_sample",
+        raw_table="alarm_event",
+    )
+
+    assert fetch_existing_external_ids(BoomClient(), params, []) == set()  # type: ignore[arg-type]
+
+
+def test_in_filter_chunk_size_matches_records_limit() -> None:
+    assert IN_FILTER_CHUNK_SIZE == 100
