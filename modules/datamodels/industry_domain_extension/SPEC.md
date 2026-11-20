@@ -1,6 +1,6 @@
 # Industry Domain Extension — Agent adaptation contract (SPEC)
 
-> Extracted from `industry_domain_extension.PLAN.md` §8. Start at **How to extend** when wiring this template to a real project.
+> Start at **How to extend** when wiring this template to a real project.
 
 ## 8. Agent adaptation contract (`SPEC.md`, summarized in README)
 

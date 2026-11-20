@@ -21,7 +21,7 @@ Industry-neutral enterprise (`_DOM`) data model template for asset-heavy industr
 | Spaces | `{{ enterprise_space }}` (schema); one instance space `{{ instance_space }}` (default `inst_location`); Search schema lives in companion module |
 | Containers | Tag, Equipment, Document, TimeSeriesData, WorkOrder, Notification, Material, OperatingLimit (node); AlarmEvent (record) |
 | Views | Matching domain views (`implements` CDM/IDM where applicable) + `AlarmEvent` record view (`streamId`, not in the DataModel) |
-| Data model | `Industry_DOM` + `CogniteEquipmentType` / `CogniteFileCategory` |
+| Data model | `Industry_DOM` + `CogniteAssetType` / `CogniteEquipmentType` / `CogniteFileCategory` |
 | Stream | `{{ alarm_stream_external_id }}` (default template `BasicArchive`; override to `ImmutableTestStream` only in `config.dev.yaml`) |
 | Auth | `admin_industry_all_*` (schema on enterprise + search), `producer_industry_dom_*`, pipeline `producer_industry_pp_*` / `producer_industry_wf_*` |
 | Governance | Dataset + enterprise location filter |
@@ -49,7 +49,7 @@ When the model is installed and extended, change or add instance spaces to match
 
 ### Alarms vs Search access
 
-`sol_consumer` has no `streamRecordsAcl`. Alarm access is via `{{ dom_producer_group_name }}` (or admin); Search UI via `{{ sol_consumer_group_name }}`. Map both IdP groups only when a user needs both products.
+`sol_consumer` has no `streamRecordsAcl`. Alarm access is via `{{ dom_producer_group_name }}` (or admin); Search UI via `{{ sol_consumer_group_name }}` (defined in [`industry_domain_extension_search`](../industry_domain_extension_search/default.config.yaml)). Map both IdP groups only when a user needs both products.
 
 Sample two-step graph → records query: filter nodes on `Industry_DOM`, then filter `AlarmEvent` records with `in` on the `asset` direct (chunk ≤ 100 ids per request). Immutable streams require a `lastUpdatedTime` range on every filter.
 
@@ -274,4 +274,4 @@ rg -n "SOURCE_SCAFFOLD:" modules/datamodels/industry_domain_extension
 ## Support
 
 - Cognite Hub and Cognite Docs (Core data model, Process industry data model, Records and streams)
-- Plan source: `industry_domain_extension.PLAN.md` in this folder
+- Adaptation contract: [SPEC.md](SPEC.md) in this folder

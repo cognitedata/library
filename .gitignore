@@ -42,6 +42,9 @@ pip-delete-this-directory.txt
 # Logs
 *.log
 
+# Toolkit upload failure artifacts (local deploy noise)
+*.UploadIssues.ndjson
+
 # Temporary files
 *.bak
 *.tmp

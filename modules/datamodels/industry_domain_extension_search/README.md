@@ -21,7 +21,7 @@ Schema-only search (`_SOL`) data product for the industry domain template. Maps 
 |------|----------|
 | Space | `{{ search_space }}` — schema only (views + data model); **not** an instance space |
 | Views | SearchTag, SearchEquipment, SearchDocument, SearchTimeSeriesData, SearchWorkOrder, SearchWorkOrderOperation, SearchNotification, SearchMaterial, SearchOperatingLimit |
-| Data model | `IndustrySearch_SOL` + `CogniteEquipmentType` / `CogniteFileCategory` |
+| Data model | `IndustrySearch_SOL` + `CogniteAssetType` / `CogniteEquipmentType` / `CogniteFileCategory` |
 | Auth | `consumer_industry_sol_*` (schema admin lives in the enterprise module as `admin_industry_all_*`) |
 | Location | Search location filter over `{{ instance_space }}` (`inst_location`) |
 
@@ -73,4 +73,4 @@ Search stays schema-only: update or remove `Search*` views when the enterprise c
 ## Support
 
 - Cognite Hub and Cognite Docs
-- Plan source: `../industry_domain_extension/industry_domain_extension.PLAN.md`
+- Adaptation contract: [SPEC.md](../industry_domain_extension/SPEC.md)
