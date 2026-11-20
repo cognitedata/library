@@ -22,7 +22,6 @@
     { "root": "." }
   ],
   "ignore": [
-    "modules/dashboards/context_quality/streamlit/**",
     "modules/tools/notebooks/**",
     "modules/datamodels/**"
   ]

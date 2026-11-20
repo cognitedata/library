@@ -9,11 +9,11 @@ Contextualisation gaps are hard to see across millions of instances. This app tu
 dimension, trends over time, and lists of the exact items to fix.
 
 **It is only half of the solution.** The app reads results; it does not compute them. The numbers come from the
-backend module [`dashboards/context_quality_v2`](../../../dashboards/context_quality_v2/README.md), a function and
+backend module [`dashboards/context_quality`](../../../dashboards/context_quality/README.md), a function and
 workflow that write a run log to a Records stream. **Deploy the backend first, then this app.**
 
 ```
-backend (context_quality_v2)  --writes-->  Records stream  --read by-->  this app (in Fusion)
+backend (context_quality)  --writes-->  Records stream  --read by-->  this app (in Fusion)
 ```
 
 ## What it shows
@@ -59,12 +59,18 @@ Terms:
 
 ### Prerequisites
 
-- The backend [`context_quality_v2`](../../../dashboards/context_quality_v2/README.md) is deployed and has completed
+This app is the **Contextualization Quality Dashboard App** module of the **Contextualization Quality Dashboard** pack (`dp:context_quality`), next to
+the **Dashboard Backend** module.
+
+- The backend [`context_quality`](../../../dashboards/context_quality/README.md) is deployed and has completed
   at least one run. Until then the app shows a first-run screen where you start one (see "Start a run").
 - Node.js 20+ and npm.
 - A Fusion user in the target project with the backend's `gp_context_quality_dashboard_users` group (read access
   to the stream, schema and the workbook files). To start runs from the app, the user also needs permission to run workflows
   (see the backend README, "Running with a config file").
+- To deploy the app: the `apphosting:read` and `apphosting:write` capabilities in the target project, for the user or
+  the client that deploys. Without them `apps deploy` stops with `Missing capability: AppHosting:WRITE` (403). Users
+  who only open the app need `apphosting:read` and `apphosting:run`.
 
 ### 1. Point the app at your project
 
@@ -170,6 +176,6 @@ Develop with `npm test`, `npm run lint` and `npm run build`.
 
 ## Support
 
-- Backend, run log and access groups: [`dashboards/context_quality_v2`](../../../dashboards/context_quality_v2/README.md).
+- Backend, run log and access groups: [`dashboards/context_quality`](../../../dashboards/context_quality/README.md).
 - Fusion apps CLI: `npx @cognite/cli apps --help`.
 - Questions: `#topic-deployment-packs` on Slack.

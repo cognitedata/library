@@ -15,6 +15,7 @@ import pytest
 import yaml
 
 from tests.context_quality_module import MODULE, VARIABLE, read_variables, render
+from tests.registry_helpers import PACKAGES_TOML, load_packages
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FUNCTION_DIR = MODULE / "functions" / "fn_context_quality_metrics"
@@ -485,10 +486,8 @@ def test_no_production_file_refers_to_the_demo_module_a_seed_action_or_the_legac
 
 
 def test_only_the_production_module_is_registered() -> None:
-    import tomllib
+    registry = load_packages(PACKAGES_TOML)["context_quality"].modules
 
-    registry = tomllib.loads((REPO_ROOT / "modules" / "packages.toml").read_text())["packages"]["dashboards"]["modules"]
-
-    assert "dashboards/context_quality_v2" in registry
+    assert "dashboards/context_quality" in registry
     assert not [name for name in registry if name.startswith("dashboards/context_quality_v2_")]
     assert not (MODULE.parent / "context_quality_v2_demo").exists()

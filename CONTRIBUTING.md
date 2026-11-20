@@ -161,10 +161,9 @@ A module is not complete without its README; add or update it in the same PR as 
 [packages.contextualization]
 id = "dp:contextualization"
 title = "Contextualization"
-description = "Automate P&ID annotation, file tagging, and entity matching."
+description = "Automate file annotation and entity matching."
 canCherryPick = true
 modules = [
-    "contextualization/cdf_p_and_id_annotation",
     "contextualization/cdf_file_annotation",
     "contextualization/cdf_entity_matching",
 ]

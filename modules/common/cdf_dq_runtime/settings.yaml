@@ -1,20 +1,20 @@
-# Runtime settings for deploy_validation_infrastructure() (scripts/deploy_infrastructure.py).
+# Runtime settings for deploy_validation_infrastructure() (bootstrap Function).
 #
-# Not deployed by Toolkit. The deploy script substitutes the placeholders below with values
-# from default.config.yaml / config.<env>.yaml, then passes this file to cognite-data-quality.
-# Customer identifiers belong in default.config.yaml; the literal values below are runtime
-# behaviour defaults that rarely need changing.
+# Not deployed by Toolkit as a resource. The bootstrap Function ships a bundled copy under
+# functions/fn_dataproduct_all_bootstrap_infrastructure/config/ and merges Schedule.data
+# overrides (dataQualitySpace, recordsStreamId, …) at runtime. Customer identifiers belong
+# in default.config.yaml; the behaviour keys below rarely need changing.
 
 # Instance validation workflows (one per data product view, triggered by instance changes).
 workflow:
   # Prefix for workflow external IDs: <prefix>-<data product external ID>[-uniqueness|-edge-existence].
-  external_id_prefix: dq-shacl
+  external_id_prefix: wf_all_validate_instances
   # Workflow version written to CDF. Bump to force new workflow versions.
   version: "1"
   task:
     # Retries of the validation function task before the run fails.
     retries: 3
-    # Function task timeout in seconds.
+    # Function task timeout in seconds (must stay ≤ 900 — CDF Functions hard-stop at 15 minutes).
     timeout: 600
     # abortWorkflow stops the run on task failure; skipTask continues with remaining tasks.
     on_failure: abortWorkflow
@@ -22,18 +22,18 @@ workflow:
 # Time series datapoint validation workflows (one per file in timeseries_config/, cron scheduled).
 timeseries_workflow:
   # Prefix for time series workflow external IDs: <prefix>-<timeseries config name>.
-  external_id_prefix: dq-ts-shacl
+  external_id_prefix: wf_all_validate_timeseries
   version: "1"
   task:
     retries: 3
-    # Datapoint checks call the SDK/INDSL per series, so allow a longer timeout (seconds).
-    timeout: 1800
+    # Must stay ≤ 900 s — CDF Functions hard-stop at 15 minutes; extra timeout is never used.
+    timeout: 900
     on_failure: abortWorkflow
 
 # DMS data-change triggers that start the instance validation workflows.
 trigger:
   # Prefix for trigger external IDs: <prefix>-<data product external ID>.
-  external_id_prefix: dq-shacl-trigger
+  external_id_prefix: wf_all_validate_instances_trigger
   # Number of changed instances collected before a workflow run is started.
   batch_size: 10
   # Seconds to wait for batch_size changes before starting a run with fewer instances.
@@ -41,9 +41,9 @@ trigger:
 
 # Where validation results (DataQualityValidationRecord / RuleEngineResult) are written.
 records:
-  # Space of the record containers and views (created by the deploy script).
+  # Space of the record containers and views (created by bootstrap).
   space: {{ dataQualitySpace }}
-  # Records stream ID. Created by deploy_infrastructure.py if missing (BasicArchive).
+  # Records stream ID. Created by bootstrap if missing (BasicArchive).
   stream_id: {{ recordsStreamId }}
 
 # Space for DataQualitySettings, sync cursors, orchestration state and HistoricJobQueue.
@@ -63,7 +63,7 @@ timeseries:
   # Folder (relative to this file) with time series validation configs.
   config_dir: timeseries_config
 
-# Data products published by Toolkit (data_products/). Listed here so the deploy script wires
+# Data products published by Toolkit (data_products/). Listed here so bootstrap wires
 # workflows for them without republishing.
 external_dataproducts:
   - external_id: {{ dataProductExternalId }}

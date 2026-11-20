@@ -16,7 +16,7 @@ FUNCTION_DIR = (
     Path(__file__).resolve().parents[1]
     / "modules"
     / "dashboards"
-    / "context_quality_v2"
+    / "context_quality"
     / "functions"
     / "fn_context_quality_metrics"
 )

@@ -5,6 +5,9 @@ packages.zip
 # Cursor agent scratchpad - not part of the library
 .cursor_docs/
 
+# Local cog-vd-best-practices audit output (do not commit)
+AUDIT_REPORT.md
+
 # macOS system files
 .DS_Store
 
@@ -71,3 +74,6 @@ Desktop.ini
 .cursor/settings.json
 cdf.toml
 config.dev.yaml
+
+# a function zip built to upload in Fusion
+modules/**/fn_*.zip

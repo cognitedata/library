@@ -1,11 +1,11 @@
-name: Function for Contextualization Quality Metrics
-externalId: context_quality_handler
-owner: 'Anonymous'
-description: Handles contextualization quality metrics operations.
-functionPath: 'handler.py'
-runtime: 'py312'
-# Required when the project is in DATA_MODELING_ONLY mode: used as the space for the
-# CogniteFile that stores the function code. Omit or override if using dataset-only.
-space: context_quality
-# Data set id for the zip file (used when not in DATA_MODELING_ONLY mode).
-dataSetExternalId: context_quality_apps
+- name: Context quality metrics
+  externalId: "{{ metricsFunctionExternalId }}"
+  owner: Anonymous
+  description: >
+    Reads the project's contextualization (assets, equipment, time series, files, 3D, maintenance, annotations),
+    counts it at the lowest reporting level and appends the result to the Context Quality metrics stream as one
+    run, with a complete marker written last. Actions: plan, compute_shard/compute_batch and finalize (the workflow's three steps,
+    the calls running in parallel), compute_metrics (the whole run in one call), export (the workbook of unlinked items) and validate.
+  dataSetExternalId: "{{ metricsDatasetExternalId }}"
+  runtime: py312
+  functionPath: handler.py
