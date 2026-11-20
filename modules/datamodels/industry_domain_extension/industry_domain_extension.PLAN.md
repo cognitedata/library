@@ -191,7 +191,7 @@ operator_source_id: ${OPERATOR_GROUP_SOURCE_ID}
 # Records
 alarm_stream_external_id: pi_all_alarm_event
 # Sample/dev default only. Template is fixed at stream creation — set BasicArchive before any non-dev deploy (§5.11).
-alarm_stream_template: ImmutableTestStream
+alarm_stream_template: BasicArchive
 alarm_function_external_id: fn_pi_all_ingest_alarm_event
 
 # Sample data and processing
@@ -561,7 +561,7 @@ state change (raised, acknowledged, cleared) is a new record — this fits an im
 
 | Resource | File | Rule |
 |----------|------|------|
-| Stream | `streams/alarm.Streams.yaml` | `externalId: {{ alarm_stream_external_id }}`; `settings.template.name: {{ alarm_stream_template }}`. Default in sample config is `ImmutableTestStream` (**dev / experimentation only**, short retention). The template **cannot be changed** after creation — set `BasicArchive` in `config.<env>.yaml` **before the first non-dev deploy** (and before any deploy that must retain sample alarms). Stream limits per project are small (1 `BasicLiveData`, 2 `BasicArchive`, 3 `ImmutableTestStream`). §9.2 **[FAIL]** if any non-dev config still uses `ImmutableTestStream` |
+| Stream | `streams/alarm.Streams.yaml` | `externalId: {{ alarm_stream_external_id }}`; `settings.template.name: {{ alarm_stream_template }}`. Module default is `BasicArchive`. Override to `ImmutableTestStream` only in `config.dev.yaml` (**dev / experimentation only**, short retention). The template **cannot be changed** after creation. Stream limits per project are small (1 `BasicLiveData`, 2 `BasicArchive`, 3 `ImmutableTestStream`). §9.2 **[FAIL]** if any non-dev config still uses `ImmutableTestStream` |
 | Record container | `containers/AlarmEvent.Container.yaml` | `space: {{ enterprise_space }}`, `usedFor: record`; keys `space`, `externalId`, `name`, `description`, `properties`, `usedFor` only — **no** `constraints`, **no** `indexes`; no `immutable`, `autoIncrement`, `collation`, or `timeseries` / `file` / `sequence` types |
 | Record view | `views/AlarmEvent.View.yaml` | `version: "{{ dm_enterprise_version }}"`; `streamId: ['{{ alarm_stream_external_id }}']` (Toolkit ≥ 0.9); maps only `AlarmEvent`; directs carry `source` to the enterprise views. **Not** listed in `Industry_DOM` — data models can't include record views yet. Cognite docs *Record views* require this view; do **not** delete it because an older cog-vd one-liner said "record has no view" (§9.2) |
 | Records | written by `{{ alarm_function_external_id }}` (§12.5) | `space: {{ instance_space }}`; every direct (`asset`, `timeSeries`, `operatingLimit`) uses `{{ instance_space }}`; `externalId` `pi_all_<historianTagName>_<eventTime>_<eventType>` |
@@ -1466,7 +1466,7 @@ stands in for that extractor.
 | `enterprise_space` | string | yes | Space of the `AlarmEvent` container / record view |
 | `raw_database` | string | yes | `{{ raw_database_pi }}` |
 | `raw_table` | string | yes | `alarm_event` |
-| `last_updated_time_gt` | ISO-8601 string | no | Lower bound for immutable-stream filters; default = sample window |
+| `sync_initialize_cursor` | string | no | `sync` lookback for existence checks; default `365d-ago` |
 
 No secrets in Function YAML or `data` — the workflow session / injected `client` carries credentials
 (`cdf-function` skill).
@@ -1482,7 +1482,7 @@ Steps:
    view (`{{ enterprise_space }}` / `AlarmEvent` / `{{ dm_enterprise_version }}`). Directs `asset`, `timeSeries`
    and `operatingLimit` → `{space: data["instance_space"], externalId}`.
 3. Filter the stream for existing `externalId`s (immutable streams need a `lastUpdatedTime` range — use
-   `last_updated_time_gt` or the sample window) and ingest only missing records in batches
+   `sync_initialize_cursor`) and ingest only missing records in batches
    (`client.data_modeling.records.ingest`).
 4. Log counts (read / skipped / ingested) and return them.
 

@@ -20,7 +20,7 @@ It covers two kinds of PI data:
 - `raw/` — database `db_industry_sample` with tables `timeseries` and `alarm_event`.
 - `upload_data/` — manifests and CSV rows: 375 PI tags (copied from `cdf_pi_data_dump`) and 30 synthetic alarm
   events (Raised → Acknowledged → Cleared for two limit crossings on each of the five instruments that have set
-  points in the SAP sample).
+  points in the SAP sample). Alarm record keys are snake_case (`alm_pt92501_c1_raised`, …).
 - `transformations/`
   - `tr_pi_all_to_industry_time_series` — `timeseries` → `TimeSeriesData`; links each time series to its `Tag` and,
     through a lookup on the SAP `equipment` table, to its `Equipment`.
@@ -31,6 +31,7 @@ It covers two kinds of PI data:
   instances).
 - `functions/` — `ingest_alarm_event.Function.yaml` and the `fn_pi_all_ingest_alarm_event` handler, which reads
   `alarm_event` and ingests the records that are not yet in the stream `pi_all_alarm_event`.
+- `tests/fn_pi_all_ingest_alarm_event/` — unit tests (outside the function directory so they are not packaged for CDF).
 
 Transformations are full loads with `upsert`; this is a sample-data choice. For real sources use incremental loads
 (see the `cdf-transformation` skill).
@@ -44,13 +45,16 @@ Transformations are full loads with `upsert`; this is a sample-data choice. For 
 | `enterprise_space` | yes | Space of the `AlarmEvent` container — `dm_dom_industry` |
 | `raw_database` | yes | `db_industry_sample` |
 | `raw_table` | yes | `alarm_event` |
-| `last_updated_time_gt` | no | ISO-8601 lower bound for the duplicate check (required by immutable streams). Defaults to now minus 7 days (`ImmutableTestStream` `maxFilteringInterval`). Wider windows are rejected by the API. Filter returns at most 1000 records (no pagination). |
+| `sync_initialize_cursor` | no | `sync` lookback for the existence check (default `365d-ago`). Covers BasicArchive; on short-lived `ImmutableTestStream` sample streams sync simply returns what still exists. |
 
-The Function returns `read`, `invalid`, `skipped` (already in the stream) and `ingested`. It carries no secrets; the
-injected client holds the credentials. Rows are mapped to the `AlarmEvent` record container. `asset`,
-`timeSeries` and `operatingLimit` all point at nodes in `inst_location`.
+The Function returns `status` (`succeeded` / `deferred`), plus `read`, `invalid`, `skipped` (already in the stream)
+and `ingested`. Existence checks use Records `sync` (cursor-paginated), not a single `filter` page. After ingest it
+polls briefly so a timeout is not mistaken for a failed write (`deferred` if verify is incomplete — re-run). It
+carries no secrets; the injected client holds the credentials. Rows map to the `AlarmEvent` record container.
+`asset`, `timeSeries` and `operatingLimit` all point at nodes in `inst_location`.
 
-The deployed Function needs `cognite-sdk` 8.24 or later (Records API); `requirements.txt` pins it.
+The deployed Function needs `cognite-sdk` 8.24 or later (Records API); `requirements.txt` pins it via
+`deploy_dependencies` in `scripts/generate_uv_member_projects.py`.
 
 ## Deployment
 
@@ -100,10 +104,11 @@ record directs and PI lookups. Cross-module order is not enforced by `dependsOn`
 ### Local tests
 
 ```bash
-uv run pytest modules/sourcesystem/cdf_pi_industry_data_dump/functions/fn_pi_all_ingest_alarm_event -q
+uv run pytest modules/sourcesystem/cdf_pi_industry_data_dump/tests/fn_pi_all_ingest_alarm_event -q
 ```
 
-The unit tests cover the row → record mapping and the duplicate filter and need no network access.
+The unit tests cover the row → record mapping, the sync-based duplicate filter, and the output contract; they need
+no network access.
 
 ## Module Structure
 
@@ -130,9 +135,12 @@ cdf_pi_industry_data_dump/
 │   ├── ingest_alarm_event.Function.yaml
 │   └── fn_pi_all_ingest_alarm_event/
 │       ├── handler.py
-│       ├── test_handler.py
 │       ├── pyproject.toml
 │       └── requirements.txt
+├── tests/
+│   └── fn_pi_all_ingest_alarm_event/
+│       ├── conftest.py
+│       └── test_handler.py
 └── workflows/
     └── wf_pi_all_to_industry.Workflow{,Version,Trigger}.yaml
 ```

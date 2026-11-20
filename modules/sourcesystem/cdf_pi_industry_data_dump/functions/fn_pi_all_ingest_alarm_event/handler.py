@@ -6,46 +6,29 @@ populated through RAW + Transformations.
 
 The Records API needs cognite-sdk >= 8.24, so the records imports are deferred to the functions that call the API.
 That keeps the mapping and duplicate-filter logic importable (and unit-testable) without it.
+
+Logging uses ``print`` (not the ``logging`` module): on Azure, the most common Functions host, ``logging`` can
+suppress tracebacks in function logs.
 """
 
-import logging
+import json
 import time
-from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
-from typing import Literal, TypeVar
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from typing import Literal
 
-from cognite.client import CogniteClient
-from cognite.client.exceptions import CogniteAPIError
+from cognite.client import CogniteClient, global_config
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-log = logging.getLogger(__name__)
-
 ALARM_CONTAINER_EXTERNAL_ID = "AlarmEvent"
-# ImmutableTestStream maxFilteringInterval is 7d; wider lastUpdatedTime windows are rejected (400).
-MAX_FILTER_INTERVAL = timedelta(days=7)
-# Records filter returns a single page of up to 1000 rows; no SDK pagination.
-FILTER_LIMIT = 1000
-INGEST_BATCH_SIZE = 1000
-RETRY_ATTEMPTS = 3
-RETRY_BASE_DELAY_S = 1.0
-
-T = TypeVar("T")
-
-
-def default_last_updated_time_gt(*, now: datetime | None = None) -> str:
-    """ISO-8601 lower bound within the stream's maxFilteringInterval.
-
-    Args:
-        now: Reference time (UTC). Defaults to the current time.
-
-    Returns:
-        ``now - MAX_FILTER_INTERVAL`` formatted for ``TimeRange(gt=...)``.
-    """
-    reference = now if now is not None else datetime.now(UTC)
-    if reference.tzinfo is None:
-        reference = reference.replace(tzinfo=UTC)
-    lower = reference.astimezone(UTC) - MAX_FILTER_INTERVAL
-    return lower.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+# sync page size; also used as the ingest batch size (within per-request caps).
+PAGE_SIZE = 1000
+# Steady pacing between ingest batches so a larger sample does not burst the 10-minute stream budget.
+BATCH_PAUSE_S = 0.5
+# Cap SDK retries inside a Function so retries cannot overrun the ~9 minute execution window.
+FUNCTION_MAX_RETRIES = 3
+# Default sync lookback covers BasicArchive; ImmutableTestStream retains less, so sync just returns what exists.
+DEFAULT_SYNC_INITIALIZE_CURSOR = "365d-ago"
 
 
 class HandlerInput(BaseModel):
@@ -58,7 +41,18 @@ class HandlerInput(BaseModel):
     enterprise_space: str
     raw_database: str
     raw_table: str
-    last_updated_time_gt: str | None = None
+    sync_initialize_cursor: str = DEFAULT_SYNC_INITIALIZE_CURSOR
+
+
+class FunctionOutput(BaseModel):
+    """JSON-serializable return contract."""
+
+    status: Literal["succeeded", "deferred", "failed"]
+    read: int = 0
+    invalid: int = 0
+    skipped: int = 0
+    ingested: int = 0
+    reason: str | None = None
 
 
 class AlarmRow(BaseModel):
@@ -115,23 +109,14 @@ def _direct(space: str, external_id: str | None) -> dict[str, str] | None:
     return {"space": space, "externalId": external_id} if external_id else None
 
 
-def _is_transient(error: CogniteAPIError) -> bool:
-    code = error.code
-    return code in (408, 429) or (isinstance(code, int) and code >= 500)
+def _log(payload: dict[str, object]) -> None:
+    print(json.dumps(payload, default=str))
 
 
-def with_retry(operation: Callable[[], T], *, label: str) -> T:  # noqa: UP047 - CDF runtime is py311
-    """Retry transient Cognite API failures (408/429/5xx) with linear backoff."""
-    for attempt in range(1, RETRY_ATTEMPTS + 1):
-        try:
-            return operation()
-        except CogniteAPIError as error:
-            if not _is_transient(error) or attempt == RETRY_ATTEMPTS:
-                raise
-            delay = RETRY_BASE_DELAY_S * attempt
-            log.warning(f"{label} failed with {error.code}; retry {attempt}/{RETRY_ATTEMPTS} in {delay}s")
-            time.sleep(delay)
-    raise RuntimeError(f"{label}: retry loop exited without result")
+def configure_sdk_retries() -> None:
+    """Keep SDK retries short so they stay inside the Function execution window."""
+    global_config.max_retries = FUNCTION_MAX_RETRIES
+    global_config.silence_feature_preview_warnings = True
 
 
 def row_to_record(row: AlarmRow, instance_space: str) -> AlarmRecord:
@@ -190,7 +175,7 @@ def plan_ingest(
             records.append(row_to_record(AlarmRow.model_validate(raw_row), instance_space))
         except ValidationError as error:
             invalid += 1
-            log.warning(f"Skipping invalid alarm_event row {raw_row.get('key')}: {error}")
+            _log({"event": "invalid_row", "key": raw_row.get("key"), "error": str(error)})
     new_records = filter_missing(records, existing_external_ids)
     return IngestPlan(
         read=len(raw_rows),
@@ -202,47 +187,114 @@ def plan_ingest(
 
 def read_raw_rows(client: CogniteClient, raw_database: str, raw_table: str) -> list[dict[str, object]]:
     """Read all rows of a RAW table, adding the row key as ``key`` when it is not a column."""
-    rows = with_retry(
-        lambda: client.raw.rows.list(raw_database, raw_table, limit=-1),
-        label=f"RAW list {raw_database}.{raw_table}",
-    )
+    rows = client.raw.rows.list(raw_database, raw_table, limit=-1)
     return [{"key": row.key, **(row.columns or {})} for row in rows]
 
 
-def fetch_existing_external_ids(client: CogniteClient, params: HandlerInput, last_updated_time_gt: str) -> set[str]:
-    """Return external ids of ``AlarmEvent`` records in the stream updated after ``last_updated_time_gt``.
+def collect_existing_external_ids(chunks: Iterable[Iterable[object]], instance_space: str) -> set[str]:
+    """Collect live record external ids from ``sync`` chunks (skips tombstones and other spaces)."""
+    existing: set[str] = set()
+    for chunk in chunks:
+        for record in chunk:
+            if getattr(record, "status", None) == "deleted":
+                continue
+            space = getattr(record, "space", None)
+            external_id = getattr(record, "external_id", None)
+            if space == instance_space and isinstance(external_id, str):
+                existing.add(external_id)
+    return existing
 
-    Immutable streams require a lower bound. The filter endpoint returns one page (max 1000) with no pagination.
+
+def fetch_existing_external_ids(client: CogniteClient, params: HandlerInput) -> set[str]:
+    """Return external ids of ``AlarmEvent`` records already in the stream via ``sync``.
+
+    ``sync`` pages with a cursor, so this covers more than one ``filter`` page (max 1000).
+    Tombstones (``status == deleted``) are ignored. Idempotency still relies on deterministic
+    external ids and byte-identical payloads on immutable re-ingest.
     """
-    from cognite.client.data_classes.data_modeling.records import RecordContainerId, TimeRange
+    from cognite.client.data_classes.data_modeling.records import RecordContainerId
     from cognite.client.data_classes.filters import HasData
 
     container = RecordContainerId(space=params.enterprise_space, external_id=ALARM_CONTAINER_EXTERNAL_ID)
-
-    existing = with_retry(
-        lambda: client.data_modeling.records.filter(
-            stream_id=params.stream_external_id,
-            last_updated_time=TimeRange(gt=last_updated_time_gt),
-            filter=HasData(containers=[container]),
-            limit=FILTER_LIMIT,
-        ),
-        label=f"records.filter {params.stream_external_id}",
+    chunks = client.data_modeling.records.sync(
+        stream_id=params.stream_external_id,
+        filter=HasData(containers=[container]),
+        chunk_size=PAGE_SIZE,
+        initialize_cursor=params.sync_initialize_cursor,
     )
-    if len(existing) >= FILTER_LIMIT:
-        log.warning(
-            f"Duplicate check hit the {FILTER_LIMIT} record API limit; "
-            "raise last_updated_time_gt or split the sample stream"
-        )
-    return {record.external_id for record in existing if record.space == params.instance_space}
+    return collect_existing_external_ids(chunks, params.instance_space)
+
+
+def _count_ids_in_stream(client: CogniteClient, params: HandlerInput, external_ids: list[str]) -> int:
+    """One-shot sync count of how many of ``external_ids`` are visible in the stream."""
+    from cognite.client.data_classes.data_modeling.records import RecordContainerId
+    from cognite.client.data_classes.filters import And, Equals, HasData, In
+
+    container = RecordContainerId(space=params.enterprise_space, external_id=ALARM_CONTAINER_EXTERNAL_ID)
+    found: set[str] = set()
+    chunk_size = 100
+    for start in range(0, len(external_ids), chunk_size):
+        chunk = external_ids[start : start + chunk_size]
+        for sync_chunk in client.data_modeling.records.sync(
+            stream_id=params.stream_external_id,
+            filter=And(
+                HasData(containers=[container]),
+                Equals(["space"], params.instance_space),
+                In(["externalId"], chunk),
+            ),
+            chunk_size=PAGE_SIZE,
+            initialize_cursor=params.sync_initialize_cursor,
+        ):
+            for record in sync_chunk:
+                if getattr(record, "status", None) == "deleted":
+                    continue
+                external_id = getattr(record, "external_id", None)
+                if isinstance(external_id, str):
+                    found.add(external_id)
+    return len(found)
+
+
+def verify_ingested(
+    client: CogniteClient,
+    params: HandlerInput,
+    external_ids: list[str],
+    *,
+    attempts: int = 5,
+    pause_s: float = 3.0,
+) -> int:
+    """Poll until ingested ids are searchable (writes are not read-after-write).
+
+    Args:
+        client: CDF client.
+        params: Function input (stream and spaces).
+        external_ids: Ids that were just written.
+        attempts: How many times to poll (default ~15s total).
+        pause_s: Sleep between polls.
+
+    Returns:
+        Number of distinct external ids found for ``params.instance_space``.
+    """
+    if not external_ids:
+        return 0
+
+    found = 0
+    for attempt in range(1, attempts + 1):
+        found = _count_ids_in_stream(client, params, external_ids)
+        if found >= len(external_ids):
+            return found
+        if attempt < attempts:
+            time.sleep(pause_s)
+    return found
 
 
 def ingest_records(client: CogniteClient, params: HandlerInput, records: list[AlarmRecord]) -> int:
-    """Ingest records into the alarm stream in batches. Returns the number of records written."""
+    """Ingest records into the alarm stream in paced batches. Returns the number of records written."""
     from cognite.client.data_classes.data_modeling.records import RecordContainerId, RecordSource, RecordWrite
 
     container = RecordContainerId(space=params.enterprise_space, external_id=ALARM_CONTAINER_EXTERNAL_ID)
-    for start in range(0, len(records), INGEST_BATCH_SIZE):
-        batch = records[start : start + INGEST_BATCH_SIZE]
+    total_batches = (len(records) + PAGE_SIZE - 1) // PAGE_SIZE if records else 0
+    for batch_index, start in enumerate(range(0, len(records), PAGE_SIZE)):
+        batch = records[start : start + PAGE_SIZE]
         writes = [
             RecordWrite(
                 space=record.space,
@@ -251,51 +303,66 @@ def ingest_records(client: CogniteClient, params: HandlerInput, records: list[Al
             )
             for record in batch
         ]
-        with_retry(
-            lambda writes=writes: client.data_modeling.records.ingest(
-                writes,
-                stream_id=params.stream_external_id,
-            ),
-            label=f"records.ingest batch@{start}",
+        client.data_modeling.records.ingest(
+            writes,
+            stream_id=params.stream_external_id,
         )
+        if batch_index + 1 < total_batches:
+            time.sleep(BATCH_PAUSE_S)
     return len(records)
 
 
-def handle(data: dict, client: CogniteClient) -> dict[str, int | str]:
+def handle(data: dict, client: CogniteClient) -> dict[str, int | str | None]:
     """CDF Function entry point.
 
     Args:
         data: Contract with ``stream_external_id``, ``instance_space``, ``enterprise_space``,
-            ``raw_database``, ``raw_table`` and optional ``last_updated_time_gt`` (ISO-8601,
-            must stay within the stream ``maxFilteringInterval``, 7d for ImmutableTestStream).
+            ``raw_database``, ``raw_table`` and optional ``sync_initialize_cursor`` (default ``365d-ago``).
         client: Injected client; its session carries the credentials.
 
     Returns:
         ``status`` plus counts: ``read``, ``invalid``, ``skipped``, ``ingested``.
     """
-    logging.basicConfig(level=logging.INFO)
+    configure_sdk_retries()
     params = HandlerInput.model_validate(data)
-    last_updated_time_gt = params.last_updated_time_gt or default_last_updated_time_gt()
 
     raw_rows = read_raw_rows(client, params.raw_database, params.raw_table)
-    existing = fetch_existing_external_ids(client, params, last_updated_time_gt)
+    existing = fetch_existing_external_ids(client, params)
     plan = plan_ingest(raw_rows, params.instance_space, existing)
     ingested = ingest_records(client, params, plan.new_records)
 
-    result: dict[str, int | str] = {
-        "status": "succeeded",
-        "read": plan.read,
-        "invalid": plan.invalid,
-        "skipped": plan.skipped,
-        "ingested": ingested,
-    }
-    log.info(f"Alarm events for stream {params.stream_external_id}: {result}")
-    return result
+    if plan.new_records:
+        # Verify-then-complete: a timeout is not proof of a failed write; confirm ids are searchable.
+        verified = verify_ingested(
+            client,
+            params,
+            [record.external_id for record in plan.new_records],
+        )
+        if verified < len(plan.new_records):
+            output = FunctionOutput(
+                status="deferred",
+                read=plan.read,
+                invalid=plan.invalid,
+                skipped=plan.skipped,
+                ingested=ingested,
+                reason=f"verify found {verified}/{len(plan.new_records)} ids; re-run to confirm",
+            )
+            _log({"event": "alarm_ingest", **output.model_dump()})
+            return output.model_dump()
+
+    output = FunctionOutput(
+        status="succeeded",
+        read=plan.read,
+        invalid=plan.invalid,
+        skipped=plan.skipped,
+        ingested=ingested,
+    )
+    _log({"event": "alarm_ingest", "stream": params.stream_external_id, **output.model_dump()})
+    return output.model_dump()
 
 
 def run_local() -> None:
     """Run against the project in the environment: ``python handler.py '{"stream_external_id":"..."}'``."""
-    import json
     import os
     import sys
 

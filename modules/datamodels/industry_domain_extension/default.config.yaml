@@ -37,5 +37,5 @@ raw_database_sharepoint: db_industry_sample
 
 # Records
 alarm_stream_external_id: pi_all_alarm_event
-# Sample/dev default only. Template is fixed at stream creation — set BasicArchive before any non-dev deploy.
-alarm_stream_template: ImmutableTestStream
+# Production-safe default. Override to ImmutableTestStream only in config.dev.yaml for short-lived sample streams.
+alarm_stream_template: BasicArchive

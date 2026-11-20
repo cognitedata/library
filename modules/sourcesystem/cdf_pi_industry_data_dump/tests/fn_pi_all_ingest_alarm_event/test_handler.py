@@ -1,26 +1,23 @@
 """Unit tests for the alarm event ingest handler. No network access."""
 
-from datetime import UTC, datetime
-from unittest.mock import MagicMock
-
 import pytest
-from cognite.client.exceptions import CogniteAPIError
 from handler import (
-    MAX_FILTER_INTERVAL,
+    DEFAULT_SYNC_INITIALIZE_CURSOR,
+    FUNCTION_MAX_RETRIES,
     AlarmRow,
+    FunctionOutput,
     HandlerInput,
-    default_last_updated_time_gt,
+    configure_sdk_retries,
     filter_missing,
     plan_ingest,
     row_to_record,
-    with_retry,
 )
 from pydantic import ValidationError
 
 INSTANCE_SPACE = "inst_location"
 
 
-def make_raw_row(key: str = "ALM-PT92501-C1-Raised", **overrides: str) -> dict[str, str]:
+def make_raw_row(key: str = "alm_pt92501_c1_raised", **overrides: str) -> dict[str, str]:
     row = {
         "key": key,
         "historianTagName": "VAL_23-PT-92501:X.Value",
@@ -42,7 +39,7 @@ def test_row_to_record_maps_properties_and_directs() -> None:
     record = row_to_record(AlarmRow.model_validate(make_raw_row()), INSTANCE_SPACE)
 
     assert record.space == INSTANCE_SPACE
-    assert record.external_id == "ALM-PT92501-C1-Raised"
+    assert record.external_id == "alm_pt92501_c1_raised"
     assert record.properties == {
         "eventTime": "2026-11-10T06:12:00.000Z",
         "eventType": "Raised",
@@ -74,35 +71,28 @@ def test_row_rejects_unknown_event_type() -> None:
 def test_filter_missing_drops_records_already_in_stream() -> None:
     records = [
         row_to_record(AlarmRow.model_validate(make_raw_row(key=key)), INSTANCE_SPACE)
-        for key in ("ALM-1", "ALM-2", "ALM-3")
+        for key in ("alm_1", "alm_2", "alm_3")
     ]
 
-    missing = filter_missing(records, existing_external_ids={"ALM-2"})
+    missing = filter_missing(records, existing_external_ids={"alm_2"})
 
-    assert [record.external_id for record in missing] == ["ALM-1", "ALM-3"]
+    assert [record.external_id for record in missing] == ["alm_1", "alm_3"]
 
 
 def test_plan_ingest_counts_read_invalid_skipped_and_new() -> None:
     raw_rows = [
-        make_raw_row(key="ALM-1"),
-        make_raw_row(key="ALM-2"),
-        make_raw_row(key="ALM-BAD", eventTime="not-a-time"),
+        make_raw_row(key="alm_1"),
+        make_raw_row(key="alm_2"),
+        make_raw_row(key="alm_bad", eventTime="not-a-time"),
     ]
 
-    plan = plan_ingest(raw_rows, INSTANCE_SPACE, existing_external_ids={"ALM-1"})
+    plan = plan_ingest(raw_rows, INSTANCE_SPACE, existing_external_ids={"alm_1"})
 
     assert (plan.read, plan.invalid, plan.skipped) == (3, 1, 1)
-    assert [record.external_id for record in plan.new_records] == ["ALM-2"]
+    assert [record.external_id for record in plan.new_records] == ["alm_2"]
 
 
-def test_default_last_updated_time_gt_is_within_max_filter_interval() -> None:
-    now = datetime(2026, 11, 20, 10, 0, 0, tzinfo=UTC)
-
-    assert default_last_updated_time_gt(now=now) == "2026-11-13T10:00:00.000Z"
-    assert MAX_FILTER_INTERVAL.days == 7
-
-
-def test_handler_input_requires_contract_keys_and_optional_lower_bound() -> None:
+def test_handler_input_defaults_sync_cursor_and_requires_contract_keys() -> None:
     data = {
         "stream_external_id": "pi_all_alarm_event",
         "instance_space": INSTANCE_SPACE,
@@ -111,28 +101,47 @@ def test_handler_input_requires_contract_keys_and_optional_lower_bound() -> None
         "raw_table": "alarm_event",
     }
 
-    assert HandlerInput.model_validate(data).last_updated_time_gt is None
+    assert HandlerInput.model_validate(data).sync_initialize_cursor == DEFAULT_SYNC_INITIALIZE_CURSOR
     with pytest.raises(ValidationError):
         HandlerInput.model_validate({k: v for k, v in data.items() if k != "raw_table"})
 
 
-def test_with_retry_retries_transient_api_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("handler.time.sleep", lambda _seconds: None)
-    calls = {"n": 0}
+def test_function_output_serializes_status_contract() -> None:
+    output = FunctionOutput(status="succeeded", read=3, invalid=0, skipped=1, ingested=2)
 
-    def flaky() -> str:
-        calls["n"] += 1
-        if calls["n"] < 3:
-            raise CogniteAPIError(message="busy", code=429)
-        return "ok"
+    assert output.model_dump() == {
+        "status": "succeeded",
+        "read": 3,
+        "invalid": 0,
+        "skipped": 1,
+        "ingested": 2,
+        "reason": None,
+    }
 
-    assert with_retry(flaky, label="test") == "ok"
-    assert calls["n"] == 3
+
+def test_configure_sdk_retries_caps_function_retries() -> None:
+    configure_sdk_retries()
+
+    from cognite.client import global_config
+
+    assert global_config.max_retries == FUNCTION_MAX_RETRIES
 
 
-def test_with_retry_does_not_retry_client_errors() -> None:
-    operation = MagicMock(side_effect=CogniteAPIError(message="bad request", code=400))
+def test_collect_existing_external_ids_skips_deleted_and_other_spaces() -> None:
+    from handler import collect_existing_external_ids
 
-    with pytest.raises(CogniteAPIError):
-        with_retry(operation, label="test")
-    assert operation.call_count == 1
+    class FakeRecord:
+        def __init__(self, space: str, external_id: str, status: str = "created") -> None:
+            self.space = space
+            self.external_id = external_id
+            self.status = status
+
+    chunks = [
+        [
+            FakeRecord(INSTANCE_SPACE, "alm_1"),
+            FakeRecord(INSTANCE_SPACE, "alm_gone", status="deleted"),
+            FakeRecord("other_space", "alm_other"),
+        ]
+    ]
+
+    assert collect_existing_external_ids(chunks, INSTANCE_SPACE) == {"alm_1"}

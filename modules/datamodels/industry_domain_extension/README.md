@@ -22,7 +22,7 @@ Industry-neutral enterprise (`_DOM`) data model template for asset-heavy industr
 | Containers | Tag, Equipment, Document, TimeSeriesData, WorkOrder, Notification, Material, OperatingLimit (node); AlarmEvent (record) |
 | Views | Matching domain views (`implements` CDM/IDM where applicable) + `AlarmEvent` record view (`streamId`, not in the DataModel) |
 | Data model | `Industry_DOM` + `CogniteEquipmentType` / `CogniteFileCategory` |
-| Stream | `{{ alarm_stream_external_id }}` (default template `ImmutableTestStream` — **dev only**) |
+| Stream | `{{ alarm_stream_external_id }}` (default template `BasicArchive`; override to `ImmutableTestStream` only in `config.dev.yaml`) |
 | Auth | `admin_industry_all_*` (schema on enterprise + search), `producer_industry_dom_*`, pipeline `producer_industry_pp_*` / `producer_industry_wf_*` |
 | Governance | Dataset + enterprise location filter |
 
@@ -85,7 +85,7 @@ Full procedure, touch map, and rename recipes: [SPEC.md](SPEC.md).
 
 ### Stream template warning
 
-`ImmutableTestStream` is for sample/dev only (short retention). The stream template **cannot be changed** after creation — set `BasicArchive` in `config.<env>.yaml` **before** the first non-dev deploy.
+Module default is `BasicArchive`. `ImmutableTestStream` is for sample/dev only (short retention) and is set in `config.dev.yaml`. The stream template **cannot be changed** after creation — do not create the stream with `ImmutableTestStream` if you need production retention.
 
 ### Querying — cursor reads and indexes
 
