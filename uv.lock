@@ -703,20 +703,6 @@ wheels = [
 ]
 
 [[package]]
-name = "fpdf2"
-version = "2.8.8"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "defusedxml" },
-    { name = "fonttools" },
-    { name = "pillow" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/1e/bc/8fd4321aed40cadadddc8f311c65b6082346b252bca048f7b476d8f35d72/fpdf2-2.8.8.tar.gz", hash = "sha256:9e94e155e85e8053329a9a1fce8b566fd7a7c5bb79e98a1a3952d379b947c5b9", size = 374689, upload-time = "2026-08-09T23:32:45.334Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f5/be/af012eda9507494f28b99b077423806c43a11573eb6225dd46f19ae2d263/fpdf2-2.8.8-py3-none-any.whl", hash = "sha256:3557a478fc577a929c94aace9666aed4dcc432b5ab6764232e6a59f1ccd75f17", size = 337000, upload-time = "2026-08-09T23:32:43.728Z" },
-]
-
-[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
