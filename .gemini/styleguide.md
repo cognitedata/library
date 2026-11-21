@@ -24,6 +24,11 @@ at any severity (**including CRITICAL**).
   **NEVER** claim it is singular / `list: false`, demand
   `first`/`min`/`equipment[0]` / `node_reference(..., min(key))`, or
   escalate the same claim to CRITICAL after decline.
+- **`fn_pi_all_ingest_alarm_event/test_handler.py` imports:**
+  `from handler import …` **before** `from pydantic …` is **correct**
+  under ruff I001 (same-folder `handler`, no `known-first-party`).
+  **NEVER** demand pydantic-before-handler regrouping or blank-line
+  “local” groups — those break CI. Prefer silence on this file’s imports.
 
 1. **Do not re-raise declined findings.** If a human already declined or
    corrected a Gemini suggestion on this PR (same file/topic), do **not**
