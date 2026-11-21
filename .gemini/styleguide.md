@@ -37,8 +37,16 @@ recycled comment.
      the write items; `stream_id` is keyword-only. Do **not** suggest
      swapping args or a `records=` kwarg.
    - Cognite RAW `rows.list(..., limit=-1)` is the SDK unlimited sentinel.
-   - DMS container `maxListSize` is a valid list-length constraint (distinct
-     from `maxTextSize`).
+   - Cognite RAW **row keys are unique** within a table. Building
+     `candidate_ids` (or similar) from `row["key"]` / `row.key` does **not**
+     need a `set(...)` wrap for de-duplication — that is speculative
+     micro-optimization, not a bug. Prefer silence when ingest/plan code
+     already dedupes by `external_id`.
+   - DMS container `maxListSize` is a **supported** list-length constraint
+     on `type:` for `list: true` properties (distinct from `maxTextSize`).
+     Values up to the documented CDF limits are valid. **Do NOT** claim it
+     is unsupported, invalid YAML, or that Toolkit/DMS will reject deploy
+     because of `maxListSize`. Do **not** suggest removing it.
    - `CogniteTimeSeries.equipment` is a **list** of direct relations
      (`list: true`), same pattern as `assets`. `collect_set` → array is
      correct; do **not** suggest collapsing to a single relation / `min`.
@@ -50,8 +58,10 @@ recycled comment.
    tracebacks), **Do NOT** demand `logging` instead.
 6. **Catch real bugs, not speculative rewrites.** Do not propose defensive
    `getattr` reshapes, alternate SDK call shapes, or “efficiency” rewrites
-   that contradict the Records API surface (`filter` / `sync` / `aggregate`
-   — there is no Records `retrieve` / by-ids API).
+   (set-dedup of already-unique RAW keys, micro-optimizations with no
+   correctness impact) that contradict the Records API surface
+   (`filter` / `sync` / `aggregate` — there is no Records `retrieve` /
+   by-ids API).
 
 ## Key Principles
 
