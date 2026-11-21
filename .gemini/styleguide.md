@@ -5,6 +5,54 @@ This repository contains **Cognite deployment packs** — Toolkit modules
 validating packages. Reviews should cover both the configuration content of
 modules under `modules/` and the Python tooling at the repo root.
 
+## Code Review Guardrails (anti-false-positive)
+
+Apply these **before** any other rule. Prefer silence over a speculative or
+recycled comment.
+
+1. **Do not re-raise declined findings.** If a human already declined or
+   corrected a Gemini suggestion on this PR (same file/topic), do **not**
+   post the same claim again with different wording.
+2. **Skip checks CI already enforces.** CI runs `ruff check` (incl. `I001`
+   import order), `ruff format --check`, `pyright`, `pytest`, and
+   `validate_packages.py`. **Do NOT flag** import sorting/grouping,
+   formatting, or line length when the tree already matches ruff. For CDF
+   Function tests, `handler` is a same-folder import with **no**
+   `known-first-party` entry — ruff may place `from handler import …`
+   alphabetically next to third-party `from` imports; that order is correct
+   when `ruff check` passes. Do **not** invent a blank-line “local group”
+   that would fail I001.
+3. **Verify Cognite SDK / CDM facts before claiming TypeError or schema
+   mismatch.** Prefer official Cognite docs and the pinned `cognite-sdk`
+   version in the function’s `requirements.txt` over training memory.
+   Known facts in this repo (do **not** contradict):
+   - `client.data_modeling.records.sync(...)` yields **`SyncRecordList`
+     chunks** (`for chunk in sync(...): for record in chunk:`). It does
+     **not** yield bare `Record` objects one-by-one. Nested
+     `Iterable[Iterable[…]]` helpers matching that shape are correct.
+   - `sync` requires exactly one of `initialize_cursor` or `cursor`.
+     `initialize_cursor` values are `{duration}-ago` (e.g. `365d-ago`),
+     not `"beginning"`.
+   - `records.ingest(items, *, stream_id=...)` — first positional arg is
+     the write items; `stream_id` is keyword-only. Do **not** suggest
+     swapping args or a `records=` kwarg.
+   - Cognite RAW `rows.list(..., limit=-1)` is the SDK unlimited sentinel.
+   - DMS container `maxListSize` is a valid list-length constraint (distinct
+     from `maxTextSize`).
+   - `CogniteTimeSeries.equipment` is a **list** of direct relations
+     (`list: true`), same pattern as `assets`. `collect_set` → array is
+     correct; do **not** suggest collapsing to a single relation / `min`.
+4. **Toolkit YAML conventions.** Unquoted `{{ variable }}` placeholders in
+   Cognite Toolkit YAML are normal in this repo. **Do NOT flag** them as
+   YAML syntax errors or demand quoting solely for standard YAML parsers.
+5. **CDF Functions logging.** When a handler documents intentional `print`
+   for structured logs (Azure Functions hosts often hide `logging`
+   tracebacks), **Do NOT** demand `logging` instead.
+6. **Catch real bugs, not speculative rewrites.** Do not propose defensive
+   `getattr` reshapes, alternate SDK call shapes, or “efficiency” rewrites
+   that contradict the Records API surface (`filter` / `sync` / `aggregate`
+   — there is no Records `retrieve` / by-ids API).
+
 ## Key Principles
 
 - **Security first**: Flag hard-coded credentials, secrets, tokens, private
@@ -99,7 +147,11 @@ def load_spec(path: Path) -> dict[str, Any]:
 
 ## Python: Imports
 
-- **Group imports**: Standard library, third-party, local application
+- **Authority**: `ruff check` (`I` / isort) is the source of truth. If ruff
+  is green, do not open a review comment about import order.
+- **Group imports**: Standard library, third-party, local application when
+  first-party packages are configured; otherwise ruff’s single sorted
+  `from` block is fine.
 - **Absolute imports**: Always use absolute imports for clarity
 - **Sort alphabetically** within groups, following ruff's isort order (the `I` rule in `pyproject.toml`): plain
   `import x` statements come before `from x import y` statements, each sorted by module name. Do not reorder imports
