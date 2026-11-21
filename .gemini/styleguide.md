@@ -306,9 +306,13 @@ error_data = {"module": "foo", "message": "bar"}
 
 ## Logging
 
-- Use the `logging` module with appropriate levels
-- Include contextual information for debugging
-- Format: `log.warning(f"Description: {variable}")`
+- Prefer the `logging` module with contextual messages for **repo-root
+  Python tooling** (e.g. `log.warning(f"Description: {variable}")`).
+- **Exception — CDF Functions handlers:** when a handler documents
+  intentional `print` for structured JSON logs (Azure Functions hosts often
+  hide `logging` tracebacks), that is correct. **Do NOT** demand
+  `logging` / `import logging` on those handlers. See Code Review
+  Guardrails §5.
 
 ## Code references
 
