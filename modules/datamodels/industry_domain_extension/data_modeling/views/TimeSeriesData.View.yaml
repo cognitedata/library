@@ -1,0 +1,98 @@
+space: "{{ enterprise_space }}"
+externalId: TimeSeriesData
+name: Time series data
+description: "Enterprise time series view. CONTRACT: implements CogniteTimeSeries."
+implements:
+  - space: cdf_cdm
+    externalId: CogniteTimeSeries
+    version: v1
+    type: view
+version: "{{ dm_enterprise_version }}"
+properties:
+  timeSeriesSource:
+    name: Time series source
+    description: "SOURCE_SCAFFOLD: Source family for the time series. Example: PI."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: timeSeriesSource
+
+  piSourceTag:
+    name: PI source tag
+    description: "SOURCE_SCAFFOLD: PI SourceTag attribute. Example: \\SERVER\\TAG.Value."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: piSourceTag
+
+  piPointSource:
+    name: PI point source
+    description: "SOURCE_SCAFFOLD: PI PointSource attribute. Example: L."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: piPointSource
+
+  opcUaNodeId:
+    name: OPC UA node id
+    description: "SOURCE_SCAFFOLD: OPC UA NodeId. Example: ns=2;s=Pump.Pressure."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: opcUaNodeId
+
+  opcUaBrowseName:
+    name: OPC UA browse name
+    description: "SOURCE_SCAFFOLD: OPC UA BrowseName. Example: 2:Pressure."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: opcUaBrowseName
+
+  assets:
+    name: Assets
+    description: "CONTRACT: Tags associated with this time series."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  equipment:
+    name: Equipment
+    description: "CONTRACT: Equipment associated with this time series."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: equipment
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Equipment
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  unit:
+    name: Unit
+    description: "CONTRACT: Unit of measure; stays sourced to CogniteUnit."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: unit
+    source:
+      space: "cdf_cdm"
+      externalId: CogniteUnit
+      version: "v1"
+      type: view
+

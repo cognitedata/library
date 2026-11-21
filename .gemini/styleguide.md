@@ -5,6 +5,134 @@ This repository contains **Cognite deployment packs** — Toolkit modules
 validating packages. Reviews should cover both the configuration content of
 modules under `modules/` and the Python tooling at the repo root.
 
+## Code Review Guardrails (anti-false-positive)
+
+Apply these **before** any other rule. Prefer silence over a speculative or
+recycled comment.
+
+1. **Do not re-raise declined findings.** If a human already declined or
+   corrected a Gemini suggestion on this PR (same file/topic), do **not**
+   post the same claim again with different wording. Recurring threads that
+   must stay silent after decline: `test_handler.py` import order
+   (`handler` before `pydantic`); intentional `print` structured logging
+   (and companion “add unused `import logging`”); Pydantic v2
+   `model_config = ConfigDict(...)` without an extra attribute annotation;
+   `CogniteTimeSeries.equipment` list/`collect_set` (incl. `first`/`min`/
+   `[0]` rewordings); intentional `status="deferred"` verify-then-complete
+   (incl. `raise RuntimeError` rewrites); RAW `candidate_ids`
+   set/`dict.fromkeys` dedup.
+2. **Skip checks CI already enforces.** CI runs `ruff check` (incl. `I001`
+   import order), `ruff format --check`, `pyright`, `pytest`, and
+   `validate_packages.py`. **Do NOT flag** import sorting/grouping,
+   formatting, or line length when the tree already matches ruff. For CDF
+   Function tests (notably
+   `fn_pi_all_ingest_alarm_event/test_handler.py`), `handler` is a
+   same-folder import with **no** `known-first-party` entry — ruff places
+   `from handler import …` **before** third-party `from pydantic …`
+   (module name order), and that is correct when `ruff check` passes.
+   **Prefer silence** on this file’s imports. **Do NOT** invent a
+   blank-line “local group”, demand `pydantic` above `handler`, or
+   re-sort the `from handler import (…)` name list — those suggestions
+   often **break I001**.
+3. **Verify Cognite SDK / CDM facts before claiming TypeError or schema
+   mismatch.** Prefer official Cognite docs and the pinned `cognite-sdk`
+   version in the function’s `requirements.txt` over training memory.
+   Known facts in this repo (do **not** contradict):
+   - Records (cognite-sdk ≥8.24, pinned e.g. 8.25) live under
+     **`client.data_modeling.records`** and
+     **`cognite.client.data_classes.data_modeling.records`**. Official docs
+     use those paths for `sync` / `ingest` / `RecordWrite` /
+     `RecordContainerId`. **Do NOT** claim the API is `client.records` or
+     `cognite.client.data_classes.records`, or rewrite mocks/tests to that
+     incorrect shape.
+   - `client.data_modeling.records.sync(...)` yields **`SyncRecordList`
+     chunks** (`for chunk in sync(...): for record in chunk:`). It does
+     **not** yield bare `Record` objects one-by-one. Nested
+     `Iterable[Iterable[…]]` helpers (e.g. `collect_existing_external_ids`)
+     and unit tests that pass a **list-of-chunks** are correct. **Do NOT**
+     claim `'Record' object is not iterable`, demand a flat
+     `Iterable[Record]` signature, or rewrite matching tests to a flat list.
+   - `sync(..., chunk_size=...)` **is a valid keyword** (1–1000, default
+     1000) on cognite-sdk ≥8.24 Records API. **Do NOT** claim
+     `chunk_size` raises `TypeError` or suggest removing it.
+   - `sync` requires exactly one of `initialize_cursor` or `cursor`.
+     `initialize_cursor` values are `{duration}-ago` (e.g. `365d-ago`),
+     not `"beginning"`.
+   - `records.ingest(items, *, stream_id=...)` — first positional arg is
+     the write items; `stream_id` is keyword-only. Do **not** suggest
+     swapping args or a `records=` kwarg.
+   - `global_config.silence_feature_preview_warnings` is the **correct**
+     Cognite SDK attribute. **Do NOT** suggest renaming it to
+     `disable_feature_preview_warnings` (that name does not exist).
+   - Retry limits live on **`global_config.max_retries`** (and related
+     GlobalConfig fields). **`ClientConfig` has no `max_retries`.** Do
+     **not** suggest `client.config.max_retries = …` or
+     `return CogniteClient(client.config)` to “apply” retries inside a
+     CDF Function `handle()`. Setting `global_config.max_retries` (as in
+     `configure_sdk_retries()`) is the correct API; speculative
+     re-instantiation of the runtime-injected client is not a required
+     fix.
+   - Cognite RAW `rows.list(..., limit=-1)` is the SDK **unlimited**
+     sentinel. **Do NOT** claim it causes HTTP 400 or suggest
+     `limit=None` instead.
+   - Cognite RAW **row keys are unique** within a table. Building
+     `candidate_ids` (or similar) from `row["key"]` / `row.key` does **not**
+     need `set(...)` / `dict.fromkeys(...)` de-duplication before
+     `records.sync` chunking — that is speculative micro-optimization, not
+     a bug. Prefer silence when ingest/plan code already dedupes by
+     `external_id`. Do not re-raise this after decline.
+   - DMS container `maxListSize` is a **supported** list-length constraint
+     on `type:` for `list: true` properties (distinct from `maxTextSize`).
+     Values up to the documented CDF limits are valid. **Do NOT** claim it
+     is unsupported, invalid YAML, or that Toolkit/DMS will reject deploy
+     because of `maxListSize`. Do **not** suggest removing it.
+   - `CogniteTimeSeries.equipment` is a **list** of direct relations
+     (`list: true`), same pattern as `assets`. In
+     `tr_pi_all_to_industry_time_series.Transformation.sql` (and siblings),
+     `collect_set(node_reference(...)) AS equipment` and
+     `e.equipment AS equipment` are correct. **Prefer silence** on this
+     file’s `equipment` column. **Do NOT** claim `list: false` / “single
+     direct relation” (including “from cdf_cdm”), demand
+     `min`/`first`/`e.equipment[0]`, or re-raise reworded variants after
+     decline.
+4. **Toolkit YAML conventions.** Unquoted `{{ variable }}` placeholders in
+   Cognite Toolkit YAML are normal in this repo. **Do NOT flag** them as
+   YAML syntax errors or demand quoting solely for standard YAML parsers.
+   **Sample-dump `upload_data/*.Manifest.yaml` files** intentionally hardcode
+   defaults that match `default.config.yaml` (e.g. `db_industry_sample`,
+   `inst_location`) — same pattern as CFIHOS dumps (`cfihos_oil_and_gas`).
+   Those manifests are consumed by dump-upload tooling and are **not** the
+   same Toolkit-substituted resource YAML. **Do NOT** demand
+   `{{ raw_database_* }}` / `{{ instance_space }}` inside Manifest.yaml
+   solely because module config variables exist.
+5. **CDF Functions logging.** When a handler documents intentional `print`
+   for structured logs (Azure Functions hosts often hide `logging`
+   tracebacks), **Do NOT** demand `logging` instead, and **Do NOT** add an
+   unused `import logging` “for style”. Prefer silence.
+5b. **Pydantic `model_config`.** `model_config = ConfigDict(...)` is the
+   standard Pydantic v2 idiom. **Do NOT** demand
+   `model_config: ConfigDict = ConfigDict(...)` (or similar) solely for
+   “every class attribute needs a type hint” — pyright/CI already accept
+   the unannotated form. Prefer silence.
+6. **Intentional `status="deferred"` (verify-then-complete).** When a
+   Records ingest handler returns `deferred` because post-ingest
+   verification found fewer ids than written (stream eventual
+   consistency / search lag), that is an **intentional** soft-complete so
+   a later re-run can confirm — **not** a silent pipeline bug. **Do NOT**
+   demand `raise RuntimeError` solely to force workflow failure/retry
+   unless the handler claims hard-fail semantics.
+7. **IDM `Notification` vs CogniteActivity.** `cdf_idm:CogniteNotification`
+   does **not** include CogniteActivity. Enterprise `Notification` views
+   must **not** map CogniteActivity `equipment` / `timeSeries` (unlike
+   WorkOrder / WorkOrderOperation). Prefer silence once removed; do not
+   invent alternate CogniteActivity maps on Notification.
+8. **Catch real bugs, not speculative rewrites.** Do not propose defensive
+   `getattr` reshapes, alternate SDK call shapes, or “efficiency” rewrites
+   (set-dedup of already-unique RAW keys, micro-optimizations with no
+   correctness impact) that contradict the Records API surface
+   (`filter` / `sync` / `aggregate` — there is no Records `retrieve` /
+   by-ids API).
+
 ## Key Principles
 
 - **Security first**: Flag hard-coded credentials, secrets, tokens, private
@@ -99,7 +227,11 @@ def load_spec(path: Path) -> dict[str, Any]:
 
 ## Python: Imports
 
-- **Group imports**: Standard library, third-party, local application
+- **Authority**: `ruff check` (`I` / isort) is the source of truth. If ruff
+  is green, do not open a review comment about import order.
+- **Group imports**: Standard library, third-party, local application when
+  first-party packages are configured; otherwise ruff’s single sorted
+  `from` block is fine.
 - **Absolute imports**: Always use absolute imports for clarity
 - **Sort alphabetically** within groups, following ruff's isort order (the `I` rule in `pyproject.toml`): plain
   `import x` statements come before `from x import y` statements, each sorted by module name. Do not reorder imports

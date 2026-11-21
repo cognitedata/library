@@ -1,0 +1,2 @@
+cognite-sdk==8.25.0
+pydantic==2.12.4

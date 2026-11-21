@@ -1,0 +1,12 @@
+# The default schedule (Feb 29 at midnight) effectively never fires — run the workflow manually.
+# Set run_workflow_schedule in config.<env>.yaml to enable scheduled runs.
+# Run wf_sap_all_to_industry first so Tag and Equipment nodes exist for edges and overlays.
+externalId: {{ workflow_trigger_external_id }}
+triggerRule:
+  triggerType: schedule
+  cronExpression: "{{ run_workflow_schedule }}"
+workflowExternalId: {{ workflow_external_id }}
+workflowVersion: v1
+authentication:
+  clientId: {{ ingestion_client_id }}
+  clientSecret: {{ ingestion_client_secret }}

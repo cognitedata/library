@@ -1,0 +1,60 @@
+space: "{{ enterprise_space }}"
+externalId: Tag
+name: Tag
+description: Enterprise tag / functional location hub. Extends CogniteAsset.
+usedFor: node
+properties:
+  site:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Site
+    description: "SOURCE_SCAFFOLD: Site or plant code. Example: PLANT01."
+  area:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Area
+    description: "SOURCE_SCAFFOLD: Area or process area code. Example: AREA-A."
+  system:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: System
+    description: "SOURCE_SCAFFOLD: System or subsystem code. Example: SYS-01."
+  tagClass:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Tag class
+    description: "SOURCE_SCAFFOLD: Tag class or category label. Example: Pump."
+constraints:
+  requiresCogniteAsset:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+indexes:
+  site:
+    indexType: btree
+    properties:
+      - site
+    cursorable: true
+
+  area:
+    indexType: btree
+    properties:
+      - area
+    cursorable: false
+
+  system:
+    indexType: btree
+    properties:
+      - system
+    cursorable: false
+

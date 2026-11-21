@@ -1,0 +1,4 @@
+externalId: "{{ alarm_stream_external_id }}"
+settings:
+  template:
+    name: "{{ alarm_stream_template }}"

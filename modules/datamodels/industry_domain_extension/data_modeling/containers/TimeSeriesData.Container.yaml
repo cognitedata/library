@@ -1,0 +1,77 @@
+space: "{{ enterprise_space }}"
+externalId: TimeSeriesData
+name: Time series data
+description: Enterprise time series. Extends CogniteTimeSeries.
+usedFor: node
+properties:
+  timeSeriesSource:
+    type:
+      type: enum
+      values:
+        PI:
+          name: PI
+          description: Time series from an OSIsoft PI historian.
+        OpcUa:
+          name: OpcUa
+          description: Time series from an OPC UA source.
+        Other:
+          name: Other
+          description: Time series from another source family.
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Time series source
+    description: "SOURCE_SCAFFOLD: Source family for the time series. Example: PI."
+  piSourceTag:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: PI source tag
+    description: "SOURCE_SCAFFOLD: PI SourceTag attribute. Example: \\SERVER\\TAG.Value."
+  piPointSource:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: PI point source
+    description: "SOURCE_SCAFFOLD: PI PointSource attribute. Example: L."
+  opcUaNodeId:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: OPC UA node id
+    description: "SOURCE_SCAFFOLD: OPC UA NodeId. Example: ns=2;s=Pump.Pressure."
+  opcUaBrowseName:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: OPC UA browse name
+    description: "SOURCE_SCAFFOLD: OPC UA BrowseName. Example: 2:Pressure."
+constraints:
+  requiresCogniteTimeSeries:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+indexes:
+  timeSeriesSource:
+    indexType: btree
+    properties:
+      - timeSeriesSource
+    cursorable: false
+
+  piSourceTag:
+    indexType: btree
+    properties:
+      - piSourceTag
+    cursorable: false
+
+  opcUaNodeId:
+    indexType: btree
+    properties:
+      - opcUaNodeId
+    cursorable: false

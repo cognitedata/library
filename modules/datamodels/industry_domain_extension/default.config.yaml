@@ -1,0 +1,41 @@
+# Data model identifiers
+enterprise_space: dm_dom_industry
+search_space: dm_sol_industry_search
+# One instance space for all nodes, edges and records. When the model is installed and
+# extended, change or add spaces to match derived-domain usage (site, plant, access
+# boundary) — not one space per source system. Search has no instance space.
+instance_space: inst_location
+enterprise_data_model_external_id: Industry_DOM
+enterprise_data_model_name: Industry DM DOM
+dm_enterprise_version: v1
+
+# Governance
+dataset_external_id: ds_industry_all
+dataset_name: Industry domain model
+enterprise_location_filter_external_id: loc_industry_all
+enterprise_location_filter_name: Industry all locations
+# Owned by industry_domain_extension_search; listed here so admin can scope locationFiltersAcl.
+search_location_filter_external_id: loc_industry_search_all
+
+# Access groups — persona-led; environment token only here (override per config.<env>.yaml)
+# Type tokens: all | dom | sol | pp | wf (dom/sol/wf are template-specific; documented in SPEC §8.8)
+# admin + DOM producer + pipeline pp/wf. SOL consumer lives in industry_domain_extension_search.
+# Additive to foundation admin_all_* / producer_all_* / consumer_all_* — do not replace them.
+admin_group_name: admin_industry_all_dev
+dom_producer_group_name: producer_industry_dom_dev
+ingestion_group_name: producer_industry_pp_dev
+operator_group_name: producer_industry_wf_dev
+admin_source_id: ${ADMIN_GROUP_SOURCE_ID}
+dom_producer_source_id: ${DOM_PRODUCER_GROUP_SOURCE_ID}
+ingestion_source_id: ${INGESTION_GROUP_SOURCE_ID}
+operator_source_id: ${OPERATOR_GROUP_SOURCE_ID}
+
+# Sample RAW databases (owned by the *_industry_data_dump modules; scoped on pp/wf groups)
+raw_database_sap: db_industry_sample
+raw_database_pi: db_industry_sample
+raw_database_sharepoint: db_industry_sample
+
+# Records
+alarm_stream_external_id: pi_all_alarm_event
+# Production-safe default. Override to ImmutableTestStream only in config.dev.yaml for short-lived sample streams.
+alarm_stream_template: BasicArchive

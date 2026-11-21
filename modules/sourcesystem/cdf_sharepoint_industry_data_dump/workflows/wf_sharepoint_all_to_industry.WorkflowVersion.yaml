@@ -1,0 +1,58 @@
+workflowExternalId: {{ workflow_external_id }}
+version: v1
+workflowDefinition:
+  tasks:
+    # Wave 1: RAW → nodes (parallel). Required: run wf_sap_all_to_industry first (not enforced by dependsOn).
+    - externalId: tr_sharepoint_all_to_industry_file_category
+      type: transformation
+      name: File category
+      description: Load file category nodes from SharePoint
+      parameters:
+        transformation:
+          externalId: tr_sharepoint_all_to_industry_file_category
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: tr_sharepoint_all_to_industry_document
+      type: transformation
+      name: Document
+      description: Load Document nodes from SharePoint
+      parameters:
+        transformation:
+          externalId: tr_sharepoint_all_to_industry_document
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    # Wave 2: edges need Document (this workflow) and Tag (SAP workflow) nodes.
+    - externalId: tr_sharepoint_all_to_industry_diagram_annotation
+      type: transformation
+      name: Diagram annotation
+      description: Create diagram annotation edges between documents and tags (optional enrichment)
+      parameters:
+        transformation:
+          externalId: tr_sharepoint_all_to_industry_diagram_annotation
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: skipTask
+      dependsOn:
+        - externalId: tr_sharepoint_all_to_industry_document
+
+    # Wave 3: overlay on Equipment (SAP) and Document nodes — optional enrichment.
+    - externalId: tr_sharepoint_all_to_industry_equipment_document_connection
+      type: transformation
+      name: Equipment document connection
+      description: Connect Equipment to Documents (optional enrichment)
+      parameters:
+        transformation:
+          externalId: tr_sharepoint_all_to_industry_equipment_document_connection
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: skipTask
+      dependsOn:
+        - externalId: tr_sharepoint_all_to_industry_document
