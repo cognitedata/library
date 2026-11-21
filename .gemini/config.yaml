@@ -3,12 +3,17 @@ memory_config:
   disabled: true
 code_review:
   disable: false
-  comment_severity_threshold: HIGH
-  # Cap volume so each push does not re-flood the PR with recycled findings.
-  max_review_comments: 3
+  # Only post CRITICAL findings. Style nits and unverified SDK claims are
+  # routinely mislabeled HIGH and flood PRs with recycled false positives.
+  comment_severity_threshold: CRITICAL
+  # Hard cap per review pass — prefer silence over volume.
+  max_review_comments: 2
   pull_request_opened:
-    help: true
+    help: false
     summary: false
     code_review: true
     include_drafts: false
-ignore_patterns: []
+ignore_patterns:
+  # Sample-dump upload manifests intentionally hardcode defaults; not Toolkit YAML.
+  - "**/upload_data/**/*.Manifest.yaml"
+  - "**/upload_data/**/*.Manifest.yml"

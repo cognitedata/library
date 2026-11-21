@@ -7,8 +7,11 @@ modules under `modules/` and the Python tooling at the repo root.
 
 ## Code Review Guardrails (anti-false-positive)
 
-Apply these **before** any other rule. Prefer silence over a speculative or
-recycled comment.
+Apply these **before** any other rule. **Default to silence.** Only comment
+when you can cite a verified correctness bug against pinned SDK docs, DMS
+schema, or CI. Style preferences, speculative efficiency, and design
+choices already documented below are **out of scope** — do not post them
+even as HIGH.
 
 1. **Do not re-raise declined findings.** If a human already declined or
    corrected a Gemini suggestion on this PR (same file/topic), do **not**
