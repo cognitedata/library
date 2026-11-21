@@ -37,6 +37,17 @@ at any severity (**including CRITICAL**).
   are `filter` / `sync` / `aggregate`. Existence checks via
   `records.sync(..., filter=In([...]), initialize_cursor=...)` are valid.
   **NEVER** invent a `records.list` rewrite.
+- **`records.sync` yields `SyncRecordList` chunks**, not bare `Record`
+  objects. Nested `Iterable[Iterable[…]]` helpers and list-of-chunks tests
+  are correct. **NEVER** claim `'Record' object is not iterable` or demand
+  a flat iterable rewrite (incl. CRITICAL rewordings).
+- **`functionsAcl` WRITE on workflow/ingestion identities** is the library
+  convention to **call** functions from workflows (`sessions:create` +
+  call). **READ alone does not call.** Do **not** demand stripping WRITE
+  to READ-only as a “security fix” unless migrating to `functionsAcl:RUN`
+  (not used in this repo yet). Prefer silence on established
+  READ+WRITE / `all: {}` patterns matching `cdf_ingestion` /
+  `context_quality` workflow groups.
 
 1. **Do not re-raise declined findings.** If a human already declined or
    corrected a Gemini suggestion on this PR (same file/topic), do **not**
