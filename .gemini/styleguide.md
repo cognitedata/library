@@ -12,19 +12,23 @@ recycled comment.
 
 1. **Do not re-raise declined findings.** If a human already declined or
    corrected a Gemini suggestion on this PR (same file/topic), do **not**
-   post the same claim again with different wording.
+   post the same claim again with different wording. This includes the
+   recurring `test_handler.py` import-order thread (`handler` before
+   `pydantic`) and the `CogniteTimeSeries.equipment` list/`collect_set`
+   thread — silence after the first decline.
 2. **Skip checks CI already enforces.** CI runs `ruff check` (incl. `I001`
    import order), `ruff format --check`, `pyright`, `pytest`, and
    `validate_packages.py`. **Do NOT flag** import sorting/grouping,
    formatting, or line length when the tree already matches ruff. For CDF
-   Function tests, `handler` is a same-folder import with **no**
-   `known-first-party` entry — ruff may place `from handler import …`
-   **before** third-party `from pydantic …` (module name order), and that
-   is correct when `ruff check` passes. **Do NOT** invent a blank-line
-   “local group”, demand `pydantic` above `handler`, or re-sort the
-   `from handler import (…)` name list differently from what ruff already
-   accepts — those suggestions often **break I001**. Do not re-raise this
-   after it was declined on the same PR.
+   Function tests (notably
+   `fn_pi_all_ingest_alarm_event/test_handler.py`), `handler` is a
+   same-folder import with **no** `known-first-party` entry — ruff places
+   `from handler import …` **before** third-party `from pydantic …`
+   (module name order), and that is correct when `ruff check` passes.
+   **Prefer silence** on this file’s imports. **Do NOT** invent a
+   blank-line “local group”, demand `pydantic` above `handler`, or
+   re-sort the `from handler import (…)` name list — those suggestions
+   often **break I001**.
 3. **Verify Cognite SDK / CDM facts before claiming TypeError or schema
    mismatch.** Prefer official Cognite docs and the pinned `cognite-sdk`
    version in the function’s `requirements.txt` over training memory.

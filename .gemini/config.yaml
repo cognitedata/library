@@ -5,7 +5,7 @@ code_review:
   disable: false
   comment_severity_threshold: HIGH
   # Cap volume so each push does not re-flood the PR with recycled findings.
-  max_review_comments: 5
+  max_review_comments: 3
   pull_request_opened:
     help: true
     summary: false
