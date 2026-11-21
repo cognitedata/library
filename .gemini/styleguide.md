@@ -19,9 +19,12 @@ recycled comment.
    formatting, or line length when the tree already matches ruff. For CDF
    Function tests, `handler` is a same-folder import with **no**
    `known-first-party` entry — ruff may place `from handler import …`
-   alphabetically next to third-party `from` imports; that order is correct
-   when `ruff check` passes. Do **not** invent a blank-line “local group”
-   that would fail I001.
+   **before** third-party `from pydantic …` (module name order), and that
+   is correct when `ruff check` passes. **Do NOT** invent a blank-line
+   “local group”, demand `pydantic` above `handler`, or re-sort the
+   `from handler import (…)` name list differently from what ruff already
+   accepts — those suggestions often **break I001**. Do not re-raise this
+   after it was declined on the same PR.
 3. **Verify Cognite SDK / CDM facts before claiming TypeError or schema
    mismatch.** Prefer official Cognite docs and the pinned `cognite-sdk`
    version in the function’s `requirements.txt` over training memory.
