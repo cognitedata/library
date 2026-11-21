@@ -92,6 +92,13 @@ recycled comment.
 4. **Toolkit YAML conventions.** Unquoted `{{ variable }}` placeholders in
    Cognite Toolkit YAML are normal in this repo. **Do NOT flag** them as
    YAML syntax errors or demand quoting solely for standard YAML parsers.
+   **Sample-dump `upload_data/*.Manifest.yaml` files** intentionally hardcode
+   defaults that match `default.config.yaml` (e.g. `db_industry_sample`,
+   `inst_location`) — same pattern as CFIHOS dumps (`cfihos_oil_and_gas`).
+   Those manifests are consumed by dump-upload tooling and are **not** the
+   same Toolkit-substituted resource YAML. **Do NOT** demand
+   `{{ raw_database_* }}` / `{{ instance_space }}` inside Manifest.yaml
+   solely because module config variables exist.
 5. **CDF Functions logging.** When a handler documents intentional `print`
    for structured logs (Azure Functions hosts often hide `logging`
    tracebacks), **Do NOT** demand `logging` instead.
@@ -102,7 +109,12 @@ recycled comment.
    a later re-run can confirm — **not** a silent pipeline bug. **Do NOT**
    demand `raise RuntimeError` solely to force workflow failure/retry
    unless the handler claims hard-fail semantics.
-7. **Catch real bugs, not speculative rewrites.** Do not propose defensive
+7. **IDM `Notification` vs CogniteActivity.** `cdf_idm:CogniteNotification`
+   does **not** include CogniteActivity. Enterprise `Notification` views
+   must **not** map CogniteActivity `equipment` / `timeSeries` (unlike
+   WorkOrder / WorkOrderOperation). Prefer silence once removed; do not
+   invent alternate CogniteActivity maps on Notification.
+8. **Catch real bugs, not speculative rewrites.** Do not propose defensive
    `getattr` reshapes, alternate SDK call shapes, or “efficiency” rewrites
    (set-dedup of already-unique RAW keys, micro-optimizations with no
    correctness impact) that contradict the Records API surface

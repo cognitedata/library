@@ -55,31 +55,3 @@ properties:
       version: "{{ dm_enterprise_version }}"
       type: view
 
-  equipment:
-    name: Equipment
-    description: "CONTRACT: Equipment related to this notification."
-    container:
-      space: "cdf_cdm"
-      externalId: CogniteActivity
-      type: container
-    containerPropertyIdentifier: equipment
-    source:
-      space: "{{ enterprise_space }}"
-      externalId: Equipment
-      version: "{{ dm_enterprise_version }}"
-      type: view
-
-  timeSeries:
-    name: Time series
-    description: "CONTRACT: Time series related to this notification."
-    container:
-      space: "cdf_cdm"
-      externalId: CogniteActivity
-      type: container
-    containerPropertyIdentifier: timeSeries
-    source:
-      space: "{{ enterprise_space }}"
-      externalId: TimeSeriesData
-      version: "{{ dm_enterprise_version }}"
-      type: view
-
