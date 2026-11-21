@@ -9,5 +9,3 @@
   space: '{{ function_space }}'
   runtime: 'py311'
   functionPath: 'handler.py'
-  # Data set for the uploaded function code
-  dataSetExternalId: '{{ dataset_external_id }}'
