@@ -74,12 +74,14 @@ recycled comment.
      is unsupported, invalid YAML, or that Toolkit/DMS will reject deploy
      because of `maxListSize`. Do **not** suggest removing it.
    - `CogniteTimeSeries.equipment` is a **list** of direct relations
-     (`list: true`), same pattern as `assets`. In PI/SAP sample transforms,
-     `collect_set(node_reference(...)) AS equipment` and assigning that
-     array column (`e.equipment AS equipment`) is correct. **Do NOT** claim
-     `list: false` / “single direct relation”, demand `min`/`first` /
-     `e.equipment[0]`, or re-raise this after it was declined on the same
-     PR (including reworded variants of the same claim).
+     (`list: true`), same pattern as `assets`. In
+     `tr_pi_all_to_industry_time_series.Transformation.sql` (and siblings),
+     `collect_set(node_reference(...)) AS equipment` and
+     `e.equipment AS equipment` are correct. **Prefer silence** on this
+     file’s `equipment` column. **Do NOT** claim `list: false` / “single
+     direct relation” (including “from cdf_cdm”), demand
+     `min`/`first`/`e.equipment[0]`, or re-raise reworded variants after
+     decline.
 4. **Toolkit YAML conventions.** Unquoted `{{ variable }}` placeholders in
    Cognite Toolkit YAML are normal in this repo. **Do NOT flag** them as
    YAML syntax errors or demand quoting solely for standard YAML parsers.
