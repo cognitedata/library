@@ -72,9 +72,10 @@ recycled comment.
    - `CogniteTimeSeries.equipment` is a **list** of direct relations
      (`list: true`), same pattern as `assets`. In PI/SAP sample transforms,
      `collect_set(node_reference(...)) AS equipment` and assigning that
-     array column is correct. **Do NOT** claim `list: false`, demand
-     `min`/`first` + a scalar `node_reference`, or re-raise this after it
-     was declined on the same PR.
+     array column (`e.equipment AS equipment`) is correct. **Do NOT** claim
+     `list: false` / “single direct relation”, demand `min`/`first` /
+     `e.equipment[0]`, or re-raise this after it was declined on the same
+     PR (including reworded variants of the same claim).
 4. **Toolkit YAML conventions.** Unquoted `{{ variable }}` placeholders in
    Cognite Toolkit YAML are normal in this repo. **Do NOT flag** them as
    YAML syntax errors or demand quoting solely for standard YAML parsers.
