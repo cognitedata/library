@@ -45,6 +45,14 @@ recycled comment.
    - `global_config.silence_feature_preview_warnings` is the **correct**
      Cognite SDK attribute. **Do NOT** suggest renaming it to
      `disable_feature_preview_warnings` (that name does not exist).
+   - Retry limits live on **`global_config.max_retries`** (and related
+     GlobalConfig fields). **`ClientConfig` has no `max_retries`.** Do
+     **not** suggest `client.config.max_retries = …` or
+     `return CogniteClient(client.config)` to “apply” retries inside a
+     CDF Function `handle()`. Setting `global_config.max_retries` (as in
+     `configure_sdk_retries()`) is the correct API; speculative
+     re-instantiation of the runtime-injected client is not a required
+     fix.
    - Cognite RAW `rows.list(..., limit=-1)` is the SDK **unlimited**
      sentinel. **Do NOT** claim it causes HTTP 400 or suggest
      `limit=None` instead.
