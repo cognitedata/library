@@ -29,7 +29,10 @@ recycled comment.
    - `client.data_modeling.records.sync(...)` yields **`SyncRecordList`
      chunks** (`for chunk in sync(...): for record in chunk:`). It does
      **not** yield bare `Record` objects one-by-one. Nested
-     `Iterable[Iterable[…]]` helpers matching that shape are correct.
+     `Iterable[Iterable[…]]` helpers (e.g. `collect_existing_external_ids`)
+     and unit tests that pass a **list-of-chunks** are correct. **Do NOT**
+     claim `'Record' object is not iterable`, demand a flat
+     `Iterable[Record]` signature, or rewrite matching tests to a flat list.
    - `sync(..., chunk_size=...)` **is a valid keyword** (1–1000, default
      1000) on cognite-sdk ≥8.24 Records API. **Do NOT** claim
      `chunk_size` raises `TypeError` or suggest removing it.
@@ -42,7 +45,9 @@ recycled comment.
    - `global_config.silence_feature_preview_warnings` is the **correct**
      Cognite SDK attribute. **Do NOT** suggest renaming it to
      `disable_feature_preview_warnings` (that name does not exist).
-   - Cognite RAW `rows.list(..., limit=-1)` is the SDK unlimited sentinel.
+   - Cognite RAW `rows.list(..., limit=-1)` is the SDK **unlimited**
+     sentinel. **Do NOT** claim it causes HTTP 400 or suggest
+     `limit=None` instead.
    - Cognite RAW **row keys are unique** within a table. Building
      `candidate_ids` (or similar) from `row["key"]` / `row.key` does **not**
      need a `set(...)` wrap for de-duplication — that is speculative
@@ -62,7 +67,14 @@ recycled comment.
 5. **CDF Functions logging.** When a handler documents intentional `print`
    for structured logs (Azure Functions hosts often hide `logging`
    tracebacks), **Do NOT** demand `logging` instead.
-6. **Catch real bugs, not speculative rewrites.** Do not propose defensive
+6. **Intentional `status="deferred"` (verify-then-complete).** When a
+   Records ingest handler returns `deferred` because post-ingest
+   verification found fewer ids than written (stream eventual
+   consistency / search lag), that is an **intentional** soft-complete so
+   a later re-run can confirm — **not** a silent pipeline bug. **Do NOT**
+   demand `raise RuntimeError` solely to force workflow failure/retry
+   unless the handler claims hard-fail semantics.
+7. **Catch real bugs, not speculative rewrites.** Do not propose defensive
    `getattr` reshapes, alternate SDK call shapes, or “efficiency” rewrites
    (set-dedup of already-unique RAW keys, micro-optimizations with no
    correctness impact) that contradict the Records API surface
