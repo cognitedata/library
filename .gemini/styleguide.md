@@ -33,6 +33,13 @@ recycled comment.
    mismatch.** Prefer official Cognite docs and the pinned `cognite-sdk`
    version in the function’s `requirements.txt` over training memory.
    Known facts in this repo (do **not** contradict):
+   - Records (cognite-sdk ≥8.24, pinned e.g. 8.25) live under
+     **`client.data_modeling.records`** and
+     **`cognite.client.data_classes.data_modeling.records`**. Official docs
+     use those paths for `sync` / `ingest` / `RecordWrite` /
+     `RecordContainerId`. **Do NOT** claim the API is `client.records` or
+     `cognite.client.data_classes.records`, or rewrite mocks/tests to that
+     incorrect shape.
    - `client.data_modeling.records.sync(...)` yields **`SyncRecordList`
      chunks** (`for chunk in sync(...): for record in chunk:`). It does
      **not** yield bare `Record` objects one-by-one. Nested
