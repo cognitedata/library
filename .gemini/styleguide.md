@@ -12,10 +12,12 @@ recycled comment.
 
 1. **Do not re-raise declined findings.** If a human already declined or
    corrected a Gemini suggestion on this PR (same file/topic), do **not**
-   post the same claim again with different wording. This includes the
-   recurring `test_handler.py` import-order thread (`handler` before
-   `pydantic`) and the `CogniteTimeSeries.equipment` list/`collect_set`
-   thread — silence after the first decline.
+   post the same claim again with different wording. Recurring threads that
+   must stay silent after decline: `test_handler.py` import order
+   (`handler` before `pydantic`); `CogniteTimeSeries.equipment`
+   list/`collect_set` (incl. `first`/`min`/`[0]` rewordings); intentional
+   `status="deferred"` verify-then-complete (incl. `raise RuntimeError`
+   rewrites); RAW `candidate_ids` set/`dict.fromkeys` dedup.
 2. **Skip checks CI already enforces.** CI runs `ruff check` (incl. `I001`
    import order), `ruff format --check`, `pyright`, `pytest`, and
    `validate_packages.py`. **Do NOT flag** import sorting/grouping,
