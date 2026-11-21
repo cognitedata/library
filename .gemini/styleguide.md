@@ -14,10 +14,13 @@ recycled comment.
    corrected a Gemini suggestion on this PR (same file/topic), do **not**
    post the same claim again with different wording. Recurring threads that
    must stay silent after decline: `test_handler.py` import order
-   (`handler` before `pydantic`); `CogniteTimeSeries.equipment`
-   list/`collect_set` (incl. `first`/`min`/`[0]` rewordings); intentional
-   `status="deferred"` verify-then-complete (incl. `raise RuntimeError`
-   rewrites); RAW `candidate_ids` set/`dict.fromkeys` dedup.
+   (`handler` before `pydantic`); intentional `print` structured logging
+   (and companion “add unused `import logging`”); Pydantic v2
+   `model_config = ConfigDict(...)` without an extra attribute annotation;
+   `CogniteTimeSeries.equipment` list/`collect_set` (incl. `first`/`min`/
+   `[0]` rewordings); intentional `status="deferred"` verify-then-complete
+   (incl. `raise RuntimeError` rewrites); RAW `candidate_ids`
+   set/`dict.fromkeys` dedup.
 2. **Skip checks CI already enforces.** CI runs `ruff check` (incl. `I001`
    import order), `ruff format --check`, `pyright`, `pytest`, and
    `validate_packages.py`. **Do NOT flag** import sorting/grouping,
@@ -104,7 +107,13 @@ recycled comment.
    solely because module config variables exist.
 5. **CDF Functions logging.** When a handler documents intentional `print`
    for structured logs (Azure Functions hosts often hide `logging`
-   tracebacks), **Do NOT** demand `logging` instead.
+   tracebacks), **Do NOT** demand `logging` instead, and **Do NOT** add an
+   unused `import logging` “for style”. Prefer silence.
+5b. **Pydantic `model_config`.** `model_config = ConfigDict(...)` is the
+   standard Pydantic v2 idiom. **Do NOT** demand
+   `model_config: ConfigDict = ConfigDict(...)` (or similar) solely for
+   “every class attribute needs a type hint” — pyright/CI already accept
+   the unannotated form. Prefer silence.
 6. **Intentional `status="deferred"` (verify-then-complete).** When a
    Records ingest handler returns `deferred` because post-ingest
    verification found fewer ids than written (stream eventual
