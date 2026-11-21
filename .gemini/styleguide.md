@@ -30,12 +30,18 @@ recycled comment.
      chunks** (`for chunk in sync(...): for record in chunk:`). It does
      **not** yield bare `Record` objects one-by-one. Nested
      `Iterable[Iterable[…]]` helpers matching that shape are correct.
+   - `sync(..., chunk_size=...)` **is a valid keyword** (1–1000, default
+     1000) on cognite-sdk ≥8.24 Records API. **Do NOT** claim
+     `chunk_size` raises `TypeError` or suggest removing it.
    - `sync` requires exactly one of `initialize_cursor` or `cursor`.
      `initialize_cursor` values are `{duration}-ago` (e.g. `365d-ago`),
      not `"beginning"`.
    - `records.ingest(items, *, stream_id=...)` — first positional arg is
      the write items; `stream_id` is keyword-only. Do **not** suggest
      swapping args or a `records=` kwarg.
+   - `global_config.silence_feature_preview_warnings` is the **correct**
+     Cognite SDK attribute. **Do NOT** suggest renaming it to
+     `disable_feature_preview_warnings` (that name does not exist).
    - Cognite RAW `rows.list(..., limit=-1)` is the SDK unlimited sentinel.
    - Cognite RAW **row keys are unique** within a table. Building
      `candidate_ids` (or similar) from `row["key"]` / `row.key` does **not**
