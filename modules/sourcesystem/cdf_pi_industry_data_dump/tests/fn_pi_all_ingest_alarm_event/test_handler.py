@@ -1,8 +1,6 @@
 """Unit tests for the alarm event ingest handler. No network access."""
 
 import pytest
-from pydantic import ValidationError
-
 from handler import (
     DEFAULT_SYNC_INITIALIZE_CURSOR,
     FUNCTION_MAX_RETRIES,
@@ -16,6 +14,7 @@ from handler import (
     plan_ingest,
     row_to_record,
 )
+from pydantic import ValidationError
 
 INSTANCE_SPACE = "inst_location"
 
