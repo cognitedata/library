@@ -29,6 +29,14 @@ at any severity (**including CRITICAL**).
   under ruff I001 (same-folder `handler`, no `known-first-party`).
   **NEVER** demand pydantic-before-handler regrouping or blank-line
   “local” groups — those break CI. Prefer silence on this file’s imports.
+- **`status="deferred"` verify-then-complete** in
+  `fn_pi_all_ingest_alarm_event` is intentional soft-complete for stream
+  search lag. **NEVER** demand `raise RuntimeError` to force workflow
+  retry/abort.
+- **There is no `client.data_modeling.records.list`.** Records read APIs
+  are `filter` / `sync` / `aggregate`. Existence checks via
+  `records.sync(..., filter=In([...]), initialize_cursor=...)` are valid.
+  **NEVER** invent a `records.list` rewrite.
 
 1. **Do not re-raise declined findings.** If a human already declined or
    corrected a Gemini suggestion on this PR (same file/topic), do **not**
