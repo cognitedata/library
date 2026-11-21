@@ -59,8 +59,11 @@ recycled comment.
      is unsupported, invalid YAML, or that Toolkit/DMS will reject deploy
      because of `maxListSize`. Do **not** suggest removing it.
    - `CogniteTimeSeries.equipment` is a **list** of direct relations
-     (`list: true`), same pattern as `assets`. `collect_set` → array is
-     correct; do **not** suggest collapsing to a single relation / `min`.
+     (`list: true`), same pattern as `assets`. In PI/SAP sample transforms,
+     `collect_set(node_reference(...)) AS equipment` and assigning that
+     array column is correct. **Do NOT** claim `list: false`, demand
+     `min`/`first` + a scalar `node_reference`, or re-raise this after it
+     was declined on the same PR.
 4. **Toolkit YAML conventions.** Unquoted `{{ variable }}` placeholders in
    Cognite Toolkit YAML are normal in this repo. **Do NOT flag** them as
    YAML syntax errors or demand quoting solely for standard YAML parsers.
