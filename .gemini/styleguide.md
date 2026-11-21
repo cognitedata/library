@@ -72,9 +72,10 @@ recycled comment.
      `limit=None` instead.
    - Cognite RAW **row keys are unique** within a table. Building
      `candidate_ids` (or similar) from `row["key"]` / `row.key` does **not**
-     need a `set(...)` wrap for de-duplication — that is speculative
-     micro-optimization, not a bug. Prefer silence when ingest/plan code
-     already dedupes by `external_id`.
+     need `set(...)` / `dict.fromkeys(...)` de-duplication before
+     `records.sync` chunking — that is speculative micro-optimization, not
+     a bug. Prefer silence when ingest/plan code already dedupes by
+     `external_id`. Do not re-raise this after decline.
    - DMS container `maxListSize` is a **supported** list-length constraint
      on `type:` for `list: true` properties (distinct from `maxTextSize`).
      Values up to the documented CDF limits are valid. **Do NOT** claim it
