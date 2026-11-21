@@ -11,18 +11,31 @@ Apply these **before** any other rule. **Default to silence.** Only comment
 when you can cite a verified correctness bug against pinned SDK docs, DMS
 schema, or CI. Style preferences, speculative efficiency, and design
 choices already documented below are **out of scope** — do not post them
-even as HIGH.
+at any severity (**including CRITICAL**).
+
+### Forbidden comments (never post — wrong facts)
+
+- **`CogniteTimeSeries.equipment` is a LIST** of direct relations
+  (`list: true` / `[CogniteEquipment]` in CDM), same pattern as `assets`.
+  Official Cognite Core docs and instance examples use `"equipment": []`
+  (array). In
+  `tr_pi_all_to_industry_time_series.Transformation.sql`,
+  `collect_set(node_reference(...)) AS equipment` is **correct**.
+  **NEVER** claim it is singular / `list: false`, demand
+  `first`/`min`/`equipment[0]` / `node_reference(..., min(key))`, or
+  escalate the same claim to CRITICAL after decline.
 
 1. **Do not re-raise declined findings.** If a human already declined or
    corrected a Gemini suggestion on this PR (same file/topic), do **not**
-   post the same claim again with different wording. Recurring threads that
-   must stay silent after decline: `test_handler.py` import order
-   (`handler` before `pydantic`); intentional `print` structured logging
-   (and companion “add unused `import logging`”); Pydantic v2
-   `model_config = ConfigDict(...)` without an extra attribute annotation;
-   `CogniteTimeSeries.equipment` list/`collect_set` (incl. `first`/`min`/
-   `[0]` rewordings); intentional `status="deferred"` verify-then-complete
-   (incl. `raise RuntimeError` rewrites); RAW `candidate_ids`
+   post the same claim again with different wording or a higher severity
+   badge. Recurring threads that must stay silent after decline:
+   `test_handler.py` import order (`handler` before `pydantic`);
+   intentional `print` structured logging (and companion “add unused
+   `import logging`”); Pydantic v2 `model_config = ConfigDict(...)`
+   without an extra attribute annotation; the
+   `CogniteTimeSeries.equipment` / `collect_set` thread above;
+   intentional `status="deferred"` verify-then-complete (incl.
+   `raise RuntimeError` rewrites); RAW `candidate_ids`
    set/`dict.fromkeys` dedup.
 2. **Skip checks CI already enforces.** CI runs `ruff check` (incl. `I001`
    import order), `ruff format --check`, `pyright`, `pytest`, and
