@@ -23,7 +23,8 @@ It covers two kinds of PI data:
   points in the SAP sample). Alarm record keys are snake_case (`alm_pt92501_c1_raised`, …).
 - `transformations/`
   - `tr_pi_all_to_industry_time_series` — `timeseries` → `TimeSeriesData`; links each time series to its `Tag` and,
-    through a lookup on the SAP `equipment` table, to its `Equipment`.
+    through a lookup on the SAP `equipment` table, to its `Equipment`. Writes `opcUaNodeId` / `opcUaBrowseName` from
+    the `opcua_*` columns, which are filled only for the `VLH_PCN5` points.
   - `tr_pi_all_to_industry_operating_limit` — SAP `instrument_equipment` ⋈ `timeseries` → `OperatingLimit`
     (`<instrument key>_limit`), for instruments with `setPointHigh` / `setPointLow`. Sets local `name`,
     `description`, and `aliases` (`name` + `tagNumber`), plus the high/low consequence and corrective action from the

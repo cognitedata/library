@@ -17,6 +17,8 @@ WITH equipment_lookup AS (
     , lower(trim(cast(isStep AS STRING)))                AS is_step
     , nullif(trim(cast(pi_sourceTag AS STRING)), '')     AS pi_source_tag
     , nullif(trim(cast(pi_pointSource AS STRING)), '')   AS pi_point_source
+    , nullif(trim(cast(opcua_nodeId AS STRING)), '')     AS opc_ua_node_id
+    , nullif(trim(cast(opcua_browseName AS STRING)), '') AS opc_ua_browse_name
     , nullif(trim(cast(engunits AS STRING)), '')         AS source_unit
     , nullif(trim(cast(asset_externalId AS STRING)), '') AS asset_key
     , nullif(trim(cast(sourceId AS STRING)), '')         AS source_id
@@ -33,6 +35,8 @@ SELECT
   , CASE WHEN s.time_series_type = 'PI' THEN 'PI' ELSE 'Other' END AS timeSeriesSource
   , s.pi_source_tag                                      AS piSourceTag
   , s.pi_point_source                                    AS piPointSource
+  , s.opc_ua_node_id                                     AS opcUaNodeId
+  , s.opc_ua_browse_name                                 AS opcUaBrowseName
   , s.source_unit                                        AS sourceUnit
   , CASE
       WHEN s.asset_key IS NULL THEN NULL

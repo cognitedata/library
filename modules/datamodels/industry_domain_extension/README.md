@@ -75,7 +75,7 @@ Out of the box this pack does **not** add a `_SRC` schema layer, per-source huma
 ### Known gaps in the sample
 
 - **Asset type covers only classified tags.** `tr_sap_all_to_industry_asset_type` creates one `CogniteAssetType` node per SAP tag class (`code` = `classId`, `name` = `className`), and the Tag load writes `type` for the 47 sample tags that have a class name; the other tags have no type. The class lives only on the type node; `Tag` has no class text property.
-- **OPC UA properties are scaffold only.** `opcUaNodeId` / `opcUaBrowseName` on `TimeSeriesData` are not written by the sample; trim them if no OPC UA source exists.
+- **OPC UA identifiers are synthetic.** The sample writes `opcUaNodeId` / `opcUaBrowseName` only for the PI points with point source `VLH_PCN5`, derived from the PI source tag; `timeSeriesSource` stays `PI`. Trim them if no OPC UA source exists.
 
 ### How to extend
 
