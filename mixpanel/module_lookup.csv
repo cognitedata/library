@@ -29,6 +29,8 @@ dp:infield:cdf_infield_location,Infield Location
 dp:models:cdf_process_industry_extension,Example of Minimum Extension of the Cognite Process Industry Model
 dp:models:cfihos_oil_and_gas_extension,CFIHOS Oil And Gas Data Model template
 dp:models:cfihos_oil_and_gas_extension_search,CFIHOS Oil And Gas Search Solution Model
+dp:models:industry_domain_extension,Industry Domain Data Model template
+dp:models:industry_domain_extension_search,Industry Domain Search Data Model template
 dp:models:isa_manufacturing_extension,ISA 88/95 Manufacturing Data Model template
 dp:models:isa_manufacturing_extension_search,ISA 88/95 Manufacturing Search Data Model template
 dp:models:qs_enterprise_dm,Quick Start Enterprise Data Model

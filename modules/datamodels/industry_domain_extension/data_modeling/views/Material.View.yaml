@@ -1,0 +1,52 @@
+space: "{{ enterprise_space }}"
+externalId: Material
+name: Material
+description: Material access view. No CogniteDescribable.
+version: "{{ dm_enterprise_version }}"
+properties:
+  name:
+    name: Name
+    description: "SOURCE_SCAFFOLD: Display label for the material. Example: Gasket DN50."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Material
+      type: container
+    containerPropertyIdentifier: name
+
+  materialType:
+    name: Material type
+    description: "SOURCE_SCAFFOLD: Material type or category. Example: Spare."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Material
+      type: container
+    containerPropertyIdentifier: materialType
+
+  equipment:
+    name: Equipment
+    description: "CONTRACT: Equipment this material belongs to."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Material
+      type: container
+    containerPropertyIdentifier: equipment
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Equipment
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  asset:
+    name: Asset
+    description: "CONTRACT: Tag this material belongs to."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Material
+      type: container
+    containerPropertyIdentifier: asset
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+

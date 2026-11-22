@@ -83,6 +83,8 @@ modules = [
     "datamodels/isa_manufacturing_extension_search",
     "datamodels/cfihos_oil_and_gas_extension",
     "datamodels/cfihos_oil_and_gas_extension_search",
+    "datamodels/industry_domain_extension",
+    "datamodels/industry_domain_extension_search",
 ]
 
 [packages.contextualization]

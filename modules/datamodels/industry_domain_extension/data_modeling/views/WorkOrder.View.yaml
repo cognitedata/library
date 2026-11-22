@@ -1,0 +1,76 @@
+space: "{{ enterprise_space }}"
+externalId: WorkOrder
+name: Work order
+description: "Enterprise work order view. CONTRACT: implements CogniteMaintenanceOrder."
+implements:
+  - space: cdf_idm
+    externalId: CogniteMaintenanceOrder
+    version: v1
+    type: view
+version: "{{ dm_enterprise_version }}"
+properties:
+  workOrderNumber:
+    name: Work order number
+    description: "SOURCE_SCAFFOLD: Source order number when it differs from the instance key. Example: 40001234."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: workOrderNumber
+
+  mainAsset:
+    name: Main asset
+    description: "CONTRACT: Primary tag for this work order."
+    container:
+      space: "cdf_idm"
+      externalId: CogniteMaintenanceOrder
+      type: container
+    containerPropertyIdentifier: mainAsset
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  assets:
+    name: Assets
+    description: "CONTRACT: Tags related to this work order."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  equipment:
+    name: Equipment
+    description: "CONTRACT: Equipment related to this work order."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: equipment
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Equipment
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  timeSeries:
+    name: Time series
+    description: "CONTRACT: Time series related to this work order."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: timeSeries
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      version: "{{ dm_enterprise_version }}"
+      type: view
+

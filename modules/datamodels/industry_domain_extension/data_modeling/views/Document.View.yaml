@@ -1,0 +1,93 @@
+space: "{{ enterprise_space }}"
+externalId: Document
+name: Document
+description: "Enterprise document view. CONTRACT: implements CogniteFile."
+implements:
+  - space: cdf_cdm
+    externalId: CogniteFile
+    version: v1
+    type: view
+version: "{{ dm_enterprise_version }}"
+properties:
+  documentNumber:
+    name: Document number
+    description: "SOURCE_SCAFFOLD: Document number from the register. Example: DOC-001."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: documentNumber
+
+  disciplineCode:
+    name: Discipline code
+    description: "SOURCE_SCAFFOLD: Engineering discipline code. Example: ME."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: disciplineCode
+
+  revision:
+    name: Revision
+    description: "SOURCE_SCAFFOLD: Document revision. Example: A."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: revision
+
+  site:
+    name: Site
+    description: "SOURCE_SCAFFOLD: Source-native site code from the document register. Example: PLANT01."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: site
+
+  area:
+    name: Area
+    description: "SOURCE_SCAFFOLD: Source-native area code from the document register. Example: AREA-A."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: area
+
+  system:
+    name: System
+    description: "SOURCE_SCAFFOLD: Source-native system code from the document register. Example: SYS-01."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      type: container
+    containerPropertyIdentifier: system
+
+  assets:
+    name: Assets
+    description: "CONTRACT: Tags associated with this document."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  category:
+    name: Category
+    description: "CONTRACT: CogniteFileCategory for the document type."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: category
+    source:
+      space: "cdf_cdm"
+      externalId: CogniteFileCategory
+      version: "v1"
+      type: view
+

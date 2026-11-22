@@ -66,7 +66,7 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 | `dp:contextualization` | Contextualization | `contextualization/` |
 | `dp:common` | Common | `common/` |
 | `dp:sourcesystem` | Source Systems | `sourcesystem/*_extractor` (real connector configs), `sourcesystem/*_data_dump` (synthetic sample data) |
-| `dp:models` | Data models | `datamodels/` |
+| `dp:models` | Data models | `datamodels/` (ISA, CFIHOS, industry-neutral, RMDM) |
 | `dp:context_quality` | Contextualization Quality Dashboard | `dashboards/context_quality` (Dashboard Backend), `tools/apps/context_quality_dashboard` (Dashboard App) |
 | `dp:data_quality` | Data Quality Validation | `common/cdf_dq_runtime` |
 | `dp:atlas_ai` | Atlas AI Deployment Pack | `solutions/cdf_ai_extractor` |

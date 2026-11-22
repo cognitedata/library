@@ -1,0 +1,62 @@
+space: "{{ enterprise_space }}"
+externalId: Equipment
+name: Equipment
+description: "Enterprise equipment view. CONTRACT: implements CogniteEquipment."
+implements:
+  - space: cdf_cdm
+    externalId: CogniteEquipment
+    version: v1
+    type: view
+version: "{{ dm_enterprise_version }}"
+properties:
+  modelNumber:
+    name: Model number
+    description: "SOURCE_SCAFFOLD: Manufacturer model number. Example: P-2000."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: modelNumber
+
+  asset:
+    name: Asset
+    description: "CONTRACT: Tag this equipment belongs to."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: asset
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  files:
+    name: Files
+    description: "CONTRACT: Documents linked to this equipment."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: files
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Document
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  equipmentType:
+    name: Equipment type
+    description: "CONTRACT: CogniteEquipmentType classification node."
+    container:
+      space: "cdf_cdm"
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: equipmentType
+    source:
+      space: "cdf_cdm"
+      externalId: CogniteEquipmentType
+      version: "v1"
+      type: view
+
