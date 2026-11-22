@@ -36,15 +36,6 @@ properties:
       type: container
     containerPropertyIdentifier: system
 
-  tagClass:
-    name: Tag class
-    description: "SOURCE_SCAFFOLD: Tag class or category label. Example: Pump."
-    container:
-      space: "{{ enterprise_space }}"
-      externalId: Tag
-      type: container
-    containerPropertyIdentifier: tagClass
-
   labels:
     name: Labels
     description: "CONTRACT: Text-based labels (CogniteDescribable.tags). Aliased to labels because the view is named Tag."

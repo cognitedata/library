@@ -123,15 +123,6 @@ properties:
       type: container
     containerPropertyIdentifier: system
 
-  tagClass:
-    name: Tag class
-    description: "SOURCE_SCAFFOLD: Tag class from enterprise Tag."
-    container:
-      space: "{{ enterprise_space }}"
-      externalId: Tag
-      type: container
-    containerPropertyIdentifier: tagClass
-
   workOrders:
     name: Work orders
     description: "Work orders whose mainAsset is this tag."

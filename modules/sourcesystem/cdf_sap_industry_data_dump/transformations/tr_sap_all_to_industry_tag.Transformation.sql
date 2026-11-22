@@ -8,7 +8,7 @@ WITH source AS (
     , nullif(trim(cast(area AS STRING)), '')             AS area
     , nullif(trim(cast(system AS STRING)), '')           AS system
     , nullif(trim(cast(classId AS STRING)), '')          AS class_id
-    , nullif(trim(cast(className AS STRING)), '')        AS tag_class
+    , nullif(trim(cast(className AS STRING)), '')        AS class_name
     , nullif(trim(cast(parentTag AS STRING)), '')        AS parent_key
     , nullif(trim(cast(labels AS STRING)), '')           AS source_label
   FROM `{{ raw_database_sap }}`.`tag`
@@ -21,9 +21,8 @@ SELECT
   , site                                                 AS site
   , area                                                 AS area
   , system                                               AS system
-  , tag_class                                            AS tagClass
   , CASE
-      WHEN class_id IS NULL OR tag_class IS NULL THEN NULL
+      WHEN class_id IS NULL OR class_name IS NULL THEN NULL
       ELSE node_reference('{{ instance_space }}', class_id)
     END                                                  AS `type`
   , CASE

@@ -25,13 +25,6 @@ properties:
     immutable: false
     name: System
     description: "SOURCE_SCAFFOLD: System or subsystem code. Example: SYS-01."
-  tagClass:
-    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
-    nullable: true
-    autoIncrement: false
-    immutable: false
-    name: Tag class
-    description: "SOURCE_SCAFFOLD: Tag class or category label. Example: Pump."
 constraints:
   requiresCogniteAsset:
     constraintType: requires
