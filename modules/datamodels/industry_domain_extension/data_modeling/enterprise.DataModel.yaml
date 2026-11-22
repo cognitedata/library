@@ -3,8 +3,9 @@ externalId: "{{ enterprise_data_model_external_id }}"
 name: "{{ enterprise_data_model_name }}"
 description: >
   Industry-neutral enterprise domain model extending Cognite Core and Process Industry
-  data models. Tag is the single CogniteAsset hub. AlarmEvent records live in the same
-  enterprise space but outside this data model.
+  data models. Tag is the single CogniteAsset hub. The AlarmEvent record container and
+  record view live in this schema space but outside this data model; its records live in
+  the instance space.
 version: "{{ dm_enterprise_version }}"
 views:
 - space: "{{ enterprise_space }}"
