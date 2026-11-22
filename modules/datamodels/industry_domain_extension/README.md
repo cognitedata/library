@@ -10,9 +10,10 @@ Industry-neutral enterprise (`_DOM`) data model template for asset-heavy industr
 
 **consumers:**
 
-- Search UI via `IndustrySearch_SOL` (pinned to `{{ dm_search_version }}`)
-- InField-shaped work views on `WorkOrder` / `Notification` / `WorkOrderOperation`
-- Sample dump workflows `wf_sap_all_to_industry`, `wf_pi_all_to_industry`, `wf_sharepoint_all_to_industry` (run SAP first)
+- `IndustrySearch_SOL` (`{{ dm_search_version }}`, default `v1`) — maps the enterprise **containers** only, so it is not pinned to an enterprise view version; container changes still affect it
+- InField-shaped work views on `WorkOrder` / `Notification` / `WorkOrderOperation` (`{{ dm_enterprise_version }}`, default `v1`)
+- Sample dump transformations (write through the enterprise views at `{{ dm_enterprise_version }}`) and workflows `wf_sap_all_to_industry`, `wf_pi_all_to_industry`, `wf_sharepoint_all_to_industry` (run SAP first)
+- Alarm Function `fn_pi_all_ingest_alarm_event` — writes records through `AlarmEvent/{{ dm_enterprise_version }}`
 
 ## Module Components
 
@@ -71,6 +72,12 @@ Out of the box this pack does **not** add a `_SRC` schema layer, per-source huma
 | SOURCE_SCAFFOLD | Demo properties (`site`, `documentNumber`, `piSourceTag`, …) — rename or delete before the first production deploy |
 | RECORD | `AlarmEvent` `usedFor: record`, no constraints or indexes, record view with `streamId` |
 
+### Known gaps in the sample
+
+- **Asset type is not populated.** `CogniteAssetType` is listed in `Industry_DOM` and `IndustrySearch_SOL`, and `SearchTag.type` maps `CogniteAsset.type`, but no sample transformation creates `CogniteAssetType` nodes or writes `Tag.type`. The sample stores the class as the `tagClass` text scaffold instead. When adapting, either write `type` as a `node_reference` to `CogniteAssetType` nodes (each with a unique `code`) and drop `tagClass`, or remove `CogniteAssetType` from both data models.
+- **`WorkOrderOperation` has no enterprise container.** Its implicit `hasData` filter covers the IDM / CDM containers only, so the view returns every `CogniteOperation` node in `{{ instance_space }}`, not only those written by this pack. Add an extension container (and `requires`) if other writers share the space.
+- **OPC UA properties are scaffold only.** `opcUaNodeId` / `opcUaBrowseName` on `TimeSeriesData` are not written by the sample; trim them if no OPC UA source exists.
+
 ### How to extend
 
 1. Inventory `SOURCE_SCAFFOLD:` properties and the demo RAW modules.
@@ -114,9 +121,9 @@ If you only filter by a single space (no `hasData`), `mode: onePhase` is enough 
 | View | Cursor for “all of type” (`backfillSort`) | Filter with enterprise btree |
 |------|-------------------------------------------|------------------------------|
 | **Tag** | `site` (cursorable) | `site`, `area`, `system` |
-| **Equipment** | No enterprise cursorable index — use `space` / `externalId`, or CDM Schedulable N/A. `asset` lives on `cdf_cdm:CogniteEquipment` (immutable). Optional weak fallback: filter/sort on `modelNumber` (not cursorable). | `modelNumber` |
+| **Equipment** | No enterprise cursorable index — use `space` / `externalId`. `asset` lives on `cdf_cdm:CogniteEquipment` (immutable). Optional weak fallback: filter/sort on `modelNumber` (not cursorable). | `modelNumber` |
 | **Document** | `documentNumber` (cursorable) | `documentNumber`, `site`, `area`, `system` |
-| **TimeSeriesData** | No enterprise cursorable on asset — `assets` is a CDM list on `CogniteTimeSeries`. Use `space` / `externalId`, or filter on `piSourceTag` / `timeSeriesSource` (not cursorable). | `piSourceTag`, `timeSeriesSource` |
+| **TimeSeriesData** | No enterprise cursorable on asset — `assets` is a CDM list on `CogniteTimeSeries`. Use `space` / `externalId`, or filter on `piSourceTag` / `timeSeriesSource` / `opcUaNodeId` (not cursorable). | `piSourceTag`, `timeSeriesSource`, `opcUaNodeId` |
 | **WorkOrder** | `workOrderNumber` (cursorable), or CDM Schedulable `startTime` / `scheduledStartTime` | `workOrderNumber` |
 | **WorkOrderOperation** | No local container — use CDM Schedulable times or `space` / `externalId` | (CDM only) |
 | **Notification** | Prefer CDM Schedulable times or `space` / `externalId` | `failureModeCode`, `detectionMethodCode` |
@@ -186,7 +193,9 @@ python validate_packages.py
 ## Sample data
 
 This module defines schema only. Sample RAW, transformations and load workflows live in the companion dumps
-(or install the whole pack with `dp:industry_quickstart`):
+(or install the whole pack with `dp:industry_quickstart`). All three dumps share one RAW database, `db_industry_sample`
+(`raw_database_sap` / `raw_database_pi` / `raw_database_sharepoint` all default to it). That name is sample-only
+and does not follow the `raw_{data_type}_{location}_{source}` convention — use convention names for real RAW.
 
 | Module | Workflow | Role |
 |--------|----------|------|
