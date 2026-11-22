@@ -1,0 +1,2 @@
+- dbName: "{{ raw_database_sap }}"
+  tableName: instrument_equipment

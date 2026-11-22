@@ -43,6 +43,20 @@ modules = [
     "datamodels/cfihos_oil_and_gas_extension_search",
 ]
 
+[packages.industry_quickstart]
+id = "dp:industry_quickstart"
+title = "Industry Domain Deployment Pack Demo"
+description = "Industry-neutral domain model demo: enterprise + search + sample SAP/PI/SharePoint dumps with per-source workflows."
+canCherryPick = false
+modules = [
+    "common/cdf_project_foundation",
+    "datamodels/industry_domain_extension",
+    "datamodels/industry_domain_extension_search",
+    "sourcesystem/cdf_sap_industry_data_dump",
+    "sourcesystem/cdf_pi_industry_data_dump",
+    "sourcesystem/cdf_sharepoint_industry_data_dump",
+]
+
 [packages.common]
 id = "dp:common"
 title = "Common"
@@ -70,6 +84,9 @@ modules = [
     "sourcesystem/cdf_pi_data_dump",
     "sourcesystem/cdf_sap_data_dump",
     "sourcesystem/cdf_sharepoint_data_dump",
+    "sourcesystem/cdf_sap_industry_data_dump",
+    "sourcesystem/cdf_pi_industry_data_dump",
+    "sourcesystem/cdf_sharepoint_industry_data_dump",
 ]
 
 [packages.models]

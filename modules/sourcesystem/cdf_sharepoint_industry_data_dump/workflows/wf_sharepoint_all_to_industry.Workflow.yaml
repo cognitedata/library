@@ -1,0 +1,4 @@
+externalId: {{ workflow_external_id }}
+description: Loads Document and file-category nodes from the SharePoint industry sample dump, then diagram annotations and equipment links
+dataSetExternalId: {{ dataset_external_id }}
+maxConcurrentExecutions: 1
