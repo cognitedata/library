@@ -58,6 +58,10 @@ at any severity (**including CRITICAL**).
   fail Toolkit deploy, or rewrite it to `maxTextSize`.
 - **RAW `rows.list(..., limit=-1)`** is the SDK unlimited sentinel.
   **NEVER** claim HTTP 400 or demand `limit=None`.
+- **`RecordContainerId` / `RecordWrite` / `RecordSource`** live in
+  `cognite.client.data_classes.data_modeling.records` (cognite-sdk ≥8.24).
+  Official Records docs import them from that path. **NEVER** claim
+  `RecordContainerId` does not exist or rewrite to plain `ContainerId`.
 - **Spark SQL `AS type` column aliases** in sample transforms are fine
   unless a real parser failure is shown. Prefer silence over speculative
   backtick-only nits.
