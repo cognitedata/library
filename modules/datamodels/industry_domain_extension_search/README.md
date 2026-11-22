@@ -44,7 +44,7 @@ Every view maps the CDM/IDM minimum that Search uses to classify the type, plus 
 | SearchDocument | `CogniteFile.mimeType` / `isUploaded` / `uploadedTime` (+ `category`, `assets`) | `Document` | — |
 | SearchTimeSeriesData | `CogniteTimeSeries.isStep` / `type` (+ `assets`, `equipment`) | `TimeSeriesData` | `operatingLimits` (SearchOperatingLimit.timeSeries) |
 | SearchWorkOrder | `CogniteMaintenanceOrder.mainAsset` (+ `status`, `type`, `priority`) | `WorkOrder` | `operations` (SearchWorkOrderOperation.maintenanceOrder) |
-| SearchWorkOrderOperation | `CogniteOperation.mainAsset` / `maintenanceOrder` (+ `status`, `sequence`) | none | — |
+| SearchWorkOrderOperation | `CogniteOperation.mainAsset` / `maintenanceOrder` (+ `status`, `sequence`) | `WorkOrderOperation` | — |
 | SearchNotification | `CogniteNotification.asset` (+ `maintenanceOrder`, `status`, `priority`) | `Notification` | — |
 | SearchMaterial | — (label-only, local `name`) | `Material` | — |
 | SearchOperatingLimit | — (label-only, local `name` / `description` / `aliases`) | `OperatingLimit` | — |
@@ -54,8 +54,6 @@ Every view maps the CDM/IDM minimum that Search uses to classify the type, plus 
 Known gaps carried over from the sample data (details in the enterprise [README](../industry_domain_extension/README.md#known-gaps-in-the-sample)):
 
 - `SearchTag.type` is set only for the sample tags that have a SAP class (47 of 1154); the rest have no type. The asset icon works for all tags because Search classifies by the mapped `CogniteAsset` container.
-- `SearchWorkOrderOperation` maps no enterprise container, so it lists every `CogniteOperation` node in `{{ instance_space }}`.
-
 ### Naming note — `labels` vs `tags`
 
 `SearchTag` exposes CogniteDescribable `tags` as view property `labels` (same alias as enterprise `Tag`).

@@ -1,7 +1,7 @@
 space: "{{ enterprise_space }}"
 externalId: WorkOrderOperation
 name: Work order operation
-description: "Enterprise work order operation view. CONTRACT: implements CogniteOperation; no custom container."
+description: "Enterprise work order operation view. CONTRACT: implements CogniteOperation."
 implements:
   - space: cdf_idm
     externalId: CogniteOperation
@@ -9,6 +9,15 @@ implements:
     type: view
 version: "{{ dm_enterprise_version }}"
 properties:
+  workCenter:
+    name: Work center
+    description: "SOURCE_SCAFFOLD: Work center that performs the operation. Example: MECH-23."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: workCenter
+
   mainAsset:
     name: Main asset
     description: "CONTRACT: Primary tag for this operation."

@@ -20,7 +20,7 @@ Industry-neutral enterprise (`_DOM`) data model template for asset-heavy industr
 | Area | Contents |
 |------|----------|
 | Spaces | `{{ enterprise_space }}` (schema); one instance space `{{ instance_space }}` (default `inst_location`); Search schema lives in companion module |
-| Containers | Tag, Equipment, Document, TimeSeriesData, WorkOrder, Notification, Material, OperatingLimit (node); AlarmEvent (record) |
+| Containers | Tag, Equipment, Document, TimeSeriesData, WorkOrder, WorkOrderOperation, Notification, Material, OperatingLimit (node); AlarmEvent (record). Every node view has its own container that `requires` its CDM/IDM parent |
 | Views | Matching domain views (`implements` CDM/IDM where applicable) + `AlarmEvent` record view (`streamId`, not in the DataModel) |
 | Data model | `Industry_DOM` + `CogniteAssetType` / `CogniteEquipmentType` / `CogniteFileCategory` |
 | Stream | `{{ alarm_stream_external_id }}` (default template `BasicArchive`; override to `ImmutableTestStream` only in `config.dev.yaml`) |
@@ -75,7 +75,6 @@ Out of the box this pack does **not** add a `_SRC` schema layer, per-source huma
 ### Known gaps in the sample
 
 - **Asset type covers only classified tags.** `tr_sap_all_to_industry_asset_type` creates one `CogniteAssetType` node per SAP tag class (`code` = `classId`, `name` = `className`), and the Tag load writes `type` for the 47 sample tags that have a class name; the other tags have no type. The class lives only on the type node; `Tag` has no class text property.
-- **`WorkOrderOperation` has no enterprise container.** Its implicit `hasData` filter covers the IDM / CDM containers only, so the view returns every `CogniteOperation` node in `{{ instance_space }}`, not only those written by this pack. Add an extension container (and `requires`) if other writers share the space.
 - **OPC UA properties are scaffold only.** `opcUaNodeId` / `opcUaBrowseName` on `TimeSeriesData` are not written by the sample; trim them if no OPC UA source exists.
 
 ### How to extend
@@ -125,7 +124,7 @@ If you only filter by a single space (no `hasData`), `mode: onePhase` is enough 
 | **Document** | `documentNumber` (cursorable) | `documentNumber`, `site`, `area`, `system` |
 | **TimeSeriesData** | No enterprise cursorable on asset — `assets` is a CDM list on `CogniteTimeSeries`. Use `space` / `externalId`, or filter on `piSourceTag` / `timeSeriesSource` / `opcUaNodeId` (not cursorable). | `piSourceTag`, `timeSeriesSource`, `opcUaNodeId` |
 | **WorkOrder** | `workOrderNumber` (cursorable), or CDM Schedulable `startTime` / `scheduledStartTime` | `workOrderNumber` |
-| **WorkOrderOperation** | No local container — use CDM Schedulable times or `space` / `externalId` | (CDM only) |
+| **WorkOrderOperation** | CDM Schedulable times or `space` / `externalId` | `workCenter` |
 | **Notification** | Prefer CDM Schedulable times or `space` / `externalId` | `failureModeCode`, `detectionMethodCode` |
 | **Material** | `equipment` or `asset` (both cursorable); pick the relation you always populate | `equipment`, `asset` |
 | **OperatingLimit** | `timeSeries` (cursorable) | `timeSeries` |

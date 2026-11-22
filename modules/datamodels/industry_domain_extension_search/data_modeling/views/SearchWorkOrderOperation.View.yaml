@@ -59,6 +59,15 @@ properties:
       version: "{{ dm_search_version }}"
       type: view
 
+  workCenter:
+    name: Work center
+    description: "SOURCE_SCAFFOLD: Work center that performs the operation."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: workCenter
+
   assets:
     name: Assets
     description: "CONTRACT: Tags related to this operation."

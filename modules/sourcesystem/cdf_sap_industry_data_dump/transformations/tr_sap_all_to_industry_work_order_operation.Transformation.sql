@@ -8,6 +8,7 @@ WITH source AS (
       , nullif(trim(cast(systemStatusCode AS STRING)), '')
       )                                                                     AS status
     , nullif(trim(cast(operationCounter AS STRING)), '')                    AS sequence_number
+    , nullif(trim(cast(opWctr AS STRING)), '')                              AS work_center
     , nullif(trim(cast(wctrDiscipline AS STRING)), '')                      AS main_discipline
     , nullif(trim(cast(plannedWork AS STRING)), '')                         AS planned_work
     , nullif(trim(cast(maintenanceOrder_externalId AS STRING)), '')         AS maintenance_order_key
@@ -25,6 +26,7 @@ SELECT
   , description                                          AS description
   , status                                               AS status
   , cast(sequence_number AS BIGINT)                      AS sequence
+  , work_center                                          AS workCenter
   , main_discipline                                      AS mainDiscipline
   , cast(planned_work AS DOUBLE)                         AS personHours
   , CASE
