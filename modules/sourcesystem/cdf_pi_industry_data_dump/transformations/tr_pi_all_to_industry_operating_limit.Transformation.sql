@@ -6,6 +6,10 @@ WITH instruments AS (
     , nullif(trim(cast(tagNumber AS STRING)), '')        AS tag_number
     , cast(nullif(trim(cast(setPointHigh AS STRING)), '') AS DOUBLE) AS limit_high
     , cast(nullif(trim(cast(setPointLow AS STRING)), '') AS DOUBLE)  AS limit_low
+    , nullif(trim(cast(limitHighConsequence AS STRING)), '')      AS limit_high_consequence
+    , nullif(trim(cast(limitLowConsequence AS STRING)), '')       AS limit_low_consequence
+    , nullif(trim(cast(limitHighCorrectiveAction AS STRING)), '') AS limit_high_corrective_action
+    , nullif(trim(cast(limitLowCorrectiveAction AS STRING)), '')  AS limit_low_corrective_action
   FROM `{{ raw_database_sap }}`.`instrument_equipment`
 )
 
@@ -27,6 +31,10 @@ SELECT
     )                                                    AS aliases
   , i.limit_high                                         AS limitHigh
   , i.limit_low                                          AS limitLow
+  , i.limit_high_consequence                             AS limitHighConsequence
+  , i.limit_low_consequence                              AS limitLowConsequence
+  , i.limit_high_corrective_action                       AS limitHighCorrectiveAction
+  , i.limit_low_corrective_action                        AS limitLowCorrectiveAction
   , CASE
       WHEN t.time_series_key IS NULL THEN NULL
       ELSE node_reference('{{ instance_space }}', t.time_series_key)
