@@ -3,7 +3,7 @@ instance_space: inst_location
 enterprise_data_model_external_id: Industry_DOM
 dm_enterprise_version: v1
 dataset_external_id: ds_industry_all
-raw_database_sap: db_industry_sample
+raw_database_sap: raw_asset_all_sap
 ingestion_client_id: ${IDP_CLIENT_ID}
 ingestion_client_secret: ${IDP_CLIENT_SECRET}
 

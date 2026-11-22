@@ -192,9 +192,8 @@ python validate_packages.py
 ## Sample data
 
 This module defines schema only. Sample RAW, transformations and load workflows live in the companion dumps
-(or install the whole pack with `dp:industry_quickstart`). All three dumps share one RAW database, `db_industry_sample`
-(`raw_database_sap` / `raw_database_pi` / `raw_database_sharepoint` all default to it). That name is sample-only
-and does not follow the `raw_{data_type}_{location}_{source}` convention — use convention names for real RAW.
+(or install the whole pack with `dp:industry_quickstart`). Each dump owns one RAW database named `raw_{data_type}_{location}_{source}`:
+`raw_asset_all_sap`, `raw_timeseries_all_pi` and `raw_files_all_sharepoint` (variables `raw_database_sap` / `raw_database_pi` / `raw_database_sharepoint`).
 
 | Module | Workflow | Role |
 |--------|----------|------|

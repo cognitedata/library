@@ -21,13 +21,13 @@ end to end. Adopting it means swapping that demo surface for the project's real 
 |--------|-------|---------|
 | `SOURCE_SCAFFOLD:` | Property `description` on containers and views | Demo / illustrative property — rename, replace or delete to match the source |
 | `CONTRACT:` | Property / view descriptions | Keep; change only with model-owner approval |
-| `db_industry_sample` / `*_industry_data_dump` | Config, RAW, transformations, workflow | Demo source modules — replace with project RAW / extractors |
+| `raw_*_all_{sap,pi,sharepoint}` / `*_industry_data_dump` | Config, RAW, transformations, workflow | Demo source modules — replace with project RAW / extractors |
 | `Example:` in descriptions | Same properties as `SOURCE_SCAFFOLD` | Synthetic illustration only — not a real code list |
 
 ```bash
 # Inventory every scaffold property (from a Toolkit / library checkout)
 rg -n "SOURCE_SCAFFOLD:" modules/datamodels/industry_domain_extension modules/datamodels/industry_domain_extension_search
-rg -n "db_industry_sample|industry_data_dump" modules/sourcesystem
+rg -n "raw_(asset_all_sap|timeseries_all_pi|files_all_sharepoint)|industry_data_dump" modules/sourcesystem
 ```
 
 #### Ordered procedure (do not skip)
@@ -76,7 +76,7 @@ rg -n "db_industry_sample|industry_data_dump" modules/sourcesystem
 
 - [ ] `rg SOURCE_SCAFFOLD:` returns no hits in the adopted modules (or only properties still intentionally
       temporary, listed in the README)
-- [ ] No transformation or Function still reads `db_industry_sample` in the target environment
+- [ ] No transformation or Function still reads the sample RAW databases (`raw_asset_all_sap`, `raw_timeseries_all_pi`, `raw_files_all_sharepoint`) in the target environment
 - [ ] §8.2 worksheet is filled and checked into the project (README or `SPEC.md`)
 - [ ] Instance spaces match the derived domain. The template default `inst_location` stays unless the domain
       needs more; no space is named after a source system
@@ -195,7 +195,7 @@ Use the touch map (§8.9) for the type being removed:
 | Property | camelCase | `documentNumber` |
 | Location filter | `loc_{location}` | `loc_industry_all` |
 | Data set | `ds_{data_type}_{location}` | `ds_industry_all` |
-| RAW database | `raw_{data_type}_{location}_{source}` — the sample `db_industry_sample` is a demo exception; replace it | `raw_maintenance_all_sap` |
+| RAW database | `raw_{data_type}_{location}_{source}` — one database per source | `raw_asset_all_sap`, `raw_timeseries_all_pi`, `raw_files_all_sharepoint` |
 | Transformation | `tr_{source}_{location}_to_{target}` | `tr_sap_all_to_industry_tag` |
 | Stream | `{source}_{location}_{concept}` (snake_case) | `pi_all_alarm_event` |
 | Record | `{source}_{location}_{machine}_{id}` (snake_case) | `pi_all_<tag>_<eventTime>_<eventType>` |
@@ -226,17 +226,17 @@ unknown types.
 
 | Entity | Enterprise | Search | Processing |
 |--------|-----------|--------|------------|
-| Tag | `Tag.Container`, `Tag.View`, DataModel | `SearchTag.View` (+ all reverses), DataModel | `tr_sap_all_to_industry_tag`, `tr_sap_all_to_industry_asset_type`, `db_industry_sample.tag`, workflow tasks |
-| Equipment | `Equipment.Container`, `Equipment.View`, DataModel | `SearchEquipment.View`, `SearchTag.equipment`, `SearchEquipment.materials`, DataModel | `tr_sap_all_to_industry_equipment_type`, `tr_sap_all_to_industry_equipment`, `tr_sharepoint_all_to_industry_equipment_document_connection`, `db_industry_sample.equipment`, workflow tasks |
-| Document | `Document.Container`, `Document.View`, DataModel | `SearchDocument.View`, `SearchTag.documents`, DataModel | `tr_sharepoint_all_to_industry_file_category`, `tr_sharepoint_all_to_industry_document`, `tr_sharepoint_all_to_industry_diagram_annotation`, `db_industry_sample.file` / `.diagram_annotation`, workflow tasks |
-| TimeSeriesData | `TimeSeriesData.Container`, `TimeSeriesData.View`, DataModel | `SearchTimeSeriesData.View`, `SearchTag.timeSeries`, `SearchTimeSeriesData.operatingLimits`, DataModel | `tr_pi_all_to_industry_time_series`, `db_industry_sample.timeseries`, workflow task |
-| WorkOrder | `WorkOrder.Container`, `WorkOrder.View`, DataModel | `SearchWorkOrder.View`, `SearchTag.workOrders`, `SearchWorkOrder.operations`, DataModel | `tr_sap_all_to_industry_work_order`, `db_industry_sample.work_order`, workflow task |
-| WorkOrderOperation | `WorkOrderOperation.Container`, `WorkOrderOperation.View`, DataModel | `SearchWorkOrderOperation.View`, DataModel | `tr_sap_all_to_industry_work_order_operation`, `db_industry_sample.work_order_operation`, workflow task |
-| Notification | `Notification.Container`, `Notification.View`, DataModel | `SearchNotification.View`, `SearchTag.notifications`, DataModel | `tr_sap_all_to_industry_notification`, `db_industry_sample.notification`, workflow task |
-| Material | `Material.Container`, `Material.View`, DataModel | `SearchMaterial.View`, `SearchEquipment.materials`, DataModel | `tr_sap_all_to_industry_material`, `db_industry_sample.material`, workflow task |
-| OperatingLimit | `OperatingLimit.Container`, `OperatingLimit.View`, DataModel | `SearchOperatingLimit.View`, `SearchTimeSeriesData.operatingLimits`, DataModel | `tr_pi_all_to_industry_operating_limit`, `db_industry_sample.timeseries` + `db_industry_sample.instrument_equipment`, workflow task |
+| Tag | `Tag.Container`, `Tag.View`, DataModel | `SearchTag.View` (+ all reverses), DataModel | `tr_sap_all_to_industry_tag`, `tr_sap_all_to_industry_asset_type`, `raw_asset_all_sap.tag`, workflow tasks |
+| Equipment | `Equipment.Container`, `Equipment.View`, DataModel | `SearchEquipment.View`, `SearchTag.equipment`, `SearchEquipment.materials`, DataModel | `tr_sap_all_to_industry_equipment_type`, `tr_sap_all_to_industry_equipment`, `tr_sharepoint_all_to_industry_equipment_document_connection`, `raw_asset_all_sap.equipment`, workflow tasks |
+| Document | `Document.Container`, `Document.View`, DataModel | `SearchDocument.View`, `SearchTag.documents`, DataModel | `tr_sharepoint_all_to_industry_file_category`, `tr_sharepoint_all_to_industry_document`, `tr_sharepoint_all_to_industry_diagram_annotation`, `raw_files_all_sharepoint.file` / `.diagram_annotation`, workflow tasks |
+| TimeSeriesData | `TimeSeriesData.Container`, `TimeSeriesData.View`, DataModel | `SearchTimeSeriesData.View`, `SearchTag.timeSeries`, `SearchTimeSeriesData.operatingLimits`, DataModel | `tr_pi_all_to_industry_time_series`, `raw_timeseries_all_pi.timeseries`, workflow task |
+| WorkOrder | `WorkOrder.Container`, `WorkOrder.View`, DataModel | `SearchWorkOrder.View`, `SearchTag.workOrders`, `SearchWorkOrder.operations`, DataModel | `tr_sap_all_to_industry_work_order`, `raw_asset_all_sap.work_order`, workflow task |
+| WorkOrderOperation | `WorkOrderOperation.Container`, `WorkOrderOperation.View`, DataModel | `SearchWorkOrderOperation.View`, DataModel | `tr_sap_all_to_industry_work_order_operation`, `raw_asset_all_sap.work_order_operation`, workflow task |
+| Notification | `Notification.Container`, `Notification.View`, DataModel | `SearchNotification.View`, `SearchTag.notifications`, DataModel | `tr_sap_all_to_industry_notification`, `raw_asset_all_sap.notification`, workflow task |
+| Material | `Material.Container`, `Material.View`, DataModel | `SearchMaterial.View`, `SearchEquipment.materials`, DataModel | `tr_sap_all_to_industry_material`, `raw_asset_all_sap.material`, workflow task |
+| OperatingLimit | `OperatingLimit.Container`, `OperatingLimit.View`, DataModel | `SearchOperatingLimit.View`, `SearchTimeSeriesData.operatingLimits`, DataModel | `tr_pi_all_to_industry_operating_limit`, `raw_timeseries_all_pi.timeseries` + `raw_asset_all_sap.instrument_equipment`, workflow task |
 
-| AlarmEvent (record) | `AlarmEvent.Container` (`usedFor: record`), `AlarmEvent.View` (record view), `alarm.Streams.yaml` — **no** DataModel entry | none | `fn_pi_all_ingest_alarm_event` (+ `pyproject.toml`, `requirements.txt`, `PACKAGE_SPECS` entry), `db_industry_sample.alarm_event`, workflow task |
+| AlarmEvent (record) | `AlarmEvent.Container` (`usedFor: record`), `AlarmEvent.View` (record view), `alarm.Streams.yaml` — **no** DataModel entry | none | `fn_pi_all_ingest_alarm_event` (+ `pyproject.toml`, `requirements.txt`, `PACKAGE_SPECS` entry), `raw_timeseries_all_pi.alarm_event`, workflow task |
 
 Each dump module owns its workflow; transformation and function ids are referenced from that module's WorkflowVersion.
 

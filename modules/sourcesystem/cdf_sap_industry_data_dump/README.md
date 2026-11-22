@@ -9,7 +9,7 @@ The sample rows are copied from the CFIHOS SAP data dump (`cdf_sap_data_dump`) s
 describe the same plant, plus one new `material` table. Only the tables the generic model needs are
 included — CFIHOS class tables (pump, valve, compressor, …), `functional_location`,
 `maintenance_integrity` and `failure_mode` are intentionally not copied. All RAW rows live in
-`db_industry_sample` and every transformation id contains `industry`, so this module can be
+`raw_asset_all_sap` and every transformation id contains `industry`, so this module can be
 deployed next to `cdf_sap_data_dump` without overwriting anything.
 
 Loads are full loads with `conflictMode: upsert` and `ignoreNullFields: false`. This is a
@@ -18,7 +18,7 @@ sample-data choice; for incremental loads on a real source, follow the `cdf-tran
 
 ## Module Components
 
-- `raw/sap.Database.yaml` — the RAW database `db_industry_sample`.
+- `raw/sap.Database.yaml` — the RAW database `raw_asset_all_sap`.
 - `raw/*.Table.yaml` — RAW tables `tag`, `equipment`, `instrument_equipment`, `material`,
   `work_order`, `work_order_operation`, `notification`.
 - `upload_data/` — a `Manifest.yaml` and `RawRows.csv` per table. `instrument_equipment` is not read by
@@ -55,7 +55,7 @@ so the loads do not depend on each other and can run in parallel. `Tag.labels` i
 Add `sourcesystem/cdf_sap_industry_data_dump` to your package's module list. Defaults live in
 `default.config.yaml`; override under `variables.modules.sourcesystem.cdf_sap_industry_data_dump`
 in `config.<env>.yaml` only when needed. Keep the shared identifiers (`dm_dom_industry`,
-`inst_location`, `db_industry_sample`, `ds_industry_all`) in sync with the other `*_industry_*`
+`inst_location`, `raw_asset_all_sap`, `ds_industry_all`) in sync with the other `*_industry_*`
 modules.
 
 ### Starting from scratch

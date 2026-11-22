@@ -1,6 +1,6 @@
 kind: RawRows
 type: rawTable
 table:
-  dbName: db_industry_sample
+  dbName: raw_asset_all_sap
   tableName: tag
 key: key

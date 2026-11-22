@@ -113,7 +113,7 @@ def test_handler_input_defaults_sync_cursor_and_requires_contract_keys() -> None
         "stream_external_id": "pi_all_alarm_event",
         "instance_space": INSTANCE_SPACE,
         "enterprise_space": "dm_dom_industry",
-        "raw_database": "db_industry_sample",
+        "raw_database": "raw_timeseries_all_pi",
         "raw_table": "alarm_event",
     }
 
@@ -177,7 +177,7 @@ def test_fetch_existing_external_ids_short_circuits_empty_candidates() -> None:
         stream_external_id="pi_all_alarm_event",
         instance_space=INSTANCE_SPACE,
         enterprise_space="dm_dom_industry",
-        raw_database="db_industry_sample",
+        raw_database="raw_timeseries_all_pi",
         raw_table="alarm_event",
     )
 

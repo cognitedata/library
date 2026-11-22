@@ -5,7 +5,7 @@
 This module provides synthetic SharePoint document data for the industry-neutral enterprise model `Industry_DOM`
 (`datamodels/industry_domain_extension`). It is the Industry counterpart of `cdf_sharepoint_data_dump`: the sample
 files and P&ID diagram annotations are copied from the CFIHOS sample so the two setups can be deployed side by side,
-but everything is renamed (`db_industry_sample`, `tr_sharepoint_all_to_industry_*`) and written to the Industry
+but everything is renamed (`raw_files_all_sharepoint`, `tr_sharepoint_all_to_industry_*`) and written to the Industry
 model.
 
 The module loads document metadata into the `Document` view, creates the `CogniteFileCategory` nodes the documents
@@ -13,7 +13,7 @@ refer to, writes the diagram annotations as `CogniteDiagramAnnotation` edges and
 
 ## Module Components
 
-- `raw/` — database `db_industry_sample` with tables `file` and `diagram_annotation`.
+- `raw/` — database `raw_files_all_sharepoint` with tables `file` and `diagram_annotation`.
 - `upload_data/` — manifests and CSV rows for both tables, plus `file_content.Manifest.yaml` and the 11 sample PDFs in
   `data/` that upload the file content.
 - `transformations/`
@@ -41,7 +41,7 @@ Transformations are full loads with `upsert`; this is a sample-data choice. For 
 - The `datamodels/industry_domain_extension` module deployed, so the model and the data set `ds_industry_all`
   exist.
 - `sourcesystem/cdf_sap_industry_data_dump` deployed first: the equipment link reads its `equipment` table from
-  `db_industry_sample`, and the `Tag` and `Equipment` nodes must exist before the annotation edges and the overlay run.
+  `raw_asset_all_sap`, and the `Tag` and `Equipment` nodes must exist before the annotation edges and the overlay run.
 - Load order: `tr_sharepoint_all_to_industry_document` before `tr_sharepoint_all_to_industry_diagram_annotation`
   (edges need existing start and end nodes), and the equipment overlay last.
 
@@ -49,7 +49,7 @@ Transformations are full loads with `upsert`; this is a sample-data choice. For 
 
 Add `sourcesystem/cdf_sharepoint_industry_data_dump` to your module list. Defaults live in `default.config.yaml`;
 override under `variables.modules.sourcesystem.cdf_sharepoint_industry_data_dump` in `config.<env>.yaml` only when
-needed. Keep the shared identifiers (`dm_dom_industry`, `inst_location`, `db_industry_sample`, `ds_industry_all`)
+needed. Keep the shared identifiers (`dm_dom_industry`, `inst_location`, `raw_asset_all_sap`, `ds_industry_all`)
 in sync with the other `*_industry_*` modules.
 
 ### Starting from scratch

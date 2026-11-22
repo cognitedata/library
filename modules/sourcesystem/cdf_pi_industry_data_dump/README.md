@@ -5,7 +5,7 @@
 This module provides synthetic PI historian data for the industry-neutral enterprise model
 `Industry_DOM` (`datamodels/industry_domain_extension`). It is the Industry counterpart of
 `cdf_pi_data_dump`: the sample data is copied from the CFIHOS PI sample so the two setups can be deployed side by
-side, but everything is renamed (`db_industry_sample`, `tr_pi_all_to_industry_*`) and written to the Industry model.
+side, but everything is renamed (`raw_timeseries_all_pi`, `tr_pi_all_to_industry_*`) and written to the Industry model.
 
 It covers two kinds of PI data:
 
@@ -17,7 +17,7 @@ It covers two kinds of PI data:
 
 ## Module Components
 
-- `raw/` — database `db_industry_sample` with tables `timeseries` and `alarm_event`.
+- `raw/` — database `raw_timeseries_all_pi` with tables `timeseries` and `alarm_event`.
 - `upload_data/` — manifests and CSV rows: 375 PI tags (copied from `cdf_pi_data_dump`) and 30 synthetic alarm
   events (Raised → Acknowledged → Cleared for two limit crossings on each of the five instruments that have set
   points in the SAP sample). Alarm record keys are snake_case (`alm_pt92501_c1_raised`, …).
@@ -43,7 +43,7 @@ Transformations are full loads with `upsert`; this is a sample-data choice. For 
 | `stream_external_id` | yes | Stream to ingest into (`pi_all_alarm_event`) |
 | `instance_space` | yes | Space of the records and of every direct (`asset`, `timeSeries`, `operatingLimit`) — `inst_location` |
 | `enterprise_space` | yes | Space of the `AlarmEvent` container — `dm_dom_industry` |
-| `raw_database` | yes | `db_industry_sample` |
+| `raw_database` | yes | `raw_timeseries_all_pi` |
 | `raw_table` | yes | `alarm_event` |
 | `sync_initialize_cursor` | no | `sync` lookback for the existence check (default `365d-ago`). Covers BasicArchive; on short-lived `ImmutableTestStream` sample streams sync simply returns what still exists. |
 
@@ -64,7 +64,7 @@ The deployed Function needs `cognite-sdk` 8.24 or later (Records API); `requirem
 - The `datamodels/industry_domain_extension` module deployed, so the model, the data set `ds_industry_all`
   and the alarm stream `pi_all_alarm_event` exist.
 - `sourcesystem/cdf_sap_industry_data_dump` deployed first: the transformations read its `equipment` and
-  `instrument_equipment` tables from `db_industry_sample`.
+  `instrument_equipment` tables from `raw_asset_all_sap`.
 - Load order: `Tag` nodes (SAP module) before the alarm Function, since records do not validate their direct
   relations.
 
@@ -72,7 +72,7 @@ The deployed Function needs `cognite-sdk` 8.24 or later (Records API); `requirem
 
 Add `sourcesystem/cdf_pi_industry_data_dump` to your module list. Defaults live in `default.config.yaml`;
 override under `variables.modules.sourcesystem.cdf_pi_industry_data_dump` in `config.<env>.yaml` only when
-needed. Keep the shared identifiers (`dm_dom_industry`, `inst_location`, `db_industry_sample`, `ds_industry_all`,
+needed. Keep the shared identifiers (`dm_dom_industry`, `inst_location`, `raw_asset_all_sap`, `ds_industry_all`,
 `pi_all_alarm_event`) in sync with the other `*_industry_*` modules.
 
 ### Starting from scratch

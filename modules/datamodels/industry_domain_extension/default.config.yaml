@@ -31,9 +31,9 @@ ingestion_source_id: ${INGESTION_GROUP_SOURCE_ID}
 operator_source_id: ${OPERATOR_GROUP_SOURCE_ID}
 
 # Sample RAW databases (owned by the *_industry_data_dump modules; scoped on pp/wf groups)
-raw_database_sap: db_industry_sample
-raw_database_pi: db_industry_sample
-raw_database_sharepoint: db_industry_sample
+raw_database_sap: raw_asset_all_sap
+raw_database_pi: raw_timeseries_all_pi
+raw_database_sharepoint: raw_files_all_sharepoint
 
 # Records
 alarm_stream_external_id: pi_all_alarm_event
