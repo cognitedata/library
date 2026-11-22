@@ -6,8 +6,8 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ search_space }}
-            - {{ enterprise_space }}
+            - "{{ search_space }}"
+            - "{{ enterprise_space }}"
             - cdf_cdm
             - cdf_idm
             - cdf_cdm_units
@@ -16,7 +16,7 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space }}
+            - "{{ instance_space }}"
             - cdf_cdm_units
   - locationFiltersAcl:
       actions: [READ]

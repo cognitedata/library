@@ -28,14 +28,14 @@ capabilities:
       scope:
         datasetScope:
           ids:
-            - {{ dataset_external_id }}
+            - "{{ dataset_external_id }}"
   - transformationsAcl:
       actions:
         - READ
       scope:
         datasetScope:
           ids:
-            - {{ dataset_external_id }}
+            - "{{ dataset_external_id }}"
   - functionsAcl:
       actions:
         - READ

@@ -37,7 +37,7 @@ capabilities:
       scope:
         datasetScope:
           ids:
-            - {{ dataset_external_id }}
+            - "{{ dataset_external_id }}"
   - workflowOrchestrationAcl:
       actions:
         - READ
@@ -45,7 +45,7 @@ capabilities:
       scope:
         datasetScope:
           ids:
-            - {{ dataset_external_id }}
+            - "{{ dataset_external_id }}"
   - functionsAcl:
       actions:
         - READ
@@ -59,7 +59,7 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ enterprise_space }}
+            - "{{ enterprise_space }}"
             - cdf_cdm
             - cdf_idm
             - cdf_cdm_units
@@ -72,7 +72,7 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space }}
+            - "{{ instance_space }}"
   # CogniteAsset.parent writes; TimeSeriesData.unit
   - dataModelInstancesAcl:
       actions:
@@ -95,4 +95,4 @@ capabilities:
       scope:
         spaceIdScope:
           spaceIds:
-            - {{ instance_space }}
+            - "{{ instance_space }}"

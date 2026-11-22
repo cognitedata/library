@@ -3,8 +3,8 @@ name: "{{ enterprise_location_filter_name }}"
 description: Location filter for the Industry enterprise data model.
 dataModels:
   - externalId: "{{ enterprise_data_model_external_id }}"
-    space: {{ enterprise_space }}
-    version: {{ dm_enterprise_version }}
+    space: "{{ enterprise_space }}"
+    version: "{{ dm_enterprise_version }}"
 instanceSpaces:
-  - {{ instance_space }}
+  - "{{ instance_space }}"
 dataModelingType: DATA_MODELING_ONLY
