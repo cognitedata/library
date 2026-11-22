@@ -13,6 +13,17 @@ schema, or CI. Style preferences, speculative efficiency, and design
 choices already documented below are **out of scope** — do not post them
 at any severity (**including CRITICAL**).
 
+### Topic-class silence (same bug, different line/file)
+
+If a finding is the **same topic class** as anything in **Forbidden
+comments** or a human decline on this PR, **do not post it again** —
+even on a different line, file, or with new wording / higher severity.
+Topic class examples: “equipment is singular”, “flat sync Records”,
+“deferred must raise”, “RecordContainerId missing”, “maxListSize
+invalid”, “use reverse_direct_relation”, “limit=-1 bad”, “add logging”.
+**One decline covers the whole class for the PR.** Prefer finding a
+*new* verified bug or stay silent.
+
 ### Forbidden comments (never post — wrong facts)
 
 - **`CogniteTimeSeries.equipment` is a LIST** of direct relations

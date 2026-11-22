@@ -3,14 +3,15 @@ memory_config:
   disabled: true
 code_review:
   disable: false
-  # Only post CRITICAL findings. Style nits and unverified SDK claims are
-  # routinely mislabeled HIGH and flood PRs with recycled false positives.
+  # Keep review on for real bugs, but starve recycled HIGH-as-CRITICAL nits.
   comment_severity_threshold: CRITICAL
-  # Hard cap per review pass — prefer silence over volume.
-  max_review_comments: 2
+  # One finding per pass — forces prioritization over FP floods.
+  max_review_comments: 1
   pull_request_opened:
     help: false
     summary: false
+    # Auto-review once when the PR opens; prefer not to re-flood on every push.
+    # Manual `/gemini review` still works when you want a fresh pass.
     code_review: true
     include_drafts: false
 ignore_patterns:
