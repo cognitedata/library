@@ -6,7 +6,7 @@ search_space: dm_sol_industry_search
 # boundary) — not one space per source system. Search has no instance space.
 instance_space: inst_location
 enterprise_data_model_external_id: Industry_DOM
-enterprise_data_model_name: Industry DM DOM
+enterprise_data_model_name: Industry DOM
 dm_enterprise_version: v1
 
 # Governance
