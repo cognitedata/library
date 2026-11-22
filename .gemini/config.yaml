@@ -2,19 +2,17 @@ have_fun: false
 memory_config:
   disabled: true
 code_review:
-  disable: false
-  # Keep review on for real bugs, but starve recycled HIGH-as-CRITICAL nits.
+  # Temporarily disabled: Gemini was re-flooding PRs with recycled false
+  # positives despite styleguide Forbidden comments. Re-enable when you want
+  # a fresh review pass on substantive code (set disable: false).
+  disable: true
   comment_severity_threshold: CRITICAL
-  # One finding per pass — forces prioritization over FP floods.
   max_review_comments: 1
   pull_request_opened:
     help: false
     summary: false
-    # Auto-review once when the PR opens; prefer not to re-flood on every push.
-    # Manual `/gemini review` still works when you want a fresh pass.
-    code_review: true
+    code_review: false
     include_drafts: false
 ignore_patterns:
-  # Sample-dump upload manifests intentionally hardcode defaults; not Toolkit YAML.
   - "**/upload_data/**/*.Manifest.yaml"
   - "**/upload_data/**/*.Manifest.yml"
