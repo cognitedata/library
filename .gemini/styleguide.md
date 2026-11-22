@@ -48,6 +48,19 @@ at any severity (**including CRITICAL**).
   (not used in this repo yet). Prefer silence on established
   READ+WRITE / `all: {}` patterns matching `cdf_ingestion` /
   `context_quality` workflow groups.
+- **`connectionType: multi_reverse_direct_relation`** (and
+  `single_reverse_direct_relation`) are the **correct** DMS enums for
+  reverse directs. There is **no** bare `reverse_direct_relation`. Used
+  across search views in this library (ISA, RMDM, industry). **NEVER**
+  demand renaming to `reverse_direct_relation`.
+- **`maxListSize` on list container properties is supported** (list length;
+  distinct from `maxTextSize`). **NEVER** claim it is invalid YAML or will
+  fail Toolkit deploy, or rewrite it to `maxTextSize`.
+- **RAW `rows.list(..., limit=-1)`** is the SDK unlimited sentinel.
+  **NEVER** claim HTTP 400 or demand `limit=None`.
+- **Spark SQL `AS type` column aliases** in sample transforms are fine
+  unless a real parser failure is shown. Prefer silence over speculative
+  backtick-only nits.
 
 1. **Do not re-raise declined findings.** If a human already declined or
    corrected a Gemini suggestion on this PR (same file/topic), do **not**
