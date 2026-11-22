@@ -2,17 +2,16 @@ have_fun: false
 memory_config:
   disabled: true
 code_review:
-  # Temporarily disabled: Gemini was re-flooding PRs with recycled false
-  # positives despite styleguide Forbidden comments. Re-enable when you want
-  # a fresh review pass on substantive code (set disable: false).
-  disable: true
+  disable: false
+  # Prefer one batch of findings over drip-feeding 1-per-pass.
   comment_severity_threshold: CRITICAL
-  max_review_comments: 1
+  max_review_comments: 10
   pull_request_opened:
     help: false
     summary: false
-    code_review: false
+    code_review: true
     include_drafts: false
 ignore_patterns:
+  # Sample-dump upload manifests intentionally hardcode defaults; not Toolkit YAML.
   - "**/upload_data/**/*.Manifest.yaml"
   - "**/upload_data/**/*.Manifest.yml"
