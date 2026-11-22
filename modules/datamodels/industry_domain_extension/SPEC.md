@@ -116,7 +116,7 @@ replace those rows with the real mapping; do not ship the demo worksheet as the 
 
 | Entity | Typical sources | What to edit |
 |--------|-----------------|--------------|
-| Tag | ERP functional locations, tag register, asset registry | `Tag` scaffold props; keep CogniteAsset hierarchy (`parent` written by ingest) |
+| Tag | ERP functional locations, tag register, asset registry | `Tag` scaffold props; keep CogniteAsset hierarchy (`parent` written by ingest); map class to CogniteAssetType nodes via `type` |
 | Equipment | ERP / EAM equipment master | `modelNumber`; map class/code to CogniteEquipmentType nodes; use CDM `manufacturer` / `serialNumber` |
 | Document | Document management, SharePoint, engineering systems | Document scaffolds; document type → CogniteFileCategory nodes; keep CogniteFile maps |
 | TimeSeriesData | PI, OPC UA, SCADA, IoT platform | Replace/remove `pi*` / `opcUa*`; keep CogniteTimeSeries maps; leave CDM `unit` for UoM |
@@ -226,7 +226,7 @@ unknown types.
 
 | Entity | Enterprise | Search | Processing |
 |--------|-----------|--------|------------|
-| Tag | `Tag.Container`, `Tag.View`, DataModel | `SearchTag.View` (+ all reverses), DataModel | `tr_sap_all_to_industry_tag`, `db_industry_sample.tag`, workflow task |
+| Tag | `Tag.Container`, `Tag.View`, DataModel | `SearchTag.View` (+ all reverses), DataModel | `tr_sap_all_to_industry_tag`, `tr_sap_all_to_industry_asset_type`, `db_industry_sample.tag`, workflow tasks |
 | Equipment | `Equipment.Container`, `Equipment.View`, DataModel | `SearchEquipment.View`, `SearchTag.equipment`, `SearchEquipment.materials`, DataModel | `tr_sap_all_to_industry_equipment_type`, `tr_sap_all_to_industry_equipment`, `tr_sharepoint_all_to_industry_equipment_document_connection`, `db_industry_sample.equipment`, workflow tasks |
 | Document | `Document.Container`, `Document.View`, DataModel | `SearchDocument.View`, `SearchTag.documents`, DataModel | `tr_sharepoint_all_to_industry_file_category`, `tr_sharepoint_all_to_industry_document`, `tr_sharepoint_all_to_industry_diagram_annotation`, `db_industry_sample.file` / `.diagram_annotation`, workflow tasks |
 | TimeSeriesData | `TimeSeriesData.Container`, `TimeSeriesData.View`, DataModel | `SearchTimeSeriesData.View`, `SearchTag.timeSeries`, `SearchTimeSeriesData.operatingLimits`, DataModel | `tr_pi_all_to_industry_time_series`, `db_industry_sample.timeseries`, workflow task |

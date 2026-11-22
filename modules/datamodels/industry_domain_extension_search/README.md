@@ -53,7 +53,7 @@ Every view maps the CDM/IDM minimum that Search uses to classify the type, plus 
 
 Known gaps carried over from the sample data (details in the enterprise [README](../industry_domain_extension/README.md#known-gaps-in-the-sample)):
 
-- `SearchTag.type` is mapped but empty: the sample writes no `CogniteAssetType` nodes. The asset icon still works because Search classifies by the mapped `CogniteAsset` container.
+- `SearchTag.type` is set only for the sample tags that have a SAP class (47 of 1154); the rest have no type. The asset icon works for all tags because Search classifies by the mapped `CogniteAsset` container.
 - `SearchWorkOrderOperation` maps no enterprise container, so it lists every `CogniteOperation` node in `{{ instance_space }}`.
 
 ### Naming note — `labels` vs `tags`

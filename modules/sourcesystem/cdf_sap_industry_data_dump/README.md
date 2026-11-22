@@ -23,11 +23,12 @@ sample-data choice; for incremental loads on a real source, follow the `cdf-tran
   `work_order`, `work_order_operation`, `notification`.
 - `upload_data/` — a `Manifest.yaml` and `RawRows.csv` per table. `instrument_equipment` is not read by
   a transformation in this module; it is kept for the operating-limit load in `cdf_pi_industry_data_dump`.
-- `transformations/` — seven transformations:
+- `transformations/` — eight transformations:
 
 | Transformation | RAW table | Target view |
 |----------------|-----------|-------------|
-| `tr_sap_all_to_industry_tag` | `tag` | `Tag` |
+| `tr_sap_all_to_industry_tag` | `tag` | `Tag` (`type` → asset type when the tag has a class) |
+| `tr_sap_all_to_industry_asset_type` | `tag` | `CogniteAssetType` (via `Industry_DOM`; `code` = `classId`, `name` = `className`) |
 | `tr_sap_all_to_industry_equipment_type` | `equipment` | `CogniteEquipmentType` (via `Industry_DOM`) |
 | `tr_sap_all_to_industry_equipment` | `equipment` | `Equipment` |
 | `tr_sap_all_to_industry_material` | `material` | `Material` |
@@ -81,8 +82,8 @@ cdf data upload dir modules/sourcesystem/cdf_sap_industry_data_dump/upload_data 
 
 Then run this module's workflow `wf_sap_all_to_industry` (schedule never fires by default — start it
 from the CDF UI). **Required first** in the pack run order (before PI and SharePoint); cross-module
-order is not enforced by `dependsOn`. Expected row counts: 1154 tags, 10 equipment, 10 equipment
-types, 10 materials, 11 work orders, 17 operations and 10 notifications.
+order is not enforced by `dependsOn`. Expected row counts: 1154 tags (47 with an asset type), 17 asset
+types, 10 equipment, 10 equipment types, 10 materials, 11 work orders, 17 operations and 10 notifications.
 
 ## Module Structure
 
@@ -97,7 +98,7 @@ cdf_sap_industry_data_dump/
 ├── upload_data/
 │   └── <Manifest.yaml + RawRows.csv for each table above>
 ├── transformations/
-│   └── <7 tr_sap_all_to_industry_*.Transformation.{yaml,sql} pairs>
+│   └── <8 tr_sap_all_to_industry_*.Transformation.{yaml,sql} pairs>
 └── workflows/
     └── wf_sap_all_to_industry.Workflow{,Version,Trigger}.yaml
 ```

@@ -74,7 +74,7 @@ Out of the box this pack does **not** add a `_SRC` schema layer, per-source huma
 
 ### Known gaps in the sample
 
-- **Asset type is not populated.** `CogniteAssetType` is listed in `Industry_DOM` and `IndustrySearch_SOL`, and `SearchTag.type` maps `CogniteAsset.type`, but no sample transformation creates `CogniteAssetType` nodes or writes `Tag.type`. The sample stores the class as the `tagClass` text scaffold instead. When adapting, either write `type` as a `node_reference` to `CogniteAssetType` nodes (each with a unique `code`) and drop `tagClass`, or remove `CogniteAssetType` from both data models.
+- **Asset type covers only classified tags.** `tr_sap_all_to_industry_asset_type` creates one `CogniteAssetType` node per SAP tag class (`code` = `classId`, `name` = `className`), and the Tag load writes `type` for the 47 sample tags that have a class name; the other tags have no type. `tagClass` still carries the same class name as text — it is a scaffold, so drop it before the first production deploy if `type` covers your source.
 - **`WorkOrderOperation` has no enterprise container.** Its implicit `hasData` filter covers the IDM / CDM containers only, so the view returns every `CogniteOperation` node in `{{ instance_space }}`, not only those written by this pack. Add an extension container (and `requires`) if other writers share the space.
 - **OPC UA properties are scaffold only.** `opcUaNodeId` / `opcUaBrowseName` on `TimeSeriesData` are not written by the sample; trim them if no OPC UA source exists.
 
