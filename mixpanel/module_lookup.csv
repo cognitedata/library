@@ -42,7 +42,7 @@ dp:sourcesystem:cdf_sap_events,SAP Source System Events
 dp:sourcesystem:cdf_sharepoint,Sharepoint Files
 dp:sourcesystem:cdf_sharepoint_data_dump,SharePoint Source System (CFIHOS)
 dp:tool:qualitizer,CDF Qualitizer Application
-dp:tool:work_package_generator,Work Package Generator Application
+dp:work_package_generator:work_package_generator,Work Package Generator Application
 dp:acc:cdf_oid_sync,Open Industrial Data Sync
 dp:atlas_ai_extractor,AI Property Extractor Function
 dp:cdf_common,CDF Common
