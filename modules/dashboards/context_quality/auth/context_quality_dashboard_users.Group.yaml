@@ -53,3 +53,13 @@ capabilities:
         - READ
       scope:
         all: {}
+  # open the dashboard app (Fusion app hosting). Scoped to this app only. Deploying the app needs apphosting WRITE,
+  # which this read-only group does not grant.
+  - appHostingAcl:
+      actions:
+        - READ
+        - RUN
+      scope:
+        appExternalIdScope:
+          externalIds:
+            - context-quality-dashboard

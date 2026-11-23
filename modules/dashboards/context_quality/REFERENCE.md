@@ -444,7 +444,7 @@ locations and warns `locations-unavailable`.
 | Group | Capabilities | Why |
 |---|---|---|
 | `gp_context_quality_function` (the identity the workflow runs as) | `projectsAcl` read and list, `groupsAcl` list, `sessionsAcl` create, `functionsAcl` read and write (library convention for a workflow identity); `dataModelsAcl` read on `cdf_cdm`, `cdf_idm` and the schema space; `dataModelInstancesAcl` **read** on `metricsSourceSpaces`; `timeSeriesAcl` read; `locationFiltersAcl` read; `streamRecordsAcl` **write** on the instance space | read the entities, datapoints and location filters, append records |
-| `gp_context_quality_dashboard_users` | `projectsAcl` read and list, `groupsAcl` list, `streamRecordsAcl` **read** on the instance space, `dataModelsAcl` read on the schema space, `streamsAcl` read, `locationFiltersAcl` read | read the run log, and let the runs they start read the location filters; the stream settings read is optional (the dashboard works without it) |
+| `gp_context_quality_dashboard_users` | `projectsAcl` read and list, `groupsAcl` list, `streamRecordsAcl` **read** on the instance space, `dataModelsAcl` read on the schema space, `streamsAcl` read, `locationFiltersAcl` read, `appHostingAcl` read and run on the `context-quality-dashboard` app | read the run log, open the dashboard app, and let the runs they start read the location filters; the stream settings read is optional (the dashboard works without it) |
 
 Neither group can write instances or deploy anything, and the dashboard group cannot write at all. The scopes come from
 the module variables, never from `all` except where the capability has no narrower scope (`timeSeriesAcl`, `streamsAcl`).

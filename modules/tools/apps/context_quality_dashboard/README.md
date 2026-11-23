@@ -91,7 +91,8 @@ the **Dashboard Backend** module.
   (see the backend README, "Running with a config file").
 - To deploy the app: the `apphosting:read` and `apphosting:write` capabilities in the target project, for the user or
   the client that deploys. Without them `apps deploy` stops with `Missing capability: AppHosting:WRITE` (403). Users
-  who only open the app need `apphosting:read` and `apphosting:run`.
+  who only open the app need `apphosting:read` and `apphosting:run`; the backend's `gp_context_quality_dashboard_users`
+  group already grants both for this app.
 
 ### 1. Point the app at your project
 
