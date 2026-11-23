@@ -54,6 +54,7 @@ Every view maps the CDM/IDM minimum that Search uses to classify the type, plus 
 Known gaps carried over from the sample data (details in the enterprise [README](../industry_domain_extension/README.md#known-gaps-in-the-sample)):
 
 - `SearchTag.type` is set only for the sample tags that have a SAP class (47 of 1154); the rest have no type. The asset icon works for all tags because Search classifies by the mapped `CogniteAsset` container.
+
 ### Naming note — `labels` vs `tags`
 
 `SearchTag` exposes CogniteDescribable `tags` as view property `labels` (same alias as enterprise `Tag`).

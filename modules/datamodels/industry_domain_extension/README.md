@@ -31,6 +31,10 @@ Industry-neutral enterprise (`_DOM`) data model template for asset-heavy industr
 
 Because the CogniteAsset view is named `Tag`, CogniteDescribable `tags` is exposed as view property `labels` on `Tag` (and on `SearchTag`). Transformations must write `AS labels`, never `AS tags`.
 
+### Relation targets — inherited relations point at this model
+
+Views that `implements` CDM/IDM override the inherited directs and reverses so `source` / `through` point at the enterprise views (for example `Tag.files` → `Document`, `WorkOrder.operations` → `WorkOrderOperation`). Relations whose target lives in another domain model keep the CDM/IDM target, so each model versions independently. Rules and the override table: [SPEC.md](SPEC.md) §8.11.
+
 ### Label-only custom types — local describable fields
 
 `Material` and `OperatingLimit` do **not** `implements` or `requires` `CogniteDescribable` (avoids the CDM Describable join on those nodes). They keep the same property *names* on their own containers where needed:
@@ -68,7 +72,7 @@ Out of the box this pack does **not** add a `_SRC` schema layer, per-source huma
 
 | Kind | Keep |
 |------|------|
-| CONTRACT | `implements`, typed `source`, DataModel membership, Search as schema only |
+| CONTRACT | `implements`, typed `source`, inherited reverse overrides, DataModel membership, Search as schema only |
 | SOURCE_SCAFFOLD | Demo properties (`site`, `documentNumber`, `piSourceTag`, …) — rename or delete before the first production deploy |
 | RECORD | `AlarmEvent` `usedFor: record`, no constraints or indexes, record view with `streamId` |
 

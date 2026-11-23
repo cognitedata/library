@@ -73,7 +73,7 @@ capabilities:
         spaceIdScope:
           spaceIds:
             - "{{ instance_space }}"
-  # CogniteAsset.parent writes; TimeSeriesData.unit
+  # edges whose type node lives in cdf_cdm (CogniteDiagramAnnotation diagrams.* types)
   - dataModelInstancesAcl:
       actions:
         - READ
@@ -81,7 +81,6 @@ capabilities:
         spaceIdScope:
           spaceIds:
             - cdf_cdm
-            - cdf_cdm_units
   # resolve the alarm stream and ingest AlarmEvent records
   - streamsAcl:
       actions:
