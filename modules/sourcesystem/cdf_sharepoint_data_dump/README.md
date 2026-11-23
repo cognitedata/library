@@ -49,6 +49,23 @@ cdf-tk build --env <your-env>
 cdf-tk deploy --env <your-env>
 ```
 
+### Upload sample RAW
+
+Enable the data plugin in `cdf.toml` once:
+
+```toml
+[plugins]
+data = true
+```
+
+Then upload this module's sample rows (prepend your organization directory if `modules/` sits under one):
+
+```bash
+cdf data upload dir modules/sourcesystem/cdf_sharepoint_data_dump/upload_data --cdf-project <project>
+```
+
+Run the transformations after upload so the RAW tables have the sample columns and rows.
+
 ## Module Structure
 
 ```
