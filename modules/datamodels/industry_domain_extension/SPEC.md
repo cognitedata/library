@@ -94,7 +94,7 @@ rg -n "raw_(asset_all_sap|timeseries_all_pi|files_all_sharepoint)|industry_data_
 
 | Kind | Examples | Agent action |
 |------|----------|--------------|
-| CONTRACT | `implements`, `requires`, typed `source` on CDM/IDM directs, DataModel membership of core types, search module = schema only | Keep; change only with model-owner approval |
+| CONTRACT | `implements`, `requires`, typed `source` on CDM/IDM directs and inherited reverse overrides (§8.11), DataModel membership of core types, search module = schema only | Keep; change only with model-owner approval |
 | SOURCE_SCAFFOLD | `site`, `documentNumber`, `piSourceTag`, `workOrderNumber`, `failureModeCode`, … | Rename/replace/delete to match the source before first prod deploy |
 | CUSTOM type | Material, OperatingLimit | Keep pattern (local describable fields, no CogniteDescribable); replace props freely |
 | RECORD type | `AlarmEvent` container + record view + stream | Keep `usedFor: record`, no constraints/indexes, `streamId`; rename/replace scaffold props **before** the first record is ingested |
@@ -145,7 +145,8 @@ If the source has a conflicting concept, pick a distinct id (`locationUnit`, `si
 
 1. New `*.Container.yaml` with `usedFor: node`, description, properties, indexes; **no** CogniteDescribable require
    (prefer local `name`).
-2. New `*.View.yaml` — no `implements` for label-only types; `source` on every direct.
+2. New `*.View.yaml` — no `implements` for label-only types; `source` on every direct. If it `implements` CDM/IDM,
+   override inherited relations per §8.11 (and re-point existing inherited reverses on other views at the new view).
 3. Add view to `enterprise.DataModel.yaml`.
 4. Matching `Search*.View.yaml` (maps the new enterprise container only) + `search.DataModel.yaml` entry + reverses.
 5. New transformation + workflow task + ingestion variable (§8.9 row pattern).
@@ -160,7 +161,8 @@ Function — never a transformation.
 
 Use the touch map (§8.9) for the type being removed:
 
-1. Remove the container, view and DataModel entry.
+1. Remove the container, view and DataModel entry, and the overrides on other enterprise views that use it as
+   `source` / `through` (§8.11 table) — they fall back to the inherited CDM/IDM target.
 2. Remove the matching Search view, its DataModel entry and its reverses on other search views.
 3. Remove the transformation, its workflow task and ingestion variable, and the RAW table + sample data.
 4. Remove unused scaffold properties (containers are additive after deploy — trim **now**).
@@ -226,12 +228,12 @@ unknown types.
 
 | Entity | Enterprise | Search | Processing |
 |--------|-----------|--------|------------|
-| Tag | `Tag.Container`, `Tag.View`, DataModel | `SearchTag.View` (+ all reverses), DataModel | `tr_sap_all_to_industry_tag`, `tr_sap_all_to_industry_asset_type`, `raw_asset_all_sap.tag`, workflow tasks |
-| Equipment | `Equipment.Container`, `Equipment.View`, DataModel | `SearchEquipment.View`, `SearchTag.equipment`, `SearchEquipment.materials`, DataModel | `tr_sap_all_to_industry_equipment_type`, `tr_sap_all_to_industry_equipment`, `tr_sharepoint_all_to_industry_equipment_document_connection`, `raw_asset_all_sap.equipment`, workflow tasks |
-| Document | `Document.Container`, `Document.View`, DataModel | `SearchDocument.View`, `SearchTag.documents`, DataModel | `tr_sharepoint_all_to_industry_file_category`, `tr_sharepoint_all_to_industry_document`, `tr_sharepoint_all_to_industry_diagram_annotation`, `raw_files_all_sharepoint.file` / `.diagram_annotation`, workflow tasks |
-| TimeSeriesData | `TimeSeriesData.Container`, `TimeSeriesData.View`, DataModel | `SearchTimeSeriesData.View`, `SearchTag.timeSeries`, `SearchTimeSeriesData.operatingLimits`, DataModel | `tr_pi_all_to_industry_time_series`, `raw_timeseries_all_pi.timeseries`, workflow task |
-| WorkOrder | `WorkOrder.Container`, `WorkOrder.View`, DataModel | `SearchWorkOrder.View`, `SearchTag.workOrders`, `SearchWorkOrder.operations`, DataModel | `tr_sap_all_to_industry_work_order`, `raw_asset_all_sap.work_order`, workflow task |
-| WorkOrderOperation | `WorkOrderOperation.Container`, `WorkOrderOperation.View`, DataModel | `SearchWorkOrderOperation.View`, DataModel | `tr_sap_all_to_industry_work_order_operation`, `raw_asset_all_sap.work_order_operation`, workflow task |
+| Tag | `Tag.Container`, `Tag.View` (+ `children` override), DataModel | `SearchTag.View` (+ all reverses), DataModel | `tr_sap_all_to_industry_tag`, `tr_sap_all_to_industry_asset_type`, `raw_asset_all_sap.tag`, workflow tasks |
+| Equipment | `Equipment.Container`, `Equipment.View`, `Tag.equipment`, `Document.equipment`, DataModel | `SearchEquipment.View`, `SearchTag.equipment`, `SearchEquipment.materials`, DataModel | `tr_sap_all_to_industry_equipment_type`, `tr_sap_all_to_industry_equipment`, `tr_sharepoint_all_to_industry_equipment_document_connection`, `raw_asset_all_sap.equipment`, workflow tasks |
+| Document | `Document.Container`, `Document.View`, `Tag.files`, DataModel | `SearchDocument.View`, `SearchTag.documents`, DataModel | `tr_sharepoint_all_to_industry_file_category`, `tr_sharepoint_all_to_industry_document`, `tr_sharepoint_all_to_industry_diagram_annotation`, `raw_files_all_sharepoint.file` / `.diagram_annotation`, workflow tasks |
+| TimeSeriesData | `TimeSeriesData.Container`, `TimeSeriesData.View`, `Tag.timeSeries`, `Equipment.timeSeries`, DataModel | `SearchTimeSeriesData.View`, `SearchTag.timeSeries`, `SearchTimeSeriesData.operatingLimits`, DataModel | `tr_pi_all_to_industry_time_series`, `raw_timeseries_all_pi.timeseries`, workflow task |
+| WorkOrder | `WorkOrder.Container`, `WorkOrder.View`, `Tag.activities`, `Equipment.activities`, `TimeSeriesData.activities`, DataModel | `SearchWorkOrder.View`, `SearchTag.workOrders`, `SearchWorkOrder.operations`, DataModel | `tr_sap_all_to_industry_work_order`, `raw_asset_all_sap.work_order`, workflow task |
+| WorkOrderOperation | `WorkOrderOperation.Container`, `WorkOrderOperation.View`, `WorkOrder.operations`, DataModel | `SearchWorkOrderOperation.View`, DataModel | `tr_sap_all_to_industry_work_order_operation`, `raw_asset_all_sap.work_order_operation`, workflow task |
 | Notification | `Notification.Container`, `Notification.View`, DataModel | `SearchNotification.View`, `SearchTag.notifications`, DataModel | `tr_sap_all_to_industry_notification`, `raw_asset_all_sap.notification`, workflow task |
 | Material | `Material.Container`, `Material.View`, DataModel | `SearchMaterial.View`, `SearchEquipment.materials`, DataModel | `tr_sap_all_to_industry_material`, `raw_asset_all_sap.material`, workflow task |
 | OperatingLimit | `OperatingLimit.Container`, `OperatingLimit.View`, DataModel | `SearchOperatingLimit.View`, `SearchTimeSeriesData.operatingLimits`, DataModel | `tr_pi_all_to_industry_operating_limit`, `raw_timeseries_all_pi.timeseries` + `raw_asset_all_sap.instrument_equipment`, workflow task |
@@ -250,3 +252,44 @@ Each dump module owns its workflow; transformation and function ids are referenc
 | Remove a type | §8.6 | Follow the touch-map row |
 
 Before the first production deploy all of the above are free; after it, follow §8.7.
+
+### 8.11 Relation targets on enterprise views
+
+A view that `implements` a CDM/IDM type inherits its direct and reverse relations with `source` set to the CDM/IDM
+view (for example `CogniteAsset.files` → `CogniteFile`). Left as is, navigation leaves this model: `Tag.files` returns
+`CogniteFile` nodes, not `Document`. Resolve every inherited relation with these rules, in order:
+
+1. **Target view in this data model** → override the property on the enterprise view with the same id. Set `source`
+   (and for reverses `through.source`) to the enterprise view, and `through.identifier` to the forward property on
+   that view. The forward property's `source` must point back at the view that holds the reverse.
+2. **Target view in a different domain model** → do not reference it. Keep the inherited CDM/IDM `source` (or omit
+   `source` on your own directs). Any `source` / `through` to another model's view pins that view's version, so a
+   bump in one model would force a version bump of every view that references it. Leaving it out keeps each domain
+   model independently versioned and governed; cross-model navigation belongs in a solution model (§8.0 step 8).
+3. **No target view anywhere, and no consumer** → remove the property. A property inherited through `implements`
+   cannot be removed, so drop `implements` and map the CDM/IDM containers directly, keeping at least the minimum
+   properties that preserve the type for CDF apps (cog-vd `cdf-data-modeling` → *Minimum CDM/IDM Mapping Without
+   `implements`*), plus the parent container `requires`.
+
+CDM reference types (`CogniteAssetType`, `CogniteEquipmentType`, `CogniteFileCategory`, `CogniteUnit`,
+`CogniteAssetClass`, `CogniteSourceSystem`, `CogniteStateSet`, `Cognite3DObject`) stay sourced to `cdf_cdm`.
+Override only the inherited relations; do not add new reverses on enterprise views (they belong in Search `_SOL`).
+
+Current overrides of inherited reverses:
+
+| View | Property | Inherited from | `source` / `through` |
+|------|----------|----------------|----------------------|
+| Tag | `children` | CogniteAsset | `Tag` / `parent` |
+| Tag | `equipment` | CogniteAsset | `Equipment` / `asset` |
+| Tag | `timeSeries` | CogniteAsset | `TimeSeriesData` / `assets` |
+| Tag | `files` | CogniteAsset | `Document` / `assets` |
+| Tag | `activities` | CogniteAsset | `WorkOrder` / `assets` |
+| Equipment | `timeSeries` | CogniteEquipment | `TimeSeriesData` / `equipment` |
+| Equipment | `activities` | CogniteEquipment | `WorkOrder` / `equipment` |
+| Document | `equipment` | CogniteFile | `Equipment` / `files` |
+| TimeSeriesData | `activities` | CogniteTimeSeries | `WorkOrder` / `timeSeries` |
+| WorkOrder | `operations` | CogniteMaintenanceOrder | `WorkOrderOperation` / `maintenanceOrder` |
+
+`activities` targets `WorkOrder` because a reverse has one `source`. Operations are reached through
+`WorkOrder.operations`. When you add, trim or rename a type, update this table and the overrides on the other
+views (§8.9 *Enterprise* column).
