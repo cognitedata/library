@@ -74,3 +74,20 @@ properties:
       version: "{{ dm_enterprise_version }}"
       type: view
 
+  operations:
+    name: Operations
+    description: "CONTRACT: Operations on this work order; overrides CogniteMaintenanceOrder.operations to the enterprise WorkOrderOperation."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: WorkOrderOperation
+      version: "{{ dm_enterprise_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ enterprise_space }}"
+        externalId: WorkOrderOperation
+        version: "{{ dm_enterprise_version }}"
+        type: view
+      identifier: maintenanceOrder
+

@@ -96,3 +96,20 @@ properties:
       version: "v1"
       type: view
 
+  activities:
+    name: Work orders
+    description: "CONTRACT: Work orders linked to this time series; overrides CogniteTimeSeries.activities to the enterprise WorkOrder."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: WorkOrder
+      version: "{{ dm_enterprise_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ enterprise_space }}"
+        externalId: WorkOrder
+        version: "{{ dm_enterprise_version }}"
+        type: view
+      identifier: timeSeries
+

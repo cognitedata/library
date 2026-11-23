@@ -60,3 +60,37 @@ properties:
       version: "v1"
       type: view
 
+  timeSeries:
+    name: Time series
+    description: "CONTRACT: Time series linked to this equipment; overrides CogniteEquipment.timeSeries to the enterprise TimeSeriesData."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: TimeSeriesData
+      version: "{{ dm_enterprise_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ enterprise_space }}"
+        externalId: TimeSeriesData
+        version: "{{ dm_enterprise_version }}"
+        type: view
+      identifier: equipment
+
+  activities:
+    name: Work orders
+    description: "CONTRACT: Work orders linked to this equipment; overrides CogniteEquipment.activities to the enterprise WorkOrder."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: WorkOrder
+      version: "{{ dm_enterprise_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ enterprise_space }}"
+        externalId: WorkOrder
+        version: "{{ dm_enterprise_version }}"
+        type: view
+      identifier: equipment
+

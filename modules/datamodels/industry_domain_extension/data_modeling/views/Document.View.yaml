@@ -91,3 +91,20 @@ properties:
       version: "v1"
       type: view
 
+  equipment:
+    name: Equipment
+    description: "CONTRACT: Equipment that lists this document in its files; overrides CogniteFile.equipment to the enterprise Equipment."
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Equipment
+      version: "{{ dm_enterprise_version }}"
+      type: view
+    through:
+      source:
+        space: "{{ enterprise_space }}"
+        externalId: Equipment
+        version: "{{ dm_enterprise_version }}"
+        type: view
+      identifier: files
+
