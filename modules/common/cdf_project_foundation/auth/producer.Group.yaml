@@ -87,5 +87,7 @@ capabilities:
         all: {}
   - appHostingAcl:
       actions: [READ, WRITE, RUN]
+      # Qualitizer only for now. Add the Context Quality dashboard app once it is part of the Foundation DP.
       scope:
-        all: {}
+        appExternalIdScope:
+          externalIds: ["qualitizer"]
