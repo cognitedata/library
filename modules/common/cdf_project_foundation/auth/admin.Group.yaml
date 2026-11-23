@@ -68,3 +68,7 @@ capabilities:
       actions: [READ, WRITE]
       scope:
         all: {}
+  - appHostingAcl:
+      actions: [READ, WRITE, RUN]
+      scope:
+        all: {}
