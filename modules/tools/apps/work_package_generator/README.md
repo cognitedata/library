@@ -512,37 +512,6 @@ work_package_generator/
 - Write tests first. Every new module with logic gets a `*.test.ts(x)` file in the same change. Prefer dependency injection over `vi.mock`.
 - Never use `any` or `as unknown as T`.
 
-## QA findings resolved
-
-| ID | Fix | Test |
-| --- | --- | --- |
-| C26 | Stepper is vertical on desktop and horizontal on compact layouts | `WorkPackageGeneratorLayout.test.tsx` |
-| C17 | Candidates are ranked with slot labels weighted above context (capped at 100), and the reply is parsed for one id | `ai-agent.test.ts` |
-| C10 | Annotations are copied with item references remapped, and annotations anchored to dropped slots are skipped | `canvas-builder.test.ts` |
-| C18 | Update keeps visibility and merges solution tags | `canvas-builder.test.ts` |
-| C04 | Main slots use `isMainAsset` / `isMainWorkOrder`, not a substring of “main” | `useTemplateFields.test.tsx` |
-| E3 | All Resources is always listed | `useTemplates.test.tsx` |
-| C11 | No post-write canvas validation | `useCanvasCreation.test.tsx` |
-| C06 | A work order with several assets uses the first | `work-orders.test.ts` |
-| N04 | Status column and Status/Priority filters follow view capabilities | `WorkOrderResultsTable.test.tsx` |
-| N14 | Removed resources are keyed by space and external id, can be restored, and reset when the template changes | `store.test.ts` |
-| C23 | Re-run AI overall and per slot | `SelectionsStep.test.tsx` |
-| N02 | Each workflow step pushes a history entry; Back uses it | `useWorkPackageGeneratorPage.test.tsx` |
-| N10 | Template list is every public canvas plus the user’s own private ones | `template-canvases.test.ts` |
-| B-D4 | Same template names are all listed, with owner and updated time | `template-canvases.test.ts` |
-| N06 | ID search matches `externalId` case-insensitively (exact, prefix, and contains) ranked ahead of name and description search | `work-orders.test.ts` |
-| B-D3 | Config node suppresses unresolved-variable noise with `# rules: ignore[UNRESOLVED-VARIABLE]` | `toolkit-drift.test.ts` |
-| B-D2 | Agent is synced via `POST /ai/agents` when model, runtime, instructions, or tools differ; the diff is logged; a failed write is soft | `ai-agent.test.ts` |
-| C34 | Config validation rejects `searchResultLimit` above 1000 and unknown placeholder names | `validate.test.ts` |
-| C01 | A late AI pick from the previous work order is discarded | `useAiSelections.test.tsx` |
-| C05 | A work order with no asset leaves the resolving state | `WorkOrderDetailStep.test.tsx` |
-| C09 | Create and update roll back newly written items on failure (including old-child delete failure) so no partial or empty canvas is left | `canvas-builder.test.ts` |
-| C15 | Two slots with the same label keep separate picks | `canvas-builder.test.ts` |
-| C16 | AI errors are shown per slot instead of “No automatic match” | `ai-agent.test.ts` |
-| C32 | Copy-link falls back to a manual copy dialog | `clipboard.test.ts` |
-| C33a | `AppConfigGate` writes canvas config after render | `AppConfigGate.test.tsx` |
-| B-T1 | `build` stops when the TypeScript check fails | `build-script.test.ts` |
-
 ## Support
 
 ### Known limitations

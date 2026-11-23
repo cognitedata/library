@@ -6,6 +6,7 @@ dist
 coverage
 reviews
 docs
+qa
 
 # Environment variables
 .env
