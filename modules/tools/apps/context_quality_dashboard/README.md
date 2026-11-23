@@ -57,6 +57,27 @@ Terms:
 
 ## Deployment
 
+### 0. Get the app into your project
+
+Toolkit downloads both modules of the pack, but only the backend is deployed with `cdf deploy`. The app is a Fusion
+app: you move it out of `modules/` to where you keep your Fusion apps and deploy it with the apps CLI (step 3).
+
+```bash
+# 1. Download the pack (backend and app) into your Toolkit project
+cdf modules add . # select "Contextualization Quality Dashboard" (dp:context_quality)
+
+# 2. Move the app out of modules/ to your Fusion apps directory
+mv modules/tools/apps/context_quality_dashboard <your-apps-directory>/context_quality_dashboard
+
+# 3. Go into the app
+cd <your-apps-directory>/context_quality_dashboard
+```
+
+Then follow steps 1 to 3 below. Deploy the backend from your Toolkit project first (`cdf build && cdf deploy`).
+If you leave the app in `modules/`, `cdf build` also picks it up; the dummy `auth/` group in this module only exists
+so that Toolkit accepts it. Do not rely on it for access: users get access from the backend's
+`gp_context_quality_dashboard_users` group.
+
 ### Prerequisites
 
 This app is the **Contextualization Quality Dashboard App** module of the **Contextualization Quality Dashboard** pack (`dp:context_quality`), next to
@@ -70,7 +91,8 @@ the **Dashboard Backend** module.
   (see the backend README, "Running with a config file").
 - To deploy the app: the `apphosting:read` and `apphosting:write` capabilities in the target project, for the user or
   the client that deploys. Without them `apps deploy` stops with `Missing capability: AppHosting:WRITE` (403). Users
-  who only open the app need `apphosting:read` and `apphosting:run`.
+  who only open the app need `apphosting:read` and `apphosting:run`; the backend's `gp_context_quality_dashboard_users`
+  group already grants both for this app.
 
 ### 1. Point the app at your project
 
@@ -165,6 +187,7 @@ context_quality_dashboard/
 │   ├── services/       # CDF Records, workflow and export clients
 │   ├── i18n/           # English and Japanese text
 │   └── mock/           # sample data for dev:mock and tests
+├── auth/               # dummy group, only so Toolkit accepts the module
 ├── app.json            # Fusion app + deployment targets
 ├── manifest.json       # network permissions
 ├── .env.example        # backend configuration
