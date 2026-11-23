@@ -432,7 +432,15 @@ def test_the_dashboard_group_is_read_only_and_scoped_to_the_run_log() -> None:
     group = capabilities("context_quality_dashboard_users.Group.yaml")
 
     assert not {name for name, actions in write_actions(group).items() if actions}
-    assert all(set(body["actions"]) <= {"READ", "LIST"} for bodies in group.values() for body in bodies)
+    assert all(
+        set(body["actions"]) <= {"READ", "LIST"}
+        for name, bodies in group.items()
+        if name != "appHostingAcl"
+        for body in bodies
+    )
+    (app,) = group["appHostingAcl"]
+    assert app["actions"] == ["READ", "RUN"]
+    assert app["scope"]["appExternalIdScope"]["externalIds"] == ["context-quality-dashboard"]
     (records,) = group["streamRecordsAcl"]
     assert records["actions"] == ["READ"]
     assert scope_spaces(records) == [DEFAULTS["metricsInstanceSpace"]]
@@ -446,6 +454,7 @@ def test_the_dashboard_group_is_read_only_and_scoped_to_the_run_log() -> None:
         "streamsAcl",
         "filesAcl",
         "locationFiltersAcl",
+        "appHostingAcl",
     }
     (files,) = group["filesAcl"]
     assert files["actions"] == ["READ"]
