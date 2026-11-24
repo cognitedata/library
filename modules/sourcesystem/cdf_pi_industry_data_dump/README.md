@@ -100,8 +100,9 @@ cdf data upload dir modules/sourcesystem/cdf_pi_industry_data_dump/upload_data -
 ```
 
 Run this module's workflow `wf_pi_all_to_industry` (schedule never fires by default — start it from
-the CDF UI). **Required:** run `wf_sap_all_to_industry` first so Tag / Equipment nodes exist for alarm
-record directs and PI lookups. Cross-module order is not enforced by `dependsOn`.
+the CDF UI). **Required:** start only after `wf_sap_all_to_industry` has completed so Tag/asset
+(and Equipment) nodes exist before time series, operating limits, and alarm record directs connect
+to them. Cross-module order is not enforced by `dependsOn`.
 
 ### Local tests
 

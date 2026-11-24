@@ -36,9 +36,11 @@ sample-data choice; for incremental loads on a real source, follow the `cdf-tran
 | `tr_sap_all_to_industry_work_order_operation` | `work_order_operation` | `WorkOrderOperation` |
 | `tr_sap_all_to_industry_notification` | `notification` | `Notification` |
 
-Direct relations use `node_reference('inst_location', key)` and are `NULL` when the source value is empty,
-so the loads do not depend on each other and can run in parallel. `Tag.labels` is written as `AS labels`
-(the view alias of `CogniteDescribable.tags`) and always contains `DetectInDiagrams`.
+Direct relations use `node_reference('inst_location', key)` and are `NULL` when the source value is empty.
+The workflow still sequences loads so every relation target exists before the load that points at it:
+asset/equipment types first, then Tag (asset hierarchy), then Equipment and WorkOrder, then Material
+(after Equipment) and work order operations and notifications (after WorkOrder). `Tag.labels` is
+written as `AS labels` (the view alias of `CogniteDescribable.tags`) and always contains `DetectInDiagrams`.
 
 ## Deployment
 
@@ -81,9 +83,10 @@ cdf data upload dir modules/sourcesystem/cdf_sap_industry_data_dump/upload_data 
 ```
 
 Then run this module's workflow `wf_sap_all_to_industry` (schedule never fires by default — start it
-from the CDF UI). **Required first** in the pack run order (before PI and SharePoint); cross-module
-order is not enforced by `dependsOn`. Expected row counts: 1154 tags (47 with an asset type), 17 asset
-types, 10 equipment, 10 equipment types, 10 materials, 11 work orders, 17 operations and 10 notifications.
+from the CDF UI). The workflow enforces this load order via `dependsOn`.
+**Required first** in the pack run order (before PI and SharePoint); cross-module order is not
+enforced by `dependsOn`. Expected row counts: 1154 tags (47 with an asset type), 17 asset types,
+10 equipment, 10 equipment types, 10 materials, 11 work orders, 17 operations and 10 notifications.
 
 ## Module Structure
 

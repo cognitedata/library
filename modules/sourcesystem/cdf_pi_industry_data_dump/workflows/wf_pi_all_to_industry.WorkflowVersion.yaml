@@ -2,7 +2,10 @@ workflowExternalId: {{ workflow_external_id }}
 version: v1
 workflowDefinition:
   tasks:
-    # Wave 1: RAW → nodes (parallel). Required: run wf_sap_all_to_industry first (not enforced by dependsOn).
+    # Wave 1: time series, then operating limits that point at them.
+    # Prerequisite: wf_sap_all_to_industry must have completed so Tag/asset (and Equipment)
+    # nodes exist before time series and operating limits connect to them. Cross-workflow
+    # order is not enforceable via dependsOn.
     - externalId: tr_pi_all_to_industry_time_series
       type: transformation
       name: Time series
@@ -26,8 +29,10 @@ workflowDefinition:
       retries: 3
       timeout: 3600
       onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_pi_all_to_industry_time_series
 
-    # Wave 2: Records service does not validate target nodes — load Tag (SAP) and Wave 1 first.
+    # Wave 2: alarm records need Tag (SAP) and Wave 1 nodes.
     # abortWorkflow so a broken sample ingest fails loudly.
     - externalId: {{ alarm_function_external_id }}
       type: function

@@ -2,7 +2,10 @@ workflowExternalId: {{ workflow_external_id }}
 version: v1
 workflowDefinition:
   tasks:
-    # Wave 1: RAW → nodes (parallel). Required: run wf_sap_all_to_industry first (not enforced by dependsOn).
+    # Wave 1: file categories, then Document nodes that point at them.
+    # Prerequisite: wf_sap_all_to_industry must have completed so Tag and Equipment
+    # nodes exist before annotation edges and the equipment–document overlay. Cross-workflow
+    # order is not enforceable via dependsOn.
     - externalId: tr_sharepoint_all_to_industry_file_category
       type: transformation
       name: File category
@@ -26,8 +29,10 @@ workflowDefinition:
       retries: 3
       timeout: 3600
       onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_sharepoint_all_to_industry_file_category
 
-    # Wave 2: edges need Document (this workflow) and Tag (SAP workflow) nodes.
+    # Wave 2: edges need Document (this workflow) and Tag (SAP, already loaded) nodes.
     - externalId: tr_sharepoint_all_to_industry_diagram_annotation
       type: transformation
       name: Diagram annotation
@@ -42,7 +47,8 @@ workflowDefinition:
       dependsOn:
         - externalId: tr_sharepoint_all_to_industry_document
 
-    # Wave 3: overlay on Equipment (SAP) and Document nodes — optional enrichment.
+    # Wave 3: overlay Equipment.files after Document nodes exist; Equipment must already
+    # exist from a completed SAP run (cdf_nodes skips missing Equipment).
     - externalId: tr_sharepoint_all_to_industry_equipment_document_connection
       type: transformation
       name: Equipment document connection

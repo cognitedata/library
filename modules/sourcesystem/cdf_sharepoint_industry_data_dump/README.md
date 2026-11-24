@@ -75,9 +75,10 @@ cdf data upload dir modules/sourcesystem/cdf_sharepoint_industry_data_dump/uploa
 ```
 
 Run this module's workflow `wf_sharepoint_all_to_industry` (schedule never fires by default — start
-it from the CDF UI). **Required:** run `wf_sap_all_to_industry` first so Tag and Equipment nodes
-exist for annotation edges and the equipment–document overlay. Cross-module order is not enforced
-by `dependsOn`; the overlay skips missing Equipment via `cdf_nodes`, but Tag links still need SAP.
+it from the CDF UI). **Required:** start only after `wf_sap_all_to_industry` has completed so Tag
+and Equipment nodes exist before annotation edges and the equipment–document overlay. Cross-module
+order is not enforced by `dependsOn`; the overlay skips missing Equipment via `cdf_nodes`, but Tag
+links still need SAP.
 
 ## Module Structure
 
