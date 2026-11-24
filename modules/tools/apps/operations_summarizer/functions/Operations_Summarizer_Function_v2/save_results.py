@@ -2,8 +2,6 @@
 Save podcast script and audio to CDF.
 """
 
-from __future__ import annotations
-
 import os
 import time
 from datetime import UTC, datetime

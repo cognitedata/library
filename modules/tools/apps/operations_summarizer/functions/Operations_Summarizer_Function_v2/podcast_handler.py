@@ -1,7 +1,5 @@
 """Podcast generation path for the unified operations function."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 
 from cdf_helpers import CDFHelper

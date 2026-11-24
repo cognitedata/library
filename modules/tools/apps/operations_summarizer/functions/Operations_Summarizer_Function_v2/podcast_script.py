@@ -5,8 +5,6 @@ Sends the operations summary to the Podcast Script Generator agent and
 returns the spoken-word script suitable for TTS.
 """
 
-from __future__ import annotations
-
 from cdf_helpers import CDFHelper
 from cognite.client import CogniteClient
 from cognite.client.data_classes.agents import Message, TextContent

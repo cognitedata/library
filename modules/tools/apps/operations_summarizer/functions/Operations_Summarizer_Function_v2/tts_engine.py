@@ -7,8 +7,6 @@ All imports are lazy so they don't slow down function startup.
 Output format is MP3 (audio/mpeg).
 """
 
-from __future__ import annotations
-
 AUDIO_MIME_TYPE = "audio/mpeg"
 AUDIO_EXTENSION = "mp3"
 

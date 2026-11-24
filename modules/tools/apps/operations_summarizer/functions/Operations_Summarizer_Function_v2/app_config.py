@@ -4,8 +4,6 @@ Fixed identifiers match ``src/config/configLocation.ts``.
 The Cognite SDK retries HTTP 429 responses.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 SCHEMA_SPACE = "dm_sol_ops_summarizer_app"
