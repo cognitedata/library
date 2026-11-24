@@ -12,6 +12,7 @@ dev = [
     "pytest>=7",
     "python-dotenv>=1",
     "pyyaml>=6",
+    "ruff>=0.8",
     "streamlit>=1.40",
     "tenacity>=8",
     "xlsxwriter>=3.1,<4",
