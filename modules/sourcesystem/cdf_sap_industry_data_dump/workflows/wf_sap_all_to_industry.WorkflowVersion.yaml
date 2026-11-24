@@ -1,0 +1,120 @@
+workflowExternalId: {{ workflow_external_id }}
+version: v1
+workflowDefinition:
+  tasks:
+    # Wave 1: type nodes (parallel) — referenced by Tag.type and Equipment.equipmentType.
+    - externalId: tr_sap_all_to_industry_asset_type
+      type: transformation
+      name: Asset type
+      description: Load CogniteAssetType nodes from SAP tag classes
+      parameters:
+        transformation:
+          externalId: tr_sap_all_to_industry_asset_type
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: tr_sap_all_to_industry_equipment_type
+      type: transformation
+      name: Equipment type
+      description: Load EquipmentType nodes from SAP
+      parameters:
+        transformation:
+          externalId: tr_sap_all_to_industry_equipment_type
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    # Wave 2: asset hierarchy (Tag) after asset types exist.
+    - externalId: tr_sap_all_to_industry_tag
+      type: transformation
+      name: Tag
+      description: Load Tag nodes from SAP
+      parameters:
+        transformation:
+          externalId: tr_sap_all_to_industry_tag
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_sap_all_to_industry_asset_type
+
+    # Wave 3: equipment after equipment types and Tag (asset) nodes exist.
+    - externalId: tr_sap_all_to_industry_equipment
+      type: transformation
+      name: Equipment
+      description: Load Equipment nodes from SAP
+      parameters:
+        transformation:
+          externalId: tr_sap_all_to_industry_equipment
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_sap_all_to_industry_equipment_type
+        - externalId: tr_sap_all_to_industry_tag
+
+    # Wave 4: Material points at Tag and Equipment; WorkOrder points at Tag.
+    - externalId: tr_sap_all_to_industry_material
+      type: transformation
+      name: Material
+      description: Load Material nodes from SAP
+      parameters:
+        transformation:
+          externalId: tr_sap_all_to_industry_material
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_sap_all_to_industry_tag
+        - externalId: tr_sap_all_to_industry_equipment
+
+    - externalId: tr_sap_all_to_industry_work_order
+      type: transformation
+      name: Work order
+      description: Load WorkOrder nodes from SAP
+      parameters:
+        transformation:
+          externalId: tr_sap_all_to_industry_work_order
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_sap_all_to_industry_tag
+
+    # Wave 5: operations and notifications point at Tag and WorkOrder.
+    - externalId: tr_sap_all_to_industry_work_order_operation
+      type: transformation
+      name: Work order operation
+      description: Load WorkOrderOperation nodes from SAP
+      parameters:
+        transformation:
+          externalId: tr_sap_all_to_industry_work_order_operation
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_sap_all_to_industry_tag
+        - externalId: tr_sap_all_to_industry_work_order
+
+    - externalId: tr_sap_all_to_industry_notification
+      type: transformation
+      name: Notification
+      description: Load Notification nodes from SAP
+      parameters:
+        transformation:
+          externalId: tr_sap_all_to_industry_notification
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_sap_all_to_industry_tag
+        - externalId: tr_sap_all_to_industry_work_order

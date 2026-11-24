@@ -166,6 +166,25 @@ PACKAGE_SPECS: list[dict[str, object]] = [
             "mixpanel>=4.10.0",
         ],
     },
+    {
+        "path": "modules/sourcesystem/cdf_pi_industry_data_dump/functions/fn_pi_all_ingest_alarm_event",
+        "name": "fn-pi-all-ingest-alarm-event",
+        "requires_python": ">=3.11,<3.14",
+        # Local/lock range stays compatible with other workspace members on cognite-sdk <8.
+        # Unit tests mock Records and do not need the Records API locally.
+        "dependencies": [
+            "cognite-sdk>=7,<9",
+            "pydantic>=2.12.4,<3.0.0",
+        ],
+        # Deploy pin is the source of truth for CDF: Records API requires cognite-sdk >= 8.24.
+        "deploy_dependencies": [
+            "cognite-sdk==8.25.0",
+            "pydantic==2.12.4",
+        ],
+        "dev_dependencies": ["pytest>=7.0.0"],
+        # Tests live under modules/.../tests/fn_pi_all_ingest_alarm_event (not packaged with the function).
+        "pytest": False,
+    },
 ]
 
 

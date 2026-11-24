@@ -1,0 +1,17 @@
+externalId: tr_sap_all_to_industry_equipment
+name: Industry equipment from SAP
+destination:
+  dataModel:
+    space: '{{ enterprise_space }}'
+    externalId: '{{ enterprise_data_model_external_id }}'
+    version: '{{ dm_enterprise_version }}'
+    destinationType: Equipment
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: false
+isPublic: true
+conflictMode: upsert
+authentication:
+  clientId: '{{ ingestion_client_id }}'
+  clientSecret: '{{ ingestion_client_secret }}'

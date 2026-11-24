@@ -29,6 +29,8 @@ dp:infield:cdf_infield_location,Infield Location
 dp:models:cdf_process_industry_extension,Example of Minimum Extension of the Cognite Process Industry Model
 dp:models:cfihos_oil_and_gas_extension,CFIHOS Oil And Gas Data Model template
 dp:models:cfihos_oil_and_gas_extension_search,CFIHOS Oil And Gas Search Solution Model
+dp:models:industry_domain_extension,Industry Domain Data Model template
+dp:models:industry_domain_extension_search,Industry Domain Search Data Model template
 dp:models:isa_manufacturing_extension,ISA 88/95 Manufacturing Data Model template
 dp:models:isa_manufacturing_extension_search,ISA 88/95 Manufacturing Search Data Model template
 dp:models:qs_enterprise_dm,Quick Start Enterprise Data Model
@@ -36,11 +38,14 @@ dp:models:rmdm,Reliability Maintenance Data Model
 dp:sourcesystem:cdf_oid_sync,Open Industrial Data Sync
 dp:sourcesystem:cdf_pi,OSIsoft/AVEVA PI Data Source
 dp:sourcesystem:cdf_pi_data_dump,PI Source System (CFIHOS)
+dp:sourcesystem:cdf_pi_industry_data_dump,PI Source System (Industry)
 dp:sourcesystem:cdf_sap_assets,SAP Source System Asset/Equipment Metadata
 dp:sourcesystem:cdf_sap_data_dump,SAP Source System (CFIHOS)
 dp:sourcesystem:cdf_sap_events,SAP Source System Events
+dp:sourcesystem:cdf_sap_industry_data_dump,SAP Source System (Industry)
 dp:sourcesystem:cdf_sharepoint,Sharepoint Files
 dp:sourcesystem:cdf_sharepoint_data_dump,SharePoint Source System (CFIHOS)
+dp:sourcesystem:cdf_sharepoint_industry_data_dump,SharePoint Source System (Industry)
 dp:tool:qualitizer,CDF Qualitizer Application
 dp:work_package_generator:work_package_generator,Work Package Generator Application
 dp:acc:cdf_oid_sync,Open Industrial Data Sync

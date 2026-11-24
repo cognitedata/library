@@ -1,0 +1,3 @@
+space: {{ function_space }}
+name: Industry function space
+description: Code space for the Industry alarm ingest CDF Function. Holds function code only, never instances.

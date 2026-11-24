@@ -1,0 +1,26 @@
+space: "{{ enterprise_space }}"
+externalId: WorkOrderOperation
+name: Work order operation
+description: Enterprise work order operation. Extends CogniteOperation.
+usedFor: node
+properties:
+  workCenter:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Work center
+    description: "SOURCE_SCAFFOLD: Work center that performs the operation. Example: MECH-23."
+constraints:
+  requiresCogniteOperation:
+    constraintType: requires
+    require:
+      space: cdf_idm
+      externalId: CogniteOperation
+      type: container
+indexes:
+  workCenter:
+    indexType: btree
+    properties:
+      - workCenter
+    cursorable: false
