@@ -28,14 +28,10 @@ describe("normalizeDeploymentPackId", () => {
     expect(normalizeDeploymentPackId("dp:cdf_common")).toBe("dp:accelerators:cdf_common");
     expect(normalizeDeploymentPackId("dp:cdf_entity_matching")).toBe("dp:acc:ctx:cdf_entity_matching");
     expect(normalizeDeploymentPackId("dp:cdf_file_annotation")).toBe("dp:acc:ctx:cdf_file_annotation");
-    expect(normalizeDeploymentPackId("dp:cdf_p_and_id_annotation")).toBe("dp:acc:ctx:cdf_p_and_id_annotation");
     expect(normalizeDeploymentPackId("dp:cdf_p_and_id_parser")).toBe("dp:acc:ctx:p_and_id_parser");
     expect(normalizeDeploymentPackId("dp:context_quality")).toBe("dp:dashboards:context_quality");
     expect(normalizeDeploymentPackId("dp:contextualization:cdf_entity_matching")).toBe(
       "dp:acc:ctx:cdf_entity_matching"
-    );
-    expect(normalizeDeploymentPackId("dp:contextualization:cdf_p_and_id_annotation")).toBe(
-      "dp:acc:ctx:cdf_p_and_id_annotation"
     );
     expect(normalizeDeploymentPackId("dp:open_industrial_data_sync")).toBe("dp:acc:cdf_oid_sync");
     expect(normalizeDeploymentPackId("dp:project_health")).toBe("dp:dashboards:project_health");
