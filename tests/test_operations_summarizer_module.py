@@ -22,6 +22,12 @@ def test_app_json_deployments_only_hold_placeholders() -> None:
     ]
 
 
+def test_function_runs_on_python_313() -> None:
+    function_yaml = (APP / "functions" / "operations_summarizer.Function.yaml").read_text()
+
+    assert "runtime: py313" in function_yaml
+
+
 def test_summaries_space_is_templated_in_the_space_and_function_yaml() -> None:
     space_yaml = (APP / "data_modeling" / "ops_summaries.Space.yaml").read_text()
     function_yaml = (APP / "functions" / "operations_summarizer.Function.yaml").read_text()
