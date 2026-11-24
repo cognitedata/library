@@ -2,8 +2,8 @@
 # that is deployed with `npx @cognite/cli apps deploy`, not with `cdf deploy`. Do not deploy this group.
 # The real access group for the people who open the app is `gp_context_quality_dashboard_users`, in the backend
 # module (dashboards/context_quality).
-name: 'apps.context_quality_dashboard.Group'
-sourceId: <apps.context_quality_dashboard_group_source_id>
+name: gp_context_quality_dashboard_app
+sourceId: <gp_context_quality_dashboard_app_source_id>
 metadata:
   origin: 'cdf-project-templates'
 capabilities:
