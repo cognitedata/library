@@ -27,7 +27,7 @@ workflow (daily) -> function (plan, shards, finalize, export) -> Records stream 
 | Stream `context_quality_metrics` | The Records stream that holds the run log (append-only) |
 | Container and view `ContextQualityRelationship`, two spaces | Schema space for the definitions, instance space for the rows |
 | Data set `ds_context_quality` | Holds the function code and the Excel workbook of unlinked items |
-| Groups `gp_context_quality_function`, `gp_context_quality_dashboard_users` | The workflow identity (reads data, writes records) and the dashboard readers (read only) |
+| Groups `producer_context_quality_function_dev`, `consumer_context_quality_dashboard_dev` | The workflow identity (reads data, writes records) and the dashboard readers (read only) |
 
 How it works, the run log format and every option are in [`REFERENCE.md`](REFERENCE.md).
 
