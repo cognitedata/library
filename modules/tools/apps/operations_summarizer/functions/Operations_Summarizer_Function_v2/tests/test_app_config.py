@@ -1,5 +1,6 @@
 """Tests for reading the Operations Summarizer config node."""
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -77,13 +78,12 @@ def test_prompts_come_from_the_node():
     assert cfg["prompt_templates"]["assets"] == "from-node"
     assert cfg["agent_instructions"] == "agent"
     assert runtime.summary_period_days == 7
-    assert "PROMPT_HEADER" not in open(__file__.replace("test_app_config.py", "config.py"), encoding="utf-8").read()
+    config_source = (Path(__file__).resolve().parents[1] / "config.py").read_text(encoding="utf-8")
+    assert "PROMPT_HEADER" not in config_source
 
 
 def test_agent_yaml_matches_node_instructions():
-    from pathlib import Path
-
-    root = Path(__file__).resolve().parents[2]
+    root = Path(__file__).resolve().parents[3]
     node = (root / "data_modeling/ops_summarizer_config.Node.yaml").read_text(encoding="utf-8")
     agent = (root / "agents/operation_summarizer.Agent.yaml").read_text(encoding="utf-8")
     assert "agentInstructions:" in node

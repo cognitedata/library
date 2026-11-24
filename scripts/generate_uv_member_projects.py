@@ -150,6 +150,27 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "pytest": True,
     },
     {
+        "path": "modules/tools/apps/operations_summarizer/functions/Operations_Summarizer_Function_v2",
+        "name": "operations-summarizer-function",
+        "requires_python": ">=3.13,<3.14",
+        "dependencies": [
+            "cognite-sdk>=7,<8",
+            "reportlab>=4,<5",
+            "python-dotenv>=1.2,<2",
+            "requests>=2.32,<3",
+            "edge-tts>=7,<8",
+        ],
+        "deploy_dependencies": [
+            "cognite-sdk == 7.*",
+            "reportlab >= 4, < 5",
+            "python-dotenv >= 1.2, < 2",
+            "requests >= 2.32, < 3",
+            "edge-tts >= 7, < 8",
+        ],
+        "dev_dependencies": ["pytest>=7.0.0"],
+        "pytest": True,
+    },
+    {
         "path": "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor",
         "name": "fn-ai-property-extractor",
         "requires_python": ">=3.11,<3.14",
