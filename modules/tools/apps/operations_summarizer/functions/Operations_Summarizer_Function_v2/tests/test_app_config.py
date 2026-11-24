@@ -52,7 +52,9 @@ def test_get_config_uses_node_defaults():
     assert runtime.instance_query_limit == 1000
     assert DATA_TYPE_CONFIGS["assets"].view_id.version == "v1"
     assert DATA_TYPE_CONFIGS["assets"].table_columns[0].header == "id"
-    assert DATA_TYPE_CONFIGS["files"].table_columns[2].formatter(["A", "B"]) == "A, B"
+    files_formatter = DATA_TYPE_CONFIGS["files"].table_columns[2].formatter
+    assert files_formatter is not None
+    assert files_formatter(["A", "B"]) == "A, B"
     assert DATA_TYPE_CONFIGS["work_orders"].is_special_case is True
 
 

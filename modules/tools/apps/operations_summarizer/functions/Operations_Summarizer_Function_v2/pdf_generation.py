@@ -28,13 +28,13 @@ def _format_date_range_display(start: date_type, end: date_type) -> str:
     if start == end:
         return f"{_MONTHS_SHORT[start.month - 1]} {start.day}, {start.year}"
     if start.month == end.month and start.year == end.year:
-        return f"{_MONTHS_SHORT[start.month - 1]} {start.day}–{end.day}, {start.year}"
+        return f"{_MONTHS_SHORT[start.month - 1]} {start.day}\u2013{end.day}, {start.year}"
     start_fmt = (
         f"{_MONTHS_SHORT[start.month - 1]} {start.day}"
         if start.year == end.year
         else f"{_MONTHS_SHORT[start.month - 1]} {start.day}, {start.year}"
     )
-    return f"{start_fmt} – {_MONTHS_SHORT[end.month - 1]} {end.day}, {end.year}"
+    return f"{start_fmt} \u2013 {_MONTHS_SHORT[end.month - 1]} {end.day}, {end.year}"
 
 
 def _format_ops_bitmap_line(content_types: list) -> str:
@@ -88,8 +88,8 @@ def generate_pdf_from_markdown_in_memory(markdown_text: str, _filename: str) -> 
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer
-    except ImportError:
-        raise ImportError("reportlab is required for PDF generation. Install it with: pip install reportlab")
+    except ImportError as exc:
+        raise ImportError("reportlab is required for PDF generation. Install it with: pip install reportlab") from exc
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -265,9 +265,9 @@ def save_summary_to_cdf(
     start_date: str,
     end_date: str,
     generate_pdf: bool = True,
-    fusion_domain: str = None,
-    summary_space: str = None,
-    content_types: list = None,
+    fusion_domain: str | None = None,
+    summary_space: str | None = None,
+    content_types: list | None = None,
 ) -> dict:
     """Save summary to CDF as a file instance with optional PDF generation.
 
@@ -275,12 +275,12 @@ def save_summary_to_cdf(
     ----------
     client : CogniteClient
     summary_text : str
-    start_date : str  – "YYYY-MM-DD"
-    end_date : str    – "YYYY-MM-DD"
+    start_date : str  - "YYYY-MM-DD"
+    end_date : str    - "YYYY-MM-DD"
     generate_pdf : bool
-    fusion_domain : str, optional  – e.g. "cog-ariel.fusion.cognite.com"
-    summary_space : str, optional  – CDF space to save into (defaults to SUMMARY_SPACE constant)
-    content_types : list, optional – active content type keys for OPS bitmap
+    fusion_domain : str, optional  - e.g. "example.fusion.cognite.com"
+    summary_space : str, optional  - CDF space to save into (defaults to SUMMARY_SPACE constant)
+    content_types : list, optional - active content type keys for OPS bitmap
     """
     try:
         from cognite.client.data_classes.data_modeling.cdm.v1 import CogniteFileApply
@@ -335,7 +335,7 @@ def save_summary_to_cdf(
             else:
                 raise ValueError(
                     "Fusion domain could not be auto-detected. Please provide it in one of these ways:\n"
-                    "1. Pass 'fusion_domain' in the data parameter (e.g., 'cog-ariel.fusion.cognite.com')\n"
+                    "1. Pass 'fusion_domain' in the data parameter (e.g., 'example.fusion.cognite.com')\n"
                     "2. Set FUSION_DOMAIN environment variable\n"
                     f"\nDetected project: {project}, cluster: {cluster}\n"
                 )

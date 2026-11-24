@@ -9,8 +9,8 @@ from config import runtime
 
 def ensure_agent_exists(
     client: CogniteClient,
-    agent_id: str = None,
-    instructions: str = None,
+    agent_id: str | None = None,
+    instructions: str | None = None,
 ) -> str:
     """Ensure that an agent exists, creating one if necessary.
 
@@ -24,7 +24,7 @@ def ensure_agent_exists(
 
     Returns
     -------
-    str – external_id of the agent to use.
+    str - external_id of the agent to use.
     """
     cdf_helper = CDFHelper(client)
 

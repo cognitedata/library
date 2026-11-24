@@ -148,7 +148,7 @@ def bind_from_node(node: dict) -> None:
     """Fill shared runtime objects from a validated config node."""
     views = node["dataModel"]["views"]
     VIEW_ID_MAPPING.clear()
-    for name, source in views.items():
+    for name in views:
         VIEW_ID_MAPPING[name] = _view_id(views, name)
 
     DATA_TYPE_CONFIGS.clear()

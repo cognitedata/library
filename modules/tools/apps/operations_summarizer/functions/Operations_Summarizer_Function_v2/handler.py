@@ -68,10 +68,10 @@ from utils import strip_html_tags
 
 
 def handle(
-    data: dict = None,
+    data: dict | None = None,
     client: CogniteClient = None,
-    secrets: dict = None,
-    function_call_info: dict = None,
+    secrets: dict | None = None,
+    function_call_info: dict | None = None,
 ) -> dict:
     """Cognite Functions entry-point. ``task`` ``podcast`` runs podcast generation."""
     data = data or {}
@@ -81,10 +81,10 @@ def handle(
 
 
 def _handle_summary(
-    data: dict = None,
+    data: dict | None = None,
     client: CogniteClient = None,
-    secrets: dict = None,
-    function_call_info: dict = None,
+    secrets: dict | None = None,
+    function_call_info: dict | None = None,
 ) -> dict:
     """Generate an operations summary from the config node."""
     try:
@@ -99,8 +99,8 @@ def _handle_summary(
         print(f"Summary contents: {summary_contents}")
 
         start_date, end_date, period_error = _resolve_period(data)
-        if period_error:
-            return {"markdown": "", "success": False, "error": period_error}
+        if period_error or start_date is None or end_date is None:
+            return {"markdown": "", "success": False, "error": period_error or "Summary period could not be resolved"}
         print(f"Summary period: {start_date} to {end_date}")
 
         tz = timezone(timedelta(hours=runtime.timezone_offset_hours))

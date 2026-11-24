@@ -83,7 +83,7 @@ def fetch_summary_text(
         if res.nodes:
             node = res.nodes[0]
             # SDK properties structure: {ViewId: {prop_name: value}}
-            for view_id, view_props in node.properties.items():
+            for _view_id, view_props in node.properties.items():
                 desc = view_props.get("description")
                 if desc and str(desc).strip():
                     print(f"  Got summary from description ({len(str(desc))} chars)")

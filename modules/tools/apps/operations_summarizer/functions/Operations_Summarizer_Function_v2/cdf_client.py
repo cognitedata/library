@@ -2,16 +2,16 @@
 Local development helper — creates a CogniteClient from environment variables.
 
 Token auth:
-    CDF_PROJECT  – CDF project name
-    CDF_URL      – cluster URL (e.g. "https://<cluster>.cognitedata.com")
-    CDF_TOKEN    – bearer token (e.g. after `cdf auth login` with LOGIN_FLOW=token)
+    CDF_PROJECT  - CDF project name
+    CDF_URL      - cluster URL (e.g. "https://<cluster>.cognitedata.com")
+    CDF_TOKEN    - bearer token (e.g. after `cdf auth login` with LOGIN_FLOW=token)
 
 OAuth client-credentials auth:
-    CDF_PROJECT       – CDF project name
-    CDF_URL           – cluster URL (or set CDF_CLUSTER instead)
-    IDP_TOKEN_URL     – OAuth token endpoint (or IDP_TENANT_ID to derive Entra URL)
-    IDP_CLIENT_ID     – OAuth application (client) ID
-    IDP_CLIENT_SECRET – OAuth client secret
+    CDF_PROJECT       - CDF project name
+    CDF_URL           - cluster URL (or set CDF_CLUSTER instead)
+    IDP_TOKEN_URL     - OAuth token endpoint (or IDP_TENANT_ID to derive Entra URL)
+    IDP_CLIENT_ID     - OAuth application (client) ID
+    IDP_CLIENT_SECRET - OAuth client secret
 
 Usage:
     from cdf_client import get_local_client

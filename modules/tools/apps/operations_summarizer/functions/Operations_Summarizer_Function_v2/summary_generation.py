@@ -26,18 +26,16 @@ def retry_with_backoff(max_retries=3, initial_delay=1, max_delay=10):
         @wraps(func)
         def wrapper(*args, **kwargs):
             delay = initial_delay
-            last_exception = None
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
-                except (CogniteReadTimeout, CogniteAPIError, TimeoutError) as e:
-                    last_exception = e
+                except (CogniteReadTimeout, CogniteAPIError, TimeoutError):
                     if attempt < max_retries - 1:
                         print(f"Attempt {attempt + 1} failed, retrying in {delay}s...")
                         time_module.sleep(min(delay, max_delay))
                         delay *= 2
                     else:
-                        raise last_exception
+                        raise
                 except Exception:
                     raise
             return None
@@ -60,9 +58,9 @@ def create_summary_for_data(
     start_time: datetime,
     end_time: datetime,
     cdf_helper: CDFHelper = None,
-    selected_agent: str = None,
-    summary_prompt: dict = None,
-    prompt_header: str = None,
+    selected_agent: str | None = None,
+    summary_prompt: dict | None = None,
+    prompt_header: str | None = None,
 ) -> str:
     """Send a chunk of tabular data to the AI agent and get a summary back."""
     header = prompt_header or runtime.prompt_header
@@ -86,8 +84,8 @@ def create_holistic_summary(
     data_type: str,
     total_instances: int,
     cdf_helper: CDFHelper = None,
-    selected_agent: str = None,
-    holistic_template: str = None,
+    selected_agent: str | None = None,
+    holistic_template: str | None = None,
 ) -> str:
     """Create a single holistic summary from multiple chunk summaries."""
     combined = "\n\n".join(f"Summary {i + 1}:\n{s}" for i, s in enumerate(chunk_summaries))
@@ -199,8 +197,8 @@ def process_work_orders(
     end_time: datetime,
     client: CogniteClient,
     cdf_helper: CDFHelper = None,
-    selected_agent: str = None,
-    summary_prompt: dict = None,
+    selected_agent: str | None = None,
+    summary_prompt: dict | None = None,
 ) -> tuple[str, str]:
     """Process work orders with subcategory summaries (mirrors generateWorkOrdersSection)."""
     total = len(instances)
@@ -230,9 +228,9 @@ def process_dataset(
     end_time: datetime,
     client: CogniteClient,
     cdf_helper: CDFHelper = None,
-    selected_agent: str = None,
-    summary_prompt: dict = None,
-    cfg: dict = None,
+    selected_agent: str | None = None,
+    summary_prompt: dict | None = None,
+    cfg: dict | None = None,
 ) -> tuple[str, str]:
     """Process a list of instances into (table_markdown, summary_section)."""
     cfg = cfg or {}

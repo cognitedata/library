@@ -74,14 +74,14 @@ def _paginate(
     had_more_in_cdf = False
 
     while True:
-        kwargs = dict(
-            instance_type="node",
-            space=space,
-            sources=view_id,
-            filter=filter_obj,
-            include_typing=True,
-            limit=runtime.instance_query_limit,
-        )
+        kwargs = {
+            "instance_type": "node",
+            "space": space,
+            "sources": view_id,
+            "filter": filter_obj,
+            "include_typing": True,
+            "limit": runtime.instance_query_limit,
+        }
         if cursor:
             kwargs["cursor"] = cursor
 

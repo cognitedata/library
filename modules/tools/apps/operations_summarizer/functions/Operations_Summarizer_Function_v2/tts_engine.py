@@ -29,7 +29,7 @@ def generate_audio(
     voice : str
         Edge TTS voice name (default: ``en-US-AndrewMultilingualNeural``).
     speed : float
-        Speed multiplier 0.5–2.0 (default: 1.0).
+        Speed multiplier 0.5-2.0 (default: 1.0).
 
     Returns
     -------
