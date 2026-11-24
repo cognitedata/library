@@ -1,0 +1,3 @@
+space: inst_wpg_app_config
+name: WPG app config
+description: Instance space for the Work Package Generator config node. Keep this space out of scoped write grants.

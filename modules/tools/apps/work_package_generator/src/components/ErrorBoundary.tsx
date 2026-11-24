@@ -1,0 +1,67 @@
+import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Button } from "@/components/ui";
+import { logError } from "../utils";
+
+interface ErrorBoundaryProps {
+	children: ReactNode;
+	fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+	hasError: boolean;
+}
+
+/**
+ * Top-level error boundary that catches unhandled render-time exceptions and
+ * shows a user-friendly message instead of a blank screen.
+ */
+export class ErrorBoundary extends Component<
+	ErrorBoundaryProps,
+	ErrorBoundaryState
+> {
+	constructor(props: ErrorBoundaryProps) {
+		super(props);
+		this.state = { hasError: false };
+	}
+
+	static getDerivedStateFromError(): ErrorBoundaryState {
+		return { hasError: true };
+	}
+
+	override componentDidCatch(error: Error, info: ErrorInfo) {
+		logError({
+			scope: "ErrorBoundary",
+			message: "Unhandled render error",
+			context: { componentStack: info.componentStack },
+			cause: error,
+		});
+	}
+
+	override render() {
+		if (this.state.hasError) {
+			if (this.props.fallback) return this.props.fallback;
+			return (
+				<div
+					role="alert"
+					className="flex flex-col items-center justify-center h-screen gap-4 p-8 text-center"
+				>
+					<p className="text-lg font-semibold text-destructive">
+						Something went wrong
+					</p>
+					<p className="max-w-md text-sm text-muted-foreground">
+						This page ran into a problem and could not finish loading. Try
+						again. If it keeps happening, reload the page.
+					</p>
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => this.setState({ hasError: false })}
+					>
+						Try again
+					</Button>
+				</div>
+			);
+		}
+		return this.props.children;
+	}
+}

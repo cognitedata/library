@@ -154,6 +154,15 @@ modules = [
     "tools/apps/qualitizer",
 ]
 
+[packages.work_package_generator]
+id = "dp:work_package_generator"
+title = "Work Package Generator"
+description = "Flows app that builds Industrial Canvas work packages from work orders with AI-assisted template and resource selection."
+canCherryPick = false
+modules = [
+    "tools/apps/work_package_generator",
+]
+
 [packages.custom]
 id = "dp:emptymodule"
 title = "Empty Module"
