@@ -55,3 +55,4 @@ dp:cdf_entity_matching,Contextualization Entity Matching
 dp:cdf_file_annotation,Contextualization File Annotation
 dp:cdf_p_and_id_parser,Contextualization P&ID Diagram Parser
 dp:project_health,CDF Project Health Dashboard
+dp:operations_summarizer:operations_summarizer,Operations Summarizer

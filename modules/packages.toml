@@ -167,10 +167,9 @@ modules = [
 [packages.tools]
 id = "tool"
 title = "Tools and Accelerators"
-description = "Qualitizer, Operations Summarizer, and other accelerator tools for CDF projects."
+description = "Qualitizer and other accelerator tools for CDF projects."
 canCherryPick = true
 modules = [
-    "tools/apps/operations_summarizer",
     "tools/apps/qualitizer",
 ]
 
@@ -181,6 +180,15 @@ description = "Flows app that builds Industrial Canvas work packages from work o
 canCherryPick = false
 modules = [
     "tools/apps/work_package_generator",
+]
+
+[packages.operations_summarizer]
+id = "dp:operations_summarizer"
+title = "Operations Summarizer"
+description = "Fusion app, config data model, summarizer function, and helper agent for operations summaries."
+canCherryPick = false
+modules = [
+    "tools/apps/operations_summarizer",
 ]
 
 [packages.custom]

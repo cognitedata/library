@@ -40,6 +40,18 @@ def test_context_quality_modules_are_named_in_their_module_toml() -> None:
     assert backend.package_id == dashboard.package_id == "dp:context_quality"
 
 
+def test_operations_summarizer_is_a_standalone_pack() -> None:
+    package = PACKAGES["operations_summarizer"]
+    module = load_module_spec(MODULES / "tools" / "apps" / "operations_summarizer" / "module.toml")
+
+    assert package.id == "dp:operations_summarizer"
+    assert package.modules == ["tools/apps/operations_summarizer"]
+    assert package.can_cherry_pick is False
+    assert "tools/apps/operations_summarizer" not in PACKAGES["tools"].modules
+    assert module.id == "dp:operations_summarizer:operations_summarizer"
+    assert module.package_id == "dp:operations_summarizer"
+
+
 def test_packs_with_a_single_module_are_not_cherry_pickable() -> None:
     # `tools` is an open-ended collection of accelerators, so it stays cherry-pickable with one tool today.
     offenders = [

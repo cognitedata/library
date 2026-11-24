@@ -48,8 +48,9 @@ modules/
 │
 ├── tools/
 │   └── apps/
-│       ├── operations_summarizer/
+│       ├── operations_summarizer/   # dp:operations_summarizer
 │       ├── qualitizer/
+│       ├── work_package_generator/  # dp:work_package_generator
 │       └── context_quality_dashboard/ # Contextualization Quality Dashboard app (dp:context_quality)
 │
 └── custom/
@@ -74,7 +75,9 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 | `dp:atlas_ai` | Atlas AI Deployment Pack | `solutions/cdf_ai_extractor` |
 | `dp:cdm_maintain` | CDM Maintain | `solutions/cdm_maintain/*` |
 | `dp:infield` | Infield | `solutions/cdf_infield/cdf_infield_location` |
-| `tool` | Tools and Accelerators | `tools/apps/operations_summarizer`, `tools/apps/qualitizer` |
+| `dp:operations_summarizer` | Operations Summarizer | `tools/apps/operations_summarizer` |
+| `dp:work_package_generator` | Work Package Generator | `tools/apps/work_package_generator` |
+| `tool` | Tools and Accelerators | `tools/apps/qualitizer` |
 | `dp:emptymodule` | Empty Module | `custom/my_module` |
 
 Some modules appear in more than one pack (for example `contextualization/cdf_file_annotation` is in `dp:foundation`, `dp:quickstart`, and `dp:contextualization`). See [CONTRIBUTING.md](../CONTRIBUTING.md) for how `package_id` relates to multi-pack membership.
