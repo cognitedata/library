@@ -8,10 +8,10 @@
  * not wording differences, and always ends with a parseable SIMILARITY_SCORE line.
  */
 export function buildComparisonPrompt(
-  originalSummary: string,
-  newSummary: string,
+	originalSummary: string,
+	newSummary: string
 ): string {
-  return `
+	return `
 Compare these two operation summaries focusing on DATA ACCURACY and CONTENT CONSISTENCY, not wording differences:
 
 ORIGINAL SUMMARY:

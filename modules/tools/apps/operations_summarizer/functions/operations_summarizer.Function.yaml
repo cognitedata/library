@@ -10,6 +10,6 @@
   functionPath: ./handler.py
   runtime: py311
   # Same space as data_modeling/ops_summaries.Space.yaml, set by the ops_summaries_space variable.
-  space: {{ ops_summaries_space }}
+  space: { { ops_summaries_space } }
   metadata:
     version: "1"

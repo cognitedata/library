@@ -5,15 +5,15 @@
 
 export type { AppError, ErrorCategory } from "./errorHandling/index";
 export {
-  categorizeError,
-  getAgentOperationError,
-  getDataFetchError,
-  getDeleteError,
-  getErrorMessage,
-  getRefreshError,
-  getSavePdfError,
-  getSummaryGenerationError,
-  getTechnicalMessage,
-  logError,
-  parseError,
+	categorizeError,
+	getAgentOperationError,
+	getDataFetchError,
+	getDeleteError,
+	getErrorMessage,
+	getRefreshError,
+	getSavePdfError,
+	getSummaryGenerationError,
+	getTechnicalMessage,
+	logError,
+	parseError,
 } from "./errorHandling/index";

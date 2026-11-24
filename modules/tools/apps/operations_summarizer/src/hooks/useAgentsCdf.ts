@@ -15,45 +15,45 @@ import { CDF_QUERY_KEYS } from "./cdfQueryKeys";
 const DEFAULT_AGENT_DESCRIPTION = "AI agent for summarizing operations data.";
 
 type UseAgentsCdfDeps = {
-  useCdfClient: typeof useCdfClient;
+	useCdfClient: typeof useCdfClient;
 };
 
 const defaultAgentsCdfDeps: UseAgentsCdfDeps = {
-  useCdfClient,
+	useCdfClient,
 };
 
 export const UseAgentsCdfContext =
-  createContext<UseAgentsCdfDeps>(defaultAgentsCdfDeps);
+	createContext<UseAgentsCdfDeps>(defaultAgentsCdfDeps);
 
 type EnsureAgentDeps = {
-  readConfig: () => AppConfig;
+	readConfig: () => AppConfig;
 };
 
 const defaultEnsureDeps: EnsureAgentDeps = {
-  readConfig: () => getAppConfig(),
+	readConfig: () => getAppConfig(),
 };
 
 export const UseEnsureDefaultAgentContext =
-  createContext<EnsureAgentDeps>(defaultEnsureDeps);
+	createContext<EnsureAgentDeps>(defaultEnsureDeps);
 
 /**
  * Hook to fetch all available agents
  */
 export function useAgents() {
-  const { useCdfClient: useClient } = useContext(UseAgentsCdfContext);
-  const { sdk, isAuthLoading } = useClient();
+	const { useCdfClient: useClient } = useContext(UseAgentsCdfContext);
+	const { sdk, isAuthLoading } = useClient();
 
-  return useQuery({
-    queryKey: CDF_QUERY_KEYS.agents,
-    queryFn: async () => {
-      if (!sdk) throw new Error("SDK not available");
-      const helper = new CDFHelper(sdk);
-      const { agents } = await helper.getAgents();
-      return agents;
-    },
-    enabled: !!sdk && !isAuthLoading,
-    staleTime: 5 * 60 * 1000,
-  });
+	return useQuery({
+		queryKey: CDF_QUERY_KEYS.agents,
+		queryFn: async () => {
+			if (!sdk) throw new Error("SDK not available");
+			const helper = new CDFHelper(sdk);
+			const { agents } = await helper.getAgents();
+			return agents;
+		},
+		enabled: !!sdk && !isAuthLoading,
+		staleTime: 5 * 60 * 1000,
+	});
 }
 
 /**
@@ -61,68 +61,68 @@ export function useAgents() {
  * Name, external id, model, and instructions come from the config node.
  */
 export function useEnsureDefaultAgent() {
-  const { useCdfClient: useClient } = useContext(UseAgentsCdfContext);
-  const { sdk } = useClient();
-  const { readConfig } = useContext(UseEnsureDefaultAgentContext);
-  const queryClient = useQueryClient();
-  useAgents();
+	const { useCdfClient: useClient } = useContext(UseAgentsCdfContext);
+	const { sdk } = useClient();
+	const { readConfig } = useContext(UseEnsureDefaultAgentContext);
+	const queryClient = useQueryClient();
+	useAgents();
 
-  return useMutation({
-    mutationFn: async () => {
-      if (!sdk) throw new Error("SDK not available");
+	return useMutation({
+		mutationFn: async () => {
+			if (!sdk) throw new Error("SDK not available");
 
-      const config = readConfig();
-      const name = config.agent.name;
-      const instructions = config.prompts.agentInstructions.trim();
-      if (instructions === "") {
-        throw new Error(
-          "Config node agent instructions are empty. Set prompts.agentInstructions before creating the default agent.",
-        );
-      }
+			const config = readConfig();
+			const name = config.agent.name;
+			const instructions = config.prompts.agentInstructions.trim();
+			if (instructions === "") {
+				throw new Error(
+					"Config node agent instructions are empty. Set prompts.agentInstructions before creating the default agent."
+				);
+			}
 
-      const helper = new CDFHelper(sdk);
-      const { agents: currentAgents } = await helper.getAgents();
-      const existingAgent = currentAgents.find((agent) => agent.name === name);
-      if (existingAgent) {
-        return existingAgent.externalId;
-      }
+			const helper = new CDFHelper(sdk);
+			const { agents: currentAgents } = await helper.getAgents();
+			const existingAgent = currentAgents.find((agent) => agent.name === name);
+			if (existingAgent) {
+				return existingAgent.externalId;
+			}
 
-      const canWrite = await helper.canEditAgentConfig();
-      if (!canWrite) {
-        throw new Error(
-          "agents:write is required to create the default agent.",
-        );
-      }
+			const canWrite = await helper.canEditAgentConfig();
+			if (!canWrite) {
+				throw new Error(
+					"agents:write is required to create the default agent."
+				);
+			}
 
-      const models = await helper.getSupportedModelNames();
-      const preferred = config.agent.defaultLanguageModel;
-      const model = models.includes(preferred) ? preferred : models[0];
-      if (!model) {
-        throw new Error(
-          "No language model is available for the default agent.",
-        );
-      }
-      if (model !== preferred) {
-        logInfo(
-          `Configured model ${preferred} is not supported; using ${model}.`,
-          "Default agent",
-        );
-      }
+			const models = await helper.getSupportedModelNames();
+			const preferred = config.agent.defaultLanguageModel;
+			const model = models.includes(preferred) ? preferred : models[0];
+			if (!model) {
+				throw new Error(
+					"No language model is available for the default agent."
+				);
+			}
+			if (model !== preferred) {
+				logInfo(
+					`Configured model ${preferred} is not supported; using ${model}.`,
+					"Default agent"
+				);
+			}
 
-      const externalId = `${sdk.project}${config.agent.externalIdSuffix}`;
-      await helper.createAgent({
-        externalId,
-        name,
-        description: DEFAULT_AGENT_DESCRIPTION,
-        instructions,
-        model,
-        tools: [],
-      });
+			const externalId = `${sdk.project}${config.agent.externalIdSuffix}`;
+			await helper.createAgent({
+				externalId,
+				name,
+				description: DEFAULT_AGENT_DESCRIPTION,
+				instructions,
+				model,
+				tools: [],
+			});
 
-      return externalId;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CDF_QUERY_KEYS.agents });
-    },
-  });
+			return externalId;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: CDF_QUERY_KEYS.agents });
+		},
+	});
 }

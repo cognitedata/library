@@ -138,44 +138,44 @@ As a user, I want the app to authenticate through Fusion and use the current CDF
 
 ### Views read
 
-| View | Space | Version | Purpose |
-|------|-------|---------|---------|
-| `CogniteAsset` | `cdf_cdm` | `v1` | Asset metadata in range |
-| `CogniteFile` | `cdf_cdm` | `v1` | File metadata in range; also the shape of saved summaries |
-| `CogniteActivity` | `cdf_cdm` | `v1` | Work orders, bucketed by status |
-| `CogniteTimeSeries` | `cdf_cdm` | `v1` | Time series metadata (not values) |
-| `CogniteEquipment` | `cdf_cdm` | `v1` | Equipment metadata in range |
+| View                | Space     | Version | Purpose                                                   |
+| ------------------- | --------- | ------- | --------------------------------------------------------- |
+| `CogniteAsset`      | `cdf_cdm` | `v1`    | Asset metadata in range                                   |
+| `CogniteFile`       | `cdf_cdm` | `v1`    | File metadata in range; also the shape of saved summaries |
+| `CogniteActivity`   | `cdf_cdm` | `v1`    | Work orders, bucketed by status                           |
+| `CogniteTimeSeries` | `cdf_cdm` | `v1`    | Time series metadata (not values)                         |
+| `CogniteEquipment`  | `cdf_cdm` | `v1`    | Equipment metadata in range                               |
 
 Identifiers live in `src/types/operations.ts` (`VIEW_IDS`). Change them only when the tenant’s views differ.
 
 ### Spaces written
 
-| Space | Purpose |
-|-------|---------|
+| Space           | Purpose                                                                             |
+| --------------- | ----------------------------------------------------------------------------------- |
 | `ops_summaries` | Saved summaries and test reports as `CogniteFile` nodes, plus uploaded file content |
 
 ### AI and functions
 
-| Item | Convention |
-|------|------------|
-| Agent external ID | `{configuredName}_operation_summarizer_helper_agent` |
-| Calls | The app calls `Operations_Summarizer_Function_v2` for summaries and podcasts. The Tests page still calls the agent directly to compare two summaries. |
-| Default model | `agent.defaultLanguageModel` on the config node (used only when the app creates a missing default agent) |
-| Summarizer function | `Operations_Summarizer_Function_v2` (Toolkit module `summarizer_function`) for summaries and podcasts |
+| Item                | Convention                                                                                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent external ID   | `{configuredName}_operation_summarizer_helper_agent`                                                                                                  |
+| Calls               | The app calls `Operations_Summarizer_Function_v2` for summaries and podcasts. The Tests page still calls the agent directly to compare two summaries. |
+| Default model       | `agent.defaultLanguageModel` on the config node (used only when the app creates a missing default agent)                                              |
+| Summarizer function | `Operations_Summarizer_Function_v2` (Toolkit module `summarizer_function`) for summaries and podcasts                                                 |
 
 ---
 
 ## Constraints
 
-| Constraint | Detail |
-|------------|--------|
-| Metadata only | Time-series values are not read |
-| Instance page size | Up to 1 000 instances per Data Modeling request |
-| Chunk size | 50 instances per AI call |
-| Per-type cap | 15 000 instances; excess is dropped and warned |
-| One project per session | Project comes from the Fusion host |
-| Agent writes | Settings mutations require `agents:write` |
-| Summary writes | Require Data Modeling write on `ops_summaries` and Files write |
+| Constraint              | Detail                                                         |
+| ----------------------- | -------------------------------------------------------------- |
+| Metadata only           | Time-series values are not read                                |
+| Instance page size      | Up to 1 000 instances per Data Modeling request                |
+| Chunk size              | 50 instances per AI call                                       |
+| Per-type cap            | 15 000 instances; excess is dropped and warned                 |
+| One project per session | Project comes from the Fusion host                             |
+| Agent writes            | Settings mutations require `agents:write`                      |
+| Summary writes          | Require Data Modeling write on `ops_summaries` and Files write |
 
 ---
 

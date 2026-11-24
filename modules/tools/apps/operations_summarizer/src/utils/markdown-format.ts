@@ -16,51 +16,51 @@ import { unified } from "unified";
  * so expressions such as `a < b && c > d` are not corrupted.
  */
 export function stripHtmlTags(text: string): string {
-  if (!text) return text;
+	if (!text) return text;
 
-  let cleanText = text.replace(/<\/?[a-zA-Z][\w:-]*[^>]*>/gi, "");
+	let cleanText = text.replace(/<\/?[a-zA-Z][\w:-]*[^>]*>/gi, "");
 
-  cleanText = cleanText
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+	cleanText = cleanText
+		.replace(/&nbsp;/g, " ")
+		.replace(/&amp;/g, "&")
+		.replace(/&lt;/g, "<")
+		.replace(/&gt;/g, ">")
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, "'");
 
-  cleanText = cleanText
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n\s*\n/g, "\n\n")
-    .trim();
+	cleanText = cleanText
+		.replace(/[ \t]+/g, " ")
+		.replace(/\n\s*\n/g, "\n\n")
+		.trim();
 
-  return cleanText;
+	return cleanText;
 }
 
 // Allow style on table cells so remark-gfm column alignment (text-align) survives sanitization.
 const sanitizeSchema = {
-  ...defaultSchema,
-  attributes: {
-    ...defaultSchema.attributes,
-    td: [...(defaultSchema.attributes?.td ?? []), "style"],
-    th: [...(defaultSchema.attributes?.th ?? []), "style"],
-  },
+	...defaultSchema,
+	attributes: {
+		...defaultSchema.attributes,
+		td: [...(defaultSchema.attributes?.td ?? []), "style"],
+		th: [...(defaultSchema.attributes?.th ?? []), "style"],
+	},
 };
 
 const pipeline = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(remarkRehype, { allowDangerousHtml: true })
-  .use(rehypeRaw)
-  .use(rehypeSanitize, sanitizeSchema)
-  .use(rehypeStringify)
-  .freeze();
+	.use(remarkParse)
+	.use(remarkGfm)
+	.use(remarkRehype, { allowDangerousHtml: true })
+	.use(rehypeRaw)
+	.use(rehypeSanitize, sanitizeSchema)
+	.use(rehypeStringify)
+	.freeze();
 
 /**
  * Options for markdown-to-HTML conversion.
  * - printFriendly: reserved for future PDF-specific styling; currently produces the same output.
  */
 export interface MarkdownToHtmlOptions {
-  printFriendly?: boolean;
+	printFriendly?: boolean;
 }
 
 /**
@@ -69,9 +69,9 @@ export interface MarkdownToHtmlOptions {
  * Styling is the container's responsibility — wrap output in a prose CSS class.
  */
 export function markdownToHtml(
-  markdown: string,
-  _options?: MarkdownToHtmlOptions,
+	markdown: string,
+	_options?: MarkdownToHtmlOptions
 ): string {
-  if (!markdown) return "";
-  return String(pipeline.processSync(markdown));
+	if (!markdown) return "";
+	return String(pipeline.processSync(markdown));
 }

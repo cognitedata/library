@@ -9,25 +9,25 @@ import type { DataTypeName } from "@/types/operations";
 export const SUMMARY_GENERATION_TYPES_MODULE = true;
 
 export type GenerationProgressStatus =
-  | "idle"
-  | "fetching"
-  | "processing"
-  | "generating"
-  | "saving"
-  | "complete"
-  | "error";
+	| "idle"
+	| "fetching"
+	| "processing"
+	| "generating"
+	| "saving"
+	| "complete"
+	| "error";
 
 export interface SummaryGenerationProgressUpdate {
-  status: GenerationProgressStatus;
-  message: string;
-  progress: number;
-  currentStep?: string;
+	status: GenerationProgressStatus;
+	message: string;
+	progress: number;
+	currentStep?: string;
 }
 
 export interface GenerationContext {
-  helper: CDFHelper;
-  agentId: string;
-  periodStart: Date;
-  periodEnd: Date;
-  promptMapping: Record<DataTypeName, string>;
+	helper: CDFHelper;
+	agentId: string;
+	periodStart: Date;
+	periodEnd: Date;
+	promptMapping: Record<DataTypeName, string>;
 }

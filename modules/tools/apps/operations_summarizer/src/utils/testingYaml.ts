@@ -7,12 +7,12 @@ import type { ComparisonTestResult, DataTypeName } from "@/types/operations";
 import { DATA_COUNT_KEYS } from "@/types/operations";
 
 export function buildTestingPageYaml(
-  testResult: ComparisonTestResult,
-  testStartDate: string,
-  testEndDate: string,
-  selectedDataTypes: DataTypeName[],
+	testResult: ComparisonTestResult,
+	testStartDate: string,
+	testEndDate: string,
+	selectedDataTypes: DataTypeName[]
 ): string {
-  return `# Evaluation Test Case
+	return `# Evaluation Test Case
 test_name: "Summary Comparison - ${testResult.timestamp.toISOString()}"
 model: "azure/gpt-4.1"
 test_type: "summary_consistency"
@@ -20,15 +20,15 @@ test_type: "summary_consistency"
 inputs:
   original_summary: |
 ${testResult.originalContent
-  .split("\n")
-  .map((l) => `    ${l}`)
-  .join("\n")}
+	.split("\n")
+	.map((l) => `    ${l}`)
+	.join("\n")}
 
 expected:
   similarity_score_min: 80
   data_counts:
 ${DATA_COUNT_KEYS.map(
-  (k) => `    ${k}: ${testResult.originalDataCounts[k]}`,
+	(k) => `    ${k}: ${testResult.originalDataCounts[k]}`
 ).join("\n")}
 
 actual:
@@ -36,7 +36,7 @@ actual:
   data_accuracy_score: ${testResult.dataAccuracyScore}
   new_data_counts:
 ${DATA_COUNT_KEYS.map((k) => `    ${k}: ${testResult.newDataCounts[k]}`).join(
-  "\n",
+	"\n"
 )}
 
 metadata:

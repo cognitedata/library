@@ -5,15 +5,15 @@
 
 export type { TestReportStats } from "./testReportUtils/index";
 export {
-  calculateTestReportStats,
-  extractAccuracyFromContent,
-  extractDataTypesFromContent,
-  extractDataVolumeFromContent,
-  extractPeriodFromContent,
-  extractScoreFromContent,
-  extractTestReportData,
-  getScoreBadgeVariant,
-  getScoreCategory,
-  SCORE_THRESHOLDS,
-  vividScoreBadgeClassName,
+	calculateTestReportStats,
+	extractAccuracyFromContent,
+	extractDataTypesFromContent,
+	extractDataVolumeFromContent,
+	extractPeriodFromContent,
+	extractScoreFromContent,
+	extractTestReportData,
+	getScoreBadgeVariant,
+	getScoreCategory,
+	SCORE_THRESHOLDS,
+	vividScoreBadgeClassName,
 } from "./testReportUtils/index";

@@ -7,78 +7,78 @@ import { createTestQueryClient } from "@/test-utils/wrappers";
 import { UseFileContentContext, useFileContent } from "./useFileContent";
 
 function wrapperForSdk(sdk: object) {
-  const queryClient = createTestQueryClient();
-  function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <UseFileContentContext.Provider
-          value={{
-            useCdfClient: () => ({
-              sdk: sdk as CogniteClient,
-              isAuthLoading: false,
-            }),
-            withCdfConcurrency: (fn) => fn(),
-          }}
-        >
-          {children}
-        </UseFileContentContext.Provider>
-      </QueryClientProvider>
-    );
-  }
-  return Wrapper;
+	const queryClient = createTestQueryClient();
+	function Wrapper({ children }: { children: ReactNode }) {
+		return (
+			<QueryClientProvider client={queryClient}>
+				<UseFileContentContext.Provider
+					value={{
+						useCdfClient: () => ({
+							sdk: sdk as CogniteClient,
+							isAuthLoading: false,
+						}),
+						withCdfConcurrency: (fn) => fn(),
+					}}
+				>
+					{children}
+				</UseFileContentContext.Provider>
+			</QueryClientProvider>
+		);
+	}
+	return Wrapper;
 }
 
 describe("useFileContent", () => {
-  it("returns text when download succeeds", async () => {
-    const getDownloadUrls = vi
-      .fn()
-      .mockResolvedValue([{ downloadUrl: "https://dl.example/c" }]);
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      text: async () => "file body",
-    });
+	it("returns text when download succeeds", async () => {
+		const getDownloadUrls = vi
+			.fn()
+			.mockResolvedValue([{ downloadUrl: "https://dl.example/c" }]);
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: true,
+			text: async () => "file body",
+		});
 
-    const Wrapper = wrapperForSdk({ files: { getDownloadUrls } });
+		const Wrapper = wrapperForSdk({ files: { getDownloadUrls } });
 
-    const { result } = renderHook(
-      () => useFileContent({ space: "ops_summaries", externalId: "fid" }),
-      { wrapper: Wrapper },
-    );
+		const { result } = renderHook(
+			() => useFileContent({ space: "ops_summaries", externalId: "fid" }),
+			{ wrapper: Wrapper }
+		);
 
-    await waitFor(() => {
-      expect(result.current.data).toBe("file body");
-    });
-  });
+		await waitFor(() => {
+			expect(result.current.data).toBe("file body");
+		});
+	});
 
-  it("returns null when response not ok", async () => {
-    const getDownloadUrls = vi
-      .fn()
-      .mockResolvedValue([{ downloadUrl: "https://dl.example/c" }]);
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      text: async () => "",
-    });
+	it("returns null when response not ok", async () => {
+		const getDownloadUrls = vi
+			.fn()
+			.mockResolvedValue([{ downloadUrl: "https://dl.example/c" }]);
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: false,
+			text: async () => "",
+		});
 
-    const Wrapper = wrapperForSdk({ files: { getDownloadUrls } });
+		const Wrapper = wrapperForSdk({ files: { getDownloadUrls } });
 
-    const { result } = renderHook(() => useFileContent({ externalId: "fid" }), {
-      wrapper: Wrapper,
-    });
+		const { result } = renderHook(() => useFileContent({ externalId: "fid" }), {
+			wrapper: Wrapper,
+		});
 
-    await waitFor(() => {
-      expect(result.current.data).toBeNull();
-    });
-  });
+		await waitFor(() => {
+			expect(result.current.data).toBeNull();
+		});
+	});
 
-  it("disabled when no externalId", () => {
-    const Wrapper = wrapperForSdk({
-      files: { getDownloadUrls: vi.fn() },
-    });
+	it("disabled when no externalId", () => {
+		const Wrapper = wrapperForSdk({
+			files: { getDownloadUrls: vi.fn() },
+		});
 
-    const { result } = renderHook(() => useFileContent(null), {
-      wrapper: Wrapper,
-    });
+		const { result } = renderHook(() => useFileContent(null), {
+			wrapper: Wrapper,
+		});
 
-    expect(result.current.fetchStatus).toBe("idle");
-  });
+		expect(result.current.fetchStatus).toBe("idle");
+	});
 });
