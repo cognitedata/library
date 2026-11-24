@@ -2,15 +2,16 @@
 PDF generation and CDF file saving functions for Operations Summarizer v2.
 """
 
-import re
 import os
-from datetime import datetime, timezone, date as date_type
-from cognite.client import CogniteClient
+import re
+from datetime import UTC, datetime
+from datetime import date as date_type
+
 from cdf_helpers import ensure_space_exists
+from cognite.client import CogniteClient
 from config import runtime
 
-_MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+_MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 # Must match the app's SUMMARY_CONTENT_TYPE_BITMAP_ORDER in summaryListQuery.ts
 _BITMAP_ORDER = [
@@ -80,17 +81,15 @@ def generate_pdf_from_markdown_in_memory(markdown_text: str, _filename: str) -> 
     Returns the PDF as bytes.
     """
     try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.enums import TA_LEFT
-        from reportlab.lib.colors import HexColor
         from io import BytesIO
+
+        from reportlab.lib.colors import HexColor
+        from reportlab.lib.enums import TA_LEFT
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer
     except ImportError:
-        raise ImportError(
-            "reportlab is required for PDF generation. "
-            "Install it with: pip install reportlab"
-        )
+        raise ImportError("reportlab is required for PDF generation. Install it with: pip install reportlab")
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -235,9 +234,9 @@ def generate_pdf_from_markdown_in_memory(markdown_text: str, _filename: str) -> 
                 story.append(Spacer(1, 4))
             current_style = normal_style
 
-        line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line)
-        line = re.sub(r'\*(.*?)\*', r'<i>\1</i>', line)
-        line = re.sub(r'`(.*?)`', r'<font face="Courier">\1</font>', line)
+        line = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", line)
+        line = re.sub(r"\*(.*?)\*", r"<i>\1</i>", line)
+        line = re.sub(r"`(.*?)`", r'<font face="Courier">\1</font>', line)
         line = line.replace("&", "&amp;")
 
         try:
@@ -295,13 +294,12 @@ def save_summary_to_cdf(
 
     # Timestamp-based externalId matching the app's format:
     # ops_summary_{startDate}_{endDate}_{nowDate}_{nowTime}_{epochMs}
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     now_date_str = now.strftime("%Y-%m-%d")
     now_time_str = now.strftime("%H_%M_%S")
     timestamp_ms = int(now.timestamp() * 1000)
     external_id = (
-        f"{runtime.operation_summary_prefix}{start_date}_{end_date}_"
-        f"{now_date_str}_{now_time_str}_{timestamp_ms}"
+        f"{runtime.operation_summary_prefix}{start_date}_{end_date}_{now_date_str}_{now_time_str}_{timestamp_ms}"
     )
 
     # Human-readable name matching the app's format
@@ -316,10 +314,7 @@ def save_summary_to_cdf(
     # Short metadata description with OPS bitmap prefix (matching the app)
     ops_bitmap = _format_ops_bitmap_line(content_types or [])
     content_types_str = ", ".join(content_types) if content_types else ""
-    description = (
-        f"{ops_bitmap}{human_readable_name}. "
-        f"Content types: {content_types_str}"
-    )
+    description = f"{ops_bitmap}{human_readable_name}. Content types: {content_types_str}"
     tags = _build_summary_tags(
         start_date=start_date,
         end_date=end_date,

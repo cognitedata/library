@@ -4,16 +4,16 @@ Configuration for Operations Summarizer v2.
 Prompts, defaults, view IDs, and table columns come from the config node.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
-from datetime import timezone, timedelta
-from cognite.client.data_classes.data_modeling import ViewId
+from typing import Any
 
 from app_config import AppConfigError, load_app_config
+from cognite.client.data_classes.data_modeling import ViewId
 
 # Filled by get_config from the config node. Callers share these mutable objects.
-VIEW_ID_MAPPING: Dict[str, ViewId] = {}
-DATA_TYPE_ORDER: List[str] = []
+VIEW_ID_MAPPING: dict[str, ViewId] = {}
+DATA_TYPE_ORDER: list[str] = []
 
 
 class Runtime:
@@ -30,7 +30,7 @@ class Runtime:
     agent_instructions: str = ""
     timezone_offset_hours: int = 0
     summary_period_days: int = 7
-    persona_presets: Dict[str, tuple] = None  # type: ignore[assignment]
+    persona_presets: dict[str, tuple] = None  # type: ignore[assignment]
 
 
 runtime = Runtime()
@@ -46,6 +46,7 @@ def format_iso_date(date_str):
         return "None"
     try:
         from datetime import datetime
+
         return datetime.fromisoformat(str(date_str).replace("Z", "+00:00")).strftime("%Y-%m-%d")
     except Exception:
         return str(date_str)
@@ -55,11 +56,7 @@ def format_assets_list(assets):
     if assets is None or assets == "":
         return "N/A"
     if isinstance(assets, list):
-        filtered = [
-            str(a.get("externalId") if isinstance(a, dict) else a)
-            for a in assets
-            if a is not None and a != ""
-        ]
+        filtered = [str(a.get("externalId") if isinstance(a, dict) else a) for a in assets if a is not None and a != ""]
         return ", ".join(filtered) or "N/A"
     return str(assets)
 
@@ -73,8 +70,8 @@ def format_assets_list(assets):
 class TableColumn:
     header: str
     property: str
-    formatter: Optional[Callable] = None
-    default: Optional[str] = None
+    formatter: Callable | None = None
+    default: str | None = None
 
 
 @dataclass
@@ -83,12 +80,12 @@ class DataTypeConfig:
     display_name: str
     view_id: ViewId
     prompt_template: str
-    table_columns: List[TableColumn]
+    table_columns: list[TableColumn]
     is_special_case: bool = False
-    subcategories: Optional[List[str]] = None
+    subcategories: list[str] | None = None
 
 
-DATA_TYPE_CONFIGS: Dict[str, DataTypeConfig] = {}
+DATA_TYPE_CONFIGS: dict[str, DataTypeConfig] = {}
 
 _FORMATTERS = {
     "isoDate": format_iso_date,
@@ -121,9 +118,7 @@ def _bind_prompts_and_defaults(node: dict) -> None:
         raise AppConfigError("config node prompts: expected an object")
     runtime.prompt_header = _require_text(prompts.get("header"), "prompts.header")
     runtime.holistic_summary_template = _require_text(prompts.get("holistic"), "prompts.holistic")
-    runtime.agent_instructions = _require_text(
-        prompts.get("agentInstructions"), "prompts.agentInstructions"
-    )
+    runtime.agent_instructions = _require_text(prompts.get("agentInstructions"), "prompts.agentInstructions")
     data_type_prompts = prompts.get("dataTypes")
     if not isinstance(data_type_prompts, dict):
         raise AppConfigError("config node prompts.dataTypes: expected an object")
@@ -145,8 +140,7 @@ def _bind_prompts_and_defaults(node: dict) -> None:
     runtime.timezone_offset_hours = offset
     runtime.summary_period_days = period
     runtime.persona_presets = {
-        str(key): tuple(value) if isinstance(value, list) else value
-        for key, value in presets.items()
+        str(key): tuple(value) if isinstance(value, list) else value for key, value in presets.items()
     }
 
 
@@ -161,16 +155,14 @@ def bind_from_node(node: dict) -> None:
     DATA_TYPE_ORDER.clear()
     DATA_TYPE_ORDER.extend(node["dataTypes"].keys())
     for name, source in node["dataTypes"].items():
-        columns: List[TableColumn] = []
+        columns: list[TableColumn] = []
         for column in source["tableColumns"]:
             formatter_name = column.get("formatter")
             formatter = None
             if formatter_name:
                 formatter = _FORMATTERS.get(formatter_name)
                 if formatter is None:
-                    raise AppConfigError(
-                        f"config node dataTypes.{name}: unknown formatter {formatter_name!r}"
-                    )
+                    raise AppConfigError(f"config node dataTypes.{name}: unknown formatter {formatter_name!r}")
             columns.append(
                 TableColumn(
                     header=column["header"],
@@ -180,7 +172,9 @@ def bind_from_node(node: dict) -> None:
                 )
             )
         prompt = _require_text(
-            (node.get("prompts") or {}).get("dataTypes", {}).get(name) if isinstance(node.get("prompts"), dict) else None,
+            (node.get("prompts") or {}).get("dataTypes", {}).get(name)
+            if isinstance(node.get("prompts"), dict)
+            else None,
             f"prompts.dataTypes.{name}",
         )
         DATA_TYPE_CONFIGS[name] = DataTypeConfig(
@@ -203,19 +197,15 @@ def bind_from_node(node: dict) -> None:
     _bind_prompts_and_defaults(node)
 
 
-def _contents_for_persona(persona_key: str, data_type_names: List[str]) -> Dict[str, bool]:
+def _contents_for_persona(persona_key: str, data_type_names: list[str]) -> dict[str, bool]:
     """Turn a persona preset into per-type flags. Unknown keys and empty matches fail."""
     preset = runtime.persona_presets.get(persona_key)
     if preset is None:
         known = ", ".join(sorted(runtime.persona_presets))
-        raise AppConfigError(
-            f"unknown persona_key {persona_key!r}. Known presets: {known}."
-        )
+        raise AppConfigError(f"unknown persona_key {persona_key!r}. Known presets: {known}.")
     selected = [name for name in preset if name in data_type_names]
     if not selected:
-        raise AppConfigError(
-            f"persona_key {persona_key!r} does not match any data type on the config node."
-        )
+        raise AppConfigError(f"persona_key {persona_key!r} does not match any data type on the config node.")
     return {name: name in selected for name in data_type_names}
 
 
@@ -233,8 +223,7 @@ def get_config(data: dict, client: Any) -> dict:
         summary_contents = _contents_for_persona(persona_key, data_type_names)
     else:
         summary_contents = {
-            name: bool(source.get("enabledByDefault", True))
-            for name, source in node["dataTypes"].items()
+            name: bool(source.get("enabledByDefault", True)) for name, source in node["dataTypes"].items()
         }
         explicit_contents = data.get("summary_contents")
         if explicit_contents and isinstance(explicit_contents, dict):

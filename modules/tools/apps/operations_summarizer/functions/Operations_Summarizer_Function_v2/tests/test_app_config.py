@@ -4,7 +4,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from app_config import AppConfigError, load_app_config
 from config import DATA_TYPE_CONFIGS, get_config, runtime
 

@@ -23,7 +23,6 @@
   ],
   "ignore": [
     "modules/tools/notebooks/**",
-    "modules/datamodels/**",
-    "modules/tools/apps/operations_summarizer/functions/**"
+    "modules/datamodels/**"
   ]
 }

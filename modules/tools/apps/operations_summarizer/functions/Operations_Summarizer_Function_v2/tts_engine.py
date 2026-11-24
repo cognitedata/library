@@ -64,6 +64,7 @@ def generate_audio(
     except Exception as e:
         print(f"  TTS error: {e}")
         import traceback
+
         traceback.print_exc()
         return None
 

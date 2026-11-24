@@ -2,8 +2,8 @@
 Agent creation and management utilities for Operations Summarizer v2.
 """
 
-from cognite.client import CogniteClient
 from cdf_helpers import CDFHelper
+from cognite.client import CogniteClient
 from config import runtime
 
 

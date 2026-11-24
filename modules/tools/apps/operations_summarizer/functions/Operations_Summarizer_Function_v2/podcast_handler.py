@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-from cognite.client import CogniteClient
+from datetime import UTC, datetime
 
 from cdf_helpers import CDFHelper
+from cognite.client import CogniteClient
 from podcast_config import get_podcast_config
 from podcast_script import ensure_podcast_agent, generate_podcast_script
 from save_results import fetch_summary_text, save_podcast_to_cdf
@@ -23,7 +22,7 @@ def handle_podcast(
     data = data or {}
     print("=" * 60)
     print("Podcast generation — start")
-    print(f"  Timestamp : {datetime.now(timezone.utc).isoformat()}")
+    print(f"  Timestamp : {datetime.now(UTC).isoformat()}")
     print(f"  Data keys : {list(data.keys())}")
     print("=" * 60)
 
@@ -38,8 +37,8 @@ def handle_podcast(
         do_save = cfg["save_to_cdf"]
         fusion_domain = cfg["fusion_domain"]
 
-        start_date = data.get("start_date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-        end_date = data.get("end_date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+        start_date = data.get("start_date", datetime.now(UTC).strftime("%Y-%m-%d"))
+        end_date = data.get("end_date", datetime.now(UTC).strftime("%Y-%m-%d"))
 
         source_summary_id = data.get("source_summary_id") or data.get("summary_external_id")
         print(f"  source_summary_id: {source_summary_id!r}")
@@ -52,12 +51,16 @@ def handle_podcast(
             if summary_external_id:
                 print(f"[2/6] Fetching summary from CDF: {summary_external_id} (space={summary_space})")
                 summary_markdown, resolved_summary_id = fetch_summary_text(
-                    client, summary_external_id, summary_space,
+                    client,
+                    summary_external_id,
+                    summary_space,
                 )
             else:
                 print("[2/6] No summary provided — fetching most recent summary from CDF...")
                 summary_markdown, resolved_summary_id = fetch_summary_text(
-                    client, None, summary_space,
+                    client,
+                    None,
+                    summary_space,
                 )
         else:
             print("[2/6] Using summary_markdown from data parameter")
@@ -138,5 +141,6 @@ def handle_podcast(
     except Exception as e:
         print(f"FATAL ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         return {"success": False, "error": str(e)}

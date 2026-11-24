@@ -6,18 +6,23 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import requests as _requests
-from cognite.client import CogniteClient
-
 from cdf_helpers import ensure_space_exists
+from cognite.client import CogniteClient
 from podcast_config import runtime
-from tts_engine import get_audio_mime_type, get_audio_extension
+from tts_engine import get_audio_extension, get_audio_mime_type
 
 
-def _upload_with_retry(client: CogniteClient, content: bytes, space: str, external_id: str,
-                       max_retries: int = 4, initial_delay: float = 2.0):
+def _upload_with_retry(
+    client: CogniteClient,
+    content: bytes,
+    space: str,
+    external_id: str,
+    max_retries: int = 4,
+    initial_delay: float = 2.0,
+):
     """Upload file content with retries to handle eventual consistency after space/node creation."""
     delay = initial_delay
     for attempt in range(max_retries):
@@ -52,7 +57,6 @@ def fetch_summary_text(
     content is a PDF.
     """
     from cognite.client.data_classes.data_modeling import NodeId
-    from cognite.client.data_classes import filters
 
     file_view = runtime.file_view
     if file_view is None:
@@ -71,7 +75,7 @@ def fetch_summary_text(
     # Strategy 1: retrieve the node directly and read its description.
     # The Operations Summarizer always stores full markdown in description.
     try:
-        print(f"  Retrieving node via SDK instances.retrieve...")
+        print("  Retrieving node via SDK instances.retrieve...")
         res = client.data_modeling.instances.retrieve(
             nodes=NodeId(space, external_id),
             sources=file_view,
@@ -84,12 +88,13 @@ def fetch_summary_text(
                 if desc and str(desc).strip():
                     print(f"  Got summary from description ({len(str(desc))} chars)")
                     return str(desc), resolved_external_id
-            print(f"  Node retrieved but description is empty")
+            print("  Node retrieved but description is empty")
         else:
-            print(f"  instances.retrieve returned no nodes")
+            print("  instances.retrieve returned no nodes")
     except Exception as e:
         print(f"  instances.retrieve failed: {e}")
         import traceback
+
         traceback.print_exc()
 
     # Strategy 2: download the file content directly
@@ -97,11 +102,7 @@ def fetch_summary_text(
         print("  Trying file downloadlink...")
         resp = client.post(
             f"/api/v1/projects/{project}/files/downloadlink",
-            json={
-                "items": [
-                    {"instanceId": {"space": space, "externalId": external_id}}
-                ]
-            },
+            json={"items": [{"instanceId": {"space": space, "externalId": external_id}}]},
         )
         data = resp.json() if hasattr(resp, "json") else resp
         items = data.get("items", [])
@@ -132,6 +133,7 @@ def fetch_summary_text(
     except Exception as e:
         print(f"  Error downloading summary file: {e}")
         import traceback
+
         traceback.print_exc()
 
     return None, resolved_external_id
@@ -176,6 +178,7 @@ def _find_latest_summary(client: CogniteClient, space: str, file_view) -> str | 
     except Exception as e:
         print(f"  Error finding latest summary: {e}")
         import traceback
+
         traceback.print_exc()
 
     return None
@@ -193,7 +196,7 @@ def podcast_external_ids(
     if source_summary_id:
         base = _sanitize(source_summary_id)
     else:
-        moment = now or datetime.now(timezone.utc)
+        moment = now or datetime.now(UTC)
         now_str = moment.strftime("%Y%m%d_%H%M%S")
         base = _sanitize(f"ops_summary_{start_date}_{end_date}_{now_str}")
     return f"{prefix}{base}_script", f"{prefix}{base}_audio"
@@ -273,8 +276,7 @@ def save_podcast_to_cdf(
             project = client.config.project
             cluster = client.config.base_url.replace("https://", "").replace("http://", "").rstrip("/")
             result["fusion_url"] = (
-                f"https://{domain}/{project}/search/file/{file_id}"
-                f"?cluster={cluster}&workspace=industrial-tools"
+                f"https://{domain}/{project}/search/file/{file_id}?cluster={cluster}&workspace=industrial-tools"
             )
 
     return result

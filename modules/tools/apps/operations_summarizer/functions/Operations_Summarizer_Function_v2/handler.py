@@ -44,25 +44,23 @@ Podcast calls (``task`` = ``"podcast"``) also accept:
     }
 """
 
-from datetime import datetime, timedelta, date, timezone
-from typing import List, Optional, Tuple
-from cognite.client import CogniteClient
+from datetime import date, datetime, timedelta, timezone
 
+from agent_utils import ensure_agent_exists
+from cdf_helpers import CDFHelper
+from cognite.client import CogniteClient
 from config import (
     DATA_TYPE_CONFIGS,
     DATA_TYPE_ORDER,
     get_config,
     runtime,
 )
-from cdf_helpers import CDFHelper
-from agent_utils import ensure_agent_exists
 from data_retrieval import fetch_instances_for_data_type
-from summary_generation import process_dataset, process_work_orders
 from markdown_assembly import compile_summary_markdown
-from pdf_generation import save_summary_to_cdf, generate_pdf_from_markdown_in_memory
+from pdf_generation import generate_pdf_from_markdown_in_memory, save_summary_to_cdf
 from podcast_handler import handle_podcast
+from summary_generation import process_dataset, process_work_orders
 from utils import strip_html_tags
-
 
 # =============================================================================
 # MAIN HANDLER
@@ -121,8 +119,8 @@ def _handle_summary(
 
         cdf_helper = CDFHelper(client)
 
-        per_type_sections: List[str] = []
-        truncation_warnings: List[str] = []
+        per_type_sections: list[str] = []
+        truncation_warnings: list[str] = []
         instance_counts: dict = {}
         data_type_truncation: dict = {}
 
@@ -136,7 +134,11 @@ def _handle_summary(
             print(f"\nProcessing {dt}...")
             try:
                 rows, truncated, had_more = fetch_instances_for_data_type(
-                    client, dt, config, start_dt, end_dt,
+                    client,
+                    dt,
+                    config,
+                    start_dt,
+                    end_dt,
                 )
                 print(f"  -> {len(rows)} {dt}")
                 instance_counts[dt] = len(rows)
@@ -154,7 +156,10 @@ def _handle_summary(
                 if dt == "work_orders" and config.is_special_case:
                     if rows:
                         _, section = process_work_orders(
-                            rows, start_dt, end_dt, client,
+                            rows,
+                            start_dt,
+                            end_dt,
+                            client,
                             cdf_helper=cdf_helper,
                             selected_agent=selected_agent,
                             summary_prompt=summary_prompt,
@@ -167,8 +172,15 @@ def _handle_summary(
                         )
                 elif rows:
                     _, section = process_dataset(
-                        rows, dt, start_dt, end_dt, client,
-                        cdf_helper, selected_agent, summary_prompt, cfg,
+                        rows,
+                        dt,
+                        start_dt,
+                        end_dt,
+                        client,
+                        cdf_helper,
+                        selected_agent,
+                        summary_prompt,
+                        cfg,
                     )
                 else:
                     section = (
@@ -180,9 +192,7 @@ def _handle_summary(
                     per_type_sections.append(section.lstrip("\n"))
             except Exception as e:
                 print(f"Error processing {dt}: {e}")
-                per_type_sections.append(
-                    f"### {config.display_name}\nError retrieving {dt} data."
-                )
+                per_type_sections.append(f"### {config.display_name}\nError retrieving {dt} data.")
 
         full_text = compile_summary_markdown(
             per_type_sections,
@@ -198,7 +208,8 @@ def _handle_summary(
             try:
                 print("\nGenerating PDF bytes...")
                 result["pdf_bytes"] = generate_pdf_from_markdown_in_memory(
-                    full_text, f"ops_summary_{start_date}_{end_date}",
+                    full_text,
+                    f"ops_summary_{start_date}_{end_date}",
                 )
             except Exception as e:
                 print(f"Error generating PDF bytes: {e}")
@@ -209,8 +220,10 @@ def _handle_summary(
                 print("\nSaving summary to CDF...")
                 active_content_types = [k for k in DATA_TYPE_ORDER if summary_contents.get(k)]
                 cdf_result = save_summary_to_cdf(
-                    client, full_text,
-                    str(start_date), str(end_date),
+                    client,
+                    full_text,
+                    str(start_date),
+                    str(end_date),
                     generate_pdf=cfg.get("generate_pdf", True),
                     fusion_domain=cfg.get("fusion_domain"),
                     summary_space=cfg.get("summary_space"),
@@ -258,7 +271,7 @@ _RELATIVE_PERIODS = {
 }
 
 
-def _resolve_period(data: dict) -> Tuple[Optional[date], Optional[date], Optional[str]]:
+def _resolve_period(data: dict) -> tuple[date | None, date | None, str | None]:
     """Return (start_date, end_date, error). Error is set instead of raising."""
     now = datetime.now(timezone(timedelta(hours=runtime.timezone_offset_hours)))
     default_days = runtime.summary_period_days
@@ -317,7 +330,7 @@ def _resolve_period(data: dict) -> Tuple[Optional[date], Optional[date], Optiona
     return start_date, end_date, None
 
 
-def _parse_date(value: str, field: str) -> Tuple[Optional[date], Optional[str]]:
+def _parse_date(value: str, field: str) -> tuple[date | None, str | None]:
     try:
         return datetime.strptime(value, "%Y-%m-%d").date(), None
     except ValueError:

@@ -1,6 +1,6 @@
 """Podcast IDs and latest-summary lookup after the data space merge."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from config import runtime as summary_runtime
@@ -20,7 +20,7 @@ def test_podcast_ids_match_the_app_for_a_known_summary():
 
 
 def test_timestamp_fallback_keeps_the_podcast_prefix():
-    moment = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+    moment = datetime(2026, 10, 28, 12, 0, 0, tzinfo=UTC)
     script_id, audio_id = podcast_external_ids(
         source_summary_id=None,
         start_date="2026-10-01",
@@ -73,16 +73,12 @@ def test_find_latest_summary_ignores_non_summaries():
 
     assert _find_latest_summary(client, "ops_summaries", file_view="view") is None
     assert client.list_kwargs["limit"] == 1
-    assert client.list_kwargs["sort"] == [
-        {"property": ["node", "createdTime"], "direction": "descending"}
-    ]
+    assert client.list_kwargs["sort"] == [{"property": ["node", "createdTime"], "direction": "descending"}]
 
 
 def test_find_latest_summary_returns_a_prefixed_node():
     summary_runtime.operation_summary_prefix = "ops_summary_"
-    client = _ListingClient(
-        [SimpleNamespace(external_id="ops_summary_latest", created_time=9)]
-    )
+    client = _ListingClient([SimpleNamespace(external_id="ops_summary_latest", created_time=9)])
     assert _find_latest_summary(client, "ops_summaries", file_view="view") == "ops_summary_latest"
 
 

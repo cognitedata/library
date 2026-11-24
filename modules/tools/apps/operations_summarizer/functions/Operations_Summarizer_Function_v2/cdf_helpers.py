@@ -2,7 +2,8 @@
 CDF helper classes and functions for Operations Summarizer v2.
 """
 
-from typing import List, Dict, Any, Tuple
+from typing import Any
+
 from cognite.client import CogniteClient
 from cognite.client.data_classes.agents import AgentList, Message
 
@@ -13,7 +14,7 @@ class CDFHelper:
     def __init__(self, client: CogniteClient):
         self.client = client
 
-    def get_agents(self) -> Tuple[AgentList, List[str]]:
+    def get_agents(self) -> tuple[AgentList, list[str]]:
         try:
             agents = self.client.agents.list()
             return agents, []
@@ -21,7 +22,7 @@ class CDFHelper:
             print(f"Error getting agents: {e}")
             return AgentList([]), []
 
-    def get_supported_model_names(self) -> List[str]:
+    def get_supported_model_names(self) -> list[str]:
         try:
             url = f"/api/v1/projects/{self.client.config.project}/ai/services/availability"
             resp = self.client.get(url)
@@ -39,7 +40,7 @@ class CDFHelper:
         description: str,
         instructions: str,
         model: str,
-        tools: List[Dict[str, Any]] | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> str:
         try:
             from cognite.client.data_classes.agents import AgentUpsert
@@ -83,11 +84,14 @@ def ensure_space_exists(client: CogniteClient, space: str) -> bool:
 
     try:
         from cognite.client.data_classes.data_modeling import SpaceApply
-        client.data_modeling.spaces.apply(SpaceApply(
-            space=space,
-            name=space,
-            description="Space for storing operation summaries",
-        ))
+
+        client.data_modeling.spaces.apply(
+            SpaceApply(
+                space=space,
+                name=space,
+                description="Space for storing operation summaries",
+            )
+        )
         print(f"Created space '{space}'")
         return True
     except Exception as e:

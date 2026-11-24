@@ -6,21 +6,17 @@ Python mirror of ``src/utils/summaryMarkdown.ts``.
 
 import re
 from datetime import date
-from typing import List, Optional
 
 
 def _format_period(period_start: date, period_end: date) -> str:
     return f"{period_start.isoformat()} to {period_end.isoformat()}"
 
 
-def _format_truncation_block(truncation_warnings: Optional[List[str]]) -> str:
+def _format_truncation_block(truncation_warnings: list[str] | None) -> str:
     if not truncation_warnings:
         return ""
     lines = "\n".join(f"> - {w}" for w in truncation_warnings)
-    return (
-        "> **Data completeness:** Some data types hit the instance cap and "
-        f"may be incomplete:\n{lines}\n\n"
-    )
+    return f"> **Data completeness:** Some data types hit the instance cap and may be incomplete:\n{lines}\n\n"
 
 
 _DATATYPE_HEADING_RE = re.compile(r"^## (\w.*?) \((\d+)\)$", re.MULTILINE)
@@ -33,10 +29,10 @@ def _demote_h2(summary: str) -> str:
 
 
 def compile_summary_markdown(
-    summary_parts: List[str],
+    summary_parts: list[str],
     period_start: date,
     period_end: date,
-    truncation_warnings: Optional[List[str]] = None,
+    truncation_warnings: list[str] | None = None,
     include_work_orders: bool = True,
 ) -> str:
     """Assemble the standard summary markdown."""
@@ -48,8 +44,7 @@ def compile_summary_markdown(
         None,
     )
     new_instances_summaries = [
-        p for p in summary_parts
-        if not p.startswith("## Work Orders") and not p.startswith("## Work orders")
+        p for p in summary_parts if not p.startswith("## Work Orders") and not p.startswith("## Work orders")
     ]
 
     work_orders_section = ""
@@ -68,8 +63,4 @@ def compile_summary_markdown(
         sections.append(new_instances_section)
 
     body = "\n\n".join(sections)
-    return (
-        f"# Operation Summary\n"
-        f"Summary period: {period_str}\n\n"
-        f"{truncation_block}{body}\n"
-    )
+    return f"# Operation Summary\nSummary period: {period_str}\n\n{truncation_block}{body}\n"

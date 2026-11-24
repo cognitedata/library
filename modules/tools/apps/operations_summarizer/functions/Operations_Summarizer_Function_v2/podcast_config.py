@@ -5,15 +5,14 @@ Spaces and the file view come from the config node. Call ``data`` overrides
 those values. Prompt text stays in this module.
 """
 
-from datetime import timezone
+from datetime import UTC
 from typing import Any
 
-from cognite.client.data_classes.data_modeling import ViewId
-
 from app_config import load_app_config
+from cognite.client.data_classes.data_modeling import ViewId
 from tts_engine import DEFAULT_VOICE
 
-DEFAULT_TIMEZONE = timezone.utc
+DEFAULT_TIMEZONE = UTC
 # Podcast script agent identity stays in code, like the prompt text.
 # The config node agent.name is the operations summarizer helper.
 PODCAST_AGENT_NAME = "Podcast Script Generator"

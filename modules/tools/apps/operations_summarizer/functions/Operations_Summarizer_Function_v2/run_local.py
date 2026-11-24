@@ -21,9 +21,8 @@ Then run:
 
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 from cdf_client import get_local_client
+from dotenv import load_dotenv
 from handler import handle
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -37,7 +36,6 @@ if __name__ == "__main__":
             # Relative preset: "last 24 hours" | "last 72 hours" | "last week" | "last month" | "last quarter"
             # Or use explicit dates: "summary_period_start": "2026-06-15", "summary_period_end": "2026-06-22"
             "summary_period_start": "last week",
-
             # All 5 data types enabled by default; override to test a subset:
             "summary_contents": {
                 "assets": True,
@@ -46,14 +44,11 @@ if __name__ == "__main__":
                 "time_series": True,
                 "equipment": True,
             },
-
             # Set to True when you're ready to write results to CDF
             "save_to_cdf": False,
             "generate_pdf": False,
-
             # Uncomment to use a specific existing agent:
             # "selected_agent": "my-agent-external-id",
-
             # Uncomment to provide the Fusion domain (required when save_to_cdf=True):
             # "fusion_domain": "your-org.fusion.cognite.com",
         },

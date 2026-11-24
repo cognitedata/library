@@ -5,16 +5,16 @@ Produces markdown tables from CDF node instances using the column
 definitions in ``config.DATA_TYPE_CONFIGS``.
 """
 
-from typing import List, Any, Optional
-from cognite.client import CogniteClient
+from typing import Any
 
+from cognite.client import CogniteClient
 from config import DATA_TYPE_CONFIGS
 from data_retrieval import node_property
 
 
 def create_markdown_table(
     columns: list,
-    instances: List[Any],
+    instances: list[Any],
     data_type: str,
     client: CogniteClient,
 ) -> str:
@@ -62,9 +62,9 @@ def create_markdown_table(
 
 def generate_table_for_instances(
     data_type: str,
-    instances: List[Any],
+    instances: list[Any],
     client: CogniteClient,
-    limit: Optional[int] = None,
+    limit: int | None = None,
 ) -> str:
     """Generate a markdown table for instances using configuration."""
     if limit:

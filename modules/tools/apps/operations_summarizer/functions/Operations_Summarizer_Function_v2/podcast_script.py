@@ -7,9 +7,9 @@ returns the spoken-word script suitable for TTS.
 
 from __future__ import annotations
 
+from cdf_helpers import CDFHelper
 from cognite.client import CogniteClient
 from cognite.client.data_classes.agents import Message, TextContent
-from cdf_helpers import CDFHelper
 from podcast_config import PODCAST_AGENT_NAME, default_podcast_instructions
 
 
@@ -108,15 +108,14 @@ def generate_podcast_script(
     summary_markdown: str,
 ) -> str:
     """Send an operations summary to the podcast agent and return the script."""
-    prompt = (
-        "Here is the operations summary. "
-        "Rewrite it as a podcast script:\n\n"
-        + summary_markdown
-    )
+    prompt = "Here is the operations summary. Rewrite it as a podcast script:\n\n" + summary_markdown
 
-    response = cdf_helper.agent_chat(agent_id, [
-        Message(content=TextContent(text=prompt)),
-    ])
+    response = cdf_helper.agent_chat(
+        agent_id,
+        [
+            Message(content=TextContent(text=prompt)),
+        ],
+    )
 
     script = extract_ai_content(response)
     if not script.strip():

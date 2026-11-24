@@ -7,14 +7,14 @@ Mirrors ``src/utils/summaryGenerationCore/fetchInstances.ts``:
 - Caps at MAX_INSTANCES_PER_DATATYPE per type
 """
 
-from typing import List, Any, Optional, Tuple
 from datetime import datetime
+from typing import Any
+
 from cognite.client import CogniteClient
 from cognite.client.data_classes import filters
-
 from config import (
-    DataTypeConfig,
     VIEW_ID_MAPPING,
+    DataTypeConfig,
     runtime,
 )
 
@@ -39,7 +39,7 @@ def _build_created_time_filter(start_dt: datetime, end_dt: datetime) -> filters.
     )
 
 
-def node_property(node, data_type: str, property_name: str, client: Optional[CogniteClient] = None):
+def node_property(node, data_type: str, property_name: str, client: CogniteClient | None = None):
     """Extract a property value from a CDF node."""
     try:
         view_id = VIEW_ID_MAPPING.get(data_type)
@@ -59,17 +59,17 @@ def _paginate(
     client: CogniteClient,
     view_id,
     filter_obj: filters.Filter,
-    space: Optional[str],
-    max_instances: Optional[int] = None,
-) -> Tuple[List[Any], bool, bool]:
+    space: str | None,
+    max_instances: int | None = None,
+) -> tuple[list[Any], bool, bool]:
     """Page through instances.list until cursor exhausted or cap reached.
 
     Returns (rows, truncated, had_more_in_cdf).
     """
     if max_instances is None:
         max_instances = runtime.max_instances_per_datatype
-    rows: List[Any] = []
-    cursor: Optional[str] = None
+    rows: list[Any] = []
+    cursor: str | None = None
     truncated = False
     had_more_in_cdf = False
 
@@ -110,8 +110,8 @@ def fetch_instances_for_data_type(
     config: DataTypeConfig,
     start_dt: datetime,
     end_dt: datetime,
-    space: Optional[str] = None,
-) -> Tuple[List[Any], bool, bool]:
+    space: str | None = None,
+) -> tuple[list[Any], bool, bool]:
     """Fetch instances for one data type using node.createdTime filter.
 
     Returns (rows, truncated, had_more_in_cdf).

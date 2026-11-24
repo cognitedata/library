@@ -5,17 +5,16 @@ Handles chunking, per-chunk AI summarisation, holistic roll-up, and work-order
 subcategory processing (mirrors ``src/utils/workOrderSummary.ts``).
 """
 
-from typing import List, Any, Tuple, Optional
-from functools import wraps
 import time as time_module
-from datetime import datetime, date, timezone
-from cognite.client import CogniteClient
-from cognite.client.exceptions import CogniteReadTimeout, CogniteAPIError
+from datetime import UTC, datetime
+from functools import wraps
+from typing import Any
 
-from config import DATA_TYPE_CONFIGS, runtime
 from cdf_helpers import CDFHelper
+from cognite.client import CogniteClient
+from cognite.client.exceptions import CogniteAPIError, CogniteReadTimeout
+from config import DATA_TYPE_CONFIGS, runtime
 from table_generation import generate_table_for_instances
-
 
 # =============================================================================
 # RETRY DECORATOR
@@ -42,7 +41,9 @@ def retry_with_backoff(max_retries=3, initial_delay=1, max_delay=10):
                 except Exception:
                     raise
             return None
+
         return wrapper
+
     return decorator
 
 
@@ -81,7 +82,7 @@ def create_summary_for_data(
 
 @retry_with_backoff(max_retries=3, initial_delay=1, max_delay=10)
 def create_holistic_summary(
-    chunk_summaries: List[str],
+    chunk_summaries: list[str],
     data_type: str,
     total_instances: int,
     cdf_helper: CDFHelper = None,
@@ -89,9 +90,7 @@ def create_holistic_summary(
     holistic_template: str = None,
 ) -> str:
     """Create a single holistic summary from multiple chunk summaries."""
-    combined = "\n\n".join(
-        f"Summary {i+1}:\n{s}" for i, s in enumerate(chunk_summaries)
-    )
+    combined = "\n\n".join(f"Summary {i + 1}:\n{s}" for i, s in enumerate(chunk_summaries))
     template = holistic_template or runtime.holistic_summary_template
     prompt = template.format(
         num_chunks=len(chunk_summaries),
@@ -104,10 +103,10 @@ def create_holistic_summary(
     return resp.text
 
 
-def chunk_instances(instances: List[Any], chunk_size: int | None = None) -> List[List[Any]]:
+def chunk_instances(instances: list[Any], chunk_size: int | None = None) -> list[list[Any]]:
     if chunk_size is None:
         chunk_size = runtime.chunk_size
-    return [instances[i:i + chunk_size] for i in range(0, len(instances), chunk_size)]
+    return [instances[i : i + chunk_size] for i in range(0, len(instances), chunk_size)]
 
 
 def _node_prop(node, property_name: str):
@@ -120,22 +119,22 @@ def _node_prop(node, property_name: str):
     return None
 
 
-def _parse_date(value) -> Optional[datetime]:
+def _parse_date(value) -> datetime | None:
     if not value:
         return None
     try:
         text = str(value).replace("Z", "+00:00")
         parsed = datetime.fromisoformat(text)
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+            parsed = parsed.replace(tzinfo=UTC)
         return parsed
     except Exception:
         return None
 
 
-def _categorize_work_orders(work_orders: List[Any]):
+def _categorize_work_orders(work_orders: list[Any]):
     """Categorize work orders by status (completed, ongoing, scheduled)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     completed, ongoing, scheduled = [], [], []
 
     for wo in work_orders:
@@ -195,32 +194,27 @@ def _generate_work_order_category_summary(
 
 
 def process_work_orders(
-    instances: List[Any],
+    instances: list[Any],
     start_time: datetime,
     end_time: datetime,
     client: CogniteClient,
     cdf_helper: CDFHelper = None,
     selected_agent: str = None,
     summary_prompt: dict = None,
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """Process work orders with subcategory summaries (mirrors generateWorkOrdersSection)."""
     total = len(instances)
     if total == 0:
-        section = (
-            "## Work orders\n\n"
-            "No work orders were completed, ongoing, or scheduled during the summary period."
-        )
+        section = "## Work orders\n\nNo work orders were completed, ongoing, or scheduled during the summary period."
         return "", section
 
     work_order_prompt = (summary_prompt or {}).get("work_orders", "")
     categories = _categorize_work_orders(instances)
     sections = [
-        _generate_work_order_category_summary(
-            cat, cdf_helper, selected_agent, work_order_prompt, client
-        )
+        _generate_work_order_category_summary(cat, cdf_helper, selected_agent, work_order_prompt, client)
         for cat in categories
     ]
-    section = f"## Work Orders\n\n" + "\n\n".join(sections)
+    section = "## Work Orders\n\n" + "\n\n".join(sections)
     return "", section
 
 
@@ -230,7 +224,7 @@ def process_work_orders(
 
 
 def process_dataset(
-    instances: List[Any],
+    instances: list[Any],
     data_type: str,
     start_time: datetime,
     end_time: datetime,
@@ -239,7 +233,7 @@ def process_dataset(
     selected_agent: str = None,
     summary_prompt: dict = None,
     cfg: dict = None,
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """Process a list of instances into (table_markdown, summary_section)."""
     cfg = cfg or {}
     chunk_size = cfg.get("chunk_size", runtime.chunk_size)
@@ -260,7 +254,11 @@ def process_dataset(
 
             try:
                 summary = create_summary_for_data(
-                    table, data_type, total, start_time, end_time,
+                    table,
+                    data_type,
+                    total,
+                    start_time,
+                    end_time,
                     cdf_helper=cdf_helper,
                     selected_agent=selected_agent,
                     summary_prompt=summary_prompt,
@@ -279,36 +277,39 @@ def process_dataset(
         chunk_summaries = []
 
         for i, chunk in enumerate(chunks):
-            print(f"Processing chunk {i+1}/{len(chunks)} for {data_type}")
+            print(f"Processing chunk {i + 1}/{len(chunks)} for {data_type}")
             try:
                 ctable = generate_table_for_instances(data_type, chunk, client)
             except Exception:
-                ctable = f"Error generating table for chunk {i+1}"
+                ctable = f"Error generating table for chunk {i + 1}"
             try:
                 cs = create_summary_for_data(
-                    ctable, data_type, len(chunk), start_time, end_time,
+                    ctable,
+                    data_type,
+                    len(chunk),
+                    start_time,
+                    end_time,
                     cdf_helper=cdf_helper,
                     selected_agent=selected_agent,
                     summary_prompt=summary_prompt,
                 )
             except Exception as e:
-                print(f"Error in chunk {i+1}: {e}")
-                cs = f"Chunk {i+1} contains {len(chunk)} {data_type.replace('_', ' ')} instances."
+                print(f"Error in chunk {i + 1}: {e}")
+                cs = f"Chunk {i + 1} contains {len(chunk)} {data_type.replace('_', ' ')} instances."
             chunk_summaries.append(cs)
 
         try:
             holistic = create_holistic_summary(
-                chunk_summaries, data_type, total,
+                chunk_summaries,
+                data_type,
+                total,
                 cdf_helper=cdf_helper,
                 selected_agent=selected_agent,
                 holistic_template=holistic_template,
             )
         except Exception as e:
             print(f"Error creating holistic summary: {e}")
-            holistic = (
-                f"Processed {total} {data_type.replace('_', ' ')} instances across "
-                f"{len(chunks)} chunks."
-            )
+            holistic = f"Processed {total} {data_type.replace('_', ' ')} instances across {len(chunks)} chunks."
 
         try:
             display = instances[:chunk_size]
@@ -317,10 +318,7 @@ def process_dataset(
             unified_table = f"Error generating unified table for {data_type}"
 
         if total > chunk_size:
-            unified_table = (
-                f"*Note: Showing first {chunk_size} of {total} total instances*\n\n"
-                + unified_table
-            )
+            unified_table = f"*Note: Showing first {chunk_size} of {total} total instances*\n\n" + unified_table
 
         section = f"\n### {display_name} ({total})\n{holistic}"
         return unified_table, section

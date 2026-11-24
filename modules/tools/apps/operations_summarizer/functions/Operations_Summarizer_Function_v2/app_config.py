@@ -24,9 +24,7 @@ class AppConfigError(Exception):
 def load_app_config(client: Any) -> dict[str, Any]:
     """Read and validate the config node. Raises ``AppConfigError`` when it cannot be used."""
     if client is None:
-        raise AppConfigError(
-            f"config node {NODE_PATH}: a CogniteClient is required to read the node."
-        )
+        raise AppConfigError(f"config node {NODE_PATH}: a CogniteClient is required to read the node.")
     view_version = _read_view_version(client)
     properties = _read_node_properties(client, view_version)
     schema_version = properties.get("schemaVersion")
