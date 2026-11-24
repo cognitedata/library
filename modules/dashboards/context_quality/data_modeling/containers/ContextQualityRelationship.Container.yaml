@@ -1,0 +1,303 @@
+space: "{{ metricsSchemaSpace }}"
+externalId: ContextQualityRelationship
+usedFor: record
+name: Context quality relationship
+description: >
+  Immutable log rows for counted metrics, exclusions, drilldown rows and run markers (rowKind). Raw counts only; the app does the division.
+properties:
+  runId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Run id
+  runTimestamp:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Run timestamp
+  rowKind:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Row kind
+  metricId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Metric id
+  dimensionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Dimension id
+  reportingUnitId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Reporting unit id
+  facilityId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Facility id
+  divisionId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Division id
+  disciplineId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Discipline id
+  ownerId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Owner id
+  tier:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Tier
+  ruleSetVersion:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Rule set version
+  eligibleCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Eligible count
+  passingCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Passing count
+  issueCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Issue count
+  valueSum:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Value sum
+  notApplicable:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Not applicable
+  matchType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Match type
+  subKey:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Sub key
+  exclusionCategory:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Exclusion category
+  excludedCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Excluded count
+  entityId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Entity id
+  entityLabel:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Entity label
+  entityRef:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Entity ref
+  detail:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Detail
+  cellsJson:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Cells json
+  matched:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Matched
+  status:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Status
+  scope:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Scope
+  warnings:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Warnings
+  rowsWritten:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Rows written
+  classificationKind:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Classification kind
+  classificationId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Classification id
+  classificationName:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Classification name

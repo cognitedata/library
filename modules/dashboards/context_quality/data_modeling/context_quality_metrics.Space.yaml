@@ -1,0 +1,3 @@
+space: "{{ metricsSchemaSpace }}"
+name: Context quality metrics schema
+description: Schema space for the Context Quality metrics run log (the containers and views of the Records & Streams backend)

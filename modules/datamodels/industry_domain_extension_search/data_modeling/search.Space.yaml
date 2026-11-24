@@ -1,0 +1,2 @@
+space: "{{ search_space }}"
+name: Industry search DM SOL

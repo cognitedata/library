@@ -1,0 +1,30 @@
+# Data model identifiers (must match datamodels/industry_domain_extension)
+enterprise_space: dm_dom_industry
+# Write target for PI nodes, alarm records and directs (shared with the enterprise module)
+instance_space: inst_location
+enterprise_data_model_external_id: Industry_DOM
+dm_enterprise_version: v1
+
+# Code space for the alarm Function — never an instance space
+function_space: sp_function_industry
+
+# Governance
+dataset_external_id: ds_industry_all
+
+# RAW databases (shared industry test dump; SAP owned by cdf_sap_industry_data_dump)
+raw_database_pi: raw_timeseries_all_pi
+raw_database_sap: raw_asset_all_sap
+
+# Alarm records
+alarm_stream_external_id: pi_all_alarm_event
+alarm_function_external_id: fn_pi_all_ingest_alarm_event
+
+# Transformation / workflow runtime identity
+ingestion_client_id: ${IDP_CLIENT_ID}
+ingestion_client_secret: ${IDP_CLIENT_SECRET}
+
+# Workflow — default schedule never fires; run manually after SAP dump workflow.
+workflow_external_id: wf_pi_all_to_industry
+workflow_trigger_external_id: trigger_wf_pi_all_to_industry
+run_workflow_schedule: "0 0 29 2 *"
+

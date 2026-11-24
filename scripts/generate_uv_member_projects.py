@@ -133,56 +133,21 @@ PACKAGE_SPECS: list[dict[str, object]] = [
         "deploy_dependencies": FILE_ANNOTATION_STREAMLIT_DEPLOY,
     },
     {
-        "path": "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation",
-        "name": "fn-dm-context-files-annotation",
+        "path": "modules/dashboards/context_quality/functions/fn_context_quality_metrics",
+        "name": "fn-context-quality-metrics",
         "requires_python": ">=3.11,<3.14",
         "dependencies": [
-            "cognite-extractor-utils>=7",
-            "cognite-sdk>=7,<8",
-            "pyyaml>=6.0.1",
-            "mixpanel>=4.10.0",
+            "cognite-sdk>=7.89.0,<8",
+            "xlsxwriter>=3.1,<4",
+            "pydantic>=2,<3",
         ],
         "deploy_dependencies": [
-            "cognite-extractor-utils>=7",
-            "cognite-sdk == 7.*",
-            "pyyaml >= 6.0.1",
-            "mixpanel>=4.10.0",
+            "cognite-sdk>=7.89.0,<8",
+            "xlsxwriter>=3.1,<4",
+            "pydantic>=2,<3",
         ],
+        "dev_dependencies": ["pytest>=7.0.0"],
         "pytest": True,
-    },
-    {
-        "path": "modules/dashboards/context_quality/functions/context_quality_handler",
-        "name": "context-quality-handler",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": [
-            "cognite-sdk>=7.89.0,<8",
-            "mixpanel>=4.10.0",
-        ],
-        "deploy_dependencies": [
-            "cognite-sdk>=7.89.0,<8",
-            "mixpanel>=4.10.0",
-        ],
-    },
-    {
-        "path": "modules/dashboards/context_quality/streamlit/context_quality_dashboard",
-        "name": "context-quality-dashboard",
-        "requires_python": ">=3.11,<3.14",
-        "dependencies": [
-            "pyodide-http>=0.2.1",
-            "cognite-sdk>=7.89.0,<8",
-            "packaging",
-            "plotly",
-            "matplotlib",
-            "fpdf2>=2.7.0",
-        ],
-        "deploy_dependencies": [
-            "pyodide-http>=0.2.1",
-            "cognite-sdk>=7.89.0,<8",
-            "packaging",
-            "plotly",
-            "matplotlib",
-            "fpdf2>=2.7.0",
-        ],
     },
     {
         "path": "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor",
@@ -200,6 +165,25 @@ PACKAGE_SPECS: list[dict[str, object]] = [
             "pydantic>=2.12.4,<3.0.0",
             "mixpanel>=4.10.0",
         ],
+    },
+    {
+        "path": "modules/sourcesystem/cdf_pi_industry_data_dump/functions/fn_pi_all_ingest_alarm_event",
+        "name": "fn-pi-all-ingest-alarm-event",
+        "requires_python": ">=3.11,<3.14",
+        # Local/lock range stays compatible with other workspace members on cognite-sdk <8.
+        # Unit tests mock Records and do not need the Records API locally.
+        "dependencies": [
+            "cognite-sdk>=7,<9",
+            "pydantic>=2.12.4,<3.0.0",
+        ],
+        # Deploy pin is the source of truth for CDF: Records API requires cognite-sdk >= 8.24.
+        "deploy_dependencies": [
+            "cognite-sdk==8.25.0",
+            "pydantic==2.12.4",
+        ],
+        "dev_dependencies": ["pytest>=7.0.0"],
+        # Tests live under modules/.../tests/fn_pi_all_ingest_alarm_event (not packaged with the function).
+        "pytest": False,
     },
 ]
 

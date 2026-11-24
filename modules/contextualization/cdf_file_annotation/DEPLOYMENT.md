@@ -128,7 +128,6 @@ variables:
       groupSourceId: <insert>
       ingestionClientId: ${IDP_CLIENT_ID} # Changed from ${INGESTION_CLIENT_ID}
       ingestionClientSecret: ${IDP_CLIENT_SECRET} # Changed from ${INGESTION_CLIENT_SECRET}
-      pandidContextualizationFunction: contextualization_p_and_id_annotater
       contextualization_connection_writer: contextualization_connection_writer
       schemaSpace: sp_enterprise_process_industry
       schemaSpace2: cdf_cdm

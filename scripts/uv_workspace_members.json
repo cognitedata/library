@@ -6,8 +6,7 @@
   "modules/contextualization/cdf_file_annotation/functions/fn_file_annotation",
   "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_annotation_quality",
   "modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_pipeline_health",
-  "modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation",
-  "modules/dashboards/context_quality/functions/context_quality_handler",
-  "modules/dashboards/context_quality/streamlit/context_quality_dashboard",
-  "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor"
+  "modules/dashboards/context_quality/functions/fn_context_quality_metrics",
+  "modules/solutions/cdf_ai_extractor/functions/fn_ai_property_extractor",
+  "modules/sourcesystem/cdf_pi_industry_data_dump/functions/fn_pi_all_ingest_alarm_event"
 ]

@@ -1,0 +1,19 @@
+[project]
+name = "fn-context-quality-metrics"
+version = "0.0.0"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "cognite-sdk>=7.89.0,<8",
+    "xlsxwriter>=3.1,<4",
+    "pydantic>=2,<3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+pythonpath = ["."]
+addopts = "-ra"

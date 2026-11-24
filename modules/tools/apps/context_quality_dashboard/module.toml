@@ -1,0 +1,4 @@
+[module]
+title = "Contextualization Quality Dashboard App"
+id = "dp:context_quality:dashboard"
+package_id = "dp:context_quality"

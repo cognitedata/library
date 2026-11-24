@@ -1,0 +1,55 @@
+workflowExternalId: {{ workflow_external_id }}
+version: v1
+workflowDefinition:
+  tasks:
+    # Wave 1: time series, then operating limits that point at them.
+    # Prerequisite: wf_sap_all_to_industry must have completed so Tag/asset (and Equipment)
+    # nodes exist before time series and operating limits connect to them. Cross-workflow
+    # order is not enforceable via dependsOn.
+    - externalId: tr_pi_all_to_industry_time_series
+      type: transformation
+      name: Time series
+      description: Load TimeSeriesData nodes from PI
+      parameters:
+        transformation:
+          externalId: tr_pi_all_to_industry_time_series
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+
+    - externalId: tr_pi_all_to_industry_operating_limit
+      type: transformation
+      name: Operating limit
+      description: Load OperatingLimit nodes from PI
+      parameters:
+        transformation:
+          externalId: tr_pi_all_to_industry_operating_limit
+          concurrencyPolicy: fail
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_pi_all_to_industry_time_series
+
+    # Wave 2: alarm records need Tag (SAP) and Wave 1 nodes.
+    # abortWorkflow so a broken sample ingest fails loudly.
+    - externalId: {{ alarm_function_external_id }}
+      type: function
+      name: Alarm event records
+      description: Ingest AlarmEvent records from RAW into the alarm stream
+      parameters:
+        function:
+          externalId: {{ alarm_function_external_id }}
+          data:
+            stream_external_id: {{ alarm_stream_external_id }}
+            instance_space: {{ instance_space }}
+            enterprise_space: {{ enterprise_space }}
+            raw_database: {{ raw_database_pi }}
+            raw_table: alarm_event
+      retries: 3
+      timeout: 3600
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: tr_pi_all_to_industry_time_series
+        - externalId: tr_pi_all_to_industry_operating_limit

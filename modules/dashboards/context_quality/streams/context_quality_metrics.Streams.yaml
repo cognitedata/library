@@ -1,0 +1,4 @@
+externalId: "{{ metricsStreamExternalId }}"
+settings:
+  template:
+    name: "{{ metricsStreamTemplate }}"

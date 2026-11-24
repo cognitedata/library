@@ -1,0 +1,38 @@
+/* Aura's Tailwind source (not its prebuilt styles.css) so that utility classes
+   used by this app are compiled, not just the ones Aura's own components use. */
+@import '@cognite/aura/styles.source.css';
+
+@source '../src';
+
+.app-topbar {
+  background-color: var(--background);
+  border-bottom-color: var(--border);
+  color: var(--foreground);
+}
+
+.app-topbar [data-slot='app-title'] {
+  color: var(--foreground);
+}
+
+.app-topbar [data-slot='tabs-trigger']:not([data-active]) {
+  color: var(--muted-foreground);
+}
+
+.app-topbar [data-slot='tabs-trigger'][data-active] {
+  color: var(--foreground);
+}
+
+/* Tailwind does not emit data-checked:bg-success-* for app sources; override Aura switch track. */
+.feature-flag-switch[data-checked] {
+  background-color: var(--success-foreground);
+}
+
+.feature-flag-switch[data-checked]:hover {
+  background-color: var(--success-foreground);
+}
+
+:root {
+  --font-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-source-code-pro: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}

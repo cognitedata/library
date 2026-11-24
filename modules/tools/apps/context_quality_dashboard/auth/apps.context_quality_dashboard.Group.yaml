@@ -1,0 +1,15 @@
+# This file is just a dummy. Toolkit only accepts a module that has an auth group, and this module is a Fusion app
+# that is deployed with `npx @cognite/cli apps deploy`, not with `cdf deploy`. Do not deploy this group.
+# The real access group for the people who open the app is `consumer_context_quality_dashboard_dev`, in the backend
+# module (dashboards/context_quality).
+name: consumer_context_quality_dashboard_app_dev
+sourceId: <consumer_context_quality_dashboard_app_dev_source_id>
+metadata:
+  origin: 'cdf-project-templates'
+capabilities:
+  - projectsAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        all: {}

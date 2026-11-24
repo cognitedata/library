@@ -19,8 +19,7 @@ modules/
 │
 ├── contextualization/         # Contextualization pipelines & transforms
 │   ├── cdf_file_annotation/
-│   ├── cdf_entity_matching/
-│   └── cdf_p_and_id_annotation/
+│   └── cdf_entity_matching/
 │
 ├── datamodels/                  # Industry & extension data models
 │   ├── rmdm/
@@ -44,13 +43,14 @@ modules/
 │   ├── cdf_sap_data_dump/       # Demo: synthetic SAP-shaped sample data
 │   └── cdf_sharepoint_data_dump/ # Demo: synthetic SharePoint-shaped sample data
 │
-├── dashboards/                  # Streamlit apps & reporting
-│   └── context_quality/
+├── dashboards/                  # Contextualization Quality Dashboard backend
+│   └── context_quality/         # dp:context_quality
 │
 ├── tools/
 │   └── apps/
 │       ├── operations_summarizer/
-│       └── qualitizer/
+│       ├── qualitizer/
+│       └── context_quality_dashboard/ # Contextualization Quality Dashboard app (dp:context_quality)
 │
 └── custom/
     └── my_module/               # Empty template (see custom/README.md)
@@ -64,11 +64,12 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 |------------|-------|----------------|
 | `dp:foundation` | Foundation Deployment Pack | `datamodels/*` (ISA, CFIHOS), `sourcesystem/*_extractor`, `common/cdf_project_foundation`, `contextualization/cdf_file_annotation`, `contextualization/cdf_entity_matching`, `tools/apps/qualitizer` |
 | `dp:quickstart` | Foundation Deployment Pack Demo | `common/cdf_ingestion`, `common/cdf_project_foundation`, `contextualization/cdf_file_annotation`, `contextualization/cdf_entity_matching`, `sourcesystem/*_data_dump`, `datamodels/cfihos_oil_and_gas_extension*` |
+| `dp:industry_quickstart` | Industry Domain Deployment Pack Demo | `common/cdf_project_foundation`, `datamodels/industry_domain_extension*`, `sourcesystem/*_industry_data_dump` (each with its own workflow) |
 | `dp:contextualization` | Contextualization | `contextualization/` |
 | `dp:common` | Common | `common/` |
 | `dp:sourcesystem` | Source Systems | `sourcesystem/*_extractor` (real connector configs), `sourcesystem/*_data_dump` (synthetic sample data) |
-| `dp:models` | Data models | `datamodels/` |
-| `dp:dashboards` | Dashboards | `dashboards/` |
+| `dp:models` | Data models | `datamodels/` (ISA, CFIHOS, industry-neutral, RMDM) |
+| `dp:context_quality` | Contextualization Quality Dashboard | `dashboards/context_quality` (Dashboard Backend), `tools/apps/context_quality_dashboard` (Dashboard App) |
 | `dp:data_quality` | Data Quality Validation | `common/cdf_dq_runtime` |
 | `dp:atlas_ai` | Atlas AI Deployment Pack | `solutions/cdf_ai_extractor` |
 | `dp:cdm_maintain` | CDM Maintain | `solutions/cdm_maintain/*` |
@@ -77,6 +78,8 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 | `dp:emptymodule` | Empty Module | `custom/my_module` |
 
 Some modules appear in more than one pack (for example `contextualization/cdf_file_annotation` is in `dp:foundation`, `dp:quickstart`, and `dp:contextualization`). See [CONTRIBUTING.md](../CONTRIBUTING.md) for how `package_id` relates to multi-pack membership.
+
+A pack with a single module has `canCherryPick = false`, so users select the pack and do not have to pick the module a level further down. The exception is `tool`, an open-ended collection of accelerators that stays cherry-pickable. Packs with several modules usually set `canCherryPick = true` (for example `dp:context_quality`); `dp:quickstart` is a fixed bundle and sets it to `false`.
 
 ## Module IDs
 

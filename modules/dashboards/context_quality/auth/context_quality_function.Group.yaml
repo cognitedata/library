@@ -1,0 +1,87 @@
+name: "{{ metricsFunctionGroupName }}"
+sourceId: "{{ metricsFunctionGroupSourceId }}"
+metadata:
+  origin: cognite-toolkit
+# The identity the metrics workflow runs as. Read the project, write records to the metrics stream, nothing else.
+capabilities:
+  # runtime basics, as in the library's other workflow groups
+  - projectsAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        all: {}
+  - groupsAcl:
+      actions:
+        - LIST
+      scope:
+        all: {}
+  - sessionsAcl:
+      actions:
+        - CREATE
+      scope:
+        all: {}
+  # call the function from the workflow
+  - functionsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
+  # read the views, and the container the records conform to
+  - dataModelsAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
+            - cdf_idm
+            - "{{ metricsSchemaSpace }}"
+  # read the entities. The function discovers the facility spaces among the spaces it can read.
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            {{ metricsSourceSpaces }}
+  # read the latest datapoint of each time series (freshness). The scope is not validated against a deployment: see REFERENCE.md.
+  - timeSeriesAcl:
+      actions:
+        - READ
+      scope:
+        all: {}
+  # the workbook of unlinked items: the pieces of a run upload their parts and the export step the workbook, to the
+  # module's data set, and the data set is looked up by its external id
+  - filesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - "{{ metricsDatasetExternalId }}"
+  - datasetsAcl:
+      actions:
+        - READ
+      scope:
+        idScope:
+          ids:
+            - "{{ metricsDatasetExternalId }}"
+  # read the project's location filters: a location that lists instance spaces is offered as a scope (REFERENCE.md, locations)
+  - locationFiltersAcl:
+      actions:
+        - READ
+      scope:
+        all: {}
+  # append records to the stream. The scope is the space the records are written to. READ lets `finalize` find the
+  # records the shards of a run wrote, to know that every shard finished.
+  - streamRecordsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - "{{ metricsInstanceSpace }}"

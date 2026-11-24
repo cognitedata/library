@@ -1,0 +1,57 @@
+space: "{{ enterprise_space }}"
+externalId: Notification
+name: Notification
+description: "Enterprise notification view. CONTRACT: implements CogniteNotification."
+implements:
+  - space: cdf_idm
+    externalId: CogniteNotification
+    version: v1
+    type: view
+version: "{{ dm_enterprise_version }}"
+properties:
+  failureModeCode:
+    name: Failure mode code
+    description: "SOURCE_SCAFFOLD: Failure mode code from the source. Example: FM01."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: failureModeCode
+
+  detectionMethodCode:
+    name: Detection method code
+    description: "SOURCE_SCAFFOLD: Detection method code from the source. Example: DM01."
+    container:
+      space: "{{ enterprise_space }}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: detectionMethodCode
+
+  asset:
+    name: Asset
+    description: "CONTRACT: Tag this notification refers to."
+    container:
+      space: "cdf_idm"
+      externalId: CogniteNotification
+      type: container
+    containerPropertyIdentifier: asset
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: Tag
+      version: "{{ dm_enterprise_version }}"
+      type: view
+
+  maintenanceOrder:
+    name: Maintenance order
+    description: "CONTRACT: Linked work order."
+    container:
+      space: "cdf_idm"
+      externalId: CogniteNotification
+      type: container
+    containerPropertyIdentifier: maintenanceOrder
+    source:
+      space: "{{ enterprise_space }}"
+      externalId: WorkOrder
+      version: "{{ dm_enterprise_version }}"
+      type: view
+

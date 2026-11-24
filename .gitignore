@@ -5,6 +5,9 @@ packages.zip
 # Cursor agent scratchpad - not part of the library
 .cursor_docs/
 
+# Local cog-vd-best-practices audit output (do not commit)
+AUDIT_REPORT.md
+
 # macOS system files
 .DS_Store
 
@@ -42,6 +45,9 @@ pip-delete-this-directory.txt
 # Logs
 *.log
 
+# Toolkit upload failure artifacts (local deploy noise)
+*.UploadIssues.ndjson
+
 # Temporary files
 *.bak
 *.tmp
@@ -60,6 +66,7 @@ nosetests.xml
 coverage.xml
 *.cover
 *.pytest_cache/
+**/pytest-cache-files*/
 
 # OS generated files
 Thumbs.db
@@ -67,3 +74,6 @@ Desktop.ini
 .cursor/settings.json
 cdf.toml
 config.dev.yaml
+
+# a function zip built to upload in Fusion
+modules/**/fn_*.zip

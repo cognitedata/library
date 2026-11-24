@@ -196,15 +196,6 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:acc:ctx:cdf_p_and_id_annotation",
-    name: "P&ID Annotation",
-    synonyms: ["dp:cdf_p_and_id_annotation", "dp:contextualization:cdf_p_and_id_annotation"],
-    description: `PID tagging transformations from cdf_p_and_id_annotation (library: modules/contextualization/cdf_p_and_id_annotation); customers may rename these transforms. Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
-    signals: {
-      transformationExternalIds: ["asset_tagging_tr", "file_tagging_tr"],
-    },
-  },
-  {
     id: "dp:acc:ctx:p_and_id_parser",
     name: "P&ID Diagram Parser",
     synonyms: ["dp:cdf_p_and_id_parser"],

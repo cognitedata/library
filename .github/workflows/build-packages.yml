@@ -45,8 +45,9 @@ jobs:
       run: |
         uv run pytest tests/ -q
         uv run pytest modules/contextualization/cdf_entity_matching/tests/ --rootdir=. -q
-        uv run pytest modules/contextualization/cdf_p_and_id_annotation/functions/fn_dm_context_files_annotation/ --rootdir=. -q
+        uv run pytest modules/dashboards/context_quality/functions/fn_context_quality_metrics/ --rootdir=. -q
         uv run pytest modules/contextualization/cdf_file_annotation/functions/tests/fn_file_annotation --rootdir=. -q
+        uv run pytest modules/sourcesystem/cdf_pi_industry_data_dump/tests/fn_pi_all_ingest_alarm_event --rootdir=. -q
 
     - name: Validate packages.toml
       run: |

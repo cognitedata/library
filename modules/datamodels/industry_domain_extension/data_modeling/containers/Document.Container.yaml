@@ -1,0 +1,80 @@
+space: "{{ enterprise_space }}"
+externalId: Document
+name: Document
+description: Enterprise document / file. Extends CogniteFile.
+usedFor: node
+properties:
+  documentNumber:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Document number
+    description: "SOURCE_SCAFFOLD: Document number from the register. Example: DOC-001."
+  disciplineCode:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Discipline code
+    description: "SOURCE_SCAFFOLD: Engineering discipline code. Example: ME."
+  revision:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Revision
+    description: "SOURCE_SCAFFOLD: Document revision. Example: A."
+  site:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Site
+    description: "SOURCE_SCAFFOLD: Source-native site code from the document register. Example: PLANT01."
+  area:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: Area
+    description: "SOURCE_SCAFFOLD: Source-native area code from the document register. Example: AREA-A."
+  system:
+    type: { list: false, collation: ucs_basic, type: text, maxTextSize: 2400 }
+    nullable: true
+    autoIncrement: false
+    immutable: false
+    name: System
+    description: "SOURCE_SCAFFOLD: Source-native system code from the document register. Example: SYS-01."
+constraints:
+  requiresCogniteFile:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+indexes:
+  documentNumber:
+    indexType: btree
+    properties:
+      - documentNumber
+    cursorable: true
+
+  site:
+    indexType: btree
+    properties:
+      - site
+    cursorable: false
+
+  area:
+    indexType: btree
+    properties:
+      - area
+    cursorable: false
+
+  system:
+    indexType: btree
+    properties:
+      - system
+    cursorable: false
+

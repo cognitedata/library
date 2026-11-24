@@ -1,0 +1,17 @@
+externalId: tr_sharepoint_all_to_industry_diagram_annotation
+name: Industry diagram annotation from SharePoint
+destination:
+  dataModel:
+    space: cdf_cdm
+    externalId: CogniteCore
+    version: v1
+    destinationType: CogniteDiagramAnnotation
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: false
+isPublic: true
+conflictMode: upsert
+authentication:
+  clientId: '{{ ingestion_client_id }}'
+  clientSecret: '{{ ingestion_client_secret }}'

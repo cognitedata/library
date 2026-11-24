@@ -1,0 +1,16 @@
+{
+  "name": "Contextualization Quality Dashboard",
+  "description": "Shows how well the data in a CDF project is contextualised",
+  "externalId": "context-quality-dashboard",
+  "versionTag": "0.0.1",
+  "infra": "appsApi",
+  "deployments": [
+    {
+      "org": "your-org",
+      "project": "your-project",
+      "baseUrl": "https://your-cluster.cognitedata.com",
+      "deployClientId": "",
+      "deploySecretName": "YOUR_DEPLOY_SECRET_ENV_VAR"
+    }
+  ]
+}
