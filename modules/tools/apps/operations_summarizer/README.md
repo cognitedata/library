@@ -32,7 +32,7 @@ These identifiers are literals in the YAML, in `src/config/configLocation.ts`, a
 
 `schemaVersion` on the node is the content shape (currently `1`). Renaming or removing a key inside a section needs a `schemaVersion` bump and a matching app and function release. Bump `ops_config_version` only when a top-level property is added or changed, and bump the view and data model together.
 
-Prompts, agent instructions, timezone offset, default period, and persona presets live on the config node. The function YAML `space: ops_summaries` is a deploy-time literal. Keep it equal to `ops_summaries_space`.
+Prompts, agent instructions, timezone offset, default period, and persona presets live on the config node. The Space and function YAML both read the `ops_summaries_space` variable, so the summary space is set in one place.
 
 Likely-to-change values are in [default.config.yaml](./default.config.yaml). Set `ops_data_instances_space` to the instance space that holds the source data to summarize. `ops_agent_model` and `ops_agent_name` are shared by the config node and the agent. `limits.instanceQueryLimit` must stay from 1 to 1000.
 
@@ -56,7 +56,8 @@ The config node holds no secrets.
 agents = true
 ```
 
-- Node.js 20.19+ and npm, for the Fusion app.
+- Node.js 22.12+ and npm 11.10+, for the Fusion app.
+- Python 3.13, for the function (runtime py313) and its tests.
 - A CDF project and a principal that can deploy data models, functions, and agents.
 
 ### Add to an existing Toolkit project
@@ -64,10 +65,10 @@ agents = true
 From the project directory:
 
 ```bash
-cdf modules add tool
+cdf modules add
 ```
 
-Select **Operations Summarizer**. Toolkit copies [default.config.yaml](./default.config.yaml) into your `config.<env>.yaml`. Set `ops_data_instances_space` to the source-data space, and set `cdf_project` to the CDF project name. The agent externalId is `{{cdf_project}}_operation_summarizer_helper_agent`, and the app builds that same id from the project name. Then build and deploy:
+Select the **Operations Summarizer** deployment pack (dp:operations_summarizer). Toolkit copies [default.config.yaml](./default.config.yaml) into your `config.<env>.yaml`. Set `ops_data_instances_space` to the source-data space, and set `cdf_project` to the CDF project name. The agent externalId is `{{cdf_project}}_operation_summarizer_helper_agent`, and the app builds that same id from the project name. Then build and deploy:
 
 ```bash
 cdf build
@@ -81,7 +82,7 @@ Deploy this module before the Fusion app. The same app bundle can run in every p
 
 ```bash
 cdf modules init .
-cdf modules add tool
+cdf modules add
 ```
 
 `cdf modules init` overwrites modules in the current directory. Run it in an empty project directory, or commit your project first. Enable the agents alpha flag, set `ops_data_instances_space`, then `cdf build` and `cdf deploy` as above.
@@ -103,18 +104,20 @@ Local function runs load `functions/Operations_Summarizer_Function_v2/.env` when
 python functions/Operations_Summarizer_Function_v2/run_local.py
 ```
 
-From the repository root, the function tests use the repo dev environment (the function is not a uv workspace member yet):
+From the repository root, the function is a uv workspace member. Run its tests with:
 
 ```bash
-uv run pytest modules/tools/apps/operations_summarizer/functions/Operations_Summarizer_Function_v2 -q
+uv run --package operations-summarizer-function pytest modules/tools/apps/operations_summarizer/functions/Operations_Summarizer_Function_v2 -q
 ```
 
 App checks, from this directory:
 
 ```bash
-npm run type-check
 npm run lint
-npm test
+npm run lint:aura
+npm run format:check
+npm run type-check
+npm run test:coverage
 npm run build
 ```
 
