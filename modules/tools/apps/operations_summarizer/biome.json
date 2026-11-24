@@ -51,20 +51,10 @@
 	],
 	"files": {
 		"includes": [
-			"**",
-			"!**/node_modules",
-			"!**/dist",
-			"!**/build",
-			"!**/.next",
-			"!**/coverage",
-			"!**/*.min.js",
-			"!**/package-lock.json",
-			"!**/skills-lock.json",
-			"!**/tsconfig.node.json",
-			"!**/.claude",
-			"!**/.agents",
-			"!**/reviews",
-			"!**/qa"
+			"src/**",
+			"vite.config.ts",
+			"vitest.config.ts",
+			"vitest.setup.ts"
 		]
 	}
 }

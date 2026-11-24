@@ -6,12 +6,7 @@ const originalResolve = Module._resolveFilename;
 
 // typescript-eslint refuses TypeScript 7. Keep the app on TypeScript 7 and
 // give only those packages the TypeScript 6 build they still import.
-Module._resolveFilename = function resolveFilename(
-	request,
-	parent,
-	isMain,
-	options
-) {
+Module._resolveFilename = function resolveFilename(request, parent, isMain, options) {
 	const parentFile = parent?.filename ?? "";
 	const isTypescriptEslint =
 		parentFile.includes(`${path.sep}@typescript-eslint${path.sep}`) ||

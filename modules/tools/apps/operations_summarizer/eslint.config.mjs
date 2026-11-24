@@ -18,5 +18,5 @@ export default tseslint.config(
 		rules: {
 			"aura/no-overriding-styles": "warn",
 		},
-	}
+	},
 );

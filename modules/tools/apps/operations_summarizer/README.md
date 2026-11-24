@@ -20,15 +20,15 @@ Product background is in [PRD.md](./PRD.md), [SPEC.md](./SPEC.md), and [App-Brie
 
 These identifiers are literals in the YAML, in `src/config/configLocation.ts`, and in `app_config.py`. Do not rename them without a matching app and function release.
 
-| Resource           | Identifier                                                  |
-| ------------------ | ----------------------------------------------------------- |
-| Schema space       | `dm_sol_ops_summarizer_app`                                 |
-| Instance space     | `inst_ops_summarizer_app_config`                            |
-| Data model         | `OpsSummarizerConfig_SOL` (version is `ops_config_version`) |
-| View and container | `OpsSummarizerConfig`                                       |
-| Config node        | `inst_ops_summarizer_app_config` / `ops_summarizer_config`  |
-| Summary space      | `ops_summaries`                                             |
-| Function           | `Operations_Summarizer_Function_v2`                         |
+| Resource | Identifier |
+| --- | --- |
+| Schema space | `dm_sol_ops_summarizer_app` |
+| Instance space | `inst_ops_summarizer_app_config` |
+| Data model | `OpsSummarizerConfig_SOL` (version is `ops_config_version`) |
+| View and container | `OpsSummarizerConfig` |
+| Config node | `inst_ops_summarizer_app_config` / `ops_summarizer_config` |
+| Summary space | `ops_summaries` |
+| Function | `Operations_Summarizer_Function_v2` |
 
 `schemaVersion` on the node is the content shape (currently `1`). Renaming or removing a key inside a section needs a `schemaVersion` bump and a matching app and function release. Bump `ops_config_version` only when a top-level property is added or changed, and bump the view and data model together.
 

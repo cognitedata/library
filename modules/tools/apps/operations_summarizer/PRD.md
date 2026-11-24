@@ -27,7 +27,7 @@ Operations teams use it to quickly understand what changed in their data platfor
 ### Non-Goals
 
 - The app does **not** replace existing CDF dashboards or provide real-time monitoring.
-- The app does **not** process sensor/time-series _values_; it summarizes metadata (names, descriptions, and relationships) only.
+- The app does **not** process sensor/time-series *values*; it summarizes metadata (names, descriptions, and relationships) only.
 - The app does **not** support multi-tenant or multi-project selection within a single session.
 - Bulk export or scheduled/automated summary generation is out of scope for the initial version.
 
@@ -35,12 +35,12 @@ Operations teams use it to quickly understand what changed in their data platfor
 
 ## 3. User Personas
 
-| Persona                | Role                          | Primary need                                           |
-| ---------------------- | ----------------------------- | ------------------------------------------------------ |
-| **Operations Analyst** | Day-to-day user               | Generate summaries and review history                  |
-| **Operations Manager** | Oversight                     | Review aggregated test scores and trends               |
-| **Platform Admin**     | CDF admin with `agents:write` | Configure the Atlas AI agent and prompts               |
-| **Developer**          | Engineers extending the app   | Add data types, modify prompts, deploy to new projects |
+| Persona | Role | Primary need |
+|---|---|---|
+| **Operations Analyst** | Day-to-day user | Generate summaries and review history |
+| **Operations Manager** | Oversight | Review aggregated test scores and trends |
+| **Platform Admin** | CDF admin with `agents:write` | Configure the Atlas AI agent and prompts |
+| **Developer** | Engineers extending the app | Add data types, modify prompts, deploy to new projects |
 
 ---
 
@@ -140,13 +140,13 @@ The app has three pages, accessible from a sticky top navigation bar with a them
 
 ### 5.1 CDF Views Queried
 
-| Data type   | CDF view            | Space     | Version |
-| ----------- | ------------------- | --------- | ------- |
-| Assets      | `CogniteAsset`      | `cdf_cdm` | `v1`    |
-| Files       | `CogniteFile`       | `cdf_cdm` | `v1`    |
-| Work Orders | `CogniteActivity`   | `cdf_cdm` | `v1`    |
-| Time Series | `CogniteTimeSeries` | `cdf_cdm` | `v1`    |
-| Equipment   | `CogniteEquipment`  | `cdf_cdm` | `v1`    |
+| Data type | CDF view | Space | Version |
+|---|---|---|---|
+| Assets | `CogniteAsset` | `cdf_cdm` | `v1` |
+| Files | `CogniteFile` | `cdf_cdm` | `v1` |
+| Work Orders | `CogniteActivity` | `cdf_cdm` | `v1` |
+| Time Series | `CogniteTimeSeries` | `cdf_cdm` | `v1` |
+| Equipment | `CogniteEquipment` | `cdf_cdm` | `v1` |
 
 All queries use the CDF Data Modeling (DM) Instances API. Pagination is cursor-based; the app fetches pages of up to `INSTANCE_QUERY_LIMIT` (1 000) instances per request.
 
@@ -174,19 +174,19 @@ All queries use the CDF Data Modeling (DM) Instances API. Pagination is cursor-b
 
 ## 6. Non-Functional Requirements
 
-| Category           | Requirement                                                                                                                                                                                           |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Authentication** | Delegated via `CogniteSdkProvider` / `useCogniteSdk()` from `@cognite/app-sdk` (Fusion host token). No credentials stored client-side.                                                                |
-| **Authorization**  | Summary generation requires CDF Data Modeling read access on `cdf_cdm` and write access on `ops_summaries`. Agent management additionally requires `agents:write`.                                    |
-| **Performance**    | Pages lazy-loaded (code-split). Heavy dependencies (react-pdf, html2canvas) load only when the Summaries page is visited.                                                                             |
-| **Concurrency**    | CDF DM write operations are rate-limited via a `Semaphore` / `QueuedTaskRunner` utility to avoid 429 errors.                                                                                          |
-| **Data safety**    | Maximum of 15 000 instances per data type per summary run (configurable via `MAX_INSTANCES_PER_DATATYPE`). Truncation is surfaced as a user-visible warning.                                          |
+| Category | Requirement |
+|---|---|
+| **Authentication** | Delegated via `CogniteSdkProvider` / `useCogniteSdk()` from `@cognite/app-sdk` (Fusion host token). No credentials stored client-side. |
+| **Authorization** | Summary generation requires CDF Data Modeling read access on `cdf_cdm` and write access on `ops_summaries`. Agent management additionally requires `agents:write`. |
+| **Performance** | Pages lazy-loaded (code-split). Heavy dependencies (react-pdf, html2canvas) load only when the Summaries page is visited. |
+| **Concurrency** | CDF DM write operations are rate-limited via a `Semaphore` / `QueuedTaskRunner` utility to avoid 429 errors. |
+| **Data safety** | Maximum of 15 000 instances per data type per summary run (configurable via `MAX_INSTANCES_PER_DATATYPE`). Truncation is surfaced as a user-visible warning. |
 | **Error handling** | Error boundaries wrap each page. Network failures expose retry dialogs (generation, download, permission check). All async errors are caught and surfaced in the UI; no unhandled promise rejections. |
-| **Accessibility**  | ARIA labels on all interactive controls. Live regions for async loading states. Keyboard-navigable dialogs and tables.                                                                                |
-| **Theming**        | Full dark/light mode support via Tailwind CSS `dark:` variants and Aura design tokens.                                                                                                                |
-| **Testing**        | Vitest test suite. Minimum coverage: every service, ViewModel hook (loading/success/error states), and utility function. Integration tests cover component + hook + service contract boundaries.      |
-| **Type safety**    | Strict TypeScript; no `any`; `unknown` for external API responses with explicit runtime guards.                                                                                                       |
-| **Linting**        | Biome enforces code style; CI blocks on lint failures.                                                                                                                                                |
+| **Accessibility** | ARIA labels on all interactive controls. Live regions for async loading states. Keyboard-navigable dialogs and tables. |
+| **Theming** | Full dark/light mode support via Tailwind CSS `dark:` variants and Aura design tokens. |
+| **Testing** | Vitest test suite. Minimum coverage: every service, ViewModel hook (loading/success/error states), and utility function. Integration tests cover component + hook + service contract boundaries. |
+| **Type safety** | Strict TypeScript; no `any`; `unknown` for external API responses with explicit runtime guards. |
+| **Linting** | Biome enforces code style; CI blocks on lint failures. |
 
 ---
 
@@ -194,19 +194,19 @@ All queries use the CDF Data Modeling (DM) Instances API. Pagination is cursor-b
 
 ### 7.1 Stack
 
-| Layer           | Technology                                                   |
-| --------------- | ------------------------------------------------------------ |
-| Framework       | React 19 (functional components)                             |
-| Language        | TypeScript (strict)                                          |
-| Build           | Vite                                                         |
-| Styling         | Tailwind CSS v4 + Aura UI (Cognite design system)            |
-| Components      | shadcn/ui primitives + custom components                     |
-| State           | React context + `useReducer` (per-page slice model)          |
-| Data fetching   | TanStack React Query                                         |
+| Layer | Technology |
+|---|---|
+| Framework | React 19 (functional components) |
+| Language | TypeScript (strict) |
+| Build | Vite |
+| Styling | Tailwind CSS v4 + Aura UI (Cognite design system) |
+| Components | shadcn/ui primitives + custom components |
+| State | React context + `useReducer` (per-page slice model) |
+| Data fetching | TanStack React Query |
 | CDF integration | `@cognite/sdk` + `@cognite/app-sdk` (`useCogniteSdk()` hook) |
-| Testing         | Vitest + React Testing Library                               |
-| Linting         | Biome                                                        |
-| Icons           | Lucide React                                                 |
+| Testing | Vitest + React Testing Library |
+| Linting | Biome |
+| Icons | Lucide React |
 
 ### 7.2 Key Architectural Patterns
 
@@ -246,40 +246,40 @@ src/
 
 ```json
 {
-	"name": "Operations Summarizer",
-	"description": "Summarizes and analyzes operations data for quick insights and reporting.",
-	"externalId": "operations-summarizer",
-	"versionTag": "0.0.1",
-	"deployments": [
-		{
-			"org": "<your-org>",
-			"project": "<your-project>",
-			"baseUrl": "https://<cluster>.cognitedata.com",
-			"published": true,
-			"deployClientId": "${CLIENT_ID}",
-			"deploySecretName": "OPS_SUMMARIZER_SECRET"
-		}
-	]
+  "name": "Operations Summarizer",
+  "description": "Summarizes and analyzes operations data for quick insights and reporting.",
+  "externalId": "operations-summarizer",
+  "versionTag": "0.0.1",
+  "deployments": [
+    {
+      "org": "<your-org>",
+      "project": "<your-project>",
+      "baseUrl": "https://<cluster>.cognitedata.com",
+      "published": true,
+      "deployClientId": "${CLIENT_ID}",
+      "deploySecretName": "OPS_SUMMARIZER_SECRET"
+    }
+  ]
 }
 ```
 
 ### 8.2 Environment Variables
 
-| Variable                    | Description            | Default |
-| --------------------------- | ---------------------- | ------- |
-| `PORT`                      | Dev server port        | `3001`  |
-| `DEV_PORT`                  | Fusion dev server port | `1987`  |
-| `companyName` (config node) | Optional company name  | `""`    |
+| Variable | Description | Default |
+|---|---|---|
+| `PORT` | Dev server port | `3001` |
+| `DEV_PORT` | Fusion dev server port | `1987` |
+| `companyName` (config node) | Optional company name | `""` |
 
 ### 8.3 CDF Permissions Required
 
-| Capability                          | Scope                      | Purpose                                                          |
-| ----------------------------------- | -------------------------- | ---------------------------------------------------------------- |
-| `dataModelInstances:read`           | `cdf_cdm` space, all views | Fetch assets, files, activities, time series, equipment          |
-| `dataModelInstances:read` / `write` | `ops_summaries` space      | Read and persist summaries, test reports, and podcast files      |
-| `files:read` / `write`              | Files API                  | Upload summary content as files                                  |
-| `agents:read`                       | All                        | Load available agents                                            |
-| `agents:write`                      | All                        | Create the default agent from the config node when it is missing |
+| Capability | Scope | Purpose |
+|---|---|---|
+| `dataModelInstances:read` | `cdf_cdm` space, all views | Fetch assets, files, activities, time series, equipment |
+| `dataModelInstances:read` / `write` | `ops_summaries` space | Read and persist summaries, test reports, and podcast files |
+| `files:read` / `write` | Files API | Upload summary content as files |
+| `agents:read` | All | Load available agents |
+| `agents:write` | All | Create the default agent from the config node when it is missing |
 
 ### 8.4 Pointing at a Different CDF Project
 
@@ -314,19 +314,19 @@ Prompts and agent instructions live on the config node. The app creates the defa
 
 Each test run produces three component scores (0–100):
 
-| Score                   | Measures                                                                |
-| ----------------------- | ----------------------------------------------------------------------- |
-| **Similarity Score**    | Textual/semantic closeness of the new summary to the baseline           |
+| Score | Measures |
+|---|---|
+| **Similarity Score** | Textual/semantic closeness of the new summary to the baseline |
 | **Data Accuracy Score** | Comparison of data counts (per data type) between new and original runs |
-| **LLM Score**           | AI-judged quality and completeness of the new summary                   |
+| **LLM Score** | AI-judged quality and completeness of the new summary |
 
 **Score tiers:**
 
-| Range  | Label           | UI colour |
-| ------ | --------------- | --------- |
-| 90–100 | Excellent       | Green     |
-| 70–89  | Good            | Amber     |
-| 0–69   | Needs attention | Red       |
+| Range | Label | UI colour |
+|---|---|---|
+| 90–100 | Excellent | Green |
+| 70–89 | Good | Amber |
+| 0–69 | Needs attention | Red |
 
 Test results can be exported as YAML for integration with external validation pipelines or CI/CD workflows.
 
@@ -334,15 +334,15 @@ Test results can be exported as YAML for integration with external validation pi
 
 ## 11. Glossary
 
-| Term                   | Definition                                                                                                                       |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| **CDF**                | Cognite Data Fusion — the industrial data platform underpinning this app                                                         |
-| **DM / Data Modeling** | CDF's graph-based data model system (spaces, views, instances)                                                                   |
-| **Flows**              | Cognite's framework for building apps embedded inside Cognite Fusion                                                             |
-| **Atlas AI**           | Cognite's AI agent platform, accessed via the CDF Agents API                                                                     |
-| **Summary**            | A natural-language overview of CDF operational data for a specified period                                                       |
-| **Test Report**        | A stored comparison between a new AI-generated summary and a baseline                                                            |
-| **Baseline**           | A previously saved summary used as the reference for a test run                                                                  |
-| **Chunk**              | A subset of instances (≤ CHUNK_SIZE) processed in one AI call                                                                    |
-| **ops_summaries**      | The CDF DM space where summaries, test reports, and podcast files are persisted. Podcast external IDs start with `ops_podcast_`. |
-| **ViewModel**          | A custom hook that encapsulates all business logic for a page component                                                          |
+| Term | Definition |
+|---|---|
+| **CDF** | Cognite Data Fusion — the industrial data platform underpinning this app |
+| **DM / Data Modeling** | CDF's graph-based data model system (spaces, views, instances) |
+| **Flows** | Cognite's framework for building apps embedded inside Cognite Fusion |
+| **Atlas AI** | Cognite's AI agent platform, accessed via the CDF Agents API |
+| **Summary** | A natural-language overview of CDF operational data for a specified period |
+| **Test Report** | A stored comparison between a new AI-generated summary and a baseline |
+| **Baseline** | A previously saved summary used as the reference for a test run |
+| **Chunk** | A subset of instances (≤ CHUNK_SIZE) processed in one AI call |
+| **ops_summaries** | The CDF DM space where summaries, test reports, and podcast files are persisted. Podcast external IDs start with `ops_podcast_`. |
+| **ViewModel** | A custom hook that encapsulates all business logic for a page component |

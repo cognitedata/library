@@ -1,5 +1,4 @@
 ---
-
 appName: "Operations Summarizer"
 externalId: "operations-summarizer"
 infra: "appsApi"
@@ -18,12 +17,10 @@ oneSentenceStory: "As an operations analyst, I want a plain-language summary of 
 successCriteria: "An operations analyst generates an AI summary of CDF operational data for a chosen date range in a few clicks, and can re-run it against a saved baseline to score consistency."
 userEvidence: "Not documented in this repository."
 reviewedSections:
-
-- appDetails
-- who
-- problem
-- tasksAndSuccess
-
+  - appDetails
+  - who
+  - problem
+  - tasksAndSuccess
 ---
 
 # App Brief — Operations Summarizer
