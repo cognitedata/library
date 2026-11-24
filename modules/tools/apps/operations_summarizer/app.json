@@ -6,11 +6,11 @@
 	"infra": "appsApi",
 	"deployments": [
 		{
-			"org": "cog-demos",
-			"project": "atlas-demo",
-			"baseUrl": "https://az-eastus-1.cognitedata.com",
-			"deployClientId": "{CLIENT_ID}",
-			"deploySecretName": "{SECRET_NAME}"
+			"org": "ORG",
+			"project": "PROJECT",
+			"baseUrl": "BASE_URL",
+			"deployClientId": "CLIENT_ID",
+			"deploySecretName": "SECRET_NAME"
 		}
 	]
 }
