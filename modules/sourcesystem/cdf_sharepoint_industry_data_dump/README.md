@@ -27,7 +27,9 @@ refer to, writes the diagram annotations as `CogniteDiagramAnnotation` edges and
     The edge, the start node (document) and the end node (Tag) all use `inst_location`.
   - `tr_sharepoint_all_to_industry_equipment_document_connection` — **overlay** on existing `Equipment` nodes
     (`cdf_nodes` join so stubs are never created): writes `Equipment.files` for documents annotated with the
-    equipment's tag, with `ignoreNullFields: true`. Requires the SAP dump workflow first.
+    equipment's tag **or a descendant tag** (walks SAP `tag.parentTag` up to depth 4), with
+    `ignoreNullFields: true`. Requires the SAP dump workflow first. With the shipped sample, annotations
+    under `23-KA-9101` populate `EQ-KA-9101.files`; other equipment stay empty until their tags are annotated.
 
 Document nodes use the external id `file_<file name>`, matching the file content manifest and the annotation edges.
 Transformations are full loads with `upsert`; this is a sample-data choice. For real sources use incremental loads
