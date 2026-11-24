@@ -22,7 +22,8 @@
 		}
 	},
 	"formatter": {
-		"enabled": false
+		"enabled": true,
+		"lineEnding": "auto"
 	},
 	"javascript": {
 		"formatter": {
@@ -61,7 +62,9 @@
 			"!**/skills-lock.json",
 			"!**/tsconfig.node.json",
 			"!**/.claude",
-			"!**/.agents"
+			"!**/.agents",
+			"!**/reviews",
+			"!**/qa"
 		]
 	}
 }

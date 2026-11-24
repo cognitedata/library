@@ -170,11 +170,12 @@ describe("SummaryTable", () => {
     fireEvent.click(
       screen.getAllByRole("button", { name: /delete summary/i })[0],
     );
-    await waitFor(() =>
-      expect(
-        screen.getByText(/are you sure you want to delete this summary/i),
-      ).toBeInTheDocument(),
-    );
+    // The dialog renders the question visibly and again in a screen-reader description.
+    expect(
+      (
+        await screen.findAllByText(/are you sure you want to delete this summary/i)
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("calls onDelete with the correct summary when deletion is confirmed", async () => {

@@ -138,11 +138,12 @@ describe("SummaryCard", () => {
   it("opens the confirmation dialog when the Delete button is clicked", async () => {
     render(<SummaryCard summary={makeSummary()} onDelete={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /delete summary/i }));
-    await waitFor(() =>
-      expect(
-        screen.getByText(/are you sure you want to delete this summary/i),
-      ).toBeInTheDocument(),
-    );
+    // The dialog renders the question visibly and again in a screen-reader description.
+    expect(
+      (
+        await screen.findAllByText(/are you sure you want to delete this summary/i)
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("calls onDelete with the summary instance when deletion is confirmed", async () => {

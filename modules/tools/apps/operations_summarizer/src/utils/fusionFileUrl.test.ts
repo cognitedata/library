@@ -6,6 +6,10 @@ import {
   resolveFusionOrigin,
 } from "./fusionFileUrl";
 
+vi.mock("../../app.json", () => ({
+  default: { deployments: [{ org: "example" }] },
+}));
+
 describe("buildFusionFileSearchUrl", () => {
   it("builds a classic Fusion file link from project, cluster, and numeric id", () => {
     const url = buildFusionFileSearchUrl({
