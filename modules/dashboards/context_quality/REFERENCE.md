@@ -66,7 +66,7 @@ The two container external ids are fixed by the run log and are **not** variable
 | `metricsWorkflowExternalId`, `metricsWorkflowVersion` | `wf_context_quality_metrics`, `v1` | the workflow |
 | `metricsTriggerExternalId` | `wf_context_quality_metrics_schedule` | the schedule trigger |
 | `metricsWorkflowSchedule`, `metricsWorkflowScheduleTimezone` | `0 4 * * *`, `UTC` | when the trigger starts a run |
-| `metricsFunctionGroupName`, `metricsDashboardGroupName` | `gp_context_quality_function`, `gp_context_quality_dashboard_users` | the access groups |
+| `metricsFunctionGroupName`, `metricsDashboardGroupName` | `producer_context_quality_function_dev`, `consumer_context_quality_dashboard_dev` | the access groups |
 | `metricsSourceSpaces` | `cdf_cdm`, `cdf_idm` | the spaces the function may read; add the facility instance spaces |
 | `metricsFunctionGroupSourceId`, `metricsDashboardGroupSourceId`, `metricsFunctionClientId`, `metricsFunctionClientSecret` | `${CQ_FUNCTION_GROUP_SOURCE_ID}`, `${CQ_DASHBOARD_GROUP_SOURCE_ID}`, `${CQ_FUNCTION_CLIENT_ID}`, `${CQ_FUNCTION_CLIENT_SECRET}` | environment values; **required**, see "Deployment inputs" |
 | `metricsFacilityNames`, `metricsTierByTypeCode`, `metricsDefaultOwners`, `metricsOwnerPrefixRules`, `metricsExclusions` | empty | the project's rules, as JSON text (Toolkit reads a mapping-valued variable as a namespace, so a mapping or list is written as a string such as `'{"pump": 1}'`) |
@@ -443,8 +443,8 @@ locations and warns `locations-unavailable`.
 
 | Group | Capabilities | Why |
 |---|---|---|
-| `gp_context_quality_function` (the identity the workflow runs as) | `projectsAcl` read and list, `groupsAcl` list, `sessionsAcl` create, `functionsAcl` read and write (library convention for a workflow identity); `dataModelsAcl` read on `cdf_cdm`, `cdf_idm` and the schema space; `dataModelInstancesAcl` **read** on `metricsSourceSpaces`; `timeSeriesAcl` read; `locationFiltersAcl` read; `streamRecordsAcl` **write** on the instance space | read the entities, datapoints and location filters, append records |
-| `gp_context_quality_dashboard_users` | `projectsAcl` read and list, `groupsAcl` list, `streamRecordsAcl` **read** on the instance space, `dataModelsAcl` read on the schema space, `streamsAcl` read, `locationFiltersAcl` read, `appHostingAcl` read and run on the `context-quality-dashboard` app | read the run log, open the dashboard app, and let the runs they start read the location filters; the stream settings read is optional (the dashboard works without it) |
+| `producer_context_quality_function_dev` (the identity the workflow runs as) | `projectsAcl` read and list, `groupsAcl` list, `sessionsAcl` create, `functionsAcl` read and write (library convention for a workflow identity); `dataModelsAcl` read on `cdf_cdm`, `cdf_idm` and the schema space; `dataModelInstancesAcl` **read** on `metricsSourceSpaces`; `timeSeriesAcl` read; `locationFiltersAcl` read; `streamRecordsAcl` **write** on the instance space | read the entities, datapoints and location filters, append records |
+| `consumer_context_quality_dashboard_dev` | `projectsAcl` read and list, `groupsAcl` list, `streamRecordsAcl` **read** on the instance space, `dataModelsAcl` read on the schema space, `streamsAcl` read, `locationFiltersAcl` read, `appHostingAcl` read and run on the `context-quality-dashboard` app | read the run log, open the dashboard app, and let the runs they start read the location filters; the stream settings read is optional (the dashboard works without it) |
 
 Neither group can write instances or deploy anything, and the dashboard group cannot write at all. The scopes come from
 the module variables, never from `all` except where the capability has no narrower scope (`timeSeriesAcl`, `streamsAcl`).

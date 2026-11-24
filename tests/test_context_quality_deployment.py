@@ -333,8 +333,8 @@ PRODUCTION_IDS = (
     "wf_context_quality_metrics_schedule",
     "fn_context_quality_metrics",
     "ds_context_quality",
-    "gp_context_quality_function",
-    "gp_context_quality_dashboard_users",
+    "producer_context_quality_function_dev",
+    "consumer_context_quality_dashboard_dev",
     "context_quality_metrics",
 )
 
@@ -365,8 +365,10 @@ def test_the_defaults_do_not_collide_with_each_other_or_with_the_legacy_demo() -
 
 
 def test_the_group_names_are_the_proposed_ones() -> None:
-    assert rendered("context_quality_function.Group.yaml", AUTH)["name"] == "gp_context_quality_function"
-    assert rendered("context_quality_dashboard_users.Group.yaml", AUTH)["name"] == "gp_context_quality_dashboard_users"
+    assert rendered("context_quality_function.Group.yaml", AUTH)["name"] == "producer_context_quality_function_dev"
+    assert (
+        rendered("context_quality_dashboard_users.Group.yaml", AUTH)["name"] == "consumer_context_quality_dashboard_dev"
+    )
 
 
 # ---------------------------------------------------------------- access

@@ -59,8 +59,8 @@ metricsExportRetentionDays: 30
 # ---------------------------------------------------------------------------------------------------------------------
 # Access. REQUIRED before deployment: the identity-provider values below come from your environment (.env) and are
 # deliberately not defaulted to anything. Nothing secret is stored in this repository.
-metricsFunctionGroupName: gp_context_quality_function
-metricsDashboardGroupName: gp_context_quality_dashboard_users
+metricsFunctionGroupName: producer_context_quality_function_dev
+metricsDashboardGroupName: consumer_context_quality_dashboard_dev
 # The identity provider's id of the group whose members get each Toolkit group's capabilities.
 metricsFunctionGroupSourceId: ${CQ_FUNCTION_GROUP_SOURCE_ID}
 metricsDashboardGroupSourceId: ${CQ_DASHBOARD_GROUP_SOURCE_ID}
