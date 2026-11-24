@@ -3,6 +3,7 @@ node_modules
 
 # Build output
 dist
+qa
 
 # TypeScript incremental build info
 *.tsbuildinfo
@@ -28,9 +29,26 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Agent / assistant tooling (local only)
+.agents/
+.claude/
+.cursor/
+.gemini/
+.github/
+reviews/
+docs/
+skills-lock.json
+components.json
+knip.json
+
 # Editor directories
 .vscode
 .idea
+
+# Caches and local archives
+.cache/
+.vite/
+*.zip
 
 # OS files
 .DS_Store
