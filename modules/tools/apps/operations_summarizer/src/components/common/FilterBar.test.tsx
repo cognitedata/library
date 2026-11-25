@@ -16,7 +16,10 @@ describe("FilterBar", () => {
 				}}
 			/>
 		);
-		expect(screen.getByText("Period:")).toBeInTheDocument();
+		expect(screen.getByText("Summary period:")).toBeInTheDocument();
+		expect(screen.getByLabelText(/period start date/i)).toHaveClass(
+			"focus-within:ring-1"
+		);
 		fireEvent.change(screen.getByLabelText(/period start date/i), {
 			target: { value: "2024-02-01" },
 		});

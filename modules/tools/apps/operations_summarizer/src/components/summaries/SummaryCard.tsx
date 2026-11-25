@@ -18,11 +18,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { DELETE_ICON_BUTTON_CLASSNAME } from "@/lib/utils";
 import type { SummaryInstance } from "@/types/operations";
-import { formatDateTimeShort } from "@/utils/formatting";
 import {
-	extractSummaryContent,
-	getSummaryDisplayDate,
-} from "@/utils/summaryDownload";
+	formatDateRangeDisplay,
+	formatDateTimeShort,
+} from "@/utils/formatting";
+import { extractSummaryContent } from "@/utils/summaryDownload";
+import { getSummaryPeriod } from "@/utils/summaryPeriod";
 
 export interface SummaryCardProps {
 	/** Summary to display */
@@ -48,7 +49,8 @@ export function SummaryCard({
 		useState<SummaryInstance | null>(null);
 
 	const { name } = extractSummaryContent(summary);
-	const displayDate = getSummaryDisplayDate(summary);
+	const { start, end } = getSummaryPeriod(summary);
+	const displayDate = formatDateRangeDisplay(start, end);
 	const createdDate = formatDateTimeShort(new Date(summary.createdTime));
 
 	const handleDeleteClick = () => {

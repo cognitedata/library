@@ -41,6 +41,10 @@ export interface FilterBarProps {
 	className?: string;
 }
 
+/** `focus-within` keeps the ring visible while any inner segment (day, month, year, picker) has focus. */
+const DATE_INPUT_CLASS =
+	"h-10 min-w-0 flex-1 sm:flex-initial max-w-full px-3 text-sm border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring focus-within:ring-1 focus-within:ring-ring";
+
 export function FilterBar({
 	dateRange,
 	dataTypes,
@@ -70,7 +74,7 @@ export function FilterBar({
 				id={`${dateRangeGroupId}-label`}
 				className="text-sm text-muted-foreground font-medium shrink-0"
 			>
-				Period:
+				Summary period:
 			</span>
 			<input
 				id={`${dateRangeGroupId}-start`}
@@ -78,7 +82,7 @@ export function FilterBar({
 				value={dateRange.startDate}
 				onChange={(e) => dateRange.onStartDateChange(e.target.value)}
 				aria-label="Period start date"
-				className="h-10 min-w-0 flex-1 sm:flex-initial max-w-full px-3 text-sm border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+				className={DATE_INPUT_CLASS}
 			/>
 			<span className="text-muted-foreground text-sm shrink-0" aria-hidden>
 				→
@@ -89,7 +93,7 @@ export function FilterBar({
 				value={dateRange.endDate}
 				onChange={(e) => dateRange.onEndDateChange(e.target.value)}
 				aria-label="Period end date"
-				className="h-10 min-w-0 flex-1 sm:flex-initial max-w-full px-3 text-sm border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+				className={DATE_INPUT_CLASS}
 			/>
 		</fieldset>
 	) : null;

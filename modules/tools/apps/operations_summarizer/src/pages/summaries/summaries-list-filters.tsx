@@ -49,7 +49,7 @@ export function SummariesListFilters({
 							id={`${listFilterDateRangeId}-label`}
 							className="text-xs text-muted-foreground"
 						>
-							Date Range:
+							Summary period:
 						</span>
 					</div>
 					<div className="flex flex-wrap items-center gap-2 min-w-0 w-full md:w-auto">
@@ -59,7 +59,7 @@ export function SummariesListFilters({
 							value={startDate}
 							onChange={(e) => onStartDate(e.target.value)}
 							aria-label="Filter summaries from date"
-							className="h-10 min-w-0 flex-1 sm:flex-initial px-3 text-sm border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring max-w-full"
+							className="h-10 min-w-0 flex-1 sm:flex-initial px-3 text-sm border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring focus-within:ring-1 focus-within:ring-ring max-w-full"
 						/>
 						<span
 							className="text-muted-foreground text-sm shrink-0"
@@ -73,7 +73,7 @@ export function SummariesListFilters({
 							value={endDate}
 							onChange={(e) => onEndDate(e.target.value)}
 							aria-label="Filter summaries to date"
-							className="h-10 min-w-0 flex-1 sm:flex-initial px-3 text-sm border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring max-w-full"
+							className="h-10 min-w-0 flex-1 sm:flex-initial px-3 text-sm border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring focus-within:ring-1 focus-within:ring-ring max-w-full"
 						/>
 					</div>
 				</fieldset>

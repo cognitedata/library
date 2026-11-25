@@ -44,6 +44,7 @@ import {
 	type SummaryListVariant,
 	type SummaryServerListFilters,
 } from "@/utils/summaryListQuery";
+import { getSummaryPeriod, periodOverlaps } from "@/utils/summaryPeriod";
 import {
 	applyTestReportStatsDelta,
 	readOrBackfillTestReportStats,
@@ -185,11 +186,15 @@ export function useSummaryListPage(
 			// Content type is free-form metadata (`metadata.contentTypes`) and an OPS: bitmap
 			// in CogniteFile description. The view has no filterable content-type property,
 			// and legacy rows match only via description heuristics, so this stays a bounded client scan.
+			// The date filter matches the summary period (parsed from the external id), also client-side.
 			const contentTypeFilterActive =
 				serverFilters.contentTypeFilterEnabled &&
 				serverFilters.selectedContentTypes.length > 0;
+			const dateRange = serverFilters.dateFilterEnabled
+				? serverFilters.dateRange
+				: null;
 
-			if (!contentTypeFilterActive) {
+			if (!contentTypeFilterActive && !dateRange) {
 				let { items, nextCursor, usedListApi, rawCount } =
 					await fetchServerPage(cursorForPage);
 				// instances.list returns a cursor even on the final page. Discard it when
@@ -210,10 +215,12 @@ export function useSummaryListPage(
 				overflow,
 				fetchPage: fetchServerPage,
 				matches: (summary) =>
-					summaryInstanceMatchesContentTypes(
-						summary,
-						serverFilters.selectedContentTypes
-					),
+					(!contentTypeFilterActive ||
+						summaryInstanceMatchesContentTypes(
+							summary,
+							serverFilters.selectedContentTypes
+						)) &&
+					(!dateRange || periodOverlaps(getSummaryPeriod(summary), dateRange)),
 			});
 
 			filteredOverflowRef.current = collected.overflow;

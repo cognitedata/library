@@ -203,6 +203,44 @@ describe("useSummariesCdf hooks", () => {
 		expect(query).toHaveBeenCalledTimes(2);
 	});
 
+	it("useSummaryListPage filters by summary period client-side, end day inclusive (C09)", async () => {
+		const query = vi
+			.fn()
+			.mockResolvedValue(
+				queryPageResponse([
+					fileNode("ops_summary_2026-11-01_2026-11-24_2026-11-25_10_00_00_1"),
+					fileNode("ops_summary_2026-10-01_2026-10-10_2026-11-25_10_00_00_2"),
+				])
+			);
+		const { Wrapper } = setupWrapper({
+			project: "p",
+			instances: { list: vi.fn(), query, delete: vi.fn(), upsert: vi.fn() },
+			post: vi.fn(),
+		});
+
+		const { result } = renderHook(
+			() =>
+				useSummaryListPage({
+					variant: "operation",
+					serverFilters: {
+						dateFilterEnabled: true,
+						dateRange: {
+							start: new Date(2026, 10, 24, 0, 0, 0, 0),
+							end: new Date(2026, 10, 30, 23, 59, 59, 999),
+						},
+						contentTypeFilterEnabled: false,
+						selectedContentTypes: [],
+					},
+				}),
+			{ wrapper: Wrapper }
+		);
+
+		await waitFor(() => expect(result.current.items).toHaveLength(1));
+		expect(result.current.items[0]?.externalId).toContain(
+			"2026-11-01_2026-11-24"
+		);
+	});
+
 	it("useLatestSummaryInstance returns first node", async () => {
 		const query = vi
 			.fn()

@@ -14,12 +14,13 @@ import {
 } from "@/components/common/ResponsiveTable";
 import { SummaryCard } from "@/components/summaries/SummaryCard";
 import type { SummaryInstance } from "@/types/operations";
-import { formatDateTimeShort } from "@/utils/formatting";
 import {
-	extractSummaryContent,
-	getSummaryDisplayDate,
-} from "@/utils/summaryDownload";
+	formatDateRangeDisplay,
+	formatDateTimeShort,
+} from "@/utils/formatting";
+import { extractSummaryContent } from "@/utils/summaryDownload";
 import { summaryInstanceNodeKey } from "@/utils/summaryInstanceMapping";
+import { getSummaryPeriod } from "@/utils/summaryPeriod";
 import { SummaryTableRowActions } from "./summary-table-row";
 
 export interface SummaryTableProps {
@@ -74,7 +75,8 @@ export function SummaryTable({
 
 	const getRowData = (summary: SummaryInstance) => {
 		const { name } = extractSummaryContent(summary);
-		const displayDate = getSummaryDisplayDate(summary);
+		const { start, end } = getSummaryPeriod(summary);
+		const displayDate = formatDateRangeDisplay(start, end);
 		return { name, displayDate };
 	};
 
