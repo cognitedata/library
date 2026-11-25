@@ -1,227 +1,179 @@
-# CDM Maintain
+# CDM Maintain (Maintain on Cognite Data Model)
 
 Library path: `modules/solutions/cdm_maintain/` · Deployment pack: `dp:cdm_maintain`
 
-This deployment pack provides a complete, ready-to-deploy configuration for Cognite Maintain. It includes everything needed to get maintenance operations, workflows, and asset contextualization set up.
+## Overview
 
-## Why Use This Package?
+This deployment pack sets up everything Cognite Maintain needs in a CDF project, in a single Toolkit run: the
+Maintain data models and their spaces, the `APM_Config` configuration node, and a location. Optional sample data lets
+you check the setup before you connect a real source system.
 
-**Pre-built Data Models & Configuration**
+Without the pack, you have to design and connect several data model spaces, containers, views, and a long APM config
+node by hand. A single wrong space reference or missing config field can make Maintain show no data without an error.
+The pack gives you a tested, pre-wired starting point that follows the CDM-aligned Maintain model.
 
-It includes pre-configured data models, views, containers, and foundational setup templates for Maintain.
+**Who it is for:** delivery engineers, data modelers, and CDF admins setting up Maintain on a new project, or moving
+from a custom APM data model to the CDM-aligned Maintain model.
 
-**Key Benefits:**
+**Do not use it** if you already run a custom Maintain data model in production and cannot migrate spaces. The pack
+deploys its own space structure.
 
-- ⚡ **Pre-configured Data Models**: All necessary containers, views, and spaces ready to deploy
-- 🎯 **Optimized configuration**: Optimized configuration for common maintenance scenarios
-- 🔄 **Production-Ready Foundation**: Includes config, locations, data models, and sample data
-- 📊 **Maintenance-Centric Design**: Purpose-built for work orders, assets, and maintenance workflows
-- ⏱️ **Pre-built Foundation**: Eliminates manual data model design and foundational configuration
+## Module Components
 
-**Key Advantages:**
+| Module | What it deploys | Selected by default |
+|---|---|---|
+| [`cdf_maintain_config_base`](cdf_maintain_config_base/README.md) | The `APM_Config` space, container, view, and data model that Maintain reads its configuration from | Yes |
+| [`cdf_maintain_solution_model`](cdf_maintain_solution_model/README.md) | The `Maintain` data model: `Plan`, `MaintainLayout`, `MaintainCanvas`, `MaintainWorkOrder`, `ManualMappings3D`, `FileGridZoneAnnotation`, `APM_Comment`, `APM_Optimisation`, plus global nodes | Yes |
+| [`cdf_maintain_source_data_model`](cdf_maintain_source_data_model/README.md) | The `MaintainSource` data model: the `SourceMaintenanceOrder` container and view, plus the CDM/IDM views Maintain reads | Yes |
+| [`cdf_maintain_location`](cdf_maintain_location/README.md) | A `LocationFilter` and the `default-maintain-config` APM config node that connects the location to the source and solution spaces | Yes |
+| [`cdf_sample_data`](cdf_sample_data/README.md) | A root asset, one equipment asset, two maintenance activities, grid zone annotations, and a demo PDF | No |
 
-- **Standardized Structure**: Data model templates for common maintenance scenarios
-- **Reduced Configuration**: Skip repetitive setup tasks with pre-built templates
-- **Clear Architecture**: Modules organized by function (config, location, solution, source, sample data)
+## Deployment
 
-## 🎯 Overview
+### Prerequisites
 
-The CDM Maintain package enables you to:
-- **Deploy Maintain infrastructure** with pre-built data models and configurations
-- **Organize maintenance data** with structured containers and views
-- **Track work orders** with asset and location hierarchies
-- **Configure asset locations** with custom hierarchies
-- **Load sample data** to validate your setup quickly
-- **Integrate source systems** with standardized data ingestion patterns
+- Cognite Toolkit 0.7.0 or later, which reads this library by default. On older versions, see the
+  [Toolkit documentation](https://docs.cognite.com/cdf/deploy/cdf_toolkit/) to enable external libraries.
+- A Toolkit project with a `cdf.toml`, authenticated to your CDF project (`cdf auth init`, then `cdf auth verify`).
+- Access to create spaces, containers, views, data models, nodes, and location filters. For the sample data, also
+  access to create files.
+- For the sample PDF only: the `data` plugin enabled in `cdf.toml`.
 
-## 🏗️ Package Architecture
+  ```toml
+  [plugins]
+  data = true
+  ```
 
-```
-cdm_maintain/
-├── 📁 cdf_maintain_config_base/          # Base Maintain configuration
-│   ├── 📄 module.toml                    # Module metadata
-│   ├── 📄 default.config.yaml            # Configuration
-│   └── 📁 data_modeling/
-│       ├── 📁 containers/                # Data model containers (APM Config)
-│       ├── 📁 views/                     # Data model views
-│       ├── 📄 *.Space.yaml               # Data model spaces
-│       └── 📄 *.DataModel.yaml           # Data models
-│
-├── 📁 cdf_maintain_location/             # Location hierarchy setup
-│   ├── 📄 module.toml
-│   ├── 📄 default.config.yaml
-│   ├── 📁 locations/                     # Location filters
-│   └── 📁 data_modeling/
-│       └── 📁 nodes/                     # Location nodes
-│
-├── 📁 cdf_maintain_solution_model/       # Maintain solution data model
-│   ├── 📄 module.toml
-│   ├── 📄 default.config.yaml
-│   └── 📁 data_modeling/
-│       ├── 📁 containers/                # Solution model containers
-│       ├── 📁 views/                     # Solution views
-│       ├── 📁 nodes/                     # Global node definitions
-│       ├── 📄 *.Space.yaml               # Solution spaces
-│       └── 📄 *.DataModel.yaml           # Solution data models
-│
-├── 📁 cdf_maintain_source_data_model/    # Source system data model
-│   ├── 📄 module.toml
-│   ├── 📄 default.config.yaml
-│   └── 📁 data_modeling/
-│       ├── 📁 containers/                # Source containers
-│       ├── 📁 views/                     # Source views
-│       ├── 📄 *.Space.yaml               # Source spaces
-│       └── 📄 *.DataModel.yaml           # Source data models
-│
-└── 📁 cdf_sample_data/                   # Sample data for validation
-    ├── 📄 module.toml
-    ├── 📄 default.config.yaml
-    ├── 📁 data_modeling/
-    │   └── 📁 nodes/                     # Sample maintenance records and grid zone annotations
-    └── 📁 upload_data/                   # Files uploaded via `cdf data upload` command
-        ├── 📄 *.Manifest.yaml            # Upload manifests
-        └── 📁 files/                     # Sample attachments
+### Add to an existing Toolkit project
+
+```bash
+cdf modules add dp:cdm_maintain
 ```
 
-## 🚀 Core Components
+The modules are placed under `modules/solutions/cdm_maintain/`, and their variables are added to your
+`config.<env>.yaml`.
 
-### 1. Config Base Module
-Provides foundational APM configuration including:
-- **APM Config Container**: Stores system configuration settings
-- **Config Space**: Dedicated data model space for all config
-- **Config Views**: Structured access to configuration data
+### Start from scratch
 
-### 2. Location Module
-Establishes location hierarchy for asset organization:
-- **Location Filters**: Define location boundaries
-- **Location Nodes**: Hierarchical asset organization
+```bash
+cdf modules init .
+```
 
-### 3. Solution Model
-Complete Maintain data model including:
-- **Work Orders**: Maintenance order tracking
-- **Comments**: Task comments and notes
-- **Optimizations**: Performance improvements and tracking
-- **3D Mappings**: Manual 3D asset annotations
-- **Canvas & Layout**: UI configuration persistence
-- **Planning**: Maintenance schedule planning
+> **Warning:** `cdf modules init` overwrites existing modules in the current directory. Run it in a new directory, or
+> commit your changes first.
 
-### 4. Source Data Model
-Template for integrating source system data:
-- **Maintenance Orders**: Source system work order mapping
+Select **CDM Maintain** from the list, or run `cdf modules add dp:cdm_maintain` afterwards.
 
-### 5. Sample Data
-Ready-to-load sample records to validate your setup:
-- **Sample activities and assets**
-- **Grid zone annotations** (`gridZoneAnnotations.Node.yaml`) — maps zones on the sample P&ID to activities via `rootLocation` and `gridReference`
-- **Test documents and attachments** (uploaded via `cdf data upload` command, manifests in `upload_data/`)
+### Configure
 
-## 🔧 Configuration
-
-### Module Configuration (`default.config.yaml`)
-
-Each module's `default.config.yaml` declares the variables used by that module. The toolkit uses these to auto-populate your `config.<env>.yaml` when you download the modules from the library.
-
-| Module | Variable | Default | Description |
-|---|---|---|---|
-| `cdf_maintain_solution_model` | `schemaSpace` | `maintain_solution_model` | Space for the solution data model |
-| `cdf_maintain_solution_model` | `sourceDataSpace` | `maintain_source_data` | Source data space (cross-module ref) |
-| `cdf_maintain_source_data_model` | `schemaSpace` | `maintain_source_data` | Space for the source data model |
-| `cdf_maintain_location` | `location` | *(required)* | LocationFilter externalId |
-| `cdf_maintain_location` | `location_name` | *(required)* | Display name shown in the app |
-| `cdf_maintain_location` | `appDataSpace` | `maintain_solution_model` | Solution model space (cross-module ref) |
-| `cdf_maintain_location` | `sourceDataSpace` | `maintain_source_data` | Source data space (cross-module ref) |
-| `cdf_sample_data` | `instanceSpace` | `maintain_source_data` | Space where sample instances are written |
-| `cdf_sample_data` | `appDataSpace` | `maintain_solution_model` | Space for grid zone annotation nodes (must match `cdf_maintain_location`) |
-| `cdf_sample_data` | `location` | *(required)* | Root asset externalId prefix (must match `cdf_maintain_location`) |
-| `cdf_sample_data` | `location_name` | *(required)* | Human-readable location name used in gridzone and activity data (must match `cdf_maintain_location`) |
-
-## 🏃‍♂️ Getting Started
-
-### 1. Prerequisites
-
-- CDF project with Data Modeling enabled
-- Appropriate permissions for:
-  - Data model deployment
-  - Instance creation
-  - File uploads (for sample data)
-
-### 2. Configure the Package
-
-Update your environment config with module variables:
+Set the variables in `config.<env>.yaml`. `location` and `location_name` are required. The space names have defaults,
+but the cross-module values must match each other, as noted in the comments.
 
 ```yaml
 variables:
   modules:
     cdf_maintain_solution_model:
       schemaSpace: maintain_solution_model
-      sourceDataSpace: maintain_source_data
+      sourceDataSpace: maintain_source_data   # = cdf_maintain_source_data_model.schemaSpace
     cdf_maintain_source_data_model:
       schemaSpace: maintain_source_data
     cdf_maintain_location:
-      location: <your_location_id>
-      location_name: <Your Location Name>
-      appDataSpace: maintain_solution_model
-      sourceDataSpace: maintain_source_data
-    cdf_sample_data:
-      instanceSpace: maintain_source_data
-      appDataSpace: maintain_solution_model
-      location: <your_location_id>
-      location_name: <Your Location Name>
+      location: <your_location_id>            # required, lowercase, no spaces, e.g. oslo_refinery
+      location_name: <Your Location Name>     # required, shown in Maintain
+      appDataSpace: maintain_solution_model   # = cdf_maintain_solution_model.schemaSpace
+      sourceDataSpace: maintain_source_data   # = cdf_maintain_source_data_model.schemaSpace
+    cdf_sample_data:                          # only if you deploy the sample data
+      instanceSpace: maintain_source_data     # = cdf_maintain_location.sourceDataSpace
+      appDataSpace: maintain_solution_model   # = cdf_maintain_location.appDataSpace
+      location: <your_location_id>            # = cdf_maintain_location.location
+      location_name: <Your Location Name>     # = cdf_maintain_location.location_name
 ```
 
-### 3. Add and deploy the package
+`location` is the `LocationFilter` externalId and the prefix of the root asset, `<location>_root`.
+
+### Build and deploy
 
 ```bash
-cdf modules add dp:cdm_maintain
-cdf build
-cdf deploy --env your-environment
+cdf build --env=dev
 ```
 
-See the [Cognite Toolkit usage guide](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/usage) for more detail.
-
-## 🔧 Customization
-
-### Extend the Data Model
-
-Add new work order properties by editing `cdf_maintain_solution_model`:
-
-```yaml
-# In cdf_maintain_solution_model/data_modeling/views/MaintainWorkOrder.View.yaml
-properties:
-  - name: customField
-    type: TEXT
-    description: Your custom property
+```bash
+cdf deploy --dry-run --env=dev
 ```
 
-### Add Sample Data
-
-Extend `cdf_sample_data` with your own records:
-
-```yaml
-# In cdf_sample_data/data_modeling/nodes/your_records.Node.yaml
-externalId: custom_asset_01
-data:
-  name: Custom Asset
-  location: Field-A
+```bash
+cdf deploy --env=dev
 ```
 
-### Adjust Location Hierarchy
+If you deployed `cdf_sample_data`, upload the demo PDF:
 
-Modify `cdf_maintain_location` to match your organization:
-- Edit location filters in `locations/`
-- Adjust node structure in `nodes/`
-- Customize hierarchy for your needs
+```bash
+cdf data upload --env=dev
+```
 
-## 🩺 Troubleshooting
+`cdf build` warns that `cdf_sample_data` has a non-resource directory, `upload_data`. That is expected: the folder holds
+the manifest for `cdf data upload`, not for `cdf deploy`.
+
+### Verify
+
+1. In **Data management → Data models**, the spaces `APM_Config`, `maintain_solution_model`, and
+   `maintain_source_data` (or your values) exist.
+2. In **Data management → Locations**, a location with the externalId from `location` exists.
+3. In the `APM_Config` view, there is one node, `default-maintain-config`, with your spaces and location.
+4. If you deployed the sample data, the source data space holds the `CogniteAsset` nodes `<location>_root` and
+   `abc_12345`.
+5. Open Maintain and check that the location appears in the location selector.
+
+## Known limitations
+
+- **One location per project.** The APM config node has a fixed externalId, `default-maintain-config`. Deploying a
+  second location overwrites the first.
+- **Root asset naming.** The location's root asset must have the externalId `<location>_root` in the source data
+  space.
+- **Shared `APM_Config` space.** InField also uses `APM_Config`. In a project that already runs InField, review the
+  dry run before deploying, and do not run `cdf clean` on `cdf_maintain_config_base`.
+- **Instances share the schema spaces.** By default, data instances are written to the same spaces as the data models.
+- **Sample data uses the real spaces.** `cdf_sample_data` writes to the same spaces as your real data. Leave it out of
+  production deployments.
+- **Fixed identifiers.** Maintain expects the view and container externalIds, the `v1` versions, and the `APM_Config`
+  names as shipped. Do not rename them.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `UnresolvedVariableWarning` during `cdf build` | A variable is missing from `config.<env>.yaml` | Add it under the module key shown in [Configure](#configure) |
+| Location does not appear in Maintain | `location` differs between modules, or `<location>_root` does not exist | Use the same `location` in `cdf_maintain_location` and `cdf_sample_data`, and check the root asset exists in the source data space |
+| Maintain shows no data | Instances are in a different space from the one the location points to | Make `cdf_sample_data.instanceSpace` (or your ingestion target) match `cdf_maintain_location.sourceDataSpace` |
+| Asset tab in the activity inspector is empty | The activity's `mainAsset` is empty, or points to an asset outside the source data space | See below |
 
 ### Asset tab in the activity inspector is empty
 
-The Asset tab opens the asset referenced by the activity's `mainAsset` property (from `CogniteMaintenanceOrder`). Check that:
+The Asset tab opens the asset referenced by the activity's `mainAsset` property (from `CogniteMaintenanceOrder`).
+Check that:
 
 - `mainAsset` is populated on the activity. Populating only `assets` is not enough.
 - The referenced node has data in the `CogniteAsset` view (`cdf_cdm`).
-- The asset lives in the instance space configured as `sourceDataInstanceSpace` in `rootLocationConfigurations` (defaults to `sourceDataSpace`, i.e. `maintain_source_data`). Assets ingested into a different instance space will not be found.
+- The asset lives in the instance space configured as `sourceDataInstanceSpace` in `rootLocationConfigurations`
+  (defaults to `sourceDataSpace`, `maintain_source_data`). Assets ingested into a different instance space are not
+  found.
 
-## 📄 License
+## Module Structure
 
-This module is part of the [Cognite library](https://github.com/cognitedata/library) repository and follows the same licensing terms.
+```
+cdm_maintain/
+├── README.md                          # This file
+├── cdf_maintain_config_base/          # APM_Config space, container, view, data model
+├── cdf_maintain_solution_model/       # Maintain data model and global nodes
+├── cdf_maintain_source_data_model/    # MaintainSource data model
+├── cdf_maintain_location/             # LocationFilter and APM config node
+└── cdf_sample_data/                   # Optional sample assets, activities, grid zones, demo PDF
+```
+
+Each module folder has its own `README.md` with its files and variables.
+
+## Support
+
+- Maintain questions: Slack **#topic-maintain**
+- Deployment pack questions: Slack **#topic-deployment-packs**
+- [Cognite Toolkit documentation](https://docs.cognite.com/cdf/deploy/cdf_toolkit/)
