@@ -53,3 +53,11 @@ knip.json
 # OS files
 .DS_Store
 Thumbs.db
+
+# QA review artefacts (see qa/README.md)
+qa/.venv-sdk7/
+qa/node_modules/
+qa/toolkit/build*/
+qa/toolkit/org-staged/
+qa/e2e/dist-qa/
+qa/install.log

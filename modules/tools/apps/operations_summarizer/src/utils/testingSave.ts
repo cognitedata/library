@@ -34,7 +34,7 @@ export interface TestReportMetrics {
 }
 
 /** Minimal SDK surface for `saveTestReportToCdf` (full `CogniteClient` satisfies this). */
-export type SaveTestReportClient = Pick<CogniteClient, "project"> & {
+type SaveTestReportClient = Pick<CogniteClient, "project"> & {
 	instances: Pick<CogniteClient["instances"], "upsert" | "retrieve">;
 };
 

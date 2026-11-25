@@ -11,7 +11,7 @@ import { getEnabledDataTypes, getSummarySpace } from "@/config/dataTypes";
 import { useCdfClient } from "@/contexts/CdfClientContext";
 import { useNavigation } from "@/contexts/NavigationContext";
 import { useOperations } from "@/contexts/OperationsSummarizerContext";
-import { useSummariesPageModelDeps } from "@/contexts/SummariesPageModelDepsContext";
+import { useSummariesPageModelDeps } from "@/contexts/summariesPageModelDeps";
 import { useEnhancedRefresh } from "@/hooks/useEnhancedRefresh";
 import type { SummaryInstance } from "@/types/operations";
 import { resolveFusionFileUrl } from "@/utils/fusionFileUrl";

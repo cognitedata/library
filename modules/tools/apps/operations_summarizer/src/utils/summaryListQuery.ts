@@ -168,17 +168,13 @@ function buildFileInstancesQueryRequest(params: {
 				nodes: {
 					filter,
 				},
+				// No server sort: DMS cannot cursor-page a sort without a cursorable index.
+				// Callers order and page the result client-side (see useSummaryListPage).
+				limit: params.limit,
 			},
 		},
 		select: {
 			[SUMMARY_LIST_QUERY_RESULT_SET]: {
-				limit: params.limit,
-				sort: [
-					{
-						property: [...summaryListSortPropertyPath()],
-						direction: "descending",
-					},
-				],
 				sources: [
 					{
 						source: {

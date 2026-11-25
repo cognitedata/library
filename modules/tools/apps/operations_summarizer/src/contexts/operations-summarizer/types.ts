@@ -26,7 +26,7 @@ function getDefaultSummaryContents(): SummaryContents {
 // Generation progress (summary flow)
 // ============================================================
 
-export interface GenerationProgress {
+interface GenerationProgress {
 	status:
 		| "idle"
 		| "fetching"

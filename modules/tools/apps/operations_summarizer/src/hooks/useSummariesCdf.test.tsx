@@ -17,12 +17,12 @@ import {
 
 const VIEW_KEY = "cdf_cdm/CogniteFile/v1";
 
-function fileNode(extId: string) {
+function fileNode(extId: string, createdTime = 1) {
 	return {
 		instanceType: "node" as const,
 		externalId: extId,
 		space: "ops_summaries",
-		createdTime: 1,
+		createdTime,
 		properties: {
 			[VIEW_KEY]: {
 				name: extId,
@@ -94,13 +94,15 @@ describe("useSummariesCdf hooks", () => {
 		expect(result.current.hasNextPage).toBe(false);
 	});
 
-	it("useSummaryListPage goToNextPage appends cursor", async () => {
+	it("useSummaryListPage orders newest first and pages client-side", async () => {
 		const query = vi
 			.fn()
-			.mockResolvedValueOnce(
-				queryPageResponse([fileNode("ops_summary_1")], "next1")
-			)
-			.mockResolvedValueOnce(queryPageResponse([fileNode("ops_summary_2")]));
+			.mockResolvedValue(
+				queryPageResponse([
+					fileNode("ops_summary_2", 1),
+					fileNode("ops_summary_1", 2),
+				])
+			);
 
 		const { Wrapper } = setupWrapper({
 			project: "p",
@@ -112,6 +114,7 @@ describe("useSummariesCdf hooks", () => {
 			() =>
 				useSummaryListPage({
 					variant: "operation",
+					pageSize: 1,
 					serverFilters: {
 						dateFilterEnabled: false,
 						dateRange: null,
@@ -140,12 +143,12 @@ describe("useSummariesCdf hooks", () => {
 	it("useSummaryListPage fills filtered pages from multiple server batches", async () => {
 		const VIEW_KEY = "cdf_cdm/CogniteFile/v1";
 
-		function fileNode(extId: string, description: string) {
+		function fileNode(extId: string, description: string, createdTime: number) {
 			return {
 				instanceType: "node" as const,
 				externalId: extId,
 				space: "ops_summaries",
-				createdTime: 1,
+				createdTime,
 				properties: {
 					[VIEW_KEY]: { name: extId, description },
 				},
@@ -154,20 +157,13 @@ describe("useSummariesCdf hooks", () => {
 
 		const query = vi
 			.fn()
-			.mockResolvedValueOnce(
-				queryPageResponse(
-					[
-						fileNode("ops_summary_a", "OPS:10000\nAssets only"),
-						fileNode("ops_summary_skip", "OPS:01000\nFiles only"),
-						fileNode("ops_summary_skip2", "OPS:01000\nFiles only"),
-					],
-					"next1"
-				)
-			)
-			.mockResolvedValueOnce(
+			.mockResolvedValue(
 				queryPageResponse([
-					fileNode("ops_summary_b", "OPS:10000\nAssets only"),
-					fileNode("ops_summary_c", "OPS:10000\nAssets only"),
+					fileNode("ops_summary_a", "OPS:10000\nAssets only", 5),
+					fileNode("ops_summary_skip", "OPS:01000\nFiles only", 4),
+					fileNode("ops_summary_skip2", "OPS:01000\nFiles only", 3),
+					fileNode("ops_summary_b", "OPS:10000\nAssets only", 2),
+					fileNode("ops_summary_c", "OPS:10000\nAssets only", 1),
 				])
 			);
 

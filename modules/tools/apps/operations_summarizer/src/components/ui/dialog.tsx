@@ -5,10 +5,7 @@ import {
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
-	DialogOverlay,
-	DialogPortal,
 	DialogTitle,
-	DialogTrigger,
 } from "@cognite/aura/components";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
@@ -38,8 +35,5 @@ export {
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
-	DialogOverlay,
-	DialogPortal,
 	DialogTitle,
-	DialogTrigger,
 };

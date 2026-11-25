@@ -359,7 +359,7 @@ describe("useComparisonTest", () => {
 		expect(result.current.testing.testResultData?.similarityScore).toBe(100);
 	});
 
-	it("sets accuracy to zero when only the new summary has data counts", async () => {
+	it("penalizes accuracy when only the new summary has data counts", async () => {
 		stubComparisonApis({
 			agents: [
 				{
@@ -384,8 +384,8 @@ describe("useComparisonTest", () => {
 			);
 		});
 
-		expect(result.current.testing.testResultData?.dataAccuracyScore).toBe(0);
-		expect(result.current.testing.testResultData?.similarityScore).toBe(0);
+		expect(result.current.testing.testResultData?.dataAccuracyScore).toBe(64);
+		expect(result.current.testing.testResultData?.similarityScore).toBe(64);
 	});
 });
 

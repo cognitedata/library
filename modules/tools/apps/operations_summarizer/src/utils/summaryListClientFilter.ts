@@ -3,7 +3,7 @@ import type { SummaryInstance } from "@/types/operations";
 /** Cursor sentinel when the next UI page is satisfied from overflow only (no server cursor). */
 export const SUMMARY_LIST_OVERFLOW_CURSOR = "__overflow__";
 
-export interface SummaryServerPageResult {
+interface SummaryServerPageResult {
 	items: SummaryInstance[];
 	nextCursor: string | undefined;
 	usedListApi: boolean;

@@ -2,7 +2,8 @@
  * Injectable dependencies for {@link useTestsPageModel}.
  */
 
-import { createContext, type ReactNode, useContext } from "react";
+import type { ReactNode } from "react";
+import { TestsPageModelDepsContext } from "@/contexts/testsPageModelDeps";
 import { useComparisonTest } from "@/hooks/useComparisonTest";
 import {
 	type TestsPageCdfBundleValue,
@@ -18,15 +19,11 @@ export interface TestsPageModelDeps {
 	saveTestReportToCdf: typeof saveTestReportToCdf;
 }
 
-export const DEFAULT_TESTS_PAGE_MODEL_DEPS: TestsPageModelDeps = {
+const DEFAULT_TESTS_PAGE_MODEL_DEPS: TestsPageModelDeps = {
 	useTestsPageCdfBundle: useDefaultTestsPageCdfBundle,
 	useComparisonTest,
 	saveTestReportToCdf,
 };
-
-const TestsPageModelDepsContext = createContext<TestsPageModelDeps | null>(
-	null
-);
 
 export function TestsPageModelDepsProvider({
 	children,
@@ -41,14 +38,4 @@ export function TestsPageModelDepsProvider({
 			{children}
 		</TestsPageModelDepsContext.Provider>
 	);
-}
-
-export function useTestsPageModelDeps(): TestsPageModelDeps {
-	const ctx = useContext(TestsPageModelDepsContext);
-	if (!ctx) {
-		throw new Error(
-			"useTestsPageModelDeps must be used within TestsPageModelDepsProvider"
-		);
-	}
-	return ctx;
 }

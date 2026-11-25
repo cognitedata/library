@@ -120,10 +120,9 @@ export function useErrorRecovery({
 	);
 
 	const recoverFromError = useCallback(() => {
-		if (!errorState) return;
-
-		// Reset error states but preserve user configuration
-		if (errorState.operation === "summary-generation") {
+		// The context error can be set without handleError (e.g. via setError), leaving
+		// errorState null; still clear it so the dialog can close. Hook only handles generation.
+		if (!errorState || errorState.operation === "summary-generation") {
 			// Only reset the generation state, not the user config
 			dispatch({
 				type: "SET_GENERATION_PROGRESS",

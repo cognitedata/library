@@ -40,7 +40,10 @@ export function SummaryDetailBody({
 	setPdfScale,
 	modalContent,
 }: SummaryDetailBodyProps) {
-	if (isLoading) {
+	// A PDF with no blob and no error is still pending; avoid flashing "No content available".
+	const isPdfPending = isPdfFile && !pdfFile && !pdfError;
+
+	if (isLoading || isPdfPending) {
 		return (
 			<div className="flex items-center justify-center py-12">
 				<Loader size={24} />

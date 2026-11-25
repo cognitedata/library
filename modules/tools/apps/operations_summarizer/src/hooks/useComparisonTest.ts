@@ -14,13 +14,14 @@ import {
 	CogniteSummaryFunctionService,
 	type SummaryFunctionService,
 } from "@/services/summaryFunctionService";
-import { DATA_COUNT_KEYS, type SummaryInstance } from "@/types/operations";
+import type { SummaryInstance } from "@/types/operations";
 import { getErrorMessage, logError } from "@/utils/errorHandling";
 import {
 	extractDataCounts,
 	extractSimilarityScore,
 	normalizeSummaryTextForComparison,
 } from "@/utils/formatting";
+import { calculateDataAccuracyScore } from "@/utils/scores";
 import { resolveSummaryContent } from "@/utils/testingContent";
 
 type UseComparisonTestDeps = {
@@ -161,23 +162,10 @@ export function useComparisonTest(): UseComparisonTestResult {
 				const originalCounts = extractDataCounts(originalContent);
 				const newCounts = extractDataCounts(newSummaryContent);
 
-				let accuracyScore = 100;
-				let totalDifference = 0;
-				let totalOriginal = 0;
-				for (const key of DATA_COUNT_KEYS) {
-					const origVal = originalCounts[key];
-					const newVal = newCounts[key];
-					totalOriginal += origVal;
-					totalDifference += Math.abs(origVal - newVal);
-				}
-				if (totalOriginal > 0) {
-					accuracyScore = Math.max(
-						0,
-						100 - (totalDifference / totalOriginal) * 100
-					);
-				} else if (totalDifference > 0) {
-					accuracyScore = 0;
-				}
+				const accuracyScore = calculateDataAccuracyScore(
+					originalContent,
+					newSummaryContent
+				);
 
 				const summariesTextuallyIdentical =
 					normalizeSummaryTextForComparison(originalContent) ===

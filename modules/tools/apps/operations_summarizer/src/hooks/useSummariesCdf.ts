@@ -83,6 +83,9 @@ function queryErrorToError(err: unknown): Error | null {
 
 export type { SummaryServerListFilters };
 
+/** Max summaries fetched (slim projection) and paged client-side, newest first. */
+const SUMMARY_LIST_SCAN_LIMIT = 1000;
+
 export interface UseSummaryListPageOptions {
 	variant: SummaryListVariant;
 	pageSize?: number;
@@ -160,27 +163,32 @@ export function useSummaryListPage(
 				usedListApi: boolean;
 				rawCount: number;
 			}> => {
+				// Newest-first cannot be sorted server-side with a cursor, so fetch the slim
+				// result set once, sort by creation time, and page through it by offset.
+				const scanParams = {
+					limit: SUMMARY_LIST_SCAN_LIMIT,
+					filters: serverFilters,
+				};
 				const req =
 					variant === "operation"
-						? buildSummaryInstancesQueryRequest({
-								limit: pageSize,
-								cursor,
-								filters: serverFilters,
-							})
-						: buildTestReportInstancesQueryRequest({
-								limit: pageSize,
-								cursor,
-								filters: serverFilters,
-							});
+						? buildSummaryInstancesQueryRequest(scanParams)
+						: buildTestReportInstancesQueryRequest(scanParams);
 				const response = await withCdfConcurrency(() =>
 					sdk.instances.query(req)
 				);
-				const { items, nextCursor } = parseSummaryQueryPageResponse(response);
+				const { items } = parseSummaryQueryPageResponse(response);
+				const sorted = mapNodesToSummaryInstances(items).sort(
+					(a, b) =>
+						new Date(b.createdTime).getTime() -
+						new Date(a.createdTime).getTime()
+				);
+				const offset = cursor ? Number(cursor) : 0;
+				const end = offset + pageSize;
 				return {
-					items: mapNodesToSummaryInstances(items),
-					nextCursor,
+					items: sorted.slice(offset, end),
+					nextCursor: end < sorted.length ? String(end) : undefined,
 					usedListApi: false,
-					rawCount: items.length,
+					rawCount: sorted.length,
 				};
 			};
 

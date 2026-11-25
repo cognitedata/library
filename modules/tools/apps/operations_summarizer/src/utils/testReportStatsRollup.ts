@@ -76,7 +76,7 @@ export function emptyTestReportStatsRollup(): TestReportStatsRollup {
 	};
 }
 
-export function rollupFromSums(sums: {
+function rollupFromSums(sums: {
 	totalTests: number;
 	totalScore: number;
 	totalVolume: number;
@@ -97,7 +97,7 @@ export function rollupFromSums(sums: {
 	};
 }
 
-export function parseTestReportStatsRollup(
+function parseTestReportStatsRollup(
 	sourceContext: string | undefined
 ): TestReportStatsRollup | null {
 	if (!sourceContext?.trim()) return null;

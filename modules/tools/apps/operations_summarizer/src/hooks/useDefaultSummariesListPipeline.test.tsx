@@ -9,12 +9,12 @@ import { useDefaultSummariesListPipeline } from "./useDefaultSummariesListPipeli
 
 const VIEW_KEY = "cdf_cdm/CogniteFile/v1";
 
-function fileNode(extId: string) {
+function fileNode(extId: string, createdTime = 1) {
 	return {
 		instanceType: "node" as const,
 		externalId: extId,
 		space: "ops_summaries",
-		createdTime: 1,
+		createdTime,
 		properties: {
 			[VIEW_KEY]: {
 				name: extId,
@@ -103,12 +103,11 @@ describe("useDefaultSummariesListPipeline", () => {
 	});
 
 	it("clearFilters resets pagination after navigating to next page", async () => {
-		const query = vi
-			.fn()
-			.mockResolvedValueOnce(
-				queryPageResponse([fileNode("ops_summary_p1")], "c1")
-			)
-			.mockResolvedValue(queryPageResponse([fileNode("ops_summary_p2")]));
+		// 16 rows exceed the default page size (15), so page 2 holds the oldest one.
+		const nodes = Array.from({ length: 16 }, (_, i) =>
+			fileNode(`ops_summary_p${i + 1}`, i + 1)
+		);
+		const query = vi.fn().mockResolvedValue(queryPageResponse(nodes));
 
 		const { Wrapper } = setupWrapper({
 			project: "p",
@@ -121,7 +120,7 @@ describe("useDefaultSummariesListPipeline", () => {
 		});
 
 		await waitFor(() =>
-			expect(result.current.items[0]?.externalId).toBe("ops_summary_p1")
+			expect(result.current.items[0]?.externalId).toBe("ops_summary_p16")
 		);
 		expect(result.current.hasNextPage).toBe(true);
 
@@ -130,7 +129,7 @@ describe("useDefaultSummariesListPipeline", () => {
 		});
 
 		await waitFor(() =>
-			expect(result.current.items[0]?.externalId).toBe("ops_summary_p2")
+			expect(result.current.items[0]?.externalId).toBe("ops_summary_p1")
 		);
 		expect(result.current.pageDisplay).toBe(2);
 

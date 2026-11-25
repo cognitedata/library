@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import type { NavigationPage } from "@/contexts/NavigationContext";
 import { cn } from "@/lib/utils";
 
-export interface NavigationMenuItem {
+interface NavigationMenuItem {
 	id: NavigationPage;
 	label: string;
 	icon: LucideIcon;

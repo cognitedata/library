@@ -34,7 +34,7 @@ export type WorkOrderSubcategory =
 /** A flat row of CDF instance properties as returned by the DM API. */
 export type InstanceRow = Record<string, string | number | boolean | null>;
 
-export interface TableColumn {
+interface TableColumn {
 	header: string;
 	property: string;
 	formatter?: (value: unknown) => string;
@@ -84,11 +84,6 @@ export interface SummaryContents {
 	equipment: boolean;
 }
 
-export interface SummaryPeriod {
-	startDate: Date;
-	endDate: Date;
-}
-
 export interface SummaryInstance {
 	externalId: string;
 	space: string;
@@ -98,7 +93,7 @@ export interface SummaryInstance {
 	sourceContext?: string;
 }
 
-export interface InstanceSummary {
+interface InstanceSummary {
 	dataType: DataTypeName;
 	table: string;
 	text: string;
@@ -106,7 +101,7 @@ export interface InstanceSummary {
 }
 
 /** Same shape as {@link InstanceSummary} without per-type label (work orders are handled separately). */
-export type WorkOrderSummary = Omit<InstanceSummary, "dataType">;
+type WorkOrderSummary = Omit<InstanceSummary, "dataType">;
 
 export interface GeneratedSummary {
 	workOrders: WorkOrderSummary[];
@@ -167,17 +162,11 @@ export interface TestGenerationProgress {
 // CDF Instance Types
 // ============================================================
 
-export interface CdfInstance {
+interface CdfInstance {
 	externalId: string;
 	space: string;
 	createdTime?: number;
 	properties: Record<string, Record<string, unknown>>;
-}
-
-export interface CdfFileProperties {
-	name?: string;
-	description?: string;
-	mimeType?: string;
 }
 
 // ============================================================
@@ -214,58 +203,13 @@ export const DATA_COUNT_KEYS: (keyof DataCounts)[] = [
 	"equipment",
 ];
 
-export interface TestReport {
-	name: string;
-	description: string;
-	score: number | null;
-	startDate: string;
-	endDate: string;
-	createdTime: string;
-	dataCounts: DataCounts;
-	summaryInstance: SummaryInstance;
-}
-
-export interface TestStatistics {
-	totalTests: number;
-	avgScore: number;
-	excellentTests: number;
-	poorTests: number;
-	avgAssets: number;
-	avgFiles: number;
-	avgEquipment: number;
-	avgWorkOrders: number;
-}
-
 // ============================================================
 // Filter Types
 // ============================================================
 
-export interface DateRangeFilter {
-	enabled: boolean;
-	startDate: Date | null;
-	endDate: Date | null;
-}
-
-export interface ContentTypeFilter {
-	enabled: boolean;
-	selectedTypes: DataTypeName[];
-}
-
 // ============================================================
 // Pagination Types
 // ============================================================
-
-export interface PaginationState {
-	currentPage: number;
-	pageSize: number;
-	totalItems: number;
-	totalPages: number;
-}
-
-export interface PaginatedResult<T> {
-	items: T[];
-	pagination: PaginationState;
-}
 
 // ============================================================
 // Chat Types
@@ -335,7 +279,7 @@ export interface AgentChatResponse {
  * Used to determine if the user has agents:write (WRITE in agentsAcl.actions)
  * for the current project (projectScope.projects matches CDF client project).
  */
-export interface TokenInspectCapabilityItem {
+interface TokenInspectCapabilityItem {
 	agentsAcl?: {
 		actions: string[];
 		scope?: { all?: Record<string, unknown> };
@@ -360,51 +304,6 @@ export interface TokenInspectResponse {
 	capabilities: TokenInspectCapabilityItem[];
 }
 
-/**
- * Response from the files download link API.
- */
-export interface FilesDownloadLinkResponse {
-	items: Array<{
-		downloadUrl: string;
-		externalId?: string;
-	}>;
-}
-
-/**
- * Response from instances list API.
- */
-export interface InstancesListResponse {
-	items: Array<{
-		externalId: string;
-		space: string;
-		createdTime?: number;
-		lastUpdatedTime?: number;
-		properties?: Record<string, Record<string, unknown>>;
-	}>;
-	nextCursor?: string;
-}
-
-/**
- * File upload response from the files API.
- */
-export interface FileUploadResponse {
-	items: Array<{
-		externalId: string;
-		space: string;
-		uploadUrl?: string;
-		createdTime?: number;
-	}>;
-}
-
 // ============================================================
 // Score Types
 // ============================================================
-
-export type ScoreCategory = "excellent" | "good" | "fair" | "poor";
-
-export interface ScoreDisplay {
-	category: ScoreCategory;
-	emoji: string;
-	description: string;
-	className: string;
-}

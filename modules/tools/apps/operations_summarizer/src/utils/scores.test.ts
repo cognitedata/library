@@ -84,6 +84,13 @@ describe("calculateDataAccuracyScore", () => {
 		const score = calculateDataAccuracyScore(orig, same);
 		expect(score).toBeGreaterThanOrEqual(90);
 	});
+	it("scores close counts highly instead of 0", () => {
+		const score = calculateDataAccuracyScore(
+			"Assets (100). Files (50).",
+			"Assets (102). Files (49). Work Orders (3)."
+		);
+		expect(score).toBeGreaterThanOrEqual(60);
+	});
 	it("returns lower score when counts differ", () => {
 		const orig = "Assets (10). Files (5).";
 		const diff = "Assets (5). Files (20).";

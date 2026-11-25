@@ -9,14 +9,9 @@ import {
 	getSummarizerFunctionExternalId,
 	getSummarySpace,
 } from "@/config/dataTypes";
-import {
-	CogniteFunctionCallClient,
-	type FunctionCallStatus,
-} from "@/services/functionCallClient";
+import { CogniteFunctionCallClient } from "@/services/functionCallClient";
 
-export type { FunctionCallStatus };
-
-export interface PodcastCdfResult {
+interface PodcastCdfResult {
 	script_external_id?: string;
 	audio_external_id?: string;
 	audio_file_id?: number;

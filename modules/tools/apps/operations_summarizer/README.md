@@ -68,13 +68,24 @@ From the project directory:
 cdf modules add
 ```
 
-Select the **Operations Summarizer** deployment pack (dp:operations_summarizer). Toolkit copies [default.config.yaml](./default.config.yaml) into your `config.<env>.yaml`. Set `ops_data_instances_space` to the source-data space. Optionally change `ops_agent_external_id`. Then build and deploy:
+Select the **Operations Summarizer** deployment pack (dp:operations_summarizer). Toolkit copies [default.config.yaml](./default.config.yaml) into your `config.<env>.yaml`. Set `ops_data_instances_space` to the space that holds your source data. The default, `inst_data`, is a placeholder, and a wrong value points the app at the wrong space. Optionally change `ops_agent_external_id`. Then build, check the plan, and deploy from the project root:
 
 ```bash
-cdf build
-cdf deploy --dry-run
+cdf build -c config.<env>.yaml -m modules/tools/apps/operations_summarizer
+cdf deploy --dry-run --verbose
 cdf deploy
 ```
+
+Review the dry-run output before deploying:
+
+- The function is deleted and recreated whenever its code or runtime changes. This is expected.
+- The config node shows as updated when any config value differs, including `dataInstances`. Check that it names your source-data space.
+- The agent is created if it does not exist yet.
+- Spaces, container, view, and data model show as unchanged on a redeploy.
+
+Build from the module as installed by `cdf modules add`, not from a development checkout. Toolkit scans every YAML file under the module directory. A checkout with `node_modules/`, `qa/node_modules/`, or old `qa/toolkit` build copies reports `INVALID-FILE-SUFFIX` and `MISSING-FILE-SUFFIX` errors from third-party files. Remove those directories, or build from a copy without them.
+
+> **Note:** If you ran `npm ci` or `npm install` in the module before deploying, `node_modules/` will cause these warnings and errors. Delete `node_modules/` (and `qa/node_modules/`) before `cdf build` and `cdf deploy`. Reinstall it afterwards to deploy the Fusion app.
 
 Deploy this module before the Fusion app. The same app bundle can run in every project. Each project has its own config node.
 

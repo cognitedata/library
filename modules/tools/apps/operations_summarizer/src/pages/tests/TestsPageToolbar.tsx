@@ -1,9 +1,8 @@
 import { TestsToolbarActions } from "./TestsToolbarActions";
 import { TestsToolbarTitle } from "./TestsToolbarTitle";
 
-export type { TestsFetchErrorBannerProps } from "./TestsFetchErrorBanner";
 export { TestsFetchErrorBanner } from "./TestsFetchErrorBanner";
-export type { TestsHistoryBarProps } from "./TestsHistoryBar";
+
 export { TestsHistoryBar } from "./TestsHistoryBar";
 export { TestsScoreLegend } from "./TestsScoreLegend";
 

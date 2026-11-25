@@ -18,9 +18,3 @@ export const DELETE_ICON_BUTTON_CLASSNAME = cn(
 	"inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md p-0",
 	DELETE_BUTTON_BASE
 );
-
-/** Text delete (e.g. Delete Agent): same pattern as icon delete. */
-export const DELETE_TEXT_BUTTON_CLASSNAME = cn(
-	"font-semibold",
-	DELETE_BUTTON_BASE
-);

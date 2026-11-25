@@ -29,7 +29,7 @@ import {
 import type { DataTypeName } from "@/types/operations";
 import type { SummaryGenerationProgressUpdate } from "@/utils/summaryGenerationTypes";
 
-export interface SummaryResult {
+interface SummaryResult {
 	markdown: string;
 	workOrderCount: number;
 	newInstancesCount: Record<DataTypeName, number>;

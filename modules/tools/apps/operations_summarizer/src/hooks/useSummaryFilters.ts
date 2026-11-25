@@ -55,7 +55,7 @@ interface UseSummaryFiltersResult {
  * Check if a summary contains actual data for specific data types.
  * Uses regex patterns to detect content sections.
  */
-export function summaryContainsDataType(
+function summaryContainsDataType(
 	content: string,
 	dataType: DataTypeName
 ): boolean {

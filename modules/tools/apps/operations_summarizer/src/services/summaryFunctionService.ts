@@ -19,7 +19,7 @@ const DATA_TYPE_NAMES: DataTypeName[] = [
 	"equipment",
 ];
 
-export interface SummaryCdfResult {
+interface SummaryCdfResult {
 	space?: string;
 	external_id?: string;
 	file_id?: number;

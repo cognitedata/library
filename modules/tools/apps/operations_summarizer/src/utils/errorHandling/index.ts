@@ -9,4 +9,3 @@ export {
 export { categorizeError } from "./categorize";
 export { logError } from "./log";
 export { getErrorMessage, getTechnicalMessage, parseError } from "./parse";
-export type { AppError, ErrorCategory } from "./types";

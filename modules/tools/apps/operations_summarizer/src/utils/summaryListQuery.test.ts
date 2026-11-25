@@ -132,7 +132,14 @@ describe("summaryListQuery", () => {
 			},
 		});
 		expect(req.with?.[SUMMARY_LIST_QUERY_RESULT_SET]).toBeDefined();
-		expect(req.select?.[SUMMARY_LIST_QUERY_RESULT_SET]?.limit).toBe(15);
+		expect(req.with?.[SUMMARY_LIST_QUERY_RESULT_SET]).toMatchObject({
+			limit: 15,
+		});
+		expect(req.with?.[SUMMARY_LIST_QUERY_RESULT_SET]).not.toHaveProperty(
+			"sort"
+		);
+		expect(req.select?.[SUMMARY_LIST_QUERY_RESULT_SET]?.limit).toBeUndefined();
+		expect(req.select?.[SUMMARY_LIST_QUERY_RESULT_SET]?.sort).toBeUndefined();
 		expect(
 			req.select?.[SUMMARY_LIST_QUERY_RESULT_SET]?.sources?.[0]?.properties
 		).toEqual([...getCogniteFileViewPropertiesSlim()]);
@@ -154,7 +161,9 @@ describe("summaryListQuery", () => {
 		expect(
 			req.select?.[SUMMARY_LIST_QUERY_RESULT_SET]?.sources?.[0]?.properties
 		).toEqual([...getCogniteFileViewPropertiesSlim()]);
-		expect(req.select?.[SUMMARY_LIST_QUERY_RESULT_SET]?.limit).toBe(8);
+		expect(req.with?.[SUMMARY_LIST_QUERY_RESULT_SET]).toMatchObject({
+			limit: 8,
+		});
 	});
 
 	it("parseSummaryQueryPageResponse reads items and nextCursor", () => {

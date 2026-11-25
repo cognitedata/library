@@ -35,30 +35,6 @@ export function ResponsiveTable({
 }
 
 /**
- * Props for responsive table implementations
- */
-export interface ResponsiveTableImplementationProps<T> {
-	/** Items to display */
-	items: T[];
-	/** Current page number */
-	currentPage: number;
-	/** Total number of pages */
-	totalPages: number;
-	/** Total number of items */
-	totalItems: number;
-	/** Whether there is a next page */
-	hasNextPage: boolean;
-	/** Whether there is a previous page */
-	hasPreviousPage: boolean;
-	/** Callback for next page */
-	onNextPage: () => void;
-	/** Callback for previous page */
-	onPreviousPage: () => void;
-	/** Loading state */
-	isLoading?: boolean;
-}
-
-/**
  * Shared pagination component for both table and card views
  */
 export interface PaginationProps {

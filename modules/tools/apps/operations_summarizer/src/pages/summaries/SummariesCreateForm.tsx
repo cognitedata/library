@@ -11,10 +11,7 @@ import { CreateSummaryFeedback } from "./CreateSummaryFeedback";
 import { CreateSummaryFieldGroups } from "./CreateSummaryFieldGroups";
 import { CreateSummaryHeader } from "./CreateSummaryHeader";
 
-export {
-	SummariesListFilters,
-	type SummariesListFiltersProps,
-} from "./summaries-list-filters";
+export { SummariesListFilters } from "./summaries-list-filters";
 
 export interface SummariesCreateFormProps {
 	hasSelectedAgent: boolean;

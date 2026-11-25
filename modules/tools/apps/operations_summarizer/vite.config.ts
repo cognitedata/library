@@ -3,8 +3,9 @@ import path from "node:path";
 import { fusionOpenPlugin, manifestCspPlugin } from "@cognite/app-sdk/vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, type Plugin } from "vite";
+import type { Plugin } from "vite";
 import mkcert from "vite-plugin-mkcert";
+import { defineConfig } from "vitest/config";
 
 const PDF_WORKER_URL = "/node_modules/pdfjs-dist/build/pdf.worker.min.mjs";
 
@@ -34,14 +35,17 @@ function servePdfWorkerRaw(): Plugin {
 
 export default defineConfig({
 	base: "./",
-	plugins: [
-		servePdfWorkerRaw(),
-		manifestCspPlugin(),
-		react(),
-		mkcert(),
-		fusionOpenPlugin(),
-		tailwindcss(),
-	],
+	// Dev-server plugins (HTTPS certs, CSP, Fusion open) are irrelevant to tests and break under vitest.
+	plugins: process.env.VITEST
+		? [react()]
+		: [
+				servePdfWorkerRaw(),
+				manifestCspPlugin(),
+				react(),
+				mkcert(),
+				fusionOpenPlugin(),
+				tailwindcss(),
+			],
 	resolve: {
 		alias: {
 			"@": path.resolve(import.meta.dirname, "./src"),
@@ -57,7 +61,8 @@ export default defineConfig({
 		// Tailwind @source scans Aura's dist. Watching those files makes style.css
 		// invalidate in a loop (Vite reconnects) when a summary view loads PDF/CSS.
 		watch: {
-			ignored: ["**/node_modules/**", "**/.git/**"],
+			// coverage/ is rewritten by test runs; its .html files otherwise trigger full page reloads.
+			ignored: ["**/node_modules/**", "**/.git/**", "**/coverage/**"],
 		},
 		// Vite's default CORS origin is localhost only. Fusion probes
 		// https://localhost:3001/__probe from the host origin.
@@ -124,5 +129,39 @@ export default defineConfig({
 	},
 	optimizeDeps: {
 		exclude: ["onnxruntime-web"],
+	},
+	test: {
+		globals: true,
+		environment: "happy-dom",
+		setupFiles: ["./vitest.setup.ts"],
+		server: {
+			deps: {
+				// Aura reads import.meta.env at module scope. Inline so Vite injects env.
+				inline: ["@cognite/aura"],
+			},
+		},
+		include: [
+			"src/**/*.{test,spec}.{ts,tsx}",
+			"tests/**/*.{test,spec}.{ts,tsx}",
+		],
+		exclude: [
+			"**/node_modules/**",
+			"**/dist/**",
+			"**/.agents/**",
+			"**/.claude/**",
+		],
+		coverage: {
+			provider: "v8",
+			reporter: ["text", "json-summary", "html"],
+			include: ["src/**/*.{ts,tsx}"],
+			exclude: [
+				"**/*.{test,spec}.{ts,tsx}",
+				"**/vite-env.d.ts",
+				"src/main.tsx",
+			],
+			thresholds: {
+				lines: 80,
+			},
+		},
 	},
 });

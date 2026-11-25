@@ -3,7 +3,8 @@
  * Tests supply custom hooks/functions via {@link SummariesPageModelDepsProvider}.
  */
 
-import { createContext, type ReactNode, useContext } from "react";
+import type { ReactNode } from "react";
+import { SummariesPageModelDepsContext } from "@/contexts/summariesPageModelDeps";
 import {
 	type SummariesListPipelineValue,
 	useDefaultSummariesListPipeline,
@@ -36,16 +37,13 @@ export interface SummariesPageModelDeps {
 	downloadOperationSummaryPdfWithSignedUrlFirst: typeof downloadOperationSummaryPdfWithSignedUrlFirst;
 }
 
-export const DEFAULT_SUMMARIES_PAGE_MODEL_DEPS: SummariesPageModelDeps = {
+const DEFAULT_SUMMARIES_PAGE_MODEL_DEPS: SummariesPageModelDeps = {
 	useSummariesListPipeline: useDefaultSummariesListPipeline,
 	useSummaryGeneration,
 	useSummariesRobustDownload: useDefaultSummariesRobustDownload,
 	downloadAsMarkdown,
 	downloadOperationSummaryPdfWithSignedUrlFirst,
 };
-
-const SummariesPageModelDepsContext =
-	createContext<SummariesPageModelDeps | null>(null);
 
 export function SummariesPageModelDepsProvider({
 	children,
@@ -60,14 +58,4 @@ export function SummariesPageModelDepsProvider({
 			{children}
 		</SummariesPageModelDepsContext.Provider>
 	);
-}
-
-export function useSummariesPageModelDeps(): SummariesPageModelDeps {
-	const ctx = useContext(SummariesPageModelDepsContext);
-	if (!ctx) {
-		throw new Error(
-			"useSummariesPageModelDeps must be used within SummariesPageModelDepsProvider"
-		);
-	}
-	return ctx;
 }

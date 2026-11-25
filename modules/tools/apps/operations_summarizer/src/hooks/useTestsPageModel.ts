@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useCdfClient } from "@/contexts/CdfClientContext";
 import { useNavigation } from "@/contexts/NavigationContext";
-import { useTestsPageModelDeps } from "@/contexts/TestsPageModelDepsContext";
+import { useTestsPageModelDeps } from "@/contexts/testsPageModelDeps";
 import { useEnhancedRefresh } from "@/hooks/useEnhancedRefresh";
 import { useTestingState } from "@/hooks/useTestingState";
 import type { DataTypeName, SummaryInstance } from "@/types/operations";

@@ -24,7 +24,7 @@ export function clusterHostFromBaseUrl(baseUrl: string): string {
 	}
 }
 
-export function isLocalOrFlowsAppOrigin(origin: string): boolean {
+function isLocalOrFlowsAppOrigin(origin: string): boolean {
 	try {
 		const { hostname } = new URL(origin);
 		return (

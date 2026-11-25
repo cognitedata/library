@@ -49,6 +49,11 @@ export function SummaryPdfViewer({
 							scale={pdfScale}
 							renderTextLayer={false}
 							renderAnnotationLayer={false}
+							loading={
+								<div className="flex items-center justify-center p-12">
+									<Loader size={24} />
+								</div>
+							}
 						/>
 					</Document>
 				</div>

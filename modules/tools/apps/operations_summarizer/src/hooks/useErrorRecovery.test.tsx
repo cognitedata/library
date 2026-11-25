@@ -3,7 +3,10 @@ import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { CdfClientProvider } from "@/contexts/CdfClientContext";
-import { OperationsProvider } from "@/contexts/OperationsSummarizerContext";
+import {
+	OperationsProvider,
+	useOperations,
+} from "@/contexts/OperationsSummarizerContext";
 import { createTestQueryClient } from "@/test-utils/wrappers";
 import { useErrorRecovery } from "./useErrorRecovery";
 
@@ -52,6 +55,27 @@ describe("useErrorRecovery", () => {
 		});
 
 		expect(result.current.errorMessage).toBeNull();
+	});
+
+	it("recoverFromError clears a context error that was set without handleError", () => {
+		const { result } = renderHook(
+			() => ({ recovery: useErrorRecovery(), ops: useOperations() }),
+			{ wrapper }
+		);
+
+		act(() => {
+			result.current.ops.dispatch({
+				type: "SET_GENERATION_ERROR",
+				payload: "boom",
+			});
+		});
+		expect(result.current.ops.state.generationError).toBe("boom");
+
+		act(() => {
+			result.current.recovery.recoverFromError();
+		});
+
+		expect(result.current.ops.state.generationError).toBeNull();
 	});
 
 	it("retryLastOperation throws when not recoverable", async () => {
