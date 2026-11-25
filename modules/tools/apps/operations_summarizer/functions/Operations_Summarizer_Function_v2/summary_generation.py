@@ -6,7 +6,7 @@ subcategory processing (mirrors ``src/utils/workOrderSummary.ts``).
 """
 
 import time as time_module
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import wraps
 from typing import Any
 
@@ -68,7 +68,8 @@ def create_summary_for_data(
         num_instances=num_instances,
         data_type=data_type,
         start_time=start_time.strftime("%Y-%m-%d") if hasattr(start_time, "strftime") else start_time,
-        end_time=end_time.strftime("%Y-%m-%d") if hasattr(end_time, "strftime") else end_time,
+        # ``end_time`` is the exclusive upper bound (midnight after the last day); show the last included day.
+        end_time=(end_time - timedelta(days=1)).strftime("%Y-%m-%d") if hasattr(end_time, "strftime") else end_time,
         table_text=table_text,
     )
     agent_prompt += (summary_prompt or {}).get(data_type, "")
@@ -156,19 +157,14 @@ def _categorize_work_orders(work_orders: list[Any]):
 
 
 @retry_with_backoff(max_retries=3, initial_delay=1, max_delay=10)
-def _generate_work_order_category_summary(
-    category: dict,
+def _summarize_work_order_chunk(
+    label: str,
+    items: list[Any],
     cdf_helper: CDFHelper,
     selected_agent: str,
     work_order_prompt: str,
     client: CogniteClient,
 ) -> str:
-    items = category["items"]
-    label = category["label"]
-
-    if not items:
-        return f"**{label}:** None during this period."
-
     table = generate_table_for_instances("work_orders", items, client)
     category_prompt = (
         f"You are an Operations Summarizer. Analyze and summarize the following "
@@ -178,17 +174,44 @@ def _generate_work_order_category_summary(
         "Provide your summary now. Start directly with the analysis, not with any "
         "meta-statements about what you're summarizing."
     )
+    messages = [{"content": {"type": "text", "text": category_prompt}, "role": "user"}]
+    resp = cdf_helper.agent_chat(external_id=selected_agent, messages=messages)
+    return (resp.text or "").strip()
 
-    try:
-        messages = [{"content": {"type": "text", "text": category_prompt}, "role": "user"}]
-        resp = cdf_helper.agent_chat(external_id=selected_agent, messages=messages)
-        content = (resp.text or "").strip()
-        if content:
-            return f"**{label} ({len(items)}):**\n{content}"
-        return f"**{label} ({len(items)}):** Details available in the data."
-    except Exception as e:
-        print(f"Error generating {category['key']} work orders summary: {e}")
-        return f"**{label} ({len(items)}):** Unable to generate summary."
+
+def _generate_work_order_category_summary(
+    category: dict,
+    cdf_helper: CDFHelper,
+    selected_agent: str,
+    work_order_prompt: str,
+    client: CogniteClient,
+    chunk_size: int | None = None,
+) -> str:
+    """Summarise one status bucket in chunks of ``chunk_size``, rolling up when there is more than one chunk."""
+    items = category["items"]
+    label = category["label"]
+
+    if not items:
+        return f"**{label}:** None during this period."
+
+    chunk_summaries = [
+        _summarize_work_order_chunk(label, chunk, cdf_helper, selected_agent, work_order_prompt, client)
+        for chunk in chunk_instances(items, chunk_size)
+    ]
+    if len(chunk_summaries) == 1:
+        content = chunk_summaries[0]
+    else:
+        content = create_holistic_summary(
+            chunk_summaries,
+            "work_orders",
+            len(items),
+            cdf_helper=cdf_helper,
+            selected_agent=selected_agent,
+        ).strip()
+
+    if content:
+        return f"**{label} ({len(items)}):**\n{content}"
+    return f"**{label} ({len(items)}):** Details available in the data."
 
 
 def process_work_orders(
@@ -199,6 +222,7 @@ def process_work_orders(
     cdf_helper: CDFHelper = None,
     selected_agent: str | None = None,
     summary_prompt: dict | None = None,
+    chunk_size: int | None = None,
 ) -> tuple[str, str]:
     """Process work orders with subcategory summaries (mirrors generateWorkOrdersSection)."""
     total = len(instances)
@@ -209,7 +233,7 @@ def process_work_orders(
     work_order_prompt = (summary_prompt or {}).get("work_orders", "")
     categories = _categorize_work_orders(instances)
     sections = [
-        _generate_work_order_category_summary(cat, cdf_helper, selected_agent, work_order_prompt, client)
+        _generate_work_order_category_summary(cat, cdf_helper, selected_agent, work_order_prompt, client, chunk_size)
         for cat in categories
     ]
     section = "## Work Orders\n\n" + "\n\n".join(sections)
@@ -239,88 +263,55 @@ def process_dataset(
     config = DATA_TYPE_CONFIGS.get(data_type)
     display_name = config.display_name if config else data_type.replace("_", " ").title()
 
-    try:
-        total = len(instances)
-        if total == 0:
-            return "", ""
+    total = len(instances)
+    if total == 0:
+        return "", ""
 
-        if total <= chunk_size:
-            try:
-                table = generate_table_for_instances(data_type, instances, client)
-            except Exception as e:
-                table = f"Error generating table for {data_type}: {e}"
+    if total <= chunk_size:
+        table = generate_table_for_instances(data_type, instances, client)
+        summary = create_summary_for_data(
+            table,
+            data_type,
+            total,
+            start_time,
+            end_time,
+            cdf_helper=cdf_helper,
+            selected_agent=selected_agent,
+            summary_prompt=summary_prompt,
+        )
+        section = f"\n### {display_name} ({total})\n{summary}"
+        return table, section
 
-            try:
-                summary = create_summary_for_data(
-                    table,
-                    data_type,
-                    total,
-                    start_time,
-                    end_time,
-                    cdf_helper=cdf_helper,
-                    selected_agent=selected_agent,
-                    summary_prompt=summary_prompt,
-                )
-            except Exception as e:
-                print(f"Error creating summary for {data_type}: {e}")
-                summary = (
-                    f"Found {total} {data_type.replace('_', ' ')} instances. "
-                    "Please review the detailed table below for more information."
-                )
+    chunks = chunk_instances(instances, chunk_size)
+    chunk_summaries = []
 
-            section = f"\n### {display_name} ({total})\n{summary}"
-            return table, section
-
-        chunks = chunk_instances(instances, chunk_size)
-        chunk_summaries = []
-
-        for i, chunk in enumerate(chunks):
-            print(f"Processing chunk {i + 1}/{len(chunks)} for {data_type}")
-            try:
-                ctable = generate_table_for_instances(data_type, chunk, client)
-            except Exception:
-                ctable = f"Error generating table for chunk {i + 1}"
-            try:
-                cs = create_summary_for_data(
-                    ctable,
-                    data_type,
-                    len(chunk),
-                    start_time,
-                    end_time,
-                    cdf_helper=cdf_helper,
-                    selected_agent=selected_agent,
-                    summary_prompt=summary_prompt,
-                )
-            except Exception as e:
-                print(f"Error in chunk {i + 1}: {e}")
-                cs = f"Chunk {i + 1} contains {len(chunk)} {data_type.replace('_', ' ')} instances."
-            chunk_summaries.append(cs)
-
-        try:
-            holistic = create_holistic_summary(
-                chunk_summaries,
+    for i, chunk in enumerate(chunks):
+        print(f"Processing chunk {i + 1}/{len(chunks)} for {data_type}")
+        chunk_table = generate_table_for_instances(data_type, chunk, client)
+        chunk_summaries.append(
+            create_summary_for_data(
+                chunk_table,
                 data_type,
-                total,
+                len(chunk),
+                start_time,
+                end_time,
                 cdf_helper=cdf_helper,
                 selected_agent=selected_agent,
-                holistic_template=holistic_template,
+                summary_prompt=summary_prompt,
             )
-        except Exception as e:
-            print(f"Error creating holistic summary: {e}")
-            holistic = f"Processed {total} {data_type.replace('_', ' ')} instances across {len(chunks)} chunks."
+        )
 
-        try:
-            display = instances[:chunk_size]
-            unified_table = generate_table_for_instances(data_type, display, client)
-        except Exception:
-            unified_table = f"Error generating unified table for {data_type}"
+    holistic = create_holistic_summary(
+        chunk_summaries,
+        data_type,
+        total,
+        cdf_helper=cdf_helper,
+        selected_agent=selected_agent,
+        holistic_template=holistic_template,
+    )
 
-        if total > chunk_size:
-            unified_table = f"*Note: Showing first {chunk_size} of {total} total instances*\n\n" + unified_table
+    unified_table = generate_table_for_instances(data_type, instances[:chunk_size], client)
+    unified_table = f"*Note: Showing first {chunk_size} of {total} total instances*\n\n" + unified_table
 
-        section = f"\n### {display_name} ({total})\n{holistic}"
-        return unified_table, section
-
-    except Exception as e:
-        print(f"Error processing dataset for {data_type}: {e}")
-        return f"Error processing dataset for {data_type}: {e}", ""
+    section = f"\n### {display_name} ({total})\n{holistic}"
+    return unified_table, section

@@ -96,6 +96,15 @@ def _handle_summary(
 
         cfg = get_config(data, client)
         summary_contents = cfg["summary_contents"]
+        explicit_contents = data.get("summary_contents")
+        if isinstance(explicit_contents, dict) and not data.get("persona_key"):
+            summary_contents = {dt: bool(explicit_contents.get(dt, False)) for dt in DATA_TYPE_ORDER}
+        if not any(summary_contents.get(dt, False) for dt in DATA_TYPE_ORDER):
+            return {
+                "markdown": "",
+                "success": False,
+                "error": "summary_contents must enable at least one data type",
+            }
         print(f"Summary contents: {summary_contents}")
 
         start_date, end_date, period_error = _resolve_period(data)
@@ -123,6 +132,7 @@ def _handle_summary(
         truncation_warnings: list[str] = []
         instance_counts: dict = {}
         data_type_truncation: dict = {}
+        failed_types: list[str] = []
 
         for dt in DATA_TYPE_ORDER:
             if not summary_contents.get(dt, False):
@@ -163,6 +173,7 @@ def _handle_summary(
                             cdf_helper=cdf_helper,
                             selected_agent=selected_agent,
                             summary_prompt=summary_prompt,
+                            chunk_size=cfg["chunk_size"],
                         )
                     else:
                         section = (
@@ -192,7 +203,17 @@ def _handle_summary(
                     per_type_sections.append(section.lstrip("\n"))
             except Exception as e:
                 print(f"Error processing {dt}: {e}")
-                per_type_sections.append(f"### {config.display_name}\nError retrieving {dt} data.")
+                failed_types.append(dt)
+
+        if failed_types:
+            return {
+                "markdown": "",
+                "success": False,
+                "error": f"Failed to summarize: {', '.join(failed_types)}",
+                "failed_types": failed_types,
+                "instance_counts": instance_counts,
+                "data_type_truncation": data_type_truncation,
+            }
 
         full_text = compile_summary_markdown(
             per_type_sections,
@@ -313,7 +334,7 @@ def _resolve_period(data: dict) -> tuple[date | None, date | None, str | None]:
             if error:
                 return None, None, error
             end_date = parsed
-        return start_date, end_date, None
+        return _check_order(start_date, end_date)
 
     if raw_start:
         start_date, error = _parse_date(raw_start, "summary_period_start")
@@ -327,6 +348,12 @@ def _resolve_period(data: dict) -> tuple[date | None, date | None, str | None]:
             return None, None, error
     else:
         end_date = now.date()
+    return _check_order(start_date, end_date)
+
+
+def _check_order(start_date: date, end_date: date) -> tuple[date | None, date | None, str | None]:
+    if start_date > end_date:
+        return None, None, "summary_period_start must be on or before summary_period_end"
     return start_date, end_date, None
 
 
