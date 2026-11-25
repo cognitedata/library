@@ -60,6 +60,7 @@ interface CreationHandlersDeps {
 		>;
 		cdfResult?: {
 			external_id?: string;
+			space?: string;
 			fusion_url?: string;
 			file_name?: string;
 		};
@@ -70,6 +71,8 @@ interface CreationHandlersDeps {
 			fileName: string;
 			fileId: string | null;
 			fusionUrl?: string;
+			space?: string;
+			externalId?: string;
 		} | null
 	) => void;
 	resolveFusionFileUrl?: (externalId: string) => Promise<string | undefined>;
@@ -135,6 +138,8 @@ export function createSummariesCreationHandlers(deps: CreationHandlersDeps) {
 						fileName: result.cdfResult.file_name ?? "Operations summary",
 						fileId: externalId,
 						fusionUrl,
+						space: result.cdfResult.space,
+						externalId,
 					});
 				}
 			}

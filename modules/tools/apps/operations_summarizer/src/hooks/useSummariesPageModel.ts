@@ -58,6 +58,7 @@ export function useSummariesPageModel() {
 		recoverFromError: recoverFromGenerationError,
 		retryGeneration,
 		canRetry: canRetryGeneration,
+		failedTypes: failedGenerationTypes,
 	} = deps.useSummaryGeneration();
 	const {
 		dateFilterEnabled,
@@ -95,6 +96,8 @@ export function useSummariesPageModel() {
 		fileName: string;
 		fileId: string | null;
 		fusionUrl?: string;
+		space?: string;
+		externalId?: string;
 	} | null>(null);
 	const [isSaving] = useState(false);
 	const [saveError] = useState<string | null>(null);
@@ -200,6 +203,7 @@ export function useSummariesPageModel() {
 		recoverFromGenerationError,
 		retryGeneration,
 		canRetryGeneration,
+		failedGenerationTypes,
 		saveMutation,
 		dateFilterEnabled,
 		dateRange,

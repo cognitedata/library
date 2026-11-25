@@ -189,7 +189,11 @@ describe("createSummariesCreationHandlers", () => {
 				markdown: "body",
 				generatedAt: new Date(),
 				dataTypeTruncation: {},
-				cdfResult: { external_id: "ext-1", file_name: "report.pdf" },
+				cdfResult: {
+					external_id: "ext-1",
+					space: "sp-1",
+					file_name: "report.pdf",
+				},
 			}),
 		});
 		await handlers.handleGenerateSummary();
@@ -197,6 +201,8 @@ describe("createSummariesCreationHandlers", () => {
 			fileName: "report.pdf",
 			fileId: "ext-1",
 			fusionUrl: "https://fusion.test/file",
+			space: "sp-1",
+			externalId: "ext-1",
 		});
 	});
 
@@ -218,6 +224,8 @@ describe("createSummariesCreationHandlers", () => {
 			fileName: "Operations summary",
 			fileId: "ext-2",
 			fusionUrl: undefined,
+			space: undefined,
+			externalId: "ext-2",
 		});
 		errorSpy.mockRestore();
 	});

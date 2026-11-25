@@ -1,8 +1,10 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { CdfClientProvider } from "@/contexts/CdfClientContext";
 import { OperationsProvider } from "@/contexts/OperationsSummarizerContext";
+import { createTestQueryClient } from "@/test-utils/wrappers";
 import { useErrorRecovery } from "./useErrorRecovery";
 
 // Host SDK reads the Fusion shell client. Tests stub useCogniteSdk because there is no shell in jsdom.
@@ -11,11 +13,15 @@ vi.mock("@cognite/app-sdk/react", () => ({
 	useCogniteSdk: () => null,
 }));
 
+const queryClient = createTestQueryClient();
+
 function wrapper({ children }: { children: ReactNode }) {
 	return (
-		<CdfClientProvider>
-			<OperationsProvider>{children}</OperationsProvider>
-		</CdfClientProvider>
+		<QueryClientProvider client={queryClient}>
+			<CdfClientProvider>
+				<OperationsProvider>{children}</OperationsProvider>
+			</CdfClientProvider>
+		</QueryClientProvider>
 	);
 }
 

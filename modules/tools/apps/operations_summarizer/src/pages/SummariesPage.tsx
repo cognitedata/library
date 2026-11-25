@@ -226,6 +226,7 @@ function SummariesPageContent() {
 				onOpenChange={(open) => !open && model.recoverFromGenerationError()}
 				error={model.generationError || ""}
 				canRetry={model.canRetryGeneration}
+				failedTypes={model.failedGenerationTypes}
 				onRetry={model.handleErrorRetry}
 				onResetToIdle={model.handleResetToIdle}
 				onClose={model.recoverFromGenerationError}
