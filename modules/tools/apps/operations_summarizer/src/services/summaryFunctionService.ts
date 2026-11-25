@@ -20,10 +20,27 @@ const DATA_TYPE_NAMES: DataTypeName[] = [
 ];
 
 export interface SummaryCdfResult {
+	space?: string;
 	external_id?: string;
 	file_id?: number;
 	file_name?: string;
 	fusion_url?: string;
+}
+
+/** Thrown when the function reports `success: false`. Nothing was saved. */
+export class SummaryFunctionError extends Error {
+	readonly failedTypes: DataTypeName[];
+
+	constructor(message: string, failedTypes: DataTypeName[] = []) {
+		super(message);
+		this.name = "SummaryFunctionError";
+		this.failedTypes = failedTypes;
+	}
+}
+
+function parseFailedTypes(value: unknown): DataTypeName[] {
+	if (!Array.isArray(value)) return [];
+	return DATA_TYPE_NAMES.filter((name) => value.includes(name));
 }
 
 export interface SummaryFunctionResult {
@@ -114,10 +131,11 @@ export function parseSummaryFunctionResult(
 		throw new Error("Summary function response is missing a success flag");
 	}
 	if (!record.success) {
-		throw new Error(
+		throw new SummaryFunctionError(
 			typeof record.error === "string"
 				? record.error
-				: "Summary generation failed"
+				: "Summary generation failed",
+			parseFailedTypes(record.failed_types)
 		);
 	}
 	if (typeof record.markdown !== "string") {
@@ -165,6 +183,7 @@ export function parseSummaryFunctionResult(
 	if (record.cdf_result !== null && typeof record.cdf_result === "object") {
 		const cdf = record.cdf_result as Record<string, unknown>;
 		const cdfResult: SummaryCdfResult = {};
+		if (typeof cdf.space === "string") cdfResult.space = cdf.space;
 		if (typeof cdf.external_id === "string")
 			cdfResult.external_id = cdf.external_id;
 		if (typeof cdf.file_name === "string") cdfResult.file_name = cdf.file_name;

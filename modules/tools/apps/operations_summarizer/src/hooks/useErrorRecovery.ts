@@ -24,7 +24,8 @@ interface UseErrorRecoveryResult {
 	handleError: (
 		error: unknown,
 		operation: string,
-		details?: Record<string, unknown>
+		details?: Record<string, unknown>,
+		userMessage?: string
 	) => void;
 	recoverFromError: () => void;
 	retryLastOperation: () => Promise<void>;
@@ -59,13 +60,19 @@ export function useErrorRecovery({
 	const [errorState, setErrorState] = useState<ErrorState | null>(null);
 
 	const handleError = useCallback(
-		(error: unknown, operation: string, details?: Record<string, unknown>) => {
+		(
+			error: unknown,
+			operation: string,
+			details?: Record<string, unknown>,
+			userMessage?: string
+		) => {
 			const errorMessage =
-				operation === "summary-generation"
+				userMessage ??
+				(operation === "summary-generation"
 					? getSummaryGenerationError(error)
 					: error instanceof Error
 						? error.message
-						: String(error);
+						: String(error));
 
 			logError(error, operation, {
 				preserveUserConfig,
@@ -82,15 +89,16 @@ export function useErrorRecovery({
 
 			const isRecoverable = isErrorRecoverable(error, operation);
 
-			setErrorState({
+			// Keep counting across failed retries; clearError / recoverFromError reset it.
+			setErrorState((previous) => ({
 				message: errorMessage,
 				operation,
 				details,
 				timestamp: new Date(),
-				retryCount: 0,
+				retryCount: previous?.operation === operation ? previous.retryCount : 0,
 				isRecoverable,
 				cause: error,
-			});
+			}));
 
 			// Update the relevant error state in the context
 			if (operation === "summary-generation") {

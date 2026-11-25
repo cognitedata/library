@@ -63,6 +63,22 @@ describe("SummaryResultPanel", () => {
 		).toBeDisabled();
 	});
 
+	it("shows the saved space and external ID", () => {
+		render(
+			<SummaryResultPanel
+				{...defaultProps}
+				savedPdfInfo={{
+					fileName: "ops.pdf",
+					fileId: "f1",
+					space: "ops_summaries",
+					externalId: "ops_summary_1",
+				}}
+			/>
+		);
+		expect(screen.getByText("ops_summaries")).toBeInTheDocument();
+		expect(screen.getByText("ops_summary_1")).toBeInTheDocument();
+	});
+
 	it("renders Open in Fusion as a link button when a Fusion URL is present", () => {
 		render(
 			<SummaryResultPanel

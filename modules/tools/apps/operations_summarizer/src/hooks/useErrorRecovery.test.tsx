@@ -86,6 +86,61 @@ describe("useErrorRecovery", () => {
 		expect(result.current.canRetry).toBe(true);
 	});
 
+	it("keeps counting retries across repeated failures and stops after three", async () => {
+		const { result } = renderHook(
+			() => useErrorRecovery({ initialBackoffMs: 0 }),
+			{ wrapper }
+		);
+		act(() => {
+			result.current.handleError(new Error("boom"), "summary-generation");
+		});
+		for (let attempt = 1; attempt <= 3; attempt++) {
+			expect(result.current.canRetry).toBe(true);
+			await act(async () => {
+				await result.current.retryLastOperation();
+			});
+			expect(result.current.retryCount).toBe(attempt);
+			act(() => {
+				result.current.handleError(new Error("boom"), "summary-generation");
+			});
+			expect(result.current.retryCount).toBe(attempt);
+		}
+		expect(result.current.canRetry).toBe(false);
+	});
+
+	it("starts counting from zero after the error is cleared", async () => {
+		const { result } = renderHook(
+			() => useErrorRecovery({ initialBackoffMs: 0 }),
+			{ wrapper }
+		);
+		act(() => {
+			result.current.handleError(new Error("boom"), "summary-generation");
+		});
+		await act(async () => {
+			await result.current.retryLastOperation();
+		});
+		act(() => {
+			result.current.clearError();
+		});
+		act(() => {
+			result.current.handleError(new Error("boom"), "summary-generation");
+		});
+		expect(result.current.retryCount).toBe(0);
+	});
+
+	it("uses a caller-supplied user message instead of the generic one", () => {
+		const { result } = renderHook(() => useErrorRecovery(), { wrapper });
+		act(() => {
+			result.current.handleError(
+				new Error("raw"),
+				"summary-generation",
+				undefined,
+				"Friendly text"
+			);
+		});
+		expect(result.current.errorMessage).toBe("Friendly text");
+	});
+
 	it("retryLastOperation waits using backoff before resolving", async () => {
 		vi.useFakeTimers();
 		vi.spyOn(Math, "random").mockReturnValue(0);
