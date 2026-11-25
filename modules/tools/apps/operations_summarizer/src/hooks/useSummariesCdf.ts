@@ -22,6 +22,7 @@ import { buildFilesUploadLinkPath } from "@/utils/api";
 import { sortByCreatedTimeDesc } from "@/utils/array";
 import { withCdfConcurrency } from "@/utils/cdfRequest";
 import { toCalendarIsoDate } from "@/utils/dates";
+import { logError } from "@/utils/errorHandling";
 import { formatDateRangeDisplay } from "@/utils/formatting";
 import {
 	dedupeSummaryInstancesByNodeId,
@@ -358,6 +359,11 @@ export function useTestReportStatsStreaming() {
 // Mutations
 // ============================================================
 
+function isNodeNotFoundError(error: unknown): boolean {
+	if (typeof error !== "object" || error === null) return false;
+	return (error as { status?: unknown }).status === 404;
+}
+
 /**
  * Hook to delete a summary
  */
@@ -377,24 +383,35 @@ export function useDeleteSummary() {
 				? scoreVolumeFromSummary(summary)
 				: null;
 
-			await withCdfConcurrency(
-				() =>
-					sdk.instances.delete([
-						{
-							instanceType: "node",
-							space: summary.space || getSummarySpace(),
-							externalId: summary.externalId,
-						},
-					]),
-				{ delete: true }
-			);
+			try {
+				await withCdfConcurrency(
+					() =>
+						sdk.instances.delete([
+							{
+								instanceType: "node",
+								space: summary.space || getSummarySpace(),
+								externalId: summary.externalId,
+							},
+						]),
+					{ delete: true }
+				);
+			} catch (error: unknown) {
+				// Already deleted (e.g. a retry): done. The rollup was handled on the first attempt.
+				if (isNodeNotFoundError(error)) return true;
+				throw error;
+			}
 
+			// The node is gone; a rollup failure must not turn the delete into a failure.
 			if (contribution) {
-				await applyTestReportStatsDelta(sdk, {
-					score: contribution.score,
-					volume: contribution.volume,
-					direction: "remove",
-				});
+				try {
+					await applyTestReportStatsDelta(sdk, {
+						score: contribution.score,
+						volume: contribution.volume,
+						direction: "remove",
+					});
+				} catch (error: unknown) {
+					logError(error, "Update test report stats after delete");
+				}
 			}
 
 			return true;

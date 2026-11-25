@@ -74,12 +74,17 @@ export function useTestsPageFilters(
 
 export function useAutoPopulateTestDates(
 	selectedSummaryId: string | null,
+	hasHandedOverSettings: boolean,
 	summaries: SummaryInstance[],
 	setTestStartDate: (value: string) => void,
 	setTestEndDate: (value: string) => void,
 	setSelectedDataTypes: (types: ReturnType<typeof getEnabledDataTypes>) => void
 ) {
-	const lastProcessedSummaryIdRef = useRef<string | null>(null);
+	// A selection that arrives with its period and types already set (handed over from
+	// Summaries) must not be overwritten by the defaults derived below.
+	const lastProcessedSummaryIdRef = useRef<string | null>(
+		hasHandedOverSettings ? selectedSummaryId : null
+	);
 
 	useEffect(() => {
 		if (

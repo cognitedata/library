@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { ComparisonTestResult } from "@/types/operations";
 import { parseTestReportMetrics, saveTestReportToCdf } from "./testingSave";
 
+type ItemsRequest = { items: Array<{ externalId: string }> };
+
 function makeResult(): ComparisonTestResult {
 	return {
 		originalSummary: {
@@ -81,6 +83,89 @@ describe("saveTestReportToCdf", () => {
 		expect(metrics?.periodStart).toBe("2024-01-01");
 		expect(metrics?.periodEnd).toBe("2024-01-31");
 		expect(metrics?.originalDataCounts.assets).toBe(2);
+	});
+
+	it("reports saved-with-warning, not failure, when the stats rollup fails after the write", async () => {
+		const upsert = vi.fn().mockResolvedValue(undefined);
+		const retrieve = vi
+			.fn()
+			.mockImplementation(async (request: ItemsRequest) => {
+				if (request.items[0].externalId.startsWith("test_report_")) {
+					return { items: [] };
+				}
+				throw Object.assign(new Error("rollup unavailable"), { status: 500 });
+			});
+		const sdk = { project: "proj", instances: { upsert, retrieve } };
+
+		const outcome = await saveTestReportToCdf({
+			sdk,
+			testResult: makeResult(),
+			testStartDate: "2024-01-01",
+			testEndDate: "2024-01-31",
+		});
+
+		expect(outcome.statsUpdated).toBe(false);
+		expect(upsert).toHaveBeenCalledTimes(1);
+	});
+
+	it("is idempotent on retry: same external id and the rollup is not applied twice", async () => {
+		const written = new Set<string>();
+		const rollup = {
+			totalTests: 1,
+			averageScore: 80,
+			excellentCount: 0,
+			goodCount: 1,
+			poorCount: 0,
+			averageDataVolume: 5,
+			totalScore: 80,
+			totalVolume: 5,
+		};
+		const upsert = vi.fn().mockImplementation(async (payload: ItemsRequest) => {
+			written.add(payload.items[0].externalId);
+		});
+		const retrieve = vi
+			.fn()
+			.mockImplementation(async (request: ItemsRequest) => {
+				const { externalId } = request.items[0];
+				if (externalId.startsWith("test_report_")) {
+					return {
+						items: written.has(externalId)
+							? [{ instanceType: "node", space: "s", externalId }]
+							: [],
+					};
+				}
+				return {
+					items: [
+						{
+							instanceType: "node",
+							space: "s",
+							externalId,
+							version: 1,
+							properties: {
+								"cdf_cdm/CogniteFile/v1": {
+									sourceContext: JSON.stringify(rollup),
+								},
+							},
+						},
+					],
+				};
+			});
+		const sdk = { project: "proj", instances: { upsert, retrieve } };
+		const params = {
+			sdk,
+			testResult: makeResult(),
+			testStartDate: "2024-01-01",
+			testEndDate: "2024-01-31",
+		};
+
+		const first = await saveTestReportToCdf(params);
+		const second = await saveTestReportToCdf(params);
+
+		expect(first.externalId).toBe(second.externalId);
+		const rollupUpserts = upsert.mock.calls.filter(
+			([payload]) => !payload.items[0].externalId.startsWith("test_report_")
+		);
+		expect(rollupUpserts).toHaveLength(1);
 	});
 });
 
