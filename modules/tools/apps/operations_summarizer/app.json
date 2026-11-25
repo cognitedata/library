@@ -2,7 +2,7 @@
 	"name": "Operations Summarizer",
 	"description": "An application that summarizes and analyzes operations data for quick insights and reporting.",
 	"externalId": "operations-summarizer",
-	"versionTag": "0.0.2",
+	"versionTag": "0.1.0",
 	"infra": "appsApi",
 	"deployments": [
 		{
