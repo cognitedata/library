@@ -51,7 +51,7 @@ export function TestCard({
 }: TestCardProps) {
 	const { name, content } = extractSummaryContent(testReport);
 	const date = getSummaryDisplayDate(testReport);
-	const score = extractScoreFromContent(content);
+	const score = extractScoreFromContent(content) ?? 0;
 	const volume = extractDataVolumeFromContent(content);
 	const period =
 		extractPeriodFromContent(content) ||

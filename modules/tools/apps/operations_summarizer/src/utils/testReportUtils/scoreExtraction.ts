@@ -9,8 +9,9 @@ export const SCORE_THRESHOLDS = {
 
 /**
  * Extract similarity score from test report content.
+ * Returns null when no labelled score exists (so callers can show "n/a" rather than 0).
  */
-export function extractScoreFromContent(content: string): number {
+export function extractScoreFromContent(content: string): number | null {
 	const scoreSlashMatch = content.match(
 		/similarity\s*score\s*\**:?\**\s*(\d+(?:\.\d+)?)\s*\/\s*100/i
 	);
@@ -34,10 +35,7 @@ export function extractScoreFromContent(content: string): number {
 	);
 	if (underscoreMatch) return Number.parseFloat(underscoreMatch[1]);
 
-	const percentMatch = content.match(/(\d+(?:\.\d+)?)\s*%/);
-	if (percentMatch) return Number.parseFloat(percentMatch[1]);
-
-	return 0;
+	return null;
 }
 
 /**
@@ -54,5 +52,5 @@ export function extractAccuracyFromContent(content: string): number {
 	);
 	if (accuracyMatch) return Number.parseFloat(accuracyMatch[1]);
 
-	return extractScoreFromContent(content);
+	return extractScoreFromContent(content) ?? 0;
 }

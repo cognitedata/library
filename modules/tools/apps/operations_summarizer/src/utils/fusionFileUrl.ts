@@ -1,5 +1,7 @@
 import appConfig from "../../app.json";
 
+const TEMPLATE_ORG_PLACEHOLDER = "ORG";
+
 export interface FusionFileLinkClient {
 	project: string;
 	getBaseUrl: () => string;
@@ -43,7 +45,9 @@ export function resolveFusionOrigin(
 		return windowOrigin.replace(/\/$/, "");
 	}
 	const org = appConfig.deployments[0]?.org;
-	if (org) return `https://${org}.fusion.cognite.com`;
+	// "ORG" is the unreplaced app.json template placeholder, not a real organization.
+	if (org && org !== TEMPLATE_ORG_PLACEHOLDER)
+		return `https://${org}.fusion.cognite.com`;
 	return windowOrigin.replace(/\/$/, "");
 }
 

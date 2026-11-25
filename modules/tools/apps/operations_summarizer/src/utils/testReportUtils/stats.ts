@@ -67,7 +67,7 @@ export function calculateTestReportStats(
 			);
 		} else {
 			const { content } = extractSummaryContent(report);
-			score = extractScoreFromContent(content);
+			score = extractScoreFromContent(content) ?? 0;
 			volume = extractDataVolumeFromContent(content);
 		}
 
@@ -100,7 +100,8 @@ export function extractTestReportData(
 	const { name, content } = extractSummaryContent(report);
 	const metrics = parseTestReportMetrics(report.sourceContext);
 
-	const score = metrics?.similarityScore ?? extractScoreFromContent(content);
+	const score =
+		metrics?.similarityScore ?? extractScoreFromContent(content) ?? 0;
 	const accuracy =
 		metrics?.dataAccuracyScore ?? extractAccuracyFromContent(content);
 	const volume = metrics

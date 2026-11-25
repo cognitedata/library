@@ -13,15 +13,17 @@ export function getScoreBadgeVariant(
 
 /**
  * Strong fill colors for test score badges (excellent / good / needs attention).
+ * Success and warning use Aura status tokens (dark fill, light text) which reach 4.5:1;
+ * emerald-600 / amber-600 with white text measured 3.65 / 3.57.
  */
 export function vividScoreBadgeClassName(
 	variant: "success" | "warning" | "error"
 ): string {
 	switch (variant) {
 		case "success":
-			return "!border-transparent !bg-emerald-600 !text-white";
+			return "!border-transparent !bg-success-foreground !text-success-background";
 		case "warning":
-			return "!border-transparent !bg-amber-600 !text-white";
+			return "!border-transparent !bg-warning-foreground !text-warning-background";
 		case "error":
 			return "!border-transparent !bg-red-600 !text-white";
 	}

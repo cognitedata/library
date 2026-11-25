@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	buildFusionFileSearchUrl,
 	clusterHostFromBaseUrl,
@@ -6,9 +6,15 @@ import {
 	resolveFusionOrigin,
 } from "./fusionFileUrl";
 
+const deployment = vi.hoisted(() => ({ org: "example" }));
+
 vi.mock("../../app.json", () => ({
-	default: { deployments: [{ org: "example" }] },
+	default: { deployments: [deployment] },
 }));
+
+beforeEach(() => {
+	deployment.org = "example";
+});
 
 describe("buildFusionFileSearchUrl", () => {
 	it("builds a classic Fusion file link from project, cluster, and numeric id", () => {
@@ -38,6 +44,13 @@ describe("resolveFusionOrigin", () => {
 	it("uses the deployment org when the app is running locally", () => {
 		expect(resolveFusionOrigin("https://localhost:3001")).toBe(
 			"https://example.fusion.cognite.com"
+		);
+	});
+
+	it("treats the ORG template placeholder as unset", () => {
+		deployment.org = "ORG";
+		expect(resolveFusionOrigin("https://abc.cogniteappsdata.com")).toBe(
+			"https://abc.cogniteappsdata.com"
 		);
 	});
 

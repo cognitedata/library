@@ -115,10 +115,21 @@ describe("TestResultsPanel", () => {
 			expect(defaultHandlers.onCopyYaml).toHaveBeenCalled();
 		});
 
-		it("calls onDownloadYaml when Download is clicked (yamlExported=true)", () => {
+		it("downloads the YAML from the original button once exported", () => {
+			defaultHandlers.onExportYaml.mockClear();
+			defaultHandlers.onDownloadYaml.mockClear();
 			renderPanel({ yamlExported: true, yamlContent: "yaml: content" });
-			fireEvent.click(screen.getByRole("button", { name: /^download$/i }));
-			expect(defaultHandlers.onDownloadYaml).toHaveBeenCalled();
+			fireEvent.click(screen.getByRole("button", { name: /download report/i }));
+			expect(defaultHandlers.onDownloadYaml).toHaveBeenCalledTimes(1);
+			expect(defaultHandlers.onExportYaml).not.toHaveBeenCalled();
+		});
+
+		it("shows exactly one download and one copy button after export (C38)", () => {
+			renderPanel({ yamlExported: true, yamlContent: "yaml: content" });
+			expect(screen.getAllByRole("button", { name: /download/i })).toHaveLength(
+				1
+			);
+			expect(screen.getAllByRole("button", { name: /copy/i })).toHaveLength(1);
 		});
 	});
 
@@ -130,13 +141,10 @@ describe("TestResultsPanel", () => {
 			expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
 		});
 
-		it("hides Copy and Download buttons when yamlExported is false", () => {
+		it("hides Copy when yamlExported is false", () => {
 			renderPanel({ yamlExported: false });
 			expect(
 				screen.queryByRole("button", { name: /^copy$/i })
-			).not.toBeInTheDocument();
-			expect(
-				screen.queryByRole("button", { name: /^download$/i })
 			).not.toBeInTheDocument();
 		});
 
@@ -156,6 +164,16 @@ describe("TestResultsPanel", () => {
 			renderPanel();
 			// assets: orig=10, new=12 → diff=+2
 			expect(screen.getByText("+2")).toBeInTheDocument();
+		});
+
+		it("renders status badges with Aura success/warning tokens, not emerald/amber text (C40)", () => {
+			renderPanel();
+			expect(screen.getAllByText("✓ Match")[0].className).toContain(
+				"text-success-foreground"
+			);
+			expect(screen.getByText("Δ Change").className).toContain(
+				"text-warning-foreground"
+			);
 		});
 
 		it("shows a Match badge for unchanged counts", () => {

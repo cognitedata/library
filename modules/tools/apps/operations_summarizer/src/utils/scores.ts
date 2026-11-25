@@ -2,11 +2,7 @@
  * Summary text data extraction and comparison score helpers.
  */
 
-import type {
-	DataCounts,
-	ScoreCategory,
-	ScoreDisplay,
-} from "@/types/operations";
+import type { DataCounts } from "@/types/operations";
 
 /**
  * Regex patterns for extracting structured data counts from AI-generated summary text.
@@ -130,52 +126,6 @@ export function extractSimilarityScore(comparisonText: string): number | null {
 	}
 
 	return null;
-}
-
-/**
- * Get score category based on similarity score
- */
-export function getScoreCategory(score: number | null): ScoreCategory {
-	if (score === null) return "poor";
-	if (score >= 85) return "excellent";
-	if (score >= 75) return "good";
-	if (score >= 60) return "fair";
-	return "poor";
-}
-
-/**
- * Get score display information
- */
-export function getScoreDisplay(score: number | null): ScoreDisplay {
-	const category = getScoreCategory(score);
-
-	const displays: Record<ScoreCategory, Omit<ScoreDisplay, "category">> = {
-		excellent: {
-			emoji: "🎉",
-			description: "Excellent Consistency",
-			className: "bg-green-100 text-green-800 border-green-500",
-		},
-		good: {
-			emoji: "✅",
-			description: "Good Consistency",
-			className: "bg-blue-100 text-blue-800 border-blue-500",
-		},
-		fair: {
-			emoji: "⚠️",
-			description: "Fair Consistency",
-			className: "bg-yellow-100 text-yellow-800 border-yellow-500",
-		},
-		poor: {
-			emoji: "❌",
-			description: "Poor Consistency",
-			className: "bg-red-100 text-red-800 border-red-500",
-		},
-	};
-
-	return {
-		category,
-		...displays[category],
-	};
 }
 
 /**

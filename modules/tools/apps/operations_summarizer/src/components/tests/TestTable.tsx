@@ -108,7 +108,7 @@ export function TestTable({
 								{testReports.map((report) => {
 									const { name, content } = extractSummaryContent(report);
 									const date = getSummaryDisplayDate(report);
-									const score = extractScoreFromContent(content);
+									const score = extractScoreFromContent(content) ?? 0;
 									const volume = extractDataVolumeFromContent(content);
 									const period =
 										extractPeriodFromContent(content) ||

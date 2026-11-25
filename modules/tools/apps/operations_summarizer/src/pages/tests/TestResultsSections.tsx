@@ -1,11 +1,4 @@
-import {
-	AlertCircle,
-	Copy,
-	Download,
-	FileText,
-	FlaskConical,
-	Save,
-} from "lucide-react";
+import { AlertCircle, Copy, FileText, FlaskConical, Save } from "lucide-react";
 import { Loader } from "@/components/Loader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -125,33 +118,22 @@ export function TestResultsHeader({
 						<Button
 							variant="outline"
 							size="sm"
-							onClick={onExportYaml}
+							onClick={yamlExported ? onDownloadYaml : onExportYaml}
 							className="h-8 flex-1 sm:flex-initial min-w-0"
 						>
 							<FileText className="w-4 h-4 mr-1 shrink-0" />
 							Download report
 						</Button>
 						{yamlExported && (
-							<>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={onCopyYaml}
-									className="h-8 flex-1 sm:flex-initial min-w-0"
-								>
-									<Copy className="w-4 h-4 mr-1 shrink-0" />
-									Copy
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={onDownloadYaml}
-									className="h-8 flex-1 sm:flex-initial min-w-0"
-								>
-									<Download className="w-4 h-4 mr-1 shrink-0" />
-									Download
-								</Button>
-							</>
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={onCopyYaml}
+								className="h-8 flex-1 sm:flex-initial min-w-0"
+							>
+								<Copy className="w-4 h-4 mr-1 shrink-0" />
+								Copy
+							</Button>
 						)}
 						<Button
 							variant="ghost"
@@ -214,19 +196,9 @@ export function TestDataCountTable({
 								</td>
 								<td className="py-2 px-3 text-center">
 									{diff === 0 ? (
-										<Badge
-											variant="outline"
-											className="text-emerald-600 border-emerald-600/30 bg-emerald-500/10"
-										>
-											✓ Match
-										</Badge>
+										<Badge variant="success">✓ Match</Badge>
 									) : (
-										<Badge
-											variant="outline"
-											className="text-amber-600 border-amber-600/30 bg-amber-500/10"
-										>
-											Δ Change
-										</Badge>
+										<Badge variant="warning">Δ Change</Badge>
 									)}
 								</td>
 							</tr>
