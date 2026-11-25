@@ -46,7 +46,7 @@ those remain the correct choice for `dp:foundation`.
 ### Adding to an existing Toolkit project
 
 Add `sourcesystem/cdf_sap_data_dump` to your package's module list and configure the variables
-under `variables.modules.cdf_sap_data_dump` in your `config.<env>.yaml`.
+under `variables.modules.sourcesystem.cdf_sap_data_dump` in your `config.<env>.yaml`.
 
 ### Starting from scratch
 

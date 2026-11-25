@@ -32,8 +32,8 @@ correct choice for `dp:foundation`.
 
 ### Adding to an existing Toolkit project
 
-Add `sourcesystem/cdf_pi_new` to your package's module list and configure the variables under
-`variables.modules.cdf_pi_new` in your `config.<env>.yaml`.
+Add `sourcesystem/cdf_pi_data_dump` to your package's module list and configure the variables under
+`variables.modules.sourcesystem.cdf_pi_data_dump` in your `config.<env>.yaml`.
 
 ### Starting from scratch
 
@@ -45,7 +45,7 @@ cdf-tk deploy --env <your-env>
 ## Module Structure
 
 ```
-cdf_pi_new/
+cdf_pi_data_dump/
 ├── module.toml
 ├── default.config.yaml
 ├── raw/

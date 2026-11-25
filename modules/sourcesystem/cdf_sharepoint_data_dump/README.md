@@ -40,7 +40,7 @@ records instead of the SharePoint-style sample data.
 ### Adding to an existing Toolkit project
 
 Add `sourcesystem/cdf_sharepoint_data_dump` to your package's module list and configure the variables
-under `variables.modules.cdf_sharepoint_data_dump` in your `config.<env>.yaml`.
+under `variables.modules.sourcesystem.cdf_sharepoint_data_dump` in your `config.<env>.yaml`.
 
 ### Starting from scratch
 
