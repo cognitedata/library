@@ -186,7 +186,7 @@ describe('OverviewPage', () => {
       expect(screen.getByText('Contextualization Quality')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('combobox', { name: /Trend window/i }));
+    await user.click(await screen.findByRole('combobox', { name: /Trend window/i }));
     await user.click(screen.getByRole('option', { name: '90d' }));
 
     await waitFor(() => {
@@ -229,7 +229,7 @@ describe('OverviewPage', () => {
       expect(screen.getByText('Contextualization Quality')).toBeInTheDocument();
     });
 
-    const filtersSection = screen.getByLabelText('Global filters');
+    const filtersSection = await screen.findByLabelText('Global filters');
     const facilityTrigger = within(filtersSection).getAllByRole('combobox')[0];
     await user.click(facilityTrigger);
     await user.click(screen.getByRole('option', { name: 'Demo North' }));
@@ -248,7 +248,7 @@ describe('OverviewPage', () => {
     const hero = await screen.findByTestId('dimension-card-asset-hierarchy');
     const before = hero.textContent;
 
-    const filtersSection = screen.getByLabelText('Global filters');
+    const filtersSection = await screen.findByLabelText('Global filters');
     const facilityTrigger = within(filtersSection).getAllByRole('combobox')[0];
     await user.click(facilityTrigger);
     await user.click(screen.getByRole('option', { name: 'Demo North' }));

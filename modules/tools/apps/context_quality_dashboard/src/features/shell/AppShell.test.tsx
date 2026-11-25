@@ -10,12 +10,16 @@ import { ServicesProvider } from '../../services/ServicesContext';
 import { makeMockHostApi } from '../../test/mockHostApi';
 import { createTestQueryClient } from '../../test/renderWithQueryClient';
 
-function renderShell(hostInitialState?: string, api: ReturnType<typeof makeMockHostApi> | null = null) {
+function renderShell(
+  hostInitialState?: string,
+  api: ReturnType<typeof makeMockHostApi> | null = null,
+  services: ReturnType<typeof createMockServices> = createMockServices({ latency: 0 })
+) {
   const queryClient = createTestQueryClient();
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ServicesProvider services={createMockServices({ latency: 0 })}>
+      <ServicesProvider services={services}>
         <HostApiProvider api={api}>
           <ProductShell hostInitialState={hostInitialState} />
         </HostApiProvider>
@@ -27,6 +31,24 @@ function renderShell(hostInitialState?: string, api: ReturnType<typeof makeMockH
 describe('App shell state', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('shows a loading state, not the tabs or a page, while it checks whether a run exists', async () => {
+    const services = createMockServices({ latency: 0 });
+    vi.spyOn(services.qualityDashboardService, 'getRunStatus').mockReturnValue(new Promise(() => undefined));
+
+    renderShell(JSON.stringify({ page: 'configuration' }), null, services);
+
+    expect(await screen.findByTestId('app-loading')).toBeInTheDocument();
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    expect(screen.queryByText('Upload custom configuration file')).not.toBeInTheDocument();
+  });
+
+  it('shows the tabs once the run status is known and a run exists', async () => {
+    renderShell(JSON.stringify({ page: 'configuration' }));
+
+    expect(await screen.findByRole('tab', { name: 'Configuration', selected: true })).toBeInTheDocument();
+    expect(screen.queryByTestId('app-loading')).not.toBeInTheDocument();
   });
 
   it('renders standalone without a host API', async () => {

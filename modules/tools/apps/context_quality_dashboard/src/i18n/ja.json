@@ -1,5 +1,6 @@
 {
   "app.title": "コンテキスト品質ダッシュボード",
+  "app.loading": "読み込み中",
   "app.shortTitle": "コンテキスト品質",
   "app.lab": "ラボレイアウト",
   "app.labLayoutHint": "概要ページの要対応・分類・進捗セクションの表示を切り替えます",

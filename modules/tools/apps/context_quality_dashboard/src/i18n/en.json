@@ -1,6 +1,7 @@
 {
   "app.title": "Contextualization Quality Dashboard",
   "app.shortTitle": "Contextualization Quality",
+  "app.loading": "Loading",
   "app.lab": "Lab layout",
   "app.labLayoutHint": "Show or hide needs attention, classification, and progress sections on Overview",
   "scope.label": "Active scope",

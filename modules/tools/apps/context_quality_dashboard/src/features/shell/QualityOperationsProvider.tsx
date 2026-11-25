@@ -104,6 +104,7 @@ export function QualityOperationsProvider({ children }: QualityOperationsProvide
     (): QualityOperations => ({
       runStatus: runStatusQuery.data,
       runStatusError: runStatusQuery.error,
+      isRunStatusLoading: runStatusQuery.isPending,
       retryRunStatus,
       isRefreshing: refreshMutation.isPending,
       isRerunning: rerunMutation.isPending,
@@ -140,6 +141,7 @@ export function QualityOperationsProvider({ children }: QualityOperationsProvide
       retryRunStatus,
       runStatusQuery.data,
       runStatusQuery.error,
+      runStatusQuery.isPending,
     ]
   );
 
