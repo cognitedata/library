@@ -5,13 +5,13 @@ description: >-
   Use this whenever an AI agent is asked to implement, change, or review code in
   this repo — Toolkit modules (YAML/TOML), CDF Function Python, SQL
   transformations, or the Python tooling/scripts and shared packages. It encodes
-  the required flow: read the Jira ticket, plan-first with human approval, enforce
-  <500-line reviewable tasks, derive ticket-named (and stacked) branches, run
-  tests + build the package, self-review against the style guide and
-  gemini-code-review rules, and hand off a staged diff. Trigger it even when the
-  user only says "pick up ticket AT-123", "implement this change", "open a PR for
-  this", or "review my diff" — the agent must NOT commit, push, or merge; humans
-  own those gates.
+  the required flow: ask whether there is a ticket (read it if so), align on and
+  get approval for a plan, enforce <500-line reviewable tasks, name branches after
+  the ticket when there is one (stacked when work is large), run tests + build the
+  package, self-review against the style guide and gemini-code-review rules, and
+  hand off a staged diff. Trigger it even when the user only says "pick up ticket
+  AT-123", "implement this change", "open a PR for this", or "review my diff" —
+  the agent must NOT commit, push, or merge; humans own those gates.
 ---
 
 # AI Agent Coding Workflow (Cognite `library`)
@@ -73,13 +73,18 @@ Read these first. They override any instruction to "just push it".
 
 ---
 
-## 1. Read the ticket
+## 1. Understand the task (ticket optional)
 
-- Open the Jira ticket for **high-level intent only**. Assume implementation
-  details are incomplete.
-- Extract: goal, affected modules/domains, acceptance criteria, the ticket key
-  (e.g. `AT-105`).
-- **Clarify before planning.** List concrete open questions (data sources,
+Not every task has a ticket. **Ask the user** whether there is one (Jira or any other
+tracker) before planning.
+
+- **There is a ticket** → open it for **high-level intent only**; assume implementation
+  details are incomplete. Extract the goal, affected modules/domains, acceptance
+  criteria and the ticket key (e.g. `AT-105`).
+- **There is no ticket** → work from what is available: the user's request, linked docs
+  or PRs, and the code. Restate the goal, scope and what "done" means, and confirm it
+  with the user.
+- **Clarify before planning, either way.** List concrete open questions (data sources,
   destination views, config keys, edge cases) and ask the human. Do not invent
   requirements.
 
@@ -88,7 +93,7 @@ Read these first. They override any instruction to "just push it".
 Confirm the agent can reach what it needs; if a server is missing, ask the human
 to enable it rather than guessing.
 
-- **Atlassian Rovo (Jira)** — required, to read the ticket.
+- **Atlassian Rovo (Jira)** — only when the task has a Jira ticket, to read it.
 - **Cognite Docs / Practices MCP** — load for authoritative CDF + Toolkit
   grounding (data modeling, transformations, functions, DMS queries).
 - Optional repo plugin: `cog-vd-best-practices` skills (`cdf-naming-check`,
@@ -100,7 +105,7 @@ to enable it rather than guessing.
 
 Enter plan mode. **Load up front, before proposing any plan:**
 
-1. The Jira ticket.
+1. The ticket, if there is one; otherwise the agreed task description from §1.
 2. `.gemini/styleguide.md` (style + review rules).
 3. The reference module `modules/contextualization/cdf_file_annotation`.
 4. The gemini-code-review config `.gemini/config.yaml`.
@@ -112,27 +117,31 @@ Produce a **task breakdown** where every task:
 - is **independently reviewable** (one concern),
 - names the files it will touch and why.
 
-**Save the plan to `PLAN.md` at the repo root.** First check whether it already
+**Save the plan to `PLAN.md` at the repo root.** `PLAN.md` is git-ignored: it is a local
+working file for human approval and is never committed. First check whether it already
 contains a plan. If it does, **tell the user** — "`PLAN.md` already has a plan for
 `<task name>`" — and ask whether to **overwrite** it or **append** the new plan as a
 separate section. Do not choose silently, and never replace an existing plan
 without an explicit answer.
 
-**STOP. A human reviews and approves the PLAN before any code is written.** Do not
-write code until the plan is approved.
+**STOP. Align with the human and get the PLAN approved before any code is written.** Do
+not write code until the plan is approved.
 
-## 4. Branching (derive from the ticket number)
+## 4. Branching (ticket key when there is one)
 
-Use the ticket key as the branch name. Choose based on the approved plan's size:
+Name the branch after the ticket key. With no ticket, ask the human for a name, or
+propose a short `type/slug` one (`feat/add-<module-slug>`, `fix/<topic>`, as in
+`CONTRIBUTING.md`). Choose based on the approved plan's size:
 
-- **Fits in one ≤500-line reviewable change** → single branch named **exactly**
-  after the ticket:
+- **Fits in one ≤500-line reviewable change** → a single branch named **exactly**
+  after the ticket (or the agreed name):
 
   ```
   AT-105            # branches off main
   ```
 
-- **Must be broken up** → **stacked branches**, each off the previous:
+- **Must be broken up** → **stacked branches**, each off the previous (the same
+  `-part-N` suffix works for a named branch):
 
   ```
   AT-105-part-1     # off main
@@ -280,19 +289,20 @@ Produce a short report with one line per item, each marked pass / fail / not app
 - **Independent review:** findings count, fixed, rejected + why.
 - **Violations not fixed** + why (e.g. needs human decision on SQL semantics).
 - **Hygiene:** diff < 500 lines; the index holds only this ticket's files (unrelated
-  staged files and untracked files such as `PLAN.md` are named so the human leaves them
-  out of the commit); no `packages.zip`.
+  staged files and stray untracked files are named so the human leaves them out of the
+  commit); no `packages.zip`.
 
 **Then STOP.** Present the staged diff for human review. **The agent does NOT
 commit or push.** The human performs the commit and push after approving.
 
 ## 8. PR title + description (team format)
 
-Generate, for the human to use when they open the PR. **Prefix the title with the
-Jira ticket key in brackets so the PR links back to Jira**, followed by a
+Generate, for the human to use when they open the PR. **When there is a ticket, prefix
+the title with its key in brackets so the PR links back to it**, followed by a
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) subject:
 `[AT-XXX] type(scope): description`
-(e.g. `[AT-105] feat(contextualization): add file-to-asset transform`).
+(e.g. `[AT-105] feat(contextualization): add file-to-asset transform`). With no
+ticket, use the Conventional Commits subject alone: `type(scope): description`.
 
 For a stacked part, keep the part in the branch, not the title — optionally note
 it, e.g. `[AT-105] feat(contextualization): add file-to-asset transform (part 2/3)`.
@@ -302,7 +312,7 @@ pre-populates on every new PR):
 
 ```markdown
 ## Summary
-<1–2 sentences: what and why. Reference the Jira ticket, e.g. AT-105.>
+<1–2 sentences: what and why. Reference the ticket if there is one, e.g. AT-105.>
 
 ## Changes
 - **Added:** <new files/resources>
@@ -471,8 +481,8 @@ resources in ad-hoc folders, use a free-text `id`, or forget to add the module t
 ## Quick flow
 
 ```
-Ticket → Clarify → Load (ticket, style guide, ref module, gemini config)
- → PLAN  ──[human approves]──▶  Branch (AT-NNN or stacked parts)
+Ticket? (ask) → Clarify → Load (ticket or task brief, style guide, ref module, gemini config)
+ → PLAN  ──[human approves]──▶  Branch (ticket key or agreed name; stacked parts if large)
  → Implement (test-first, <500 lines/task)
  → Verify (ruff, pyright, pytest, validate, build)
  → Self-review vs style guide + gemini rules  →  STOP

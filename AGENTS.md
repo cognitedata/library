@@ -32,7 +32,7 @@ conventions below do not apply to it.
 
 Any AI agent making changes here **must** follow
 [.claude/skills/ai-agent-coding-workflow/SKILL.md](.claude/skills/ai-agent-coding-workflow/SKILL.md): plan first and get human
-approval, ticket-named (or stacked `AT-123-part-N`) branches, tasks under ~500 lines, self-review against
+approval, ticket-named branches when there is a ticket (stacked `AT-123-part-N` when large), tasks under ~500 lines, self-review against
 `.gemini/styleguide.md`, then **stop**. The agent never commits, pushes, or merges — a human does. This file
 and that skill are the entry points; `CLAUDE.md` imports this file, and both Claude Code and Cursor auto-discover
 the skill from `.claude/skills/`.

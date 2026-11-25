@@ -1,7 +1,7 @@
-<!-- Title format: [AT-XXX] type(scope): description  (e.g. [AT-105] feat(contextualization): add file-to-asset transform) -->
+<!-- Title format: [AT-XXX] type(scope): description  (e.g. [AT-105] feat(contextualization): add file-to-asset transform). No ticket: type(scope): description -->
 
 ## Summary
-<!-- 1–2 sentences: what and why. Reference the Jira ticket, e.g. AT-105. -->
+<!-- 1–2 sentences: what and why. Reference the ticket if there is one, e.g. AT-105. -->
 
 ## Changes
 - **Added:**

@@ -8,6 +8,9 @@ packages.zip
 # Local cog-vd-best-practices audit output (do not commit)
 AUDIT_REPORT.md
 
+# AI agent plan: local working file for human approval (do not commit)
+PLAN.md
+
 # macOS system files
 .DS_Store
 
