@@ -121,21 +121,6 @@ The app has three pages, accessible from a sticky top navigation bar with a them
 
 ---
 
-### 4.3 Settings Page
-
-**Purpose:** Configure the Atlas AI agent used for summary and test generation.
-
-- **Agent Status card** — displays active agent name, model, and external ID.
-- **Create / Update Agent** button — creates or updates the agent in CDF using the current instructions.
-- **Delete Agent** button — permanently removes the agent (with confirmation dialog listing consequences).
-- **Prompts card:**
-  - **Base Instructions** textarea — free-text system-level instructions for the agent; includes a **Reset** button to restore defaults.
-  - **Data Type Prompts** (collapsible, one per data type) — per-type instruction snippets appended to the base instructions during generation; each has a **Reset** and a **Reset All** button.
-- All edit controls are gated on the `agents:write` CDF capability; users without it see a read-only view with an explanatory banner.
-- Permission check failure surfaces a **Retry** button.
-
----
-
 ## 5. Data Model & CDF Integration
 
 ### 5.1 CDF Views Queried
@@ -212,7 +197,7 @@ All queries use the CDF Data Modeling (DM) Instances API. Pagination is cursor-b
 
 - **ViewModel hooks** (`useSummariesPageModel`, `useTestsPageModel`) — all business logic lives in hooks; page components are pure renderers.
 - **Dependency injection** — hooks accept a context (`SummariesPageModelDepsContext`, `TestsPageModelDepsContext`) for testability; concrete implementations are provided by matching `*Provider` components.
-- **Lazy-loaded pages** — `SummariesPage`, `TestsPage`, and `SettingsPage` are dynamically imported; a Suspense fallback and per-page `ErrorBoundary` ensure graceful loading and fault isolation.
+- **Lazy-loaded pages** — `SummariesPage` and `TestsPage` are dynamically imported; a Suspense fallback and per-page `ErrorBoundary` ensure graceful loading and fault isolation.
 - **Context slices** — global state is split into typed slices (`agentSlice`, `summaryGenerationSlice`, `testingSessionSlice`) combined by `rootReducer` inside `OperationsSummarizerContext`.
 - **Interface-based services** — CDF interactions are isolated in service modules (`cdfHelper`, `prompts`) that are never referenced directly by components.
 

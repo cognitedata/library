@@ -2,7 +2,7 @@
 
 **App**: Operations Summarizer (`operations-summarizer`)  
 **Status**: Current product  
-**Related**: [PRD.md](./PRD.md) (goals, non-goals, success metrics), [SETUP-INSTRUCTIONS.MD](./SETUP-INSTRUCTIONS.MD) (deploy and CDF prerequisites)
+**Related**: [PRD.md](./PRD.md) (goals, non-goals, success metrics), [README.md](./README.md#deployment) (deploy and CDF prerequisites)
 
 This file is the source of truth for **user-visible behavior**. Update it when workflow, CDF reads/writes, or AI agent behavior changes. Implementation details live in code; product intent and constraints live here.
 
@@ -12,7 +12,7 @@ This file is the source of truth for **user-visible behavior**. Update it when w
 
 The Operations Summarizer is an AI-assisted Cognite Fusion (Flows) app that turns CDF operational metadata into a plain-language summary for a chosen date range. The user picks data types, generates a summary, saves it, and can later re-run the same period against a saved baseline to score consistency.
 
-Without the app, analysts write queries or read raw tables to see what changed across assets, files, work orders, time series, and equipment. The app replaces that with a three-page flow: Summaries, Tests, and Settings.
+Without the app, analysts write queries or read raw tables to see what changed across assets, files, work orders, time series, and equipment. The app replaces that with a two-page flow: Summaries and Tests.
 
 The app summarizes **metadata** (names, descriptions, relationships). It does not summarize time-series values or provide live monitoring.
 
@@ -22,7 +22,7 @@ The app summarizes **metadata** (names, descriptions, relationships). It does no
 
 - **Operations analyst** — generates summaries and reviews history.
 - **Operations manager** — reviews test scores and trends.
-- **Platform admin** — configures the Atlas AI agent and per-data-type prompts (`agents:write`).
+- **Platform admin** — deploys the module and edits prompts on the config node.
 
 Users know operational data types and date ranges. They do not need to write CDF queries or call the Agents API.
 
@@ -51,8 +51,8 @@ As an analyst, I want to pick a date range and data types and generate a summary
 2. **Given** a valid range and at least one type, **When** I generate, **Then** the app calls `Operations_Summarizer_Function_v2`, which reads matching instances and returns one summary.
 3. **Given** Work Orders, **When** they are fetched, **Then** they are grouped into Completed, Ongoing, and Scheduled before summarization.
 4. **Given** more instances than the per-type cap, **When** generation finishes, **Then** the summary is truncated and I see a truncation warning.
-5. **Given** a finished summary, **When** I save, **Then** it is stored as a `CogniteFile` in the `ops_summaries` space.
-6. **Given** generation fails mid-run, **When** the error dialog appears, **Then** I can retry from the failed step or reset.
+5. **Given** a finished run, **Then** the function saves the summary as a `CogniteFile` in the `ops_summaries` space, and the result panel shows the space and external ID.
+6. **Given** any data type fails during a run, **When** the error dialog appears, **Then** nothing is saved, the dialog lists the failed data types, and I can retry (up to three times) or reset.
 
 ### User Story 2 — Manage saved summaries (Priority: P1)
 
@@ -63,7 +63,7 @@ As an analyst, I want a history of saved summaries I can filter, open, download,
 **Acceptance scenarios**:
 
 1. **Given** saved summaries, **When** the table loads, **Then** rows are cursor-paginated from CDF.
-2. **Given** filters, **When** I set a date range, **Then** it is applied server-side; **When** I toggle data types, **Then** that filter is applied client-side. Clear resets both.
+2. **Given** filters, **When** I set a date range, **Then** rows whose summary period overlaps the range (both end days included) are shown; **When** I toggle data types, **Then** rows are also filtered by type. Both filters are applied client-side while paging through CDF. Clear resets both.
 3. **Given** a row, **When** I view it, **Then** a detail modal shows the summary as Markdown, including a podcast tab when a podcast exists or can be generated.
 4. **Given** a row, **When** I choose Test, **Then** the Tests page opens with that summary as the baseline.
 5. **Given** a row, **When** I delete and confirm, **Then** the instance is removed from CDF.
@@ -84,22 +84,7 @@ As a manager, I want to re-run a saved summary and see similarity, data-accuracy
 5. **Given** saved reports, **When** I am not creating a test, **Then** a stats bar shows total count, average score, and counts per tier, and I can filter the current page by score range.
 6. **Given** a report row, **When** I view, download Markdown, or delete, **Then** those actions match the summaries table pattern (confirm before delete).
 
-### User Story 4 — Configure the agent (Priority: P2)
-
-As an admin, I want to view and edit the helper agent’s instructions and per-type prompts, so summaries change without a code deploy.
-
-**Independent test**: Open Settings with `agents:write`. Edit base instructions, reset a data-type prompt, and create or update the agent. Without `agents:write`, controls are read-only.
-
-**Acceptance scenarios**:
-
-1. **Given** Settings, **When** the agent loads, **Then** I see its name, model, and external ID.
-2. **Given** `agents:write`, **When** I edit base instructions or a data-type prompt and create or update, **Then** the CDF agent is written with those instructions.
-3. **Given** edited prompts, **When** I reset one or reset all, **Then** the defaults return.
-4. **Given** no `agents:write`, **When** I open Settings, **Then** I see a read-only view and an explanatory banner.
-5. **Given** a permission check failure, **When** it surfaces, **Then** I can retry.
-6. **Given** delete, **When** I confirm, **Then** the agent is removed and the dialog states the consequences.
-
-### User Story 5 — Run inside Fusion (Priority: P1)
+### User Story 4 — Run inside Fusion (Priority: P1)
 
 As a user, I want the app to authenticate through Fusion and use the current CDF project.
 
@@ -112,7 +97,7 @@ As a user, I want the app to authenticate through Fusion and use the current CDF
 - No instances in range — generation completes with an empty or minimal summary for that type; the result is still shown.
 - Dataset larger than the per-type cap — generation stops at the cap and shows a truncation warning.
 - Work order status missing — the instance still appears; bucketing uses the status fields the pipeline already reads.
-- Agent missing — the app creates the default agent from the config node when the user has `agents:write`. Generation fails with a recoverable error if no agent is available.
+- Agent missing — the app creates the agent from the config node when the user has `agents:write`. Otherwise the Summaries page shows a banner naming the missing agent ID and Generate stays disabled.
 - Podcast function not deployed — the podcast tab shows that no podcast exists and generation fails with a visible error; viewing the summary text still works.
 - Reload mid-generation — in-progress generation is not restored; saved summaries remain in CDF.
 
@@ -121,14 +106,14 @@ As a user, I want the app to authenticate through Fusion and use the current CDF
 ## Functional requirements
 
 - **FR-001**: Authenticate through the Fusion / `@cognite/app-sdk` host; do not require the user to paste CDF tokens in the UI.
-- **FR-002**: Provide Summaries, Tests, and Settings, with light and dark theme.
+- **FR-002**: Provide Summaries and Tests, with light and dark theme.
 - **FR-003**: Generate a summary for a date range across the selected CDM data types by calling `Operations_Summarizer_Function_v2`.
 - **FR-004**: The function caps instances per data type and the app shows a truncation warning when the cap is hit.
 - **FR-005**: Save summaries and test reports as `CogniteFile` instances in `ops_summaries`.
 - **FR-006**: List, filter, view, download (Markdown and PDF for summaries), and delete saved summaries; offer Test to seed the Tests page.
 - **FR-007**: Re-run a baseline and persist Similarity, Data Accuracy, and LLM scores plus comparison analysis.
 - **FR-008**: Show score tiers and aggregate test stats.
-- **FR-009**: Settings shows the selected agent and the prompts stored on the config node. Prompts change only by editing that node. The app creates the default agent from the config node when it is missing and the user has `agents:write`.
+- **FR-009**: The agent is identified only by the config node's `agent.externalId` (Toolkit variable `ops_agent_external_id`); there is no lookup by name and no fallback. Prompts change only by editing the config node. The app creates the agent when it is missing and the user has `agents:write`; otherwise a banner explains why Generate is disabled.
 - **FR-010**: Surface loading and error states for generation, save, list, download, delete, test run, and permission checks, with retry where the flow can resume.
 - **FR-011**: From a saved summary, generate or play a podcast (audio plus transcript) by calling `Operations_Summarizer_Function_v2`.
 
@@ -158,7 +143,7 @@ Identifiers live in `src/types/operations.ts` (`VIEW_IDS`). Change them only whe
 
 | Item | Convention |
 |------|------------|
-| Agent external ID | `{configuredName}_operation_summarizer_helper_agent` |
+| Agent external ID | `agent.externalId` on the config node (`ops_agent_external_id`, default `operation_summarizer_helper_agent`) |
 | Calls | The app calls `Operations_Summarizer_Function_v2` for summaries and podcasts. The Tests page still calls the agent directly to compare two summaries. |
 | Default model | `agent.defaultLanguageModel` on the config node (used only when the app creates a missing default agent) |
 | Summarizer function | `Operations_Summarizer_Function_v2` (Toolkit module `summarizer_function`) for summaries and podcasts |
@@ -174,7 +159,7 @@ Identifiers live in `src/types/operations.ts` (`VIEW_IDS`). Change them only whe
 | Chunk size | 50 instances per AI call |
 | Per-type cap | 15 000 instances; excess is dropped and warned |
 | One project per session | Project comes from the Fusion host |
-| Agent writes | Settings mutations require `agents:write` |
+| Agent writes | Creating a missing agent requires `agents:write` |
 | Summary writes | Require Data Modeling write on `ops_summaries` and Files write |
 
 ---
@@ -183,5 +168,5 @@ Identifiers live in `src/types/operations.ts` (`VIEW_IDS`). Change them only whe
 
 - An analyst can generate a summary for a typical date range in a few clicks and read it without the CDF query console.
 - A saved summary can be re-run as a test and yields three scores plus a stored report.
-- An admin can change prompts and update the agent without a frontend deploy.
-- A user without `agents:write` can still generate and review summaries.
+- An admin can change prompts by editing the config node, without a frontend deploy.
+- A user without `agents:write` can still generate and review summaries once the agent exists.

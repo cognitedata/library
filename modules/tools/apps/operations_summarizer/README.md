@@ -15,7 +15,7 @@ Product background is in [PRD.md](./PRD.md), [SPEC.md](./SPEC.md), and [App-Brie
 - **Config data model** — schema space `dm_sol_ops_summarizer_app`, data model `OpsSummarizerConfig_SOL`, view and container `OpsSummarizerConfig`, and the config node `ops_summarizer_config` in `inst_ops_summarizer_app_config`.
 - **Summary space** — `ops_summaries`, for summary files, test reports, podcast files, and the function code upload. This space is shared with the Operations Dashboard. Do not `cdf clean` this module or `cdf deploy --drop` it. The space holds user data.
 - **Function** — `Operations_Summarizer_Function_v2`. The code directory name matches that externalId. `handler.py` generates summaries. A call with `task: podcast` runs `podcast_handler.py` in the same directory.
-- **Agent** — backup Atlas AI agent. Its externalId is `{{cdf_project}}_operation_summarizer_helper_agent`. The app (`src/hooks/useComparisonTest.ts`) and the function (`agent_utils.py`) build that same id from the CDF project name, so the prefix stays `cdf_project`.
+- **Agent** — backup Atlas AI agent. Its externalId is the `ops_agent_external_id` variable (default `operation_summarizer_helper_agent`), stored on the config node as `agent.externalId`. The app and the function look the agent up by that ID only. Config nodes deployed before this field existed fail validation until the module is redeployed. An agent created earlier under a project-prefixed or name-matched ID is no longer used and can be deleted.
 - **Fusion app** — Vite/React app in `src/`, deployed with `@cognite/cli`.
 
 These identifiers are literals in the YAML, in `src/config/configLocation.ts`, and in `app_config.py`. Do not rename them without a matching app and function release.
@@ -36,7 +36,7 @@ Prompts, agent instructions, timezone offset, default period, and persona preset
 
 Likely-to-change values are in [default.config.yaml](./default.config.yaml). Set `ops_data_instances_space` to the instance space that holds the source data to summarize. `ops_agent_model` and `ops_agent_name` are shared by the config node and the agent. `limits.instanceQueryLimit` must stay from 1 to 1000.
 
-This module ships a placeholder auth group so Toolkit accepts it. It does not grant summary or config access. Before production use, replace `auth/apps.operations-summarizer.Group.yaml` with groups that match how you scope read and write:
+This module ships an app-user auth group, `auth/apps.operations-summarizer.Group.yaml`. Set its `sourceId` to your identity provider group. It grants what the app and the function (which runs with the caller's session) need: agents read and run, data model read, instance read on the config and source spaces, instance read/write on `ops_summaries`, files read/write, functions read/write, and sessions. It does not grant `agents:write`; put that in a separate admin group so someone can create the agent when it is missing. Adjust the group if you scope access differently:
 
 - **App users** need `dataModels:read` on `dm_sol_ops_summarizer_app` and `dataModelInstances:read` on `inst_ops_summarizer_app_config`.
 - **Config editors** need `dataModelInstances:write` on `inst_ops_summarizer_app_config`. Summary writers must not receive write on that space.
@@ -68,7 +68,7 @@ From the project directory:
 cdf modules add
 ```
 
-Select the **Operations Summarizer** deployment pack (dp:operations_summarizer). Toolkit copies [default.config.yaml](./default.config.yaml) into your `config.<env>.yaml`. Set `ops_data_instances_space` to the source-data space, and set `cdf_project` to the CDF project name. The agent externalId is `{{cdf_project}}_operation_summarizer_helper_agent`, and the app builds that same id from the project name. Then build and deploy:
+Select the **Operations Summarizer** deployment pack (dp:operations_summarizer). Toolkit copies [default.config.yaml](./default.config.yaml) into your `config.<env>.yaml`. Set `ops_data_instances_space` to the source-data space. Optionally change `ops_agent_external_id`. Then build and deploy:
 
 ```bash
 cdf build
