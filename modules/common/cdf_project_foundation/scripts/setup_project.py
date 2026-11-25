@@ -213,11 +213,14 @@ CONTEXTUALIZATION_VARIABLES: dict[str, dict[str, dict]] = {
     },
 }
 
-# Fallback category for modules that may live in old nested-category config files
-# (e.g. created before the flat-structure migration).  Used by _write_config_update
-# to try an alternative dotted path when the flat path is not found.
-_MODULE_CATEGORY_FALLBACK: dict[str, str] = {
+# Category folder of each module under modules/. Toolkit resolves variables.modules by the
+# module's folder path, so a module's variables live under variables.modules.<category>.<module>.
+_MODULE_CATEGORY: dict[str, str] = {
     "cdf_project_foundation": "common",
+    "cdf_ingestion": "common",
+    "cdf_common": "common",
+    "cdf_dq_runtime": "common",
+    "cdf_search": "common",
     "cdf_entity_matching": "contextualization",
     "cdf_file_annotation": "contextualization",
     "cdf_pi_extractor": "sourcesystem",
@@ -225,10 +228,19 @@ _MODULE_CATEGORY_FALLBACK: dict[str, str] = {
     "cdf_opcua_extractor": "sourcesystem",
     "cdf_db_extractor": "sourcesystem",
     "cdf_files_extractor": "sourcesystem",
+    "cdf_pi_data_dump": "sourcesystem",
+    "cdf_pi_industry_data_dump": "sourcesystem",
+    "cdf_sap_data_dump": "sourcesystem",
+    "cdf_sap_industry_data_dump": "sourcesystem",
+    "cdf_sharepoint_data_dump": "sourcesystem",
+    "cdf_sharepoint_industry_data_dump": "sourcesystem",
     "isa_manufacturing_extension": "datamodels",
     "isa_manufacturing_extension_search": "datamodels",
     "cfihos_oil_and_gas_extension": "datamodels",
     "cfihos_oil_and_gas_extension_search": "datamodels",
+    "industry_domain_extension": "datamodels",
+    "industry_domain_extension_search": "datamodels",
+    "rmdm": "datamodels",
 }
 
 # Keys that are stale in an existing config when cdf_project_foundation is
@@ -666,9 +678,124 @@ def _skeleton_config(env: str, project: str) -> dict:
     }
 
 
+def _indent_of(line: str) -> int:
+    return len(line) - len(line.lstrip())
+
+
+def _yaml_block_end(lines: list[str], idx: int) -> int:
+    """Index of the last line of the mapping whose key line is at *idx* (the key line itself if empty)."""
+    key_indent = _indent_of(lines[idx])
+    last = idx
+    for j in range(idx + 1, len(lines)):
+        stripped = lines[j].strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = _indent_of(lines[j])
+        if indent > key_indent or (stripped.startswith("-") and indent >= key_indent):
+            last = j
+        else:
+            break
+    return last
+
+
+def _direct_child_line(lines: list[str], parent_path: str, key: str) -> int | None:
+    """Index of the ``key:`` line that is a direct child of *parent_path*.
+
+    Unlike ``_yaml_find_line``, a nested key of the same name under another category does not match.
+    """
+    parent_idx = _yaml_find_line(lines, parent_path)
+    if parent_idx is None:
+        return None
+    parent_indent = _indent_of(lines[parent_idx])
+    child_indent: int | None = None
+    for j in range(parent_idx + 1, len(lines)):
+        stripped = lines[j].strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = _indent_of(lines[j])
+        if indent <= parent_indent:
+            break
+        child_indent = indent if child_indent is None else child_indent
+        if indent == child_indent and stripped.startswith(f"{key}:"):
+            return j
+    return None
+
+
+def _select_modules_by_path(lines: list[str]) -> bool:
+    """Rewrite a bare ``modules`` entry in ``environment.selected`` to ``modules/``.
+
+    Handles both block lists (``- modules``) and flow lists (``[modules]``). Other entries are left alone.
+    Returns ``True`` when a line changed.
+    """
+    sel = _yaml_find_line(lines, "environment.selected")
+    if sel is None:
+        return False
+    if "[modules]" in lines[sel]:
+        lines[sel] = lines[sel].replace("[modules]", "[modules/]")
+        return True
+    changed = False
+    base = _indent_of(lines[sel])
+    for j in range(sel + 1, len(lines)):
+        stripped = lines[j].strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped == "- modules" and _indent_of(lines[j]) >= base:
+            lines[j] = lines[j].replace("- modules", "- modules/", 1)
+            changed = True
+            continue
+        break
+    return changed
+
+
+def _move_legacy_block(lines: list[str], module: str, category: str) -> bool:
+    """Move a legacy flat block ``variables.modules.<module>`` under ``variables.modules.<category>``.
+
+    The block is moved as lines, so its comments and any keys the wizard does not manage are kept.
+    Returns ``True`` when a block was moved.
+    """
+    idx = _direct_child_line(lines, "variables.modules", module)
+    if idx is None:
+        return False
+    end = _yaml_block_end(lines, idx)
+    header_indent = _indent_of(lines[idx])
+    block = lines[idx : end + 1]
+    del lines[idx : end + 1]
+    cat_idx = _yaml_find_line(lines, f"variables.modules.{category}")
+    if cat_idx is None:
+        # New category node at the old block's position; the module moves one level deeper.
+        shifted = [(" " * 2 + line) if line.strip() else line for line in block]
+        lines[idx:idx] = [" " * header_indent + f"{category}:\n", *shifted]
+        return True
+    # Existing category node: append the module at the end of its section, one level deeper.
+    cat_indent = _indent_of(lines[cat_idx])
+    shift = " " * (cat_indent + 2 - header_indent)
+    shifted = [(shift + line) if line.strip() else line for line in block]
+    insert_at = len(lines)
+    for j in range(cat_idx + 1, len(lines)):
+        stripped = lines[j].strip()
+        if stripped and not stripped.startswith("#") and _indent_of(lines[j]) <= cat_indent:
+            insert_at = j
+            break
+    lines[insert_at:insert_at] = shifted
+    return True
+
+
+def _nest_modules(modules: dict) -> dict:
+    """Group a flat ``{module: vars}`` mapping under each module's category folder."""
+    nested: dict = {}
+    for module, mod_vars in modules.items():
+        category = _MODULE_CATEGORY.get(module)
+        if category is None:
+            nested[module] = mod_vars
+        else:
+            nested.setdefault(category, {})[module] = mod_vars
+    return nested
+
+
 def _write_config_fresh(path: Path, env: str, project: str, overlay: dict) -> None:
     """Create a brand-new config file from the skeleton + overlay."""
-    merged = deep_merge(_skeleton_config(env, project), overlay)
+    nested_overlay = {"variables": {"modules": _nest_modules(overlay.get("variables", {}).get("modules", {}))}}
+    merged = deep_merge(_skeleton_config(env, project), nested_overlay)
     path.write_text(
         _YAML_HEADER + yaml.dump(merged, sort_keys=False, allow_unicode=True, default_flow_style=False),
         encoding="utf-8",
@@ -689,28 +816,30 @@ def _write_config_update(path: Path, project: str, overlay: dict, skip_backup: b
     _, c = _yaml_set_value(lines, "environment.project", project)
     changed = changed or c
 
-    # Update every module variable from the overlay.
-    # Tries the flat path first (new structure), then the old nested-category path
-    # (e.g. variables.modules.common.cdf_project_foundation.*) for backwards
-    # compatibility with configs created before the flat-structure migration.
+    # Toolkit 0.9.96 reads a bare "modules" selection as a module name; rewrite it to the path form.
+    changed = _select_modules_by_path(lines) or changed
+
+    # Update every module variable from the overlay, under variables.modules.<category>.<module>.
     for module, mod_vars in overlay.get("variables", {}).get("modules", {}).items():
         if not isinstance(mod_vars, dict):
             continue
+        category = _MODULE_CATEGORY.get(module)
+        if category is None:
+            parent = f"variables.modules.{module}"
+        else:
+            parent = f"variables.modules.{category}.{module}"
+            if _move_legacy_block(lines, module, category):
+                changed = True
+        if _yaml_find_line(lines, parent) is None:
+            # Create the module block (and its category node) so keys can be inserted under it.
+            if category is not None and _yaml_find_line(lines, f"variables.modules.{category}") is None:
+                _yaml_insert_key(lines, "variables.modules", category, "")
+            _yaml_insert_key(lines, parent.rsplit(".", 1)[0], module, "")
+            changed = True
         for key, val in mod_vars.items():
             yaml_val = val if isinstance(val, str) else yaml.dump(val, default_flow_style=True).strip()
-            # 1. Try flat path: variables.modules.<module>.<key>
-            old, c = _yaml_set_value(lines, f"variables.modules.{module}.{key}", yaml_val)
-            if old is None and not c:
-                # 2. Try legacy nested-category path.
-                category = _MODULE_CATEGORY_FALLBACK.get(module)
-                if category:
-                    old, c = _yaml_set_value(
-                        lines,
-                        f"variables.modules.{category}.{module}.{key}",
-                        yaml_val,
-                    )
-            if old is None and not c and _yaml_insert_key(lines, f"variables.modules.{module}", key, yaml_val):
-                # 3. Key truly absent — insert under flat path.
+            old, c = _yaml_set_value(lines, f"{parent}.{key}", yaml_val)
+            if old is None and not c and _yaml_insert_key(lines, parent, key, yaml_val):
                 c = True
             changed = changed or c
 
@@ -2054,12 +2183,12 @@ def get_actual_value(config: dict, dotted: str) -> object:
 
     The canonical config structure groups modules under their category
     (e.g. ``modules.common.cdf_project_foundation.site``).
-    ``_MODULE_CATEGORY_FALLBACK`` supplies the category for each module name.
+    ``_MODULE_CATEGORY`` supplies the category for each module name.
     """
     parts = dotted.split(".")
     if not parts:
         return None
-    category = _MODULE_CATEGORY_FALLBACK.get(parts[0])
+    category = _MODULE_CATEGORY.get(parts[0])
     node: object = config.get("variables", {}).get("modules", {})
     for part in [category, *parts] if category else parts:
         if not isinstance(node, dict) or part not in node:
@@ -2158,7 +2287,7 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
             label = _module_label(module)
             # Config may be flat (variables.modules.<module>.*, the current default)
             # or nested under the legacy category (variables.modules.sourcesystem.<module>.*).
-            category = _MODULE_CATEGORY_FALLBACK.get(module)
+            category = _MODULE_CATEGORY.get(module)
             mod_cfg = modules_cfg.get(module) or (modules_cfg.get(category, {}).get(module) if category else None) or {}
             if not isinstance(mod_cfg, dict):
                 mod_cfg = {}

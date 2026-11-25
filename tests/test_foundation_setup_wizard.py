@@ -1098,6 +1098,16 @@ class TestWriteConfigFresh:
         data = yaml.safe_load(path.read_text())
         assert data["environment"]["selected"] == ["modules/"]
 
+    def test_module_variables_are_nested_under_their_category(self, tmp_path: Path) -> None:
+        # Toolkit resolves variables.modules by folder path, so modules/common/<m> needs common.<m>.
+        from setup_project import _write_config_fresh, build_overlay
+
+        path = tmp_path / "config.dev.yaml"
+        _write_config_fresh(path, "dev", "acme-dev", build_overlay("cdm", "dev", "", []))
+        modules = yaml.safe_load(path.read_text())["variables"]["modules"]
+        assert modules["common"]["cdf_project_foundation"]["consumerGroupName"] == "consumer_all_dev"
+        assert "cdf_project_foundation" not in modules
+
 
 class TestWriteConfigUpdate:
     def _make_config(self, tmp_path: Path, content: str) -> Path:
@@ -1253,6 +1263,71 @@ class TestWriteConfigUpdate:
         _write_config_update(p, "old", overlay)
         content = p.read_text()
         assert "oslo" in content  # site updated in nested structure
+
+    def test_legacy_flat_block_is_moved_to_nested_path(self, tmp_path: Path) -> None:
+        from setup_project import _write_config_update, build_overlay
+
+        p = self._make_config(
+            tmp_path,
+            """\
+            environment:
+              project: acme-dev
+            variables:
+              modules:
+                cdf_project_foundation:
+                  site: old-site
+                  dataset: []
+        """,
+        )
+        overlay = build_overlay("cdm", "dev", "oslo", [])
+        _write_config_update(p, "acme-dev", overlay)
+        data = yaml.safe_load(p.read_text())
+        foundation = data["variables"]["modules"]["common"]["cdf_project_foundation"]
+        assert foundation["site"] == "oslo"
+        assert "cdf_project_foundation" not in data["variables"]["modules"]
+
+    def test_bare_modules_selection_is_rewritten_with_trailing_slash(self, tmp_path: Path) -> None:
+        from setup_project import _write_config_update, build_overlay
+
+        p = self._make_config(
+            tmp_path,
+            """\
+            environment:
+              project: acme-dev
+              selected:
+              - modules
+            variables:
+              modules:
+                sourcesystem:
+                  cdf_opcua_extractor:
+                    environment: dev
+        """,
+        )
+        _write_config_update(p, "acme-dev", build_overlay("cdm", "dev", "", []))
+        assert yaml.safe_load(p.read_text())["environment"]["selected"] == ["modules/"]
+
+    def test_inserts_nested_block_when_category_is_missing(self, tmp_path: Path) -> None:
+        from setup_project import _write_config_update, build_overlay
+
+        p = self._make_config(
+            tmp_path,
+            """\
+            environment:
+              project: acme-dev
+            variables:
+              modules:
+                sourcesystem:
+                  cdf_opcua_extractor:
+                    environment: dev
+        """,
+        )
+        overlay = build_overlay("cdm", "dev", "", [])
+        _write_config_update(p, "acme-dev", overlay)
+        data = yaml.safe_load(p.read_text())
+        assert data["variables"]["modules"]["common"]["cdf_project_foundation"]["consumerGroupName"] == (
+            "consumer_all_dev"
+        )
+        assert data["variables"]["modules"]["sourcesystem"]["cdf_opcua_extractor"]["environment"] == "dev"
 
 
 # ── setup_project — staging migration ─────────────────────────────────────────
