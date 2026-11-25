@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 
 import { useQualityDashboardService } from '../../services/useServices';
-import type { DimensionId, MetricId } from '../../types';
+import type { DimensionId, MetricId, RunStatusDto } from '../../types';
 
 import { invalidateDashboardQueries } from './invalidateDashboardQueries';
 import {
@@ -39,6 +39,22 @@ export function QualityOperationsProvider({ children }: QualityOperationsProvide
     queryKey: ['runStatus'],
     queryFn: () => qualityDashboardService.getRunStatus(),
   });
+
+  // A query that has no data yet (the "no completed run" error) goes back to pending, with its error cleared, every
+  // time it refetches, for example when the browser tab regains focus. Keep the last answer meanwhile, so the app
+  // does not forget that it already knows there is no run and swap the first-run screen for a loading state.
+  const [lastRunStatus, setLastRunStatus] = useState<{ data: RunStatusDto | undefined; error: unknown } | null>(null);
+  if (
+    !runStatusQuery.isPending &&
+    (lastRunStatus === null ||
+      lastRunStatus.data !== runStatusQuery.data ||
+      lastRunStatus.error !== runStatusQuery.error)
+  ) {
+    setLastRunStatus({ data: runStatusQuery.data, error: runStatusQuery.error });
+  }
+  const runStatus = runStatusQuery.isPending ? lastRunStatus?.data : runStatusQuery.data;
+  const runStatusError = runStatusQuery.isPending ? lastRunStatus?.error : runStatusQuery.error;
+  const isRunStatusLoading = runStatusQuery.isPending && lastRunStatus === null;
 
   const { refetch: refetchRunStatus } = runStatusQuery;
   const retryRunStatus = useCallback(() => {
@@ -98,13 +114,13 @@ export function QualityOperationsProvider({ children }: QualityOperationsProvide
   const isInProgress =
     refreshMutation.isPending ||
     rerunMutation.isPending ||
-    runStatusQuery.data?.inProgress === true;
+    runStatus?.inProgress === true;
 
   const value = useMemo(
     (): QualityOperations => ({
-      runStatus: runStatusQuery.data,
-      runStatusError: runStatusQuery.error,
-      isRunStatusLoading: runStatusQuery.isPending,
+      runStatus,
+      runStatusError,
+      isRunStatusLoading,
       retryRunStatus,
       isRefreshing: refreshMutation.isPending,
       isRerunning: rerunMutation.isPending,
@@ -139,9 +155,9 @@ export function QualityOperationsProvider({ children }: QualityOperationsProvide
       rerunMutation.isSuccess,
       rerunMutation.variables,
       retryRunStatus,
-      runStatusQuery.data,
-      runStatusQuery.error,
-      runStatusQuery.isPending,
+      runStatus,
+      runStatusError,
+      isRunStatusLoading,
     ]
   );
 

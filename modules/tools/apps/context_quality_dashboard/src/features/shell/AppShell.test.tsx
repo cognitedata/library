@@ -1,10 +1,11 @@
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { HostApiProvider } from '../../app/HostApiContext';
 import { ProductShell } from '../../app/ProductShell';
+import { BackendError } from '../../services/cdf/backendErrors';
 import { createMockServices } from '../../services/mock/createMockServices';
 import { ServicesProvider } from '../../services/ServicesContext';
 import { makeMockHostApi } from '../../test/mockHostApi';
@@ -13,10 +14,9 @@ import { createTestQueryClient } from '../../test/renderWithQueryClient';
 function renderShell(
   hostInitialState?: string,
   api: ReturnType<typeof makeMockHostApi> | null = null,
-  services: ReturnType<typeof createMockServices> = createMockServices({ latency: 0 })
+  services: ReturnType<typeof createMockServices> = createMockServices({ latency: 0 }),
+  queryClient: QueryClient = createTestQueryClient()
 ) {
-  const queryClient = createTestQueryClient();
-
   return render(
     <QueryClientProvider client={queryClient}>
       <ServicesProvider services={services}>
@@ -42,6 +42,26 @@ describe('App shell state', () => {
     expect(await screen.findByTestId('app-loading')).toBeInTheDocument();
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
     expect(screen.queryByText('Upload custom configuration file')).not.toBeInTheDocument();
+  });
+
+  it('keeps showing the first-run screen while the run status is refetched, for example when the tab regains focus', async () => {
+    const services = createMockServices({ latency: 0 });
+    const getRunStatus = vi
+      .spyOn(services.qualityDashboardService, 'getRunStatus')
+      .mockRejectedValue(new BackendError('no-completed-run', 'empty', { detail: 'empty' }));
+    const queryClient = createTestQueryClient();
+    renderShell(JSON.stringify({ page: 'configuration' }), null, services, queryClient);
+    expect(await screen.findByTestId('first-run-onboarding')).toBeInTheDocument();
+
+    getRunStatus.mockReturnValue(new Promise(() => undefined));
+    void queryClient.refetchQueries({ queryKey: ['runStatus'] });
+
+    await waitFor(() => {
+      expect(queryClient.isFetching({ queryKey: ['runStatus'] })).toBe(1);
+    });
+    expect(screen.getByTestId('first-run-onboarding')).toBeInTheDocument();
+    expect(screen.queryByTestId('app-loading')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Overview' })).not.toBeInTheDocument();
   });
 
   it('shows the tabs once the run status is known and a run exists', async () => {
