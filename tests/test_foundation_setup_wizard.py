@@ -1306,6 +1306,73 @@ class TestWriteConfigUpdate:
         _write_config_update(p, "acme-dev", build_overlay("cdm", "dev", "", []))
         assert yaml.safe_load(p.read_text())["environment"]["selected"] == ["modules/"]
 
+    def test_migrates_flat_blocks_for_modules_outside_the_overlay(self, tmp_path: Path) -> None:
+        # A module the wizard no longer manages must not be left flat next to nested ones.
+        from setup_project import _write_config_update, build_overlay
+
+        p = self._make_config(
+            tmp_path,
+            """\
+            environment:
+              project: acme-dev
+              selected:
+              - modules/
+            variables:
+              modules:
+                cdf_project_foundation:
+                  site: old
+                cdf_pi_extractor:
+                  dataset: ds_pi
+                cdf_ingestion:
+                  dataset: ingestion
+        """,
+        )
+        _write_config_update(p, "acme-dev", build_overlay("cdm", "dev", "", [], repo_root=tmp_path))
+        mods = yaml.safe_load(p.read_text())["variables"]["modules"]
+        assert set(mods) == {"common", "sourcesystem"}
+        assert mods["sourcesystem"]["cdf_pi_extractor"]["dataset"] == "ds_pi"
+        assert mods["common"]["cdf_ingestion"]["dataset"] == "ingestion"
+
+    @pytest.mark.parametrize(
+        ("selected_block", "expected"),
+        [
+            ("  selected:\n  - modules  # everything\n", ["modules/"]),
+            ("  selected:\n  - 'modules'\n", ["modules/"]),
+            ('  selected: ["modules"]\n', ["modules/"]),
+            ("  selected: [modules, modules/solutions/x/]\n", ["modules/", "modules/solutions/x/"]),
+            ("  selected:\n  - modules/common/\n  - modules\n", ["modules/common/", "modules/"]),
+            ("  selected:\n  - modules/common/\n", ["modules/common/"]),
+        ],
+    )
+    def test_selected_rewrite_handles_comments_quotes_and_mixed_lists(
+        self, tmp_path: Path, selected_block: str, expected: list[str]
+    ) -> None:
+        from setup_project import _write_config_update, build_overlay
+
+        p = self._make_config(
+            tmp_path,
+            "environment:\n  project: acme-dev\n"
+            + selected_block
+            + "variables:\n  modules:\n    common:\n      cdf_project_foundation:\n        site: x\n",
+        )
+        _write_config_update(p, "acme-dev", build_overlay("cdm", "dev", "", [], repo_root=tmp_path))
+        assert yaml.safe_load(p.read_text())["environment"]["selected"] == expected
+
+    def test_modules_outside_the_category_map_stay_flat(self, tmp_path: Path) -> None:
+        from setup_project import _write_config_fresh, _write_config_update
+
+        overlay = {"variables": {"modules": {"my_custom_module": {"foo": "baz"}}}}
+        fresh = tmp_path / "fresh.yaml"
+        _write_config_fresh(fresh, "dev", "acme-dev", overlay)
+        assert yaml.safe_load(fresh.read_text())["variables"]["modules"] == {"my_custom_module": {"foo": "baz"}}
+
+        p = self._make_config(
+            tmp_path,
+            "environment:\n  project: acme-dev\nvariables:\n  modules:\n    my_custom_module:\n      foo: bar\n",
+        )
+        _write_config_update(p, "acme-dev", overlay)
+        assert yaml.safe_load(p.read_text())["variables"]["modules"] == {"my_custom_module": {"foo": "baz"}}
+
     def test_inserts_nested_block_when_category_is_missing(self, tmp_path: Path) -> None:
         from setup_project import _write_config_update, build_overlay
 
@@ -1328,6 +1395,15 @@ class TestWriteConfigUpdate:
             "consumer_all_dev"
         )
         assert data["variables"]["modules"]["sourcesystem"]["cdf_opcua_extractor"]["environment"] == "dev"
+
+
+class TestJapaneseMessages:
+    def test_sop_step_references_match_the_english_key(self) -> None:
+        from _messages_ja import MESSAGES_JA
+
+        for key, value in MESSAGES_JA.items():
+            for step in re.findall(r"SOP Step (\w+)", key):
+                assert step in value, f"SOP step {step} missing from the translation of: {key}"
 
 
 # ── setup_project — staging migration ─────────────────────────────────────────

@@ -483,9 +483,9 @@ def build_overlay(
 ) -> dict:
     """Full ``variables.modules`` overlay dict to merge into a config file.
 
-    Uses a *flat* module-name structure (no category wrappers) to match Toolkit
-    conventions, ensuring ``_write_config_update`` can locate every key in existing
-    config files.
+    The overlay is keyed by module name (no category wrappers). ``_write_config_fresh`` and
+    ``_write_config_update`` place each module under its category folder, as Toolkit
+    resolves variables by module path.
 
     ``datasets`` should be read from the existing ``config.<env>.yaml`` (populated
     by Toolkit at module-init time).  The ``default.config.yaml`` files are not
@@ -721,29 +721,38 @@ def _direct_child_line(lines: list[str], parent_path: str, key: str) -> int | No
     return None
 
 
+_BARE_MODULES_ITEM = re.compile(r"""^(\s*-\s*)(["']?)modules\2(\s*(?:#.*)?)$""")
+_BARE_MODULES_FLOW = re.compile(r"""(?<=[\[,\s])(["']?)modules\1(?=\s*[,\]])""")
+
+
 def _select_modules_by_path(lines: list[str]) -> bool:
     """Rewrite a bare ``modules`` entry in ``environment.selected`` to ``modules/``.
 
-    Handles both block lists (``- modules``) and flow lists (``[modules]``). Other entries are left alone.
+    Handles block lists (``- modules``, optionally quoted or followed by a comment) and flow lists
+    (``[modules]``, ``["modules", ...]``). Other entries are left alone.
     Returns ``True`` when a line changed.
     """
     sel = _yaml_find_line(lines, "environment.selected")
     if sel is None:
         return False
-    if "[modules]" in lines[sel]:
-        lines[sel] = lines[sel].replace("[modules]", "[modules/]")
-        return True
     changed = False
+    key, sep, value = lines[sel].partition(":")
+    new_value = _BARE_MODULES_FLOW.sub(lambda m: f"{m[1]}modules/{m[1]}", value)
+    if new_value != value:
+        lines[sel] = f"{key}{sep}{new_value}"
+        changed = True
     base = _indent_of(lines[sel])
     for j in range(sel + 1, len(lines)):
         stripped = lines[j].strip()
         if not stripped or stripped.startswith("#"):
             continue
-        if stripped == "- modules" and _indent_of(lines[j]) >= base:
-            lines[j] = lines[j].replace("- modules", "- modules/", 1)
+        if not stripped.startswith("-") or _indent_of(lines[j]) < base:
+            break
+        body = lines[j].rstrip("\n")
+        match = _BARE_MODULES_ITEM.match(body)
+        if match:
+            lines[j] = f"{match[1]}{match[2]}modules/{match[2]}{match[3]}{lines[j][len(body) :]}"
             changed = True
-            continue
-        break
     return changed
 
 
@@ -760,16 +769,15 @@ def _move_legacy_block(lines: list[str], module: str, category: str) -> bool:
     header_indent = _indent_of(lines[idx])
     block = lines[idx : end + 1]
     del lines[idx : end + 1]
+    # The module nests one level under its category, so every line of the block moves two spaces right.
+    shifted = [("  " + line) if line.strip() else line for line in block]
     cat_idx = _yaml_find_line(lines, f"variables.modules.{category}")
     if cat_idx is None:
-        # New category node at the old block's position; the module moves one level deeper.
-        shifted = [(" " * 2 + line) if line.strip() else line for line in block]
+        # New category node at the old block's position.
         lines[idx:idx] = [" " * header_indent + f"{category}:\n", *shifted]
         return True
-    # Existing category node: append the module at the end of its section, one level deeper.
+    # Existing category node (a sibling of the old block, so at the same indent): append at the end of it.
     cat_indent = _indent_of(lines[cat_idx])
-    shift = " " * (cat_indent + 2 - header_indent)
-    shifted = [(shift + line) if line.strip() else line for line in block]
     insert_at = len(lines)
     for j in range(cat_idx + 1, len(lines)):
         stripped = lines[j].strip()
@@ -819,17 +827,17 @@ def _write_config_update(path: Path, project: str, overlay: dict, skip_backup: b
     # Toolkit 0.9.96 reads a bare "modules" selection as a module name; rewrite it to the path form.
     changed = _select_modules_by_path(lines) or changed
 
+    # Move every legacy flat block under its category, including modules the overlay does not touch,
+    # so a config never mixes flat and nested module variables.
+    for module, category in _MODULE_CATEGORY.items():
+        changed = _move_legacy_block(lines, module, category) or changed
+
     # Update every module variable from the overlay, under variables.modules.<category>.<module>.
     for module, mod_vars in overlay.get("variables", {}).get("modules", {}).items():
         if not isinstance(mod_vars, dict):
             continue
         category = _MODULE_CATEGORY.get(module)
-        if category is None:
-            parent = f"variables.modules.{module}"
-        else:
-            parent = f"variables.modules.{category}.{module}"
-            if _move_legacy_block(lines, module, category):
-                changed = True
+        parent = f"variables.modules.{category}.{module}" if category else f"variables.modules.{module}"
         if _yaml_find_line(lines, parent) is None:
             # Create the module block (and its category node) so keys can be inserted under it.
             if category is not None and _yaml_find_line(lines, f"variables.modules.{category}") is None:
@@ -1391,14 +1399,14 @@ def _read_existing_values(
         if proj:
             existing["project_names"][env] = proj
         modules = cfg.get("variables", {}).get("modules", {})
-        # Support both flat (new) and nested-category (old) structures.
+        # Support nested-category (current) and flat (legacy) structures.
         foundation = (
             modules.get("cdf_project_foundation") or (modules.get("common") or {}).get("cdf_project_foundation") or {}
         )
         if foundation.get("site"):
             existing["site"] = foundation["site"]
         # Collect dataset values from installed sourcesystem module sections.
-        # Supports both flat (new) and nested-category (old) config structures.
+        # Supports nested-category (current) and flat (legacy) config structures.
         ss_section = modules.get("sourcesystem") or modules
         ss_datasets: list[str] = []
         for module in installed_ss:
@@ -2285,8 +2293,8 @@ def _warn_disabled_notifications(repo_root: Path | None, pack_root: Path) -> Non
         disabled: list[str] = []
         for module in installed_ss:
             label = _module_label(module)
-            # Config may be flat (variables.modules.<module>.*, the current default)
-            # or nested under the legacy category (variables.modules.sourcesystem.<module>.*).
+            # Config is nested under the category (variables.modules.sourcesystem.<module>.*)
+            # or, in a legacy file, flat (variables.modules.<module>.*).
             category = _MODULE_CATEGORY.get(module)
             mod_cfg = modules_cfg.get(module) or (modules_cfg.get(category, {}).get(module) if category else None) or {}
             if not isinstance(mod_cfg, dict):
