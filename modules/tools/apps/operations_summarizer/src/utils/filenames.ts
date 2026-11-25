@@ -28,7 +28,7 @@ export function generateFilename(
 		const timestamp = new Date()
 			.toISOString()
 			.replace(ISO_PUNCTUATION, "")
-			.slice(0, 15);
+			.slice(0, 17);
 		return `${prefix}_${start}_to_${end}_${timestamp}.${extension}`;
 	}
 

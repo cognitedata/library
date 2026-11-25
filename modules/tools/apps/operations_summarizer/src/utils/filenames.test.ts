@@ -6,8 +6,18 @@ describe("generateFilename", () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date("2024-06-15T12:34:56.789Z"));
 		const name = generateFilename("ops", "2024-01-01", "2024-01-31", "pdf");
-		expect(name).toBe("ops_2024-01-01_to_2024-01-31_2024-06-15T1234.pdf");
+		expect(name).toBe("ops_2024-01-01_to_2024-01-31_2024-06-15T123456.pdf");
 		vi.useRealTimers();
+	});
+
+	it("names two downloads in the same minute differently", () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-11-24T11:51:30Z"));
+		const a = generateFilename("p", "2024-01-01", "2024-01-31", "md");
+		vi.setSystemTime(new Date("2026-11-24T11:51:45Z"));
+		const b = generateFilename("p", "2024-01-01", "2024-01-31", "md");
+		vi.useRealTimers();
+		expect(a).not.toBe(b);
 	});
 
 	it("without extension produces CDF-safe characters", () => {
