@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
+import * as scores from "./scores";
 import {
 	calculateDataAccuracyScore,
 	extractDataCounts,
 	extractSimilarityScore,
-	getScoreCategory,
-	getScoreDisplay,
 	normalizeSummaryTextForComparison,
 } from "./scores";
+import { getScoreCategory as specCategory } from "./testReportUtils/scoreDisplay";
 
 describe("extractDataCounts", () => {
 	it("extracts counts from summary text", () => {
@@ -63,32 +63,17 @@ describe("normalizeSummaryTextForComparison", () => {
 	});
 });
 
-describe("getScoreCategory", () => {
-	it("returns excellent for >= 85", () => {
-		expect(getScoreCategory(85)).toBe("excellent");
-		expect(getScoreCategory(100)).toBe("excellent");
+describe("C07 score tiers", () => {
+	it("does not keep the legacy 85/75/60 tiers next to the spec tiers", () => {
+		expect(Object.keys(scores)).not.toContain("getScoreCategory");
+		expect(Object.keys(scores)).not.toContain("getScoreDisplay");
 	});
-	it("returns good for 75-84", () => {
-		expect(getScoreCategory(75)).toBe("good");
-		expect(getScoreCategory(84)).toBe("good");
-	});
-	it("returns fair for 60-74", () => {
-		expect(getScoreCategory(60)).toBe("fair");
-		expect(getScoreCategory(74)).toBe("fair");
-	});
-	it("returns poor for < 60 or null", () => {
-		expect(getScoreCategory(59)).toBe("poor");
-		expect(getScoreCategory(null)).toBe("poor");
-	});
-});
 
-describe("getScoreDisplay", () => {
-	it("returns display with category, emoji, description", () => {
-		const display = getScoreDisplay(90);
-		expect(display.category).toBe("excellent");
-		expect(display.emoji).toBeTruthy();
-		expect(display.description).toBeTruthy();
-		expect(display.className).toBeTruthy();
+	it("spec tiers are 90 / 70 (control)", () => {
+		expect(specCategory(90)).toBe("excellent");
+		expect(specCategory(89)).toBe("good");
+		expect(specCategory(70)).toBe("good");
+		expect(specCategory(69)).toBe("poor");
 	});
 });
 
