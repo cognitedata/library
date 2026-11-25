@@ -12,63 +12,53 @@ def ensure_agent_exists(
     agent_id: str | None = None,
     instructions: str | None = None,
 ) -> str:
-    """Ensure that an agent exists, creating one if necessary.
+    """Ensure that an agent exists, creating the configured helper agent if necessary.
 
-    Parameters
-    ----------
-    client : CogniteClient
-    agent_id : str, optional
-        Specific agent external ID to use.
-    instructions : str, optional
-        Agent system instructions. Falls back to the config node.
+    Agents are matched by external ID only. The default is the config node
+    ``agent.externalId``.
 
-    Returns
-    -------
-    str - external_id of the agent to use.
+    Args:
+        client: Cognite client.
+        agent_id: Explicit agent external ID. Must exist.
+        instructions: Agent system instructions. Falls back to the config node.
+
+    Returns:
+        External ID of the agent to use.
+
+    Raises:
+        ValueError: ``agent_id`` is given but no such agent exists.
+        RuntimeError: The helper agent could not be created.
     """
     cdf_helper = CDFHelper(client)
+    agents, _ = cdf_helper.get_agents()
+    existing_ids = {agent.external_id for agent in agents}
 
     if agent_id:
-        try:
-            agents, _ = cdf_helper.get_agents()
-            for agent in agents:
-                if agent.external_id == agent_id:
-                    print(f"Using provided agent: {agent_id}")
-                    return agent_id
-            print(f"Agent {agent_id} not found, will create default agent")
-        except Exception as e:
-            print(f"Error checking for agent: {e}")
+        if agent_id not in existing_ids:
+            raise ValueError(f"Agent '{agent_id}' not found")
+        print(f"Using provided agent: {agent_id}")
+        return agent_id
+
+    external_id = runtime.helper_agent_external_id
+    if external_id in existing_ids:
+        print(f"Found existing helper agent: {external_id}")
+        return external_id
 
     try:
-        agents, _ = cdf_helper.get_agents()
-        for agent in agents:
-            if agent.name == runtime.helper_agent_name:
-                print(f"Found existing helper agent: {agent.external_id}")
-                return agent.external_id
-    except Exception as e:
-        print(f"Error getting agents: {e}")
-
-    try:
-        project_name = client.config.project
-        external_id = f"{project_name}_operation_summarizer_helper_agent"
-
         supported_models = cdf_helper.get_supported_model_names()
         if not supported_models:
             raise RuntimeError("No supported language models available")
-        model = supported_models[0]
 
-        instr = instructions or runtime.agent_instructions
-
-        agent_id = cdf_helper.create_agent(
+        created_id = cdf_helper.create_agent(
             external_id=external_id,
             name=runtime.helper_agent_name,
             description="AI agent for summarizing operations data.",
-            instructions=instr,
-            model=model,
+            instructions=instructions or runtime.agent_instructions,
+            model=supported_models[0],
             tools=[],
         )
-        print(f"Created new helper agent: {agent_id}")
-        return agent_id
+        print(f"Created new helper agent: {created_id}")
+        return created_id
 
     except Exception as e:
         print(f"Failed to create helper agent: {e}")

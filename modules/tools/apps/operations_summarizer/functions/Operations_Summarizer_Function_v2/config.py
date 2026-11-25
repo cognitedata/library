@@ -24,6 +24,7 @@ class Runtime:
     max_instances_per_datatype: int = 15_000
     instance_query_limit: int = 1000
     helper_agent_name: str = ""
+    helper_agent_external_id: str = ""
     operation_summary_prefix: str = ""
     prompt_header: str = ""
     holistic_summary_template: str = ""
@@ -193,6 +194,7 @@ def bind_from_node(node: dict) -> None:
     runtime.max_instances_per_datatype = int(limits["maxInstancesPerDatatype"])
     runtime.instance_query_limit = int(limits["instanceQueryLimit"])
     runtime.helper_agent_name = node["agent"]["name"]
+    runtime.helper_agent_external_id = _require_text(node["agent"].get("externalId"), "agent.externalId")
     runtime.operation_summary_prefix = node["externalIdPrefixes"]["operationSummary"]
     _bind_prompts_and_defaults(node)
 

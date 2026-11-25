@@ -1,11 +1,11 @@
 # Name and model come from the same variables as the config node
 # (ops_agent_name, ops_agent_model) so the agent and the node stay aligned.
-# externalId must stay {cdf_project}_operation_summarizer_helper_agent.
-# The app and the function build that id from the CDF project name.
+# externalId comes from ops_agent_external_id, the same variable the config node
+# uses for agent.externalId. The app and the function find the agent by that id.
 #
-# Primary path: create/update from the app Settings page.
-# This resource is the Toolkit backup, deployed with `cdf deploy`.
-externalId: '{{cdf_project}}_operation_summarizer_helper_agent'
+# `cdf deploy` creates this agent. If it is missing, the app creates it for users
+# with agents:write; otherwise the Summaries page explains why Generate is disabled.
+externalId: '{{ ops_agent_external_id }}'
 name: '{{ ops_agent_name }}'
 description: AI agent for summarizing operations data.
 model: '{{ ops_agent_model }}'

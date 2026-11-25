@@ -1,9 +1,57 @@
-# Placeholder so Toolkit accepts the module. Replace with a real group before production use.
+# Access for people who use the Operations Summarizer app. The function runs with
+# the caller's session, so it needs the same access.
+#
+# agentsAcl WRITE is not granted here. The app only creates the helper agent for
+# users who already have agents:write; everyone else sees a banner on the
+# Summaries page. Grant agents:write through a separate admin group.
 name: 'tools.operations-summarizer.Group'
 sourceId: <tools.operations-summarizer_group_source_id>
 metadata:
   origin: 'cdf-project-templates'
 capabilities:
+  - agentsAcl:
+      actions:
+        - READ
+        - RUN
+      scope:
+        all: {}
+  - dataModelsAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
+            - dm_sol_ops_summarizer_app
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
+            - inst_ops_summarizer_app_config
+            - '{{ ops_data_instances_space }}'
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - '{{ ops_summaries_space }}'
+  - filesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
+  - functionsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
   - sessionsAcl:
       actions:
         - LIST
