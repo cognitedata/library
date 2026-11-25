@@ -67,6 +67,28 @@ describe("markdownToHtml", () => {
 		expect(html).toContain("<strong");
 	});
 
+	it("strips scripts, event handlers and javascript: links", () => {
+		const html = markdownToHtml(
+			'<script>alert(1)</script><img src="x" onerror="alert(1)">\n\n[l](javascript:alert(1))'
+		);
+		expect(html).not.toMatch(/<script|onerror|href="javascript:/i);
+	});
+
+	it("does not load remote images from summary text", () => {
+		expect(
+			markdownToHtml("![x](https://example.invalid/a.png?q=secret)")
+		).not.toMatch(/<img/i);
+		expect(
+			markdownToHtml('<img src="https://example.invalid/a.png">')
+		).not.toMatch(/<img/i);
+	});
+
+	it("keeps ordinary https links", () => {
+		expect(markdownToHtml("[docs](https://example.com)")).toContain(
+			'href="https://example.com"'
+		);
+	});
+
 	it("converts horizontal rule line", () => {
 		const html = markdownToHtml("before\n\n---\n\nafter");
 		expect(html).toContain("<hr");

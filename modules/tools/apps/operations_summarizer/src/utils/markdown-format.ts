@@ -36,9 +36,12 @@ export function stripHtmlTags(text: string): string {
 	return cleanText;
 }
 
-// Allow style on table cells so remark-gfm column alignment (text-align) survives sanitization.
+// Summary text comes from an LLM and source data, so it is untrusted: drop `img` so the
+// viewer never makes a remote request on render. Allow style on table cells so remark-gfm
+// column alignment (text-align) survives sanitization.
 const sanitizeSchema = {
 	...defaultSchema,
+	tagNames: (defaultSchema.tagNames ?? []).filter((tag) => tag !== "img"),
 	attributes: {
 		...defaultSchema.attributes,
 		td: [...(defaultSchema.attributes?.td ?? []), "style"],
