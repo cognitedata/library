@@ -5,6 +5,7 @@ import {
 	CogniteSummaryFunctionService,
 	formatLocalDate,
 	parseSummaryFunctionResult,
+	SummaryFunctionError,
 } from "./summaryFunctionService";
 
 // withCdfConcurrency waits on a shared queue. Tests run the task immediately.
@@ -140,6 +141,47 @@ describe(parseSummaryFunctionResult.name, () => {
 		expect(() => parseSummaryFunctionResult({ success: false })).toThrow(
 			"Summary generation failed"
 		);
+	});
+
+	it("throws a typed error carrying failed_types when success is false", () => {
+		let caught: unknown;
+		try {
+			parseSummaryFunctionResult({
+				success: false,
+				error: "Failed to process: files",
+				failed_types: ["files", "bogus", 3, "work_orders"],
+			});
+		} catch (err) {
+			caught = err;
+		}
+		expect(caught).toBeInstanceOf(SummaryFunctionError);
+		if (!(caught instanceof SummaryFunctionError)) return;
+		expect(caught.message).toBe("Failed to process: files");
+		expect(caught.failedTypes).toEqual(["files", "work_orders"]);
+	});
+
+	it("uses an empty failedTypes list when the function sends none", () => {
+		let caught: unknown;
+		try {
+			parseSummaryFunctionResult({ success: false, error: "bad period" });
+		} catch (err) {
+			caught = err;
+		}
+		expect(caught).toBeInstanceOf(SummaryFunctionError);
+		if (!(caught instanceof SummaryFunctionError)) return;
+		expect(caught.failedTypes).toEqual([]);
+	});
+
+	it("parses cdf_result.space", () => {
+		const result = parseSummaryFunctionResult({
+			success: true,
+			markdown: "# S",
+			cdf_result: { space: "ops_summaries", external_id: "ops_summary_1" },
+		});
+		expect(result.cdfResult).toEqual({
+			space: "ops_summaries",
+			external_id: "ops_summary_1",
+		});
 	});
 
 	it("throws on a non-OK response shape", () => {

@@ -8,7 +8,10 @@ import {
 	OperationsProvider,
 	useOperations,
 } from "@/contexts/OperationsSummarizerContext";
-import type { SummaryFunctionService } from "@/services/summaryFunctionService";
+import {
+	SummaryFunctionError,
+	type SummaryFunctionService,
+} from "@/services/summaryFunctionService";
 import { cogniteClientMock } from "@/test-utils/testDoubles";
 import {
 	UseSummaryGenerationContext,
@@ -28,6 +31,12 @@ const { shellSdk } = vi.hoisted(() => ({
 // Stub the Fusion host so unit tests do not boot the real App SDK.
 vi.mock("@cognite/app-sdk/react", () => ({
 	useCogniteSdk: () => shellSdk,
+}));
+
+// User retries sleep with backoff. Tests retry immediately.
+vi.mock("@/utils/cdfRetry", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@/utils/cdfRetry")>()),
+	sleep: () => Promise.resolve(),
 }));
 
 const generate = vi.fn<SummaryFunctionService["generate"]>();
@@ -467,11 +476,104 @@ describe(useSummaryGeneration.name, () => {
 		});
 	});
 
-	it("discards a superseded run and ignores its later logs", async () => {
+	it("ignores a second generate while one is running", async () => {
+		let release: (
+			value: Awaited<ReturnType<SummaryFunctionService["generate"]>>
+		) => void = () => {};
+		generate.mockReset();
+		generate.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					release = resolve;
+				})
+		);
+		const { result } = renderHook(() => useSummaryGeneration(), { wrapper });
+		let firstRun: Promise<unknown> = Promise.resolve();
+		act(() => {
+			firstRun = result.current.generate();
+		});
+		await act(async () => {
+			expect(await result.current.generate()).toBeNull();
+		});
+		expect(generate).toHaveBeenCalledTimes(1);
+		await act(async () => {
+			release(quietResult("# Only"));
+			await firstRun;
+		});
+		expect(result.current.result?.markdown).toBe("# Only");
+	});
+
+	it("routes a missing function and a timeout through error recovery", async () => {
+		const { result } = renderHook(() => useSummaryGeneration(), { wrapper });
+		generate.mockRejectedValueOnce(new Error("Function not found"));
+		await act(async () => {
+			await result.current.generate();
+		});
+		expect(result.current.error).toMatch(/was not found/i);
+		expect(result.current.canRetry).toBe(true);
+
+		act(() => {
+			result.current.reset();
+		});
+		generate.mockRejectedValueOnce(new Error("Call timed out"));
+		await act(async () => {
+			await result.current.generate();
+		});
+		expect(result.current.error).toMatch(/shorter date range/i);
+		expect(result.current.canRetry).toBe(true);
+	});
+
+	it("exposes failed data types when the function reports them", async () => {
+		generate.mockRejectedValueOnce(
+			new SummaryFunctionError("Failed to process: files", ["files"])
+		);
+		const { result } = renderHook(() => useSummaryGeneration(), { wrapper });
+		await act(async () => {
+			await result.current.generate();
+		});
+		expect(result.current.error).toBe("Failed to process: files");
+		expect(result.current.failedTypes).toEqual(["files"]);
+		act(() => {
+			result.current.reset();
+		});
+		expect(result.current.failedTypes).toEqual([]);
+	});
+
+	it("resolves retryGeneration with null when there is nothing to retry", async () => {
+		generate.mockReset();
+		const { result } = renderHook(() => useSummaryGeneration(), { wrapper });
+		await act(async () => {
+			expect(await result.current.retryGeneration()).toBeNull();
+		});
+		expect(generate).not.toHaveBeenCalled();
+	});
+
+	it("stops retrying after three failed retries", async () => {
+		generate.mockReset();
+		generate.mockRejectedValue(new Error("temporary"));
+		const { result } = renderHook(() => useSummaryGeneration(), { wrapper });
+		await act(async () => {
+			await result.current.generate();
+		});
+		for (let attempt = 0; attempt < 3; attempt++) {
+			expect(result.current.canRetry).toBe(true);
+			await act(async () => {
+				await result.current.retryGeneration();
+			});
+		}
+		expect(result.current.canRetry).toBe(false);
+		await act(async () => {
+			expect(await result.current.retryGeneration()).toBeNull();
+		});
+		expect(generate).toHaveBeenCalledTimes(4);
+	});
+
+	it("discards a cancelled run and ignores its later logs", async () => {
 		let firstLog: ((line: string) => void) | undefined;
 		let releaseFirst: (
 			value: Awaited<ReturnType<SummaryFunctionService["generate"]>>
 		) => void = () => {};
+		generate.mockReset();
 		generate.mockImplementationOnce(async (_request, opts) => {
 			firstLog = opts?.onLog;
 			return new Promise((resolve) => {
@@ -485,6 +587,9 @@ describe(useSummaryGeneration.name, () => {
 			firstRun = result.current.generate();
 		});
 		await waitFor(() => expect(firstLog).toBeTypeOf("function"));
+		act(() => {
+			result.current.cancel();
+		});
 
 		await act(async () => {
 			await result.current.generate();

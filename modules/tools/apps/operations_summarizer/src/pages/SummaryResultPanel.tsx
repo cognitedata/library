@@ -28,6 +28,8 @@ export interface SavedPdfInfo {
 	fileName: string;
 	fileId: string | null;
 	fusionUrl?: string;
+	space?: string;
+	externalId?: string;
 }
 
 export interface SummaryResultPanelProps {
@@ -104,6 +106,20 @@ export function SummaryResultPanel({
 								</span>
 								<span className="break-words">{activeDataTypes}</span>
 							</span>
+							{savedPdfInfo?.space && savedPdfInfo.externalId ? (
+								<span className="flex flex-wrap items-center gap-1 min-w-0">
+									<span className="font-medium text-foreground shrink-0">
+										Saved as:
+									</span>
+									<code className="break-all text-xs">
+										{savedPdfInfo.space}
+									</code>
+									<span aria-hidden>/</span>
+									<code className="break-all text-xs">
+										{savedPdfInfo.externalId}
+									</code>
+								</span>
+							) : null}
 						</div>
 					</div>
 					<div className="flex flex-col gap-2 sm:items-end shrink-0 w-full sm:w-auto">

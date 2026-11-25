@@ -22,6 +22,7 @@ import {
 import { useErrorRecovery } from "@/hooks/useErrorRecovery";
 import {
 	CogniteSummaryFunctionService,
+	SummaryFunctionError,
 	type SummaryFunctionResult,
 	type SummaryFunctionService,
 } from "@/services/summaryFunctionService";
@@ -47,6 +48,8 @@ interface UseSummaryGenerationResult {
 	error: string | null;
 	reset: () => void;
 	recoverFromError: () => void;
+	/** Data types the function reported as failed on the last run. */
+	failedTypes?: DataTypeName[];
 	retryGeneration: () => Promise<SummaryResult | null>;
 	canRetry: boolean;
 }
@@ -76,6 +79,32 @@ function editedPrompts(
 	return Object.keys(overrides).length > 0 ? overrides : undefined;
 }
 
+interface FailureDisplay {
+	userMessage?: string;
+	progressMessage: string;
+}
+
+function classifyFailure(err: unknown, message: string): FailureDisplay {
+	if (err instanceof SummaryFunctionError) {
+		return { userMessage: message, progressMessage: "Failed" };
+	}
+	const lower = message.toLowerCase();
+	if (lower.includes("not found")) {
+		return {
+			userMessage:
+				"Summarizer function was not found. Deploy Operations_Summarizer_Function_v2 before generating.",
+			progressMessage: "Function not found",
+		};
+	}
+	if (lower.includes("timed out")) {
+		return {
+			userMessage: `${message}. Try a shorter date range. A large work-order period can exceed the function time limit.`,
+			progressMessage: "Timed out",
+		};
+	}
+	return { progressMessage: "Failed" };
+}
+
 export function useSummaryGeneration(): UseSummaryGenerationResult {
 	const { useCdfClient: useClient, createService } = useContext(
 		UseSummaryGenerationContext
@@ -88,14 +117,21 @@ export function useSummaryGeneration(): UseSummaryGenerationResult {
 	const error = state.generationError;
 	const [result, setResult] = useState<SummaryResult | null>(null);
 	const [elapsedSeconds, setElapsedSeconds] = useState(0);
+	const [failedTypes, setFailedTypes] = useState<DataTypeName[]>([]);
 
-	const { handleError, recoverFromError, retryLastOperation, canRetry } =
-		useErrorRecovery({ preserveUserConfig: true });
+	const {
+		handleError,
+		recoverFromError,
+		clearError,
+		retryLastOperation,
+		canRetry,
+	} = useErrorRecovery({ preserveUserConfig: true });
 
 	const progressRef = useRef(progress);
 	progressRef.current = progress;
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const runIdRef = useRef(0);
+	const inFlightRef = useRef(false);
 
 	const isGenerating = progress.status === "generating";
 
@@ -145,6 +181,7 @@ export function useSummaryGeneration(): UseSummaryGenerationResult {
 		dispatch({ type: "SET_GENERATION_ERROR", payload: null });
 		setResult(null);
 		setElapsedSeconds(0);
+		setFailedTypes([]);
 		recoverFromError();
 	}, [dispatch, recoverFromError]);
 
@@ -164,13 +201,15 @@ export function useSummaryGeneration(): UseSummaryGenerationResult {
 			return null;
 		}
 
-		abortControllerRef.current?.abort();
+		if (inFlightRef.current) return null;
+		inFlightRef.current = true;
 		const controller = new AbortController();
 		abortControllerRef.current = controller;
 		const runId = ++runIdRef.current;
 
 		try {
 			setError(null);
+			setFailedTypes([]);
 			setProgress({
 				status: "generating",
 				message: "Generating in CDF Function…",
@@ -213,6 +252,7 @@ export function useSummaryGeneration(): UseSummaryGenerationResult {
 				cdfResult: generated.cdfResult,
 			};
 			setResult(summaryResult);
+			clearError();
 			setProgress({
 				status: "complete",
 				message: summaryResult.cdfResult ? "Saved" : "Generated",
@@ -231,30 +271,25 @@ export function useSummaryGeneration(): UseSummaryGenerationResult {
 				return null;
 			}
 			const message = err instanceof Error ? err.message : String(err);
-			if (message.toLowerCase().includes("not found")) {
-				setError(
-					"Summarizer function was not found. Deploy Operations_Summarizer_Function_v2 before generating."
-				);
-				setProgress({
-					status: "error",
-					message: "Function not found",
-					progress: 0,
-				});
-				return null;
-			}
-			if (message.toLowerCase().includes("timed out")) {
-				setError(
-					`${message}. Try a shorter date range. A large work-order period can exceed the function time limit.`
-				);
-				setProgress({ status: "error", message: "Timed out", progress: 0 });
-				return null;
-			}
-			handleError(err, "summary-generation", {
-				periodStart: periodStart.toISOString(),
-				periodEnd: periodEnd.toISOString(),
+			const failure = classifyFailure(err, message);
+			if (err instanceof SummaryFunctionError) setFailedTypes(err.failedTypes);
+			handleError(
+				err,
+				"summary-generation",
+				{
+					periodStart: periodStart.toISOString(),
+					periodEnd: periodEnd.toISOString(),
+				},
+				failure.userMessage
+			);
+			setProgress({
+				status: "error",
+				message: failure.progressMessage,
+				progress: 0,
 			});
-			setProgress({ status: "error", message: "Failed", progress: 0 });
 			return null;
+		} finally {
+			if (runId === runIdRef.current) inFlightRef.current = false;
 		}
 	}, [
 		sdk,
@@ -266,6 +301,7 @@ export function useSummaryGeneration(): UseSummaryGenerationResult {
 		setProgress,
 		setError,
 		handleError,
+		clearError,
 		reset,
 		createService,
 		queryClient,
@@ -273,6 +309,7 @@ export function useSummaryGeneration(): UseSummaryGenerationResult {
 
 	const cancel = useCallback(() => {
 		runIdRef.current += 1;
+		inFlightRef.current = false;
 		abortControllerRef.current?.abort();
 		setProgress({
 			status: "idle",
@@ -284,9 +321,14 @@ export function useSummaryGeneration(): UseSummaryGenerationResult {
 
 	const retryGeneration =
 		useCallback(async (): Promise<SummaryResult | null> => {
-			await retryLastOperation();
+			if (!canRetry) return null;
+			try {
+				await retryLastOperation();
+			} catch {
+				return null;
+			}
 			return generate();
-		}, [retryLastOperation, generate]);
+		}, [canRetry, retryLastOperation, generate]);
 
 	return {
 		generate,
@@ -298,6 +340,7 @@ export function useSummaryGeneration(): UseSummaryGenerationResult {
 		error,
 		reset,
 		recoverFromError,
+		failedTypes,
 		retryGeneration,
 		canRetry,
 	};

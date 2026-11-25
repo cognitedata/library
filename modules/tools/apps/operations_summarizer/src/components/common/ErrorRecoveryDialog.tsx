@@ -12,6 +12,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { getDisplayName } from "@/config/dataTypes";
 
 interface ErrorRecoveryDialogProps {
 	open: boolean;
@@ -23,6 +24,8 @@ interface ErrorRecoveryDialogProps {
 	onClose: () => void;
 	isRetrying?: boolean;
 	operationType?: string;
+	/** Data types the function reported as failed. Nothing was saved. */
+	failedTypes?: string[];
 	preservedConfig?: {
 		dateRange?: string;
 		dataTypes?: string[];
@@ -40,6 +43,7 @@ export function ErrorRecoveryDialog({
 	onClose,
 	isRetrying = false,
 	operationType = "operation",
+	failedTypes,
 	preservedConfig,
 }: ErrorRecoveryDialogProps) {
 	const handleRetry = async () => {
@@ -77,6 +81,12 @@ export function ErrorRecoveryDialog({
 				</Alert>
 
 				<div className="space-y-4">
+					{failedTypes && failedTypes.length > 0 && (
+						<p className="text-sm text-foreground">
+							Failed data types: {failedTypes.map(getDisplayName).join(", ")}
+						</p>
+					)}
+
 					{/* Preserved Configuration Info */}
 					{preservedConfig && (
 						<div className="rounded-md bg-muted/50 p-3 border">
@@ -119,7 +129,7 @@ export function ErrorRecoveryDialog({
 								) : (
 									<RefreshCw className="h-4 w-4 mr-2" />
 								)}
-								Try again with same settings
+								Retry
 							</Button>
 						)}
 
@@ -129,7 +139,7 @@ export function ErrorRecoveryDialog({
 							className="w-full justify-start"
 						>
 							<RotateCcw className="h-4 w-4 mr-2" />
-							Reset and modify settings
+							Reset
 						</Button>
 
 						<Button

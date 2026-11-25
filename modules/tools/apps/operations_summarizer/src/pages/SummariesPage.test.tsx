@@ -536,16 +536,12 @@ describe("SummariesPage", () => {
 			showCreateForm: true,
 		});
 		renderPage();
-		fireEvent.click(
-			screen.getByRole("button", { name: /try again with same settings/i })
-		);
+		fireEvent.click(screen.getByRole("button", { name: /^retry$/i }));
 		await waitFor(() => expect(handleErrorRetry).toHaveBeenCalled());
 		expect(recoverFromGenerationError).toHaveBeenCalled();
 
 		recoverFromGenerationError.mockClear();
-		fireEvent.click(
-			screen.getByRole("button", { name: /reset and modify settings/i })
-		);
+		fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
 		expect(handleResetToIdle).toHaveBeenCalled();
 		expect(recoverFromGenerationError).toHaveBeenCalled();
 
@@ -572,7 +568,7 @@ describe("SummariesPage", () => {
 		renderPage();
 		expect(screen.getByText("Still running")).toBeInTheDocument();
 		expect(
-			screen.queryByRole("button", { name: /try again with same settings/i })
+			screen.queryByRole("button", { name: /^retry$/i })
 		).not.toBeInTheDocument();
 		expect(screen.getByText(/Generating in CDF Function/)).toBeInTheDocument();
 	});
