@@ -378,10 +378,7 @@ export function parseAppConfig(raw: unknown): AppConfig {
 		},
 		agent: {
 			name: requireNonEmptyString(agent.name, "agent.name"),
-			externalIdSuffix: requireNonEmptyString(
-				agent.externalIdSuffix,
-				"agent.externalIdSuffix"
-			),
+			externalId: requireNonEmptyString(agent.externalId, "agent.externalId"),
 			defaultLanguageModel: requireNonEmptyString(
 				agent.defaultLanguageModel,
 				"agent.defaultLanguageModel"

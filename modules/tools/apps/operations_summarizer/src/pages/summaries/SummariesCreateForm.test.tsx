@@ -87,6 +87,7 @@ const summaryContents = {
 
 const baseFormProps: ComponentProps<typeof SummariesCreateForm> = {
 	hasSelectedAgent: true,
+	agentError: null,
 	generationError: null,
 	periodStart: new Date("2024-01-01T00:00:00Z"),
 	periodEnd: new Date("2024-01-08T00:00:00Z"),
@@ -155,6 +156,20 @@ describe("SummariesCreateForm", () => {
 		expect(screen.getByText("No agent selected")).toBeInTheDocument();
 		expect(screen.getByText("Function timed out")).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Generate (0)" })).toBeDisabled();
+	});
+
+	it("shows a blocking banner and disables generate when the agent is missing", () => {
+		renderForm({
+			hasSelectedAgent: false,
+			agentError:
+				"Agent 'operation_summarizer_helper_agent' not found. Ask an admin with agents:write to create it.",
+		});
+
+		expect(screen.getByRole("alert")).toHaveTextContent(
+			"Agent 'operation_summarizer_helper_agent' not found"
+		);
+		expect(screen.getByRole("alert")).toHaveTextContent("agents:write");
+		expect(screen.getByRole("button", { name: "Generate (2)" })).toBeDisabled();
 	});
 
 	it("disables generate when the period length is not positive", () => {

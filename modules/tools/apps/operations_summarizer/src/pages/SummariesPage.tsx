@@ -101,6 +101,7 @@ function SummariesPageContent() {
 				{model.showCreateForm && (
 					<SummariesCreateForm
 						hasSelectedAgent={Boolean(model.state.selectedAgent)}
+						agentError={model.state.agentInitError}
 						generationError={model.generationError}
 						periodStart={model.state.summaryPeriodStart}
 						periodEnd={model.state.summaryPeriodEnd}

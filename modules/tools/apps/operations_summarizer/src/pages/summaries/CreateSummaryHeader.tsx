@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 
 export interface CreateSummaryHeaderProps {
 	hasSelectedAgent: boolean;
+	/** Why no agent is available (for example, it does not exist yet). */
+	agentError: string | null;
 	generationError: string | null;
 	onClose: () => void;
 }
@@ -10,6 +12,7 @@ export interface CreateSummaryHeaderProps {
 /** Title, agent/generation warnings, and close control for the create form. */
 export function CreateSummaryHeader({
 	hasSelectedAgent,
+	agentError,
 	generationError,
 	onClose,
 }: CreateSummaryHeaderProps) {
@@ -22,7 +25,16 @@ export function CreateSummaryHeader({
 						Create new summary
 					</h2>
 				</div>
-				{!hasSelectedAgent && (
+				{agentError && (
+					<div
+						role="alert"
+						className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive"
+					>
+						<AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+						<span className="break-words">{agentError}</span>
+					</div>
+				)}
+				{!hasSelectedAgent && !agentError && (
 					<span className="text-xs text-amber-600 flex items-center gap-1">
 						<AlertCircle className="w-3 h-3 shrink-0" />
 						No agent selected

@@ -143,7 +143,7 @@ describe("useComparisonTest", () => {
 		const generate = stubComparisonApis({
 			agents: [
 				{
-					externalId: "helper-agent",
+					externalId: getAppConfig().agent.externalId,
 					name: getAppConfig().agent.name,
 				},
 			],
@@ -165,7 +165,7 @@ describe("useComparisonTest", () => {
 
 		expect(generate).toHaveBeenCalledWith(
 			expect.objectContaining({
-				selectedAgent: "helper-agent",
+				selectedAgent: getAppConfig().agent.externalId,
 				saveToCdf: false,
 				summaryContents: expect.objectContaining({
 					files: true,
@@ -183,7 +183,12 @@ describe("useComparisonTest", () => {
 
 	it("uses every enabled data type when none are selected", async () => {
 		const generate = stubComparisonApis({
-			agents: [{ externalId: "helper-agent", name: getAppConfig().agent.name }],
+			agents: [
+				{
+					externalId: getAppConfig().agent.externalId,
+					name: getAppConfig().agent.name,
+				},
+			],
 			newMarkdown: "10 assets",
 			comparisonText: "SIMILARITY_SCORE: 100",
 		});
@@ -228,15 +233,54 @@ describe("useComparisonTest", () => {
 		expect(warn).toHaveBeenCalled();
 		expect(generate).toHaveBeenCalledWith(
 			expect.objectContaining({
-				selectedAgent: "p_operation_summarizer_helper_agent",
+				selectedAgent: getAppConfig().agent.externalId,
 			})
 		);
 		expect(result.current.testing.testResultData?.newSummary).toBe("8 assets");
 	});
 
+	it("ignores an agent that only shares the helper agent name", async () => {
+		vi.spyOn(console, "warn").mockImplementation(() => {});
+		const generate = stubComparisonApis({
+			agents: [{ externalId: "other_agent", name: getAppConfig().agent.name }],
+		});
+		periodSeed = {};
+		const { result } = renderHook(() => useComparisonHarness(), {
+			wrapper: Wrapper,
+		});
+		await waitFor(() =>
+			expect(result.current.testing.testStartDate).toBe("2024-01-01")
+		);
+
+		await act(async () => {
+			await result.current.comparison.runComparisonTest(
+				summaryWithContent("10 assets")
+			);
+		});
+
+		expect(generate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				selectedAgent: getAppConfig().agent.externalId,
+			})
+		);
+		expect(generate).not.toHaveBeenCalledWith(
+			expect.objectContaining({ selectedAgent: "other_agent" })
+		);
+		expect(generate).not.toHaveBeenCalledWith(
+			expect.objectContaining({
+				selectedAgent: expect.stringMatching(/^p_/),
+			})
+		);
+	});
+
 	it("records an error when the original summary has no content", async () => {
 		stubComparisonApis({
-			agents: [{ externalId: "helper-agent", name: getAppConfig().agent.name }],
+			agents: [
+				{
+					externalId: getAppConfig().agent.externalId,
+					name: getAppConfig().agent.name,
+				},
+			],
 		});
 		periodSeed = {};
 		const { result } = renderHook(() => useComparisonHarness(), {
@@ -257,7 +301,12 @@ describe("useComparisonTest", () => {
 
 	it("records an error when summary generation fails", async () => {
 		const generate = stubComparisonApis({
-			agents: [{ externalId: "helper-agent", name: getAppConfig().agent.name }],
+			agents: [
+				{
+					externalId: getAppConfig().agent.externalId,
+					name: getAppConfig().agent.name,
+				},
+			],
 		});
 		generate.mockRejectedValue(new Error("function unavailable"));
 		periodSeed = {};
@@ -281,7 +330,12 @@ describe("useComparisonTest", () => {
 
 	it("scores identical summaries at 100 when the model omits a similarity score", async () => {
 		stubComparisonApis({
-			agents: [{ externalId: "helper-agent", name: getAppConfig().agent.name }],
+			agents: [
+				{
+					externalId: getAppConfig().agent.externalId,
+					name: getAppConfig().agent.name,
+				},
+			],
 			newMarkdown: "10 assets",
 			comparisonText: "",
 		});
@@ -307,7 +361,12 @@ describe("useComparisonTest", () => {
 
 	it("sets accuracy to zero when only the new summary has data counts", async () => {
 		stubComparisonApis({
-			agents: [{ externalId: "helper-agent", name: getAppConfig().agent.name }],
+			agents: [
+				{
+					externalId: getAppConfig().agent.externalId,
+					name: getAppConfig().agent.name,
+				},
+			],
 			newMarkdown: "5 assets",
 			comparisonText: "no score listed",
 		});
