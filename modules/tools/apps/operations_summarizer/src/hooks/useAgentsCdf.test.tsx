@@ -300,7 +300,6 @@ describe("useAgentsCdf", () => {
 
 	it("falls back to the first supported model when the configured model is missing", async () => {
 		const config = parseAppConfig(DEFAULT_NODE_PROPERTIES);
-		const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
 		mockSdk.get.mockImplementation((url: string) => {
 			const path = String(url);
 			if (path.includes("/ai/agents") && !path.includes("availability")) {
@@ -346,7 +345,5 @@ describe("useAgentsCdf", () => {
 				}),
 			})
 		);
-		expect(info).toHaveBeenCalled();
-		info.mockRestore();
 	});
 });

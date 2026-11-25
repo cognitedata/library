@@ -218,7 +218,7 @@ src/
 │   ├── ui/                         # shadcn/ui primitives
 │   ├── summaries/                  # Summary-specific components
 │   ├── tests/                      # Test-specific components
-│   └── common/                     # Shared UI (FilterBar, ProgressBar, dialogs)
+│   └── common/                     # Shared UI (ProgressBar, dialogs)
 ├── services/                       # CDF API service modules
 └── utils/                          # Pure utility functions (all unit-tested)
 ```

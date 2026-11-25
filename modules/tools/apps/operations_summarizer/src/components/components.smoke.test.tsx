@@ -9,7 +9,6 @@ import {
 } from "@/components/common/DataTypeControl";
 import { DownloadErrorDialog } from "@/components/common/DownloadErrorDialog";
 import { ErrorRecoveryDialog } from "@/components/common/ErrorRecoveryDialog";
-import { FilterBar } from "@/components/common/FilterBar";
 import { ProgressBar } from "@/components/common/ProgressBar";
 import {
 	Pagination,
@@ -185,17 +184,9 @@ describe("components smoke", () => {
 		expect(screen.getByText("Pick2")).toBeInTheDocument();
 	});
 
-	it("FilterBar ProgressBar ResponsiveTable Pagination", () => {
+	it("ProgressBar ResponsiveTable Pagination", () => {
 		render(
 			<div>
-				<FilterBar
-					dateRange={{
-						startDate: "2024-01-01",
-						endDate: "2024-01-31",
-						onStartDateChange: () => {},
-						onEndDateChange: () => {},
-					}}
-				/>
 				<ProgressBar progress={50} message="m" />
 				<ResponsiveTable
 					table={

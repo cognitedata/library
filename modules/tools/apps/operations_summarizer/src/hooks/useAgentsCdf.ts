@@ -9,7 +9,6 @@ import { getAppConfig } from "@/config/appConfig";
 import { useCdfClient } from "@/contexts/CdfClientContext";
 import { CDFHelper } from "@/services/cdfHelper";
 import type { AppConfig } from "@/types/appConfig";
-import { logInfo } from "@/utils/errorHandling/log";
 import { CDF_QUERY_KEYS } from "./cdfQueryKeys";
 
 const DEFAULT_AGENT_DESCRIPTION = "AI agent for summarizing operations data.";
@@ -102,13 +101,6 @@ export function useEnsureDefaultAgent() {
 					"No language model is available for the default agent."
 				);
 			}
-			if (model !== preferred) {
-				logInfo(
-					`Configured model ${preferred} is not supported; using ${model}.`,
-					"Default agent"
-				);
-			}
-
 			await helper.createAgent({
 				externalId,
 				name,

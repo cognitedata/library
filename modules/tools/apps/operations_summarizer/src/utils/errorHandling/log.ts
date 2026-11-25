@@ -1,13 +1,6 @@
 import { parseError } from "./parse";
 
 /**
- * Log an informational message with a context prefix.
- */
-export function logInfo(message: string, context: string): void {
-	console.info(`[${context}] ${message}`);
-}
-
-/**
  * Log an error with context for debugging.
  */
 export function logError(
