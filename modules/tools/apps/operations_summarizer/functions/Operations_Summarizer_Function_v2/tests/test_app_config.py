@@ -58,6 +58,19 @@ def test_get_config_uses_node_defaults():
     assert DATA_TYPE_CONFIGS["work_orders"].is_special_case is True
 
 
+def test_agent_external_id_parsed():
+    runtime.helper_agent_external_id = ""
+    get_config({}, FakeClient(default_node()))
+    assert runtime.helper_agent_external_id == "operation_summarizer_helper_agent"
+
+
+def test_missing_agent_external_id_errors():
+    node = default_node()
+    del node["agent"]["externalId"]
+    with pytest.raises(AppConfigError, match=r"agent\.externalId"):
+        get_config({}, FakeClient(node))
+
+
 def test_engineer_persona_summarizes_work_orders_only():
     cfg = get_config({"persona_key": "engineer"}, FakeClient(default_node()))
     assert cfg["summary_contents"]["work_orders"] is True
@@ -194,7 +207,7 @@ def default_node() -> dict:
         },
         "agent": {
             "name": "Operation Summarizer Agent",
-            "externalIdSuffix": "_operation_summarizer_helper_agent",
+            "externalId": "operation_summarizer_helper_agent",
             "defaultLanguageModel": "cognite/balanced",
             "maxConcurrentTasks": 3,
         },

@@ -57,7 +57,8 @@ export interface AppConfig {
 	};
 	agent: {
 		name: string;
-		externalIdSuffix: string;
+		/** Identifies the helper agent. The app and the function never look it up by name. */
+		externalId: string;
 		defaultLanguageModel: string;
 		maxConcurrentTasks: number;
 	};

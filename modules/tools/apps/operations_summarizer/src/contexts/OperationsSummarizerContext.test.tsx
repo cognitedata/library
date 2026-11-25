@@ -1,5 +1,7 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { createTestQueryClient } from "@/test-utils/wrappers";
 import { CdfClientProvider } from "./CdfClientContext";
 import {
 	OperationsProvider,
@@ -12,8 +14,15 @@ vi.mock("@cognite/app-sdk/react", () => ({
 	useCogniteSdk: () => null,
 }));
 
+const queryClient = createTestQueryClient();
+
+// AgentBootstrap creates the default agent through a React Query mutation.
 function WithCdf({ children }: { children: React.ReactNode }) {
-	return <CdfClientProvider>{children}</CdfClientProvider>;
+	return (
+		<QueryClientProvider client={queryClient}>
+			<CdfClientProvider>{children}</CdfClientProvider>
+		</QueryClientProvider>
+	);
 }
 
 function TestConsumer() {

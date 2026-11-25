@@ -82,8 +82,8 @@ describe("useAgentsCdf", () => {
 			data: {
 				items: [
 					{
-						externalId: "existing",
-						name: "Operation Summarizer Agent",
+						externalId: "operation_summarizer_helper_agent",
+						name: "Renamed in the UI",
 						description: "",
 						model: "m",
 					},
@@ -105,8 +105,72 @@ describe("useAgentsCdf", () => {
 		});
 
 		const id = await result.current.mutateAsync();
-		expect(id).toBe("existing");
+		expect(id).toBe("operation_summarizer_helper_agent");
 		expect(mockSdk.post).not.toHaveBeenCalled();
+	});
+
+	it("does not match a same-name agent that has another external id", async () => {
+		mockSdk.post.mockClear();
+		mockSdk.get.mockImplementation((url: string) => {
+			const path = String(url);
+			if (path.includes("/ai/agents") && !path.includes("availability")) {
+				return Promise.resolve({
+					data: {
+						items: [
+							{
+								externalId: "someone_elses_agent",
+								name: "Operation Summarizer Agent",
+								description: "",
+								model: "m",
+							},
+						],
+						invalidAgents: [],
+					},
+				});
+			}
+			if (path.includes("token/inspect")) {
+				return Promise.resolve({
+					data: {
+						capabilities: [
+							{
+								agentsAcl: { actions: ["WRITE"] },
+								projectScope: { projects: ["test-proj"] },
+							},
+						],
+					},
+				});
+			}
+			if (path.includes("services/availability")) {
+				return Promise.resolve({
+					data: { languageModels: [{ name: "cognite/balanced" }] },
+				});
+			}
+			return Promise.resolve({ data: {} });
+		});
+		mockSdk.post.mockResolvedValue({ data: {} });
+		const { Wrapper } = createAgentsWrapper();
+		const { result } = renderHook(() => useEnsureDefaultAgent(), {
+			wrapper: Wrapper,
+		});
+
+		let id = "";
+		await act(async () => {
+			id = await result.current.mutateAsync();
+		});
+
+		expect(id).toBe("operation_summarizer_helper_agent");
+		expect(mockSdk.post).toHaveBeenCalledWith(
+			expect.stringContaining("/ai/agents"),
+			expect.objectContaining({
+				data: expect.objectContaining({
+					items: [
+						expect.objectContaining({
+							externalId: "operation_summarizer_helper_agent",
+						}),
+					],
+				}),
+			})
+		);
 	});
 
 	it("creates the default agent from config values and does not overwrite it", async () => {
@@ -116,7 +180,7 @@ describe("useAgentsCdf", () => {
 			agent: {
 				...config.agent,
 				name: "Distinct Agent",
-				externalIdSuffix: "_distinct_suffix",
+				externalId: "distinct_agent_id",
 				defaultLanguageModel: "azure/distinct-model",
 			},
 			prompts: {
@@ -167,7 +231,7 @@ describe("useAgentsCdf", () => {
 			createdId = await result.current.mutateAsync();
 		});
 
-		expect(createdId).toBe("test-proj_distinct_suffix");
+		expect(createdId).toBe("distinct_agent_id");
 		expect(mockSdk.post).toHaveBeenCalledWith(
 			expect.stringContaining("/ai/agents"),
 			expect.objectContaining({
@@ -175,7 +239,7 @@ describe("useAgentsCdf", () => {
 					items: [
 						expect.objectContaining({
 							name: "Distinct Agent",
-							externalId: "test-proj_distinct_suffix",
+							externalId: "distinct_agent_id",
 							instructions: "DISTINCT INSTRUCTIONS",
 							model: "azure/distinct-model",
 						}),
@@ -191,7 +255,7 @@ describe("useAgentsCdf", () => {
 					data: {
 						items: [
 							{
-								externalId: "test-proj_distinct_suffix",
+								externalId: "distinct_agent_id",
 								name: "Distinct Agent",
 								description: "",
 								model: "azure/distinct-model",
@@ -208,7 +272,7 @@ describe("useAgentsCdf", () => {
 
 		await act(async () => {
 			const again = await result.current.mutateAsync();
-			expect(again).toBe("test-proj_distinct_suffix");
+			expect(again).toBe("distinct_agent_id");
 		});
 		expect(mockSdk.post).not.toHaveBeenCalled();
 		setAppConfig(parseAppConfig(DEFAULT_NODE_PROPERTIES));

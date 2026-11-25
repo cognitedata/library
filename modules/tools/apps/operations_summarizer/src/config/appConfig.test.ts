@@ -31,7 +31,7 @@ describe("default config node", () => {
 		});
 		expect(config.agent).toEqual({
 			name: "Operation Summarizer Agent",
-			externalIdSuffix: "_operation_summarizer_helper_agent",
+			externalId: "operation_summarizer_helper_agent",
 			defaultLanguageModel: "cognite/balanced",
 			maxConcurrentTasks: 3,
 		});
@@ -136,6 +136,16 @@ describe("parseAppConfig", () => {
 		const dataTypes = raw.dataTypes as Record<string, unknown>;
 		dataTypes.pumps = dataTypes.assets;
 		expect(() => parseAppConfig(raw)).toThrow(/dataTypes/);
+	});
+
+	it("requires agent.externalId", () => {
+		const raw = validConfig();
+		const { externalId: _removed, ...agentWithoutId } = raw.agent as Record<
+			string,
+			unknown
+		>;
+		raw.agent = agentWithoutId;
+		expect(() => parseAppConfig(raw)).toThrow(/agent\.externalId/);
 	});
 
 	it("throws when schemaVersion is unsupported", () => {

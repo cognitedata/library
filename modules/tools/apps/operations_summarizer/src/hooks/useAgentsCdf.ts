@@ -82,9 +82,9 @@ export function useEnsureDefaultAgent() {
 
 			const helper = new CDFHelper(sdk);
 			const { agents: currentAgents } = await helper.getAgents();
-			const existingAgent = currentAgents.find((agent) => agent.name === name);
-			if (existingAgent) {
-				return existingAgent.externalId;
+			const externalId = config.agent.externalId;
+			if (currentAgents.some((agent) => agent.externalId === externalId)) {
+				return externalId;
 			}
 
 			const canWrite = await helper.canEditAgentConfig();
@@ -109,7 +109,6 @@ export function useEnsureDefaultAgent() {
 				);
 			}
 
-			const externalId = `${sdk.project}${config.agent.externalIdSuffix}`;
 			await helper.createAgent({
 				externalId,
 				name,

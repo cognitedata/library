@@ -55,7 +55,7 @@ export const DEFAULT_NODE_PROPERTIES: Record<string, unknown> = {
 	},
 	agent: {
 		name: "Operation Summarizer Agent",
-		externalIdSuffix: "_operation_summarizer_helper_agent",
+		externalId: "operation_summarizer_helper_agent",
 		defaultLanguageModel: "cognite/balanced",
 		maxConcurrentTasks: 3,
 	},

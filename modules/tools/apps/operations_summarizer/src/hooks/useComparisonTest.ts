@@ -56,15 +56,10 @@ export function useComparisonTest(): UseComparisonTestResult {
 		setGenerationProgress,
 	} = useTestingState();
 
-	const getHelperAgentId = useCallback((): string => {
-		const helperAgent = agents.find(
-			(a) => a.name === getAppConfig().agent.name
-		);
-		if (helperAgent) return helperAgent.externalId;
-		return sdk
-			? `${sdk.project}_operation_summarizer_helper_agent`
-			: "operation_summarizer_helper_agent";
-	}, [agents, sdk]);
+	const getHelperAgentId = useCallback(
+		(): string => getAppConfig().agent.externalId,
+		[]
+	);
 
 	const runComparisonTest = useCallback(
 		async (selectedSummary: SummaryInstance) => {
@@ -83,7 +78,7 @@ export function useComparisonTest(): UseComparisonTestResult {
 				const helper = new CDFHelper(sdk);
 
 				const helperAgent = agents.find(
-					(a) => a.name === getAppConfig().agent.name
+					(a) => a.externalId === getAppConfig().agent.externalId
 				);
 				if (!helperAgent) {
 					setGenerationProgress({

@@ -18,6 +18,7 @@ export {
 
 export interface SummariesCreateFormProps {
 	hasSelectedAgent: boolean;
+	agentError: string | null;
 	generationError: string | null;
 	periodStart: Date;
 	periodEnd: Date;
@@ -45,6 +46,7 @@ export interface SummariesCreateFormProps {
 
 export function SummariesCreateForm({
 	hasSelectedAgent,
+	agentError,
 	generationError,
 	periodStart,
 	periodEnd,
@@ -74,6 +76,7 @@ export function SummariesCreateForm({
 			<CardContent className="w-full items-center! space-y-4">
 				<CreateSummaryHeader
 					hasSelectedAgent={hasSelectedAgent}
+					agentError={agentError}
 					generationError={generationError}
 					onClose={onClose}
 				/>

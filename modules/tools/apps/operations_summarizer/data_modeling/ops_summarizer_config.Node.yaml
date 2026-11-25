@@ -134,7 +134,7 @@ sources:
             - work_orders
       agent:
         name: "{{ ops_agent_name }}"
-        externalIdSuffix: _operation_summarizer_helper_agent
+        externalId: "{{ ops_agent_external_id }}"
         defaultLanguageModel: "{{ ops_agent_model }}"
         maxConcurrentTasks: {{ ops_limits_concurrency_agent }}
       dataModel:

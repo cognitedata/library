@@ -2,6 +2,7 @@ import { type Dispatch, useEffect, useRef } from "react";
 import { getAppConfig } from "@/config/appConfig";
 import { useCdfClient } from "@/contexts/CdfClientContext";
 import type { OperationsAction } from "@/contexts/operations-summarizer/types";
+import { useEnsureDefaultAgent } from "@/hooks/useAgentsCdf";
 import { CDFHelper } from "@/services/cdfHelper";
 import type { Agent } from "@/types/operations";
 
@@ -17,11 +18,16 @@ export function AgentBootstrap({
 	setSelectedAgent: (id: string | null) => void;
 }) {
 	const { sdk, isAuthLoading: isLoading } = useCdfClient();
+	const { mutateAsync: createDefaultAgent } = useEnsureDefaultAgent();
 	const hasInitializedRef = useRef(false);
 	// Track selectedAgent in a ref so the effect doesn't re-run when it changes,
 	// while still reading the latest value when the async result arrives.
 	const selectedAgentRef = useRef(selectedAgent);
 	selectedAgentRef.current = selectedAgent;
+	// The mutation object changes every render; keep the latest callable in a ref
+	// so it does not retrigger the effect.
+	const createDefaultAgentRef = useRef(createDefaultAgent);
+	createDefaultAgentRef.current = createDefaultAgent;
 
 	useEffect(() => {
 		if (!sdk || isLoading || hasInitializedRef.current) return;
@@ -34,24 +40,41 @@ export function AgentBootstrap({
 		const initializeAgents = async () => {
 			try {
 				const helper = new CDFHelper(sdk);
-				const { agents } = await helper.getAgents();
+				const config = getAppConfig();
+				const agentExternalId = config.agent.externalId;
+				const findHelperAgent = (list: Agent[]) =>
+					list.find((a) => a.externalId === agentExternalId);
+
+				let { agents } = await helper.getAgents();
+				let helperAgent = findHelperAgent(agents);
+
+				if (!helperAgent && (await helper.canEditAgentConfig())) {
+					await createDefaultAgentRef.current();
+					({ agents } = await helper.getAgents());
+					helperAgent = findHelperAgent(agents);
+				}
 
 				if (cancelled) return;
 
 				setAgents(agents);
 
-				const config = getAppConfig();
-				const helperAgent = agents.find((a) => a.name === config.agent.name);
-				if (helperAgent) {
-					const fromAgent = helperAgent.instructions?.trim() ?? "";
+				if (!helperAgent) {
 					dispatch({
-						type: "SET_CUSTOM_INSTRUCTIONS",
-						payload:
-							fromAgent !== "" ? fromAgent : config.prompts.agentInstructions,
+						type: "SET_AGENT_INIT_ERROR",
+						payload: `Agent '${agentExternalId}' not found. Generate is disabled until an admin with agents:write creates it.`,
 					});
+					return;
 				}
 
-				if (!selectedAgentRef.current && helperAgent) {
+				dispatch({ type: "SET_AGENT_INIT_ERROR", payload: null });
+				const fromAgent = helperAgent.instructions?.trim() ?? "";
+				dispatch({
+					type: "SET_CUSTOM_INSTRUCTIONS",
+					payload:
+						fromAgent !== "" ? fromAgent : config.prompts.agentInstructions,
+				});
+
+				if (!selectedAgentRef.current) {
 					setSelectedAgent(helperAgent.externalId);
 				}
 			} catch (error) {
