@@ -1089,6 +1089,15 @@ class TestWriteConfigFresh:
         _write_config_fresh(path, "dev", "acme-dev", build_overlay("isa_manufacturing_extension", "dev", "", []))
         assert "setup_project.py" in path.read_text()
 
+    def test_selects_modules_by_path_with_trailing_slash(self, tmp_path: Path) -> None:
+        # Toolkit 0.9.96 rejects a bare "modules" entry; the path form "modules/" selects all modules.
+        from setup_project import _write_config_fresh, build_overlay
+
+        path = tmp_path / "config.dev.yaml"
+        _write_config_fresh(path, "dev", "acme-dev", build_overlay("cdm", "dev", "", []))
+        data = yaml.safe_load(path.read_text())
+        assert data["environment"]["selected"] == ["modules/"]
+
 
 class TestWriteConfigUpdate:
     def _make_config(self, tmp_path: Path, content: str) -> Path:

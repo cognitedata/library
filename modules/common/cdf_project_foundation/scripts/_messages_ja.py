@@ -120,7 +120,7 @@ MESSAGES_JA: dict[str, str] = {
     "Values stored in .env — leave blank to fill manually later.": ".env に保存される値です — 後で手動入力する場合は空白にしてください。",
     "  Source ID of the '{group}' group in your IdP.": "  IdP 内の '{group}' グループのSource ID。",
     "One scoped producer group per extractor — write access limited to its": "抽出用モジュールごとに 1 つのスコープ付き producer グループ — 書き込みアクセスは",
-    "dataset, instance space, and RAW tables only (SOP Step 3c).": "そのデータセット、インスタンスspace、RAW テーブルのみに制限されます（SOP ステップ 3c）。",
+    "dataset, instance space, and RAW tables only (SOP Step 4d).": "そのデータセット、インスタンスspace、RAW テーブルのみに制限されます（SOP ステップ 3c）。",
     "Email address(es) of the Streamlit app owner for cdf_file_annotation.": "cdf_file_annotation 用 Streamlit アプリ管理者のメールアドレス。",
     "Separate multiple addresses with a comma.": "複数のアドレスはカンマで区切ってください。",
     "Data model modules contain synthetic data, example files, and diagram images": "データモデルモジュールには、サンプルデータ、サンプルファイル、図の画像が含まれています",

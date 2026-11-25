@@ -2,7 +2,7 @@
 
 Generated from committed Toolkit environment configs.
 
-This follows the CDF Foundation Setup SOP — Step 5, Option B (Azure DevOps).
+This follows the CDF Foundation Setup SOP — Step 5g, Generate and register CI/CD (Azure DevOps).
 
 ## Branching model
 

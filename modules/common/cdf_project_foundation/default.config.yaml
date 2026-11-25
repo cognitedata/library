@@ -5,14 +5,14 @@ site: ""
 # Must match the dataset used by the source system modules.
 dataset: []
 
-# Computed by scripts/setup_project.py per environment as <persona>[-<site>]-<env>
+# Computed by scripts/setup_project.py per environment as <persona>_[{site}_]all_<env>
 # where env is "dev" (covers dev + test) or "prod". These defaults are the
 # no-site dev values; setup_project.py overrides them in each config.<env>.yaml.
 consumerGroupName: "consumer_all_dev"
 producerGroupName: "producer_all_dev"
 adminGroupName: "admin_all_dev"
 
-# Object ID of the Entra ID security group mapped to each persona (SOP Step 3d).
+# Object ID of the Entra ID security group mapped to each persona (SOP Step 4c).
 # Values are stored in .env by setup_project.py and referenced here via ${…}.
 # Run the wizard to populate .env, or set the variables manually.
 consumerSourceId: "${CONSUMER_SOURCE_ID}"    # read-only consumers

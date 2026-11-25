@@ -659,7 +659,8 @@ def _skeleton_config(env: str, project: str) -> dict:
             "name": env,
             "project": project,
             "validation-type": ENVIRONMENT_VALIDATION_TYPE.get(env, "dev"),
-            "selected": ["modules"],
+            # Trailing slash: a bare "modules" is read as a module name and fails in Toolkit 0.9.96.
+            "selected": ["modules/"],
         },
         "variables": {"modules": {}},
     }
@@ -1678,7 +1679,7 @@ def _prompt_group_source_ids(
     if installed_ss:
         _section(t("Extractor Group Source IDs  (per source system)"))
         _hint(t("One scoped producer group per extractor — write access limited to its"))
-        _hint(t("dataset, instance space, and RAW tables only (SOP Step 3c)."))
+        _hint(t("dataset, instance space, and RAW tables only (SOP Step 4d)."))
         _hint(t("See: https://docs.cognite.com/cdf/access/entra/guides/create_groups_oidc"))
         for module in installed_ss:
             var = _MODULE_EXTRACTOR_ENV_VAR.get(module, "")
