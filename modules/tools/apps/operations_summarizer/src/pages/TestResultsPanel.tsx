@@ -53,7 +53,7 @@ export function TestResultsPanel(props: TestResultsPanelProps) {
                   prose-strong:text-foreground
                   prose-table:text-sm prose-th:bg-muted/50 prose-th:px-3 prose-th:py-2
                   prose-td:px-3 prose-td:py-2 prose-td:border-b"
-								// biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized via markdownToHtml/DOMPurify
+								// biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized by rehype-sanitize in markdownToHtml
 								dangerouslySetInnerHTML={{
 									__html: markdownToHtml(testResult.comparisonAnalysis),
 								}}
