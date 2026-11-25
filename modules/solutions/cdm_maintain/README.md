@@ -4,13 +4,24 @@ Library path: `modules/solutions/cdm_maintain/` · Deployment pack: `dp:cdm_main
 
 ## Overview
 
-This deployment pack sets up everything Cognite Maintain needs in a CDF project, in a single Toolkit run: the
-Maintain data models and their spaces, the `APM_Config` configuration node, and a location. Optional sample data lets
-you check the setup before you connect a real source system.
+[Cognite Maintain](https://docs.cognite.com/cdf/maintain) helps maintenance planners plan shutdowns, turnarounds, and
+campaigns with all the related data in one place. They can bundle work into opportunity scopes so equipment is isolated
+less often and less production is lost, track progress against the plan, and analyze maintenance trends over time.
 
-Without the pack, you have to design and connect several data model spaces, containers, views, and a long APM config
-node by hand. A single wrong space reference or missing config field can make Maintain show no data without an error.
-The pack gives you a tested, pre-wired starting point that follows the CDM-aligned Maintain model.
+This deployment pack shortens the path to that value. One Toolkit deployment sets up everything Maintain needs in a CDF
+project, so your team can spend its time loading work orders and planning work, not building data models.
+
+**Why use it:**
+
+- **Faster time to value.** Deploy the data models, the `APM_Config` configuration node, and a location in one run,
+  instead of building spaces, containers, views, and a long config node by hand.
+- **Fewer failed rollouts.** A wrong space reference or a missing config field can make Maintain show no data, with no
+  error. The pack comes pre-wired and tested, so you avoid those mistakes.
+- **See it working before you integrate.** Optional sample data shows Maintain working end to end, so stakeholders can
+  see the result before you connect a source system such as SAP.
+- **Built on CDM and IDM.** Maintenance orders, operations, and assets use the standard CDM and IDM views, so the data
+  also works with other Cognite applications.
+- **Repeatable.** The same configuration deploys to every environment and every project.
 
 **Who it is for:** delivery engineers, data modelers, and CDF admins setting up Maintain on a new project, or moving
 from a custom APM data model to the CDM-aligned Maintain model.
