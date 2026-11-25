@@ -363,7 +363,13 @@ def save_summary_to_cdf(
             fusion_url = f"https://{fusion_domain}/{project}/search/file/cdf_cdm/v1/CogniteFile/{space}/{external_id}?cluster={cluster}&workspace=industrial-tools"
             print(f"PDF generated and uploaded to CDF: {external_id}")
             print(f"Fusion URL: {fusion_url}")
-            return {"file_name": file_name, "external_id": external_id, "pdf_generated": True, "fusion_url": fusion_url}
+            return {
+                "file_name": file_name,
+                "external_id": external_id,
+                "space": space,
+                "pdf_generated": True,
+                "fusion_url": fusion_url,
+            }
 
         client.files.upload_content_bytes(
             content=summary_text.encode("utf-8"),
@@ -372,7 +378,13 @@ def save_summary_to_cdf(
         fusion_url = f"https://{fusion_domain}/{project}/search/file/cdf_cdm/v1/CogniteFile/{space}/{external_id}?cluster={cluster}&workspace=industrial-tools"
         print(f"Markdown summary uploaded to CDF: {external_id}")
         print(f"Fusion URL: {fusion_url}")
-        return {"file_name": file_name, "external_id": external_id, "pdf_generated": False, "fusion_url": fusion_url}
+        return {
+            "file_name": file_name,
+            "external_id": external_id,
+            "space": space,
+            "pdf_generated": False,
+            "fusion_url": fusion_url,
+        }
 
     except Exception as e:
         print(f"Error saving summary to CDF: {e}")

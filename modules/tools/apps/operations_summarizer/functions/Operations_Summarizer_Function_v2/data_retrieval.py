@@ -32,7 +32,7 @@ def _build_created_time_filter(start_dt: datetime, end_dt: datetime) -> filters.
     return filters.And(
         filters.Range(
             property=["node", "createdTime"],
-            gt=_to_epoch_ms(start_dt),
+            gte=_to_epoch_ms(start_dt),
             lt=_to_epoch_ms(end_dt),
         ),
         _exclude_summary_space_filter(),
@@ -62,46 +62,26 @@ def _paginate(
     space: str | None,
     max_instances: int | None = None,
 ) -> tuple[list[Any], bool, bool]:
-    """Page through instances.list until cursor exhausted or cap reached.
+    """Read up to ``max_instances`` instances; ``instances.list`` pages internally up to ``limit``.
+
+    One extra row is requested so a result larger than the cap proves more data exists in CDF.
 
     Returns (rows, truncated, had_more_in_cdf).
     """
     if max_instances is None:
         max_instances = runtime.max_instances_per_datatype
-    rows: list[Any] = []
-    cursor: str | None = None
-    truncated = False
-    had_more_in_cdf = False
 
-    while True:
-        kwargs = {
-            "instance_type": "node",
-            "space": space,
-            "sources": view_id,
-            "filter": filter_obj,
-            "include_typing": True,
-            "limit": runtime.instance_query_limit,
-        }
-        if cursor:
-            kwargs["cursor"] = cursor
-
-        response = client.data_modeling.instances.list(**kwargs)
-        batch = list(response) if response else []
-
-        for i, node in enumerate(batch):
-            if len(rows) >= max_instances:
-                truncated = True
-                had_more_in_cdf = i < len(batch) or bool(
-                    getattr(response, "next_cursor", None) or getattr(response, "cursor", None)
-                )
-                return rows, truncated, had_more_in_cdf
-            rows.append(node)
-
-        cursor = getattr(response, "next_cursor", None) or getattr(response, "cursor", None)
-        if not cursor:
-            break
-
-    return rows, truncated, had_more_in_cdf
+    response = client.data_modeling.instances.list(
+        instance_type="node",
+        space=space,
+        sources=view_id,
+        filter=filter_obj,
+        include_typing=True,
+        limit=max_instances + 1,
+    )
+    rows = list(response) if response else []
+    truncated = len(rows) > max_instances
+    return rows[:max_instances], truncated, truncated
 
 
 def fetch_instances_for_data_type(
