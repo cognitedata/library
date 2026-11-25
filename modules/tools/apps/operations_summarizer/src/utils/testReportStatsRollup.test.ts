@@ -94,6 +94,85 @@ describe("test report stats rollup", () => {
 		expect(upsert).not.toHaveBeenCalled();
 	});
 
+	describe("overlapping deltas", () => {
+		function versionedNode(rollup: typeof stored, version: number) {
+			return { ...rollupNode(JSON.stringify(rollup)), version };
+		}
+
+		function conflictError() {
+			return Object.assign(new Error("version conflict"), { status: 409 });
+		}
+
+		it("re-reads and re-applies after a version conflict so both deltas land", async () => {
+			let current = versionedNode(stored, 1);
+			let hasOtherWriterRun = false;
+			const retrieve = vi.fn().mockImplementation(async () => {
+				const snapshot = current;
+				if (!hasOtherWriterRun) {
+					hasOtherWriterRun = true;
+					// A concurrent writer lands its delta right after our read.
+					current = versionedNode(
+						applyRollupDelta(stored, {
+							score: 60,
+							volume: 10,
+							direction: "add",
+						}),
+						2
+					);
+				}
+				return { items: [snapshot] };
+			});
+			const upsert = vi.fn().mockImplementation(
+				async (payload: {
+					items: Array<{
+						existingVersion?: number;
+						sources: Array<{ properties: { sourceContext: string } }>;
+					}>;
+				}) => {
+					const [item] = payload.items;
+					if (item.existingVersion !== current.version) throw conflictError();
+					current = versionedNode(
+						JSON.parse(item.sources[0].properties.sourceContext),
+						current.version + 1
+					);
+				}
+			);
+
+			await applyTestReportStatsDelta(
+				{ instances: { retrieve, upsert } },
+				{ score: 90, volume: 20, direction: "add" }
+			);
+
+			expect(upsert).toHaveBeenCalledTimes(2);
+			expect(upsert.mock.calls[0][0].items[0].existingVersion).toBe(1);
+			expect(upsert.mock.calls[1][0].items[0].existingVersion).toBe(2);
+			const finalRollup = JSON.parse(
+				(current.properties[VIEW_KEY] as { sourceContext: string })
+					.sourceContext
+			);
+			expect(finalRollup.totalTests).toBe(4);
+			expect(finalRollup.totalScore).toBe(160 + 60 + 90);
+			expect(finalRollup.totalVolume).toBe(30 + 10 + 20);
+		});
+
+		it("surfaces the conflict after three attempts", async () => {
+			const retrieve = vi.fn().mockImplementation(async () => ({
+				items: [versionedNode(stored, 1)],
+			}));
+			const upsert = vi.fn().mockImplementation(async () => {
+				throw conflictError();
+			});
+
+			await expect(
+				applyTestReportStatsDelta(
+					{ instances: { retrieve, upsert } },
+					{ score: 90, volume: 20, direction: "add" }
+				)
+			).rejects.toMatchObject({ status: 409 });
+			expect(upsert).toHaveBeenCalledTimes(3);
+		});
+	});
+
 	it("clears the rollup when the last test is removed", () => {
 		expect(
 			applyRollupDelta(

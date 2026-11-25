@@ -406,6 +406,66 @@ describe("useSummariesCdf hooks", () => {
 		expect(written.totalTests).toBe(0);
 	});
 
+	describe("useDeleteSummary partial failures", () => {
+		const testReport = {
+			externalId: "test_report_z",
+			space: "ops_summaries",
+			createdTime: 1,
+			properties: {
+				[VIEW_KEY]: { content: "Similarity Score: 80/100\nTotal Data: 5" },
+			},
+		};
+
+		it("treats the delete as done when only the stats rollup fails", async () => {
+			const del = vi.fn().mockResolvedValue({});
+			const retrieve = vi
+				.fn()
+				.mockRejectedValue(Object.assign(new Error("boom"), { status: 500 }));
+			const { Wrapper } = setupWrapper({
+				project: "p",
+				instances: { list: vi.fn(), delete: del, upsert: vi.fn(), retrieve },
+				post: vi.fn(),
+			});
+			const { result } = renderHook(() => useDeleteSummary(), {
+				wrapper: Wrapper,
+			});
+
+			let deleted: boolean | undefined;
+			await act(async () => {
+				deleted = await result.current.mutateAsync(testReport);
+			});
+
+			expect(deleted).toBe(true);
+			expect(del).toHaveBeenCalledTimes(1);
+			expect(retrieve).toHaveBeenCalled();
+		});
+
+		it("treats an already-deleted node as deleted and leaves the rollup alone", async () => {
+			const del = vi
+				.fn()
+				.mockRejectedValue(Object.assign(new Error("gone"), { status: 404 }));
+			const upsert = vi.fn();
+			const retrieve = vi.fn();
+			const { Wrapper } = setupWrapper({
+				project: "p",
+				instances: { list: vi.fn(), delete: del, upsert, retrieve },
+				post: vi.fn(),
+			});
+			const { result } = renderHook(() => useDeleteSummary(), {
+				wrapper: Wrapper,
+			});
+
+			let deleted: boolean | undefined;
+			await act(async () => {
+				deleted = await result.current.mutateAsync(testReport);
+			});
+
+			expect(deleted).toBe(true);
+			expect(retrieve).not.toHaveBeenCalled();
+			expect(upsert).not.toHaveBeenCalled();
+		});
+	});
+
 	it("useSaveSummary uploads PDF when module loads", async () => {
 		const upsert = vi.fn().mockResolvedValue({});
 		const post = vi.fn().mockResolvedValueOnce({

@@ -11,6 +11,10 @@ import {
 } from "@/utils/summaryInstanceMapping";
 import { getOperationSummaryPickerMax } from "@/utils/summaryListQuery";
 
+/** Ring on `:focus` (any date segment) with an offset so the 2px ring is not clipped by the border. */
+const DATE_INPUT_CLASS =
+	"h-10 min-w-0 flex-1 sm:flex-initial max-w-full px-3 text-sm border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 focus:ring-offset-background";
+
 export interface TestsCreateBaselineFieldsProps {
 	summaries: SummaryInstance[];
 	filteredSummaries: SummaryInstance[];
@@ -54,7 +58,7 @@ export function TestsCreateBaselineFields({
 						value={filterStartDate}
 						onChange={(e) => onFilterStartDate(e.target.value)}
 						aria-label="Filter baseline summaries from date"
-						className="h-10 min-w-0 flex-1 sm:flex-initial max-w-full px-3 text-sm border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+						className={DATE_INPUT_CLASS}
 					/>
 					<span className="text-muted-foreground text-sm shrink-0" aria-hidden>
 						→
@@ -65,7 +69,7 @@ export function TestsCreateBaselineFields({
 						value={filterEndDate}
 						onChange={(e) => onFilterEndDate(e.target.value)}
 						aria-label="Filter baseline summaries to date"
-						className="h-10 min-w-0 flex-1 sm:flex-initial max-w-full px-3 text-sm border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+						className={DATE_INPUT_CLASS}
 					/>
 				</fieldset>
 

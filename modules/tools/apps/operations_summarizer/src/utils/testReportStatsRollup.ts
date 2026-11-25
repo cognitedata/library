@@ -182,9 +182,22 @@ function sourceContextFromRetrieved(node: {
 	return typeof raw === "string" ? raw : undefined;
 }
 
+interface RetrievedRollup {
+	rollup: TestReportStatsRollup;
+	/** Node version, passed back as `existingVersion` so a concurrent write is detected. */
+	version: number | undefined;
+}
+
+const MAX_DELTA_ATTEMPTS = 3;
+
+function isVersionConflictError(error: unknown): boolean {
+	if (typeof error !== "object" || error === null) return false;
+	return (error as { status?: unknown }).status === 409;
+}
+
 async function retrieveRollup(
 	sdk: RetrieveUpsertClient
-): Promise<TestReportStatsRollup | null> {
+): Promise<RetrievedRollup | null> {
 	try {
 		const response = await withCdfConcurrency(() =>
 			sdk.instances.retrieve({
@@ -200,7 +213,8 @@ async function retrieveRollup(
 		);
 		const node = response.items[0];
 		if (!node) return null;
-		return parseTestReportStatsRollup(sourceContextFromRetrieved(node));
+		const rollup = parseTestReportStatsRollup(sourceContextFromRetrieved(node));
+		return rollup ? { rollup, version: node.version } : null;
 	} catch (error: unknown) {
 		if (isMissingNodeError(error)) return null;
 		throw error;
@@ -209,7 +223,8 @@ async function retrieveRollup(
 
 async function upsertRollup(
 	sdk: RetrieveUpsertClient,
-	rollup: TestReportStatsRollup
+	rollup: TestReportStatsRollup,
+	existingVersion?: number
 ): Promise<void> {
 	await withCdfConcurrency(() =>
 		sdk.instances.upsert({
@@ -218,6 +233,7 @@ async function upsertRollup(
 					instanceType: "node",
 					space: getSummarySpace(),
 					externalId: TEST_REPORT_STATS_EXTERNAL_ID,
+					existingVersion,
 					sources: [
 						{
 							source: fileSource(),
@@ -241,7 +257,7 @@ export async function readOrBackfillTestReportStats(
 	sdk: RetrieveUpsertListClient
 ): Promise<TestReportStats> {
 	const existing = await retrieveRollup(sdk);
-	if (existing) return toStats(existing);
+	if (existing) return toStats(existing.rollup);
 
 	const sums = await computeTestReportStatsRollup(sdk);
 	const rollup = rollupFromSums(sums);
@@ -252,12 +268,27 @@ export async function readOrBackfillTestReportStats(
 /**
  * Adjust the rollup after a test report is saved or deleted.
  * Skips when the node is absent so an in-flight backfill scan is not overwritten.
+ * Writes with `existingVersion`; on a version conflict (concurrent writer) re-reads and
+ * re-applies, up to {@link MAX_DELTA_ATTEMPTS} attempts, then rethrows.
  */
 export async function applyTestReportStatsDelta(
 	sdk: RetrieveUpsertClient,
 	delta: TestReportStatsDelta
 ): Promise<void> {
-	const existing = await retrieveRollup(sdk);
-	if (!existing) return;
-	await upsertRollup(sdk, applyRollupDelta(existing, delta));
+	for (let attempt = 1; ; attempt++) {
+		const existing = await retrieveRollup(sdk);
+		if (!existing) return;
+		try {
+			await upsertRollup(
+				sdk,
+				applyRollupDelta(existing.rollup, delta),
+				existing.version
+			);
+			return;
+		} catch (error: unknown) {
+			if (!isVersionConflictError(error) || attempt >= MAX_DELTA_ATTEMPTS) {
+				throw error;
+			}
+		}
+	}
 }

@@ -102,7 +102,10 @@ export function useTestsPageModel() {
 	} = useTestingState();
 	const { runComparisonTest, isRunning } = deps.useComparisonTest();
 
-	const [showCreateForm, setShowCreateForm] = useState(false);
+	// A baseline handed over from Summaries (Test button) opens the form pre-selected.
+	const [showCreateForm, setShowCreateForm] = useState(
+		() => selectedSummaryId !== ""
+	);
 	const [showInfoDialog, setShowInfoDialog] = useState(false);
 	const [selectedReport, setSelectedReport] = useState<SummaryInstance | null>(
 		null
@@ -129,6 +132,7 @@ export function useTestsPageModel() {
 
 	useAutoPopulateTestDates(
 		selectedSummaryId,
+		testStartDate !== "" && testEndDate !== "" && selectedDataTypes.length > 0,
 		summaries,
 		setTestStartDate,
 		setTestEndDate,
@@ -181,7 +185,10 @@ export function useTestsPageModel() {
 			testEndDate,
 			selectedDataTypes,
 			yamlContent,
-			saveTestReportToCdf,
+			// A rollup-only failure is logged inside the save and is not a save failure.
+			saveTestReportToCdf: async (params) => {
+				await saveTestReportToCdf(params);
+			},
 			refetch,
 			setIsSaving,
 			setSavingError,

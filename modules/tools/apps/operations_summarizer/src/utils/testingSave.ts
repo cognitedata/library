@@ -11,6 +11,7 @@ import type {
 } from "@/types/operations";
 import { DATA_COUNT_KEYS, VIEW_IDS } from "@/types/operations";
 import { withCdfConcurrency } from "@/utils/cdfRequest";
+import { logError } from "@/utils/errorHandling";
 import { formatDateRangeDisplay } from "@/utils/formatting";
 import {
 	formatSummaryContentTypeBitmapLine,
@@ -80,17 +81,27 @@ export function parseTestReportMetrics(
 	}
 }
 
+export interface SaveTestReportOutcome {
+	externalId: string;
+	/** False when the report was written but the dashboard stats rollup could not be updated. */
+	statsUpdated: boolean;
+}
+
 /**
  * Save a test comparison report to CDF (getSummarySpace()) as a markdown node.
+ *
+ * The external id derives from the test run timestamp, so saving the same result again
+ * rewrites the same node (no duplicate) and does not count it in the rollup twice.
+ * A rollup failure after the write is reported via `statsUpdated: false`, not thrown.
  */
 export async function saveTestReportToCdf(
 	params: SaveTestReportParams
-): Promise<void> {
+): Promise<SaveTestReportOutcome> {
 	const { sdk, testResult, testStartDate, testEndDate } = params;
 
-	const now = new Date();
-	const currentDate = now.toISOString().slice(0, 10);
-	const currentTime = now.toISOString().slice(11, 19).replace(/:/g, "-");
+	const runIso = testResult.timestamp.toISOString();
+	const currentDate = runIso.slice(0, 10);
+	const currentTime = runIso.slice(11, 19).replace(/:/g, "-");
 	const externalId = `${getTestReportExternalIdPrefix()}${testStartDate}_${testEndDate}_${currentDate}_${currentTime}`;
 	const humanReadableName = `Test report, ${formatDateRangeDisplay(testStartDate, testEndDate)}`;
 
@@ -167,6 +178,13 @@ ${testResult.newSummary || "No new summary content available."}
 		timestamp: testResult.timestamp.toISOString(),
 	};
 
+	const existing = await withCdfConcurrency(() =>
+		sdk.instances.retrieve({
+			items: [{ instanceType: "node", space: getSummarySpace(), externalId }],
+		})
+	);
+	const isRetryOfSavedReport = existing.items.length > 0;
+
 	await withCdfConcurrency(() =>
 		sdk.instances.upsert({
 			items: [
@@ -199,9 +217,17 @@ ${testResult.newSummary || "No new summary content available."}
 		(sum, value) => sum + (value ?? 0),
 		0
 	);
-	await applyTestReportStatsDelta(sdk, {
-		score: testResult.similarityScore,
-		volume,
-		direction: "add",
-	});
+	if (isRetryOfSavedReport) return { externalId, statsUpdated: true };
+
+	try {
+		await applyTestReportStatsDelta(sdk, {
+			score: testResult.similarityScore,
+			volume,
+			direction: "add",
+		});
+	} catch (error) {
+		logError(error, "Update test report stats after save");
+		return { externalId, statsUpdated: false };
+	}
+	return { externalId, statsUpdated: true };
 }

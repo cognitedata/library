@@ -1,13 +1,16 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { CdfClientProvider } from "@/contexts/CdfClientContext";
 import {
 	NavigationProvider,
 	useNavigation,
 } from "@/contexts/NavigationContext";
-import { OperationsProvider } from "@/contexts/OperationsSummarizerContext";
+import {
+	OperationsProvider,
+	useOperations,
+} from "@/contexts/OperationsSummarizerContext";
 import {
 	type ComparisonTestVmValue,
 	type TestsPageModelDeps,
@@ -700,5 +703,45 @@ describe("useTestsPageModel", () => {
 			expect(result.current.testStartDate).toBe("2024-05-10");
 			expect(result.current.testEndDate).toBe("2024-05-20");
 		});
+	});
+
+	it("opens the create form with a baseline handed over from Summaries, keeping its period and types", async () => {
+		const { Wrapper } = setup();
+		function HandedOverWrapper({ children }: { children: ReactNode }) {
+			return (
+				<Wrapper>
+					<HandOver>{children}</HandOver>
+				</Wrapper>
+			);
+		}
+		function HandOver({ children }: { children: ReactNode }) {
+			const { dispatch } = useOperations();
+			const [isHandedOver, setIsHandedOver] = useState(false);
+			useEffect(() => {
+				dispatch({
+					type: "SET_TEST_SELECTED_SUMMARY_ID",
+					payload: encodeTestBaselineSelectionKey(hoisted.opSummary),
+				});
+				dispatch({ type: "SET_TEST_START_DATE", payload: "2026-11-01" });
+				dispatch({ type: "SET_TEST_END_DATE", payload: "2026-11-24" });
+				dispatch({ type: "SET_TEST_SELECTED_DATA_TYPES", payload: ["assets"] });
+				setIsHandedOver(true);
+			}, [dispatch]);
+			return isHandedOver ? children : null;
+		}
+
+		const { result } = renderHook(() => useTestsPageModel(), {
+			wrapper: HandedOverWrapper,
+		});
+
+		await waitFor(() =>
+			expect(result.current.selectedSummary?.externalId).toBe(
+				hoisted.opSummary.externalId
+			)
+		);
+		expect(result.current.showCreateForm).toBe(true);
+		expect(result.current.testStartDate).toBe("2026-11-01");
+		expect(result.current.testEndDate).toBe("2026-11-24");
+		expect(result.current.selectedDataTypes).toEqual(["assets"]);
 	});
 });

@@ -154,6 +154,7 @@ export function useSummariesPageModel() {
 		robustDownloadMarkdown,
 		downloadOperationSummaryPdfWithSignedUrlFirst,
 		navigate,
+		dispatch,
 		selectedSummary,
 		deleteCandidate,
 		setDeleteError,
