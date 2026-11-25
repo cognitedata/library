@@ -126,8 +126,10 @@ the manifest for `cdf data upload`, not for `cdf deploy`.
 
 ## Known limitations
 
-- **One location per project.** The APM config node has a fixed externalId, `default-maintain-config`. Deploying a
-  second location overwrites the first.
+- **One location per deployment.** The APM config node has a fixed externalId, `default-maintain-config`, so deploying
+  the module again for a second location overwrites the first. To add locations, add entries to
+  `rootLocationConfigurations` in the node instead. See
+  [Configure locations](https://docs.cognite.com/cdf/maintain/guides/config#configure-locations).
 - **Root asset naming.** The location's root asset must have the externalId `<location>_root` in the source data
   space.
 - **Shared `APM_Config` space.** InField also uses `APM_Config`. In a project that already runs InField, review the

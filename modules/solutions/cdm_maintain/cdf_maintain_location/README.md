@@ -18,8 +18,9 @@ which features are on, and which root asset defines the location.
   - `rootLocationConfigurations`: the location's display name, its root asset `{{location}}_root`, the data filters,
     and the app and source data instance spaces.
 
-The node externalId is fixed, so the module supports one location per project. Deploying a second location overwrites
-the first.
+The node externalId is fixed, so deploying the module again for a second location overwrites the first. To add
+locations, add entries to `rootLocationConfigurations` in the node instead. See
+[Configure locations](https://docs.cognite.com/cdf/maintain/guides/config#configure-locations).
 
 ## Variables
 
