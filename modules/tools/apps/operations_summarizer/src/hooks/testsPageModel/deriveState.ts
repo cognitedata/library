@@ -37,7 +37,7 @@ export function filterTestReportsByScore(
 ): SummaryInstance[] {
 	return reports.filter((report) => {
 		const { content } = extractSummaryContent(report);
-		const score = extractScoreFromContent(content);
+		const score = extractScoreFromContent(content) ?? 0;
 		return score >= minScore && score <= maxScore;
 	});
 }

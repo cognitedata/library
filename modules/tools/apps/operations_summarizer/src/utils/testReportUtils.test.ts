@@ -37,8 +37,12 @@ describe("extractScoreFromContent", () => {
 	it("extracts percentage", () => {
 		expect(extractScoreFromContent("**Similarity Score:** 70%")).toBe(70);
 	});
-	it("returns 0 when no match", () => {
-		expect(extractScoreFromContent("no score here")).toBe(0);
+	it("returns null when no score exists, not 0", () => {
+		expect(extractScoreFromContent("no score here")).toBeNull();
+		expect(extractScoreFromContent("no numbers here")).toBeNull();
+	});
+	it("does not take an unrelated percentage as the score", () => {
+		expect(extractScoreFromContent("Revenue grew 40% this week.")).toBeNull();
 	});
 });
 
@@ -98,11 +102,18 @@ describe("getScoreBadgeVariant", () => {
 });
 
 describe("vividScoreBadgeClassName", () => {
-	it("returns emerald for success", () => {
-		expect(vividScoreBadgeClassName("success")).toContain("emerald");
+	// C40: emerald-600 / amber-600 with white text measured 3.65 / 3.57 (need 4.5).
+	it("uses Aura success tokens (not emerald) for success", () => {
+		const cls = vividScoreBadgeClassName("success");
+		expect(cls).toContain("bg-success-foreground");
+		expect(cls).toContain("text-success-background");
+		expect(cls).not.toMatch(/emerald|text-white/);
 	});
-	it("returns amber for warning", () => {
-		expect(vividScoreBadgeClassName("warning")).toContain("amber");
+	it("uses Aura warning tokens (not amber) for warning", () => {
+		const cls = vividScoreBadgeClassName("warning");
+		expect(cls).toContain("bg-warning-foreground");
+		expect(cls).toContain("text-warning-background");
+		expect(cls).not.toMatch(/amber|text-white/);
 	});
 	it("returns red for error", () => {
 		expect(vividScoreBadgeClassName("error")).toContain("red");

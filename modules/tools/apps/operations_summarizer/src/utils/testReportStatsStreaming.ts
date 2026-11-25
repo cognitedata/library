@@ -62,7 +62,7 @@ export function scoreVolumeFromSummary(report: SummaryInstance): {
 	}
 	const { content } = extractSummaryContent(report);
 	return {
-		score: extractScoreFromContent(content),
+		score: extractScoreFromContent(content) ?? 0,
 		volume: extractDataVolumeFromContent(content),
 	};
 }
