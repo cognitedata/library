@@ -31,7 +31,6 @@ import {
 } from "@/utils/summaryInstanceMapping";
 import { collectFilteredSummaryPage } from "@/utils/summaryListClientFilter";
 import {
-	buildLatestSummaryListRequest,
 	buildSummaryInstancesQueryRequest,
 	buildSummaryServerFilterFingerprint,
 	buildTestReportInstancesQueryRequest,
@@ -296,23 +295,22 @@ export function useLatestSummaryInstance(variant: SummaryListVariant) {
 		queryKey: CDF_QUERY_KEYS.summariesLatest(variant),
 		queryFn: async () => {
 			if (!sdk) throw new Error("SDK not available");
-			if (variant === "operation") {
-				const qreq = buildSummaryInstancesQueryRequest({
-					limit: 1,
-					filters: {
-						dateFilterEnabled: false,
-						dateRange: null,
-						contentTypeFilterEnabled: false,
-						selectedContentTypes: [],
-					},
-				});
-				const qres = await withCdfConcurrency(() => sdk.instances.query(qreq));
-				const { items } = parseSummaryQueryPageResponse(qres);
-				return firstSummaryInstanceOrNull(items);
-			}
-			const req = buildLatestSummaryListRequest({ variant });
-			const response = await withCdfConcurrency(() => sdk.instances.list(req));
-			return firstSummaryInstanceOrNull(response.items);
+			const buildRequest =
+				variant === "operation"
+					? buildSummaryInstancesQueryRequest
+					: buildTestReportInstancesQueryRequest;
+			const qreq = buildRequest({
+				limit: 1,
+				filters: {
+					dateFilterEnabled: false,
+					dateRange: null,
+					contentTypeFilterEnabled: false,
+					selectedContentTypes: [],
+				},
+			});
+			const qres = await withCdfConcurrency(() => sdk.instances.query(qreq));
+			const { items } = parseSummaryQueryPageResponse(qres);
+			return firstSummaryInstanceOrNull(items);
 		},
 		enabled: !!sdk && !isAuthLoading,
 		staleTime: 2 * 60 * 1000,

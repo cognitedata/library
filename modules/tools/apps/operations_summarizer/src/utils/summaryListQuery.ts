@@ -268,21 +268,6 @@ export function buildSummaryListRequest(params: {
 	};
 }
 
-export function buildLatestSummaryListRequest(params: {
-	variant: SummaryListVariant;
-}): SummaryInstanceListRequest {
-	return buildSummaryListRequest({
-		variant: params.variant,
-		limit: 1,
-		filters: {
-			dateFilterEnabled: false,
-			dateRange: null,
-			contentTypeFilterEnabled: false,
-			selectedContentTypes: [],
-		},
-	});
-}
-
 const PICKER_EMPTY_FILTERS: SummaryServerListFilters = {
 	dateFilterEnabled: false,
 	dateRange: null,

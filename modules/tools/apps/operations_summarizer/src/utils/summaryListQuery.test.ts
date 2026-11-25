@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { queryResponseMock } from "@/test-utils/testDoubles";
 import {
-	buildLatestSummaryListRequest,
 	buildSummaryInstancesQueryRequest,
 	buildSummaryListFilter,
 	buildSummaryListRequest,
@@ -113,11 +112,6 @@ describe("summaryListQuery", () => {
 			},
 		});
 		expect(req.cursor).toBe("abc");
-	});
-
-	it("buildLatestSummaryListRequest uses limit 1", () => {
-		const req = buildLatestSummaryListRequest({ variant: "operation" });
-		expect(req.limit).toBe(1);
 	});
 
 	it("buildSummaryInstancesQueryRequest uses query shape and slim properties", () => {

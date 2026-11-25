@@ -256,6 +256,27 @@ describe("useSummariesCdf hooks", () => {
 		});
 	});
 
+	it("useLatestSummaryInstance uses instances.query for test reports", async () => {
+		const query = vi
+			.fn()
+			.mockResolvedValue(queryPageResponse([fileNode("test_report_x")]));
+		const list = vi.fn();
+		const { Wrapper } = setupWrapper({
+			project: "p",
+			instances: { list, query },
+			post: vi.fn(),
+		});
+
+		const { result } = renderHook(() => useLatestSummaryInstance("test"), {
+			wrapper: Wrapper,
+		});
+
+		await waitFor(() => {
+			expect(result.current.data?.externalId).toBe("test_report_x");
+		});
+		expect(list).not.toHaveBeenCalled();
+	});
+
 	it("useOperationSummariesPicker maps and sorts", async () => {
 		const query = vi
 			.fn()
