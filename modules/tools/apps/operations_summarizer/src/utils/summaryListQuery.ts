@@ -125,13 +125,13 @@ export function buildSummaryServerFilterFingerprint(
 }
 
 /**
- * Base filter: correct space + externalId prefix (+ optional server-side date).
+ * Base filter: correct space + externalId prefix. The date filter matches the summary
+ * period, which DMS cannot filter on, so it is applied client-side with the content types.
  * Content-type filtering is applied client-side after `instances.list` so legacy
  * rows (no `OPS:` line) still match using markdown / description heuristics.
  */
 export function buildSummaryListFilter(
-	variant: SummaryListVariant,
-	filters: SummaryServerListFilters
+	variant: SummaryListVariant
 ): FilterDefinition {
 	const and: FilterDefinition[] = [
 		{
@@ -148,18 +148,6 @@ export function buildSummaryListFilter(
 		},
 	];
 
-	if (filters.dateFilterEnabled && filters.dateRange) {
-		const startMs = filters.dateRange.start.getTime();
-		const endMs = filters.dateRange.end.getTime();
-		and.push({
-			range: {
-				property: ["node", "createdTime"],
-				gte: startMs,
-				lte: endMs,
-			},
-		});
-	}
-
 	return { and };
 }
 
@@ -171,8 +159,7 @@ function buildFileInstancesQueryRequest(params: {
 }): QueryRequest {
 	const viewId = fileView();
 	const filter = buildSummaryListFilter(
-		params.variant,
-		params.filters
+		params.variant
 	) as TableExpressionFilterDefinition;
 
 	const req: QueryRequest = {
@@ -273,7 +260,7 @@ export function buildSummaryListRequest(params: {
 				},
 			},
 		],
-		filter: buildSummaryListFilter(params.variant, params.filters),
+		filter: buildSummaryListFilter(params.variant),
 		limit: params.limit,
 		sort: [
 			{

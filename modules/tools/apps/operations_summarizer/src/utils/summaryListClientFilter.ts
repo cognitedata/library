@@ -26,10 +26,6 @@ export interface CollectFilteredSummaryPageResult {
 	nextCursor: string | undefined;
 }
 
-function resolveServerCursor(cursor: string | undefined): string | undefined {
-	return cursor === SUMMARY_LIST_OVERFLOW_CURSOR ? undefined : cursor;
-}
-
 /**
  * Accumulates client-side-filtered summaries until a UI page is full or the server
  * result set is exhausted. Preserves overflow for the next page so filtered pagination
@@ -41,7 +37,10 @@ export async function collectFilteredSummaryPage(
 	const maxExtraFetches = params.maxExtraFetches ?? 10;
 	const pool = [...params.overflow];
 	const collected: SummaryInstance[] = [];
-	let serverCursor = resolveServerCursor(params.serverCursor);
+	// The sentinel means the server is exhausted: never refetch page 1 for it.
+	const isServerExhausted =
+		params.serverCursor === SUMMARY_LIST_OVERFLOW_CURSOR;
+	let serverCursor = isServerExhausted ? undefined : params.serverCursor;
 	let fetches = 0;
 
 	while (collected.length < params.pageSize && fetches <= maxExtraFetches) {
@@ -50,7 +49,7 @@ export async function collectFilteredSummaryPage(
 			if (next) collected.push(next);
 		}
 
-		if (collected.length >= params.pageSize) {
+		if (collected.length >= params.pageSize || isServerExhausted) {
 			break;
 		}
 

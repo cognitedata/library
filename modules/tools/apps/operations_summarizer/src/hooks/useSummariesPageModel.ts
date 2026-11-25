@@ -1,3 +1,4 @@
+import { endOfDay } from "date-fns";
 import {
 	createContext,
 	useCallback,
@@ -14,6 +15,7 @@ import { useSummariesPageModelDeps } from "@/contexts/SummariesPageModelDepsCont
 import { useEnhancedRefresh } from "@/hooks/useEnhancedRefresh";
 import type { SummaryInstance } from "@/types/operations";
 import { resolveFusionFileUrl } from "@/utils/fusionFileUrl";
+import { parseLocalCalendarDate } from "@/utils/summaryPeriod";
 import {
 	createSummariesCreationHandlers,
 	derivePreservedConfig,
@@ -170,12 +172,13 @@ export function useSummariesPageModel() {
 		);
 
 	const handleDateFilterApply = useCallback(() => {
-		if (startDate && endDate) {
-			if (!dateFilterEnabled) {
-				toggleDateFilter();
-			}
-			setDateRange({ start: new Date(startDate), end: new Date(endDate) });
+		const start = parseLocalCalendarDate(startDate);
+		const end = parseLocalCalendarDate(endDate);
+		if (!start || !end) return;
+		if (!dateFilterEnabled) {
+			toggleDateFilter();
 		}
+		setDateRange({ start, end: endOfDay(end) });
 	}, [startDate, endDate, setDateRange, dateFilterEnabled, toggleDateFilter]);
 
 	const preservedConfig = useMemo(

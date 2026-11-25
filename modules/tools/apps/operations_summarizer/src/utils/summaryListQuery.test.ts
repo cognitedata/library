@@ -54,14 +54,8 @@ describe("summaryListQuery", () => {
 
 	it("podcast external ids do not match operation or test-report prefixes", () => {
 		const podcastId = "ops_podcast_ops_summary_x_script";
-		const empty = {
-			dateFilterEnabled: false,
-			dateRange: null,
-			contentTypeFilterEnabled: false,
-			selectedContentTypes: [],
-		};
 		for (const variant of ["operation", "test"] as const) {
-			const filter = buildSummaryListFilter(variant, empty);
+			const filter = buildSummaryListFilter(variant);
 			const clauses = (filter as { and: { prefix?: { value: string } }[] }).and;
 			const prefix =
 				clauses.find((clause) => clause.prefix)?.prefix?.value ?? "";
@@ -70,13 +64,21 @@ describe("summaryListQuery", () => {
 		}
 	});
 
-	it("buildSummaryListFilter includes space and prefix", () => {
-		const f = buildSummaryListFilter("test", {
-			dateFilterEnabled: false,
-			dateRange: null,
-			contentTypeFilterEnabled: false,
-			selectedContentTypes: [],
+	it("query request leaves the date range to the client (C09)", () => {
+		const req = buildSummaryInstancesQueryRequest({
+			limit: 10,
+			filters: {
+				dateFilterEnabled: true,
+				dateRange: { start: new Date(2024, 0, 1), end: new Date(2024, 0, 31) },
+				contentTypeFilterEnabled: false,
+				selectedContentTypes: [],
+			},
 		});
+		expect(JSON.stringify(req)).not.toContain("createdTime");
+	});
+
+	it("buildSummaryListFilter includes space and prefix", () => {
+		const f = buildSummaryListFilter("test");
 		expect(f).toHaveProperty("and");
 		const and = (f as { and: unknown[] }).and;
 		expect(and.length).toBeGreaterThanOrEqual(2);

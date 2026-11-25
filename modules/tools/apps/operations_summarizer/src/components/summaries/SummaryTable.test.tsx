@@ -51,6 +51,21 @@ describe("SummaryTable", () => {
 		expect(screen.getByText("Actions")).toBeInTheDocument();
 	});
 
+	it("shows the summary period in the Period column (C39)", () => {
+		render(
+			<SummaryTable
+				summaries={[
+					makeSummary(
+						"ops_summary_2026-11-01_2026-11-24_2026-11-25_10_00_00_1",
+						"Report A"
+					),
+				]}
+				{...PAGINATION_DEFAULTS}
+			/>
+		);
+		expect(screen.getAllByText("Nov 1–24, 2026").length).toBeGreaterThan(0);
+	});
+
 	it("renders summary names for each row", () => {
 		const summaries = [
 			makeSummary("a", "Alpha Report"),
