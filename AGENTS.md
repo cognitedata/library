@@ -28,6 +28,15 @@ conventions below do not apply to it.
 - **`tests/`** — pytest suite for the Python tooling.
 - **`.github/workflows/`** — CI (lint, type-check, validate, build, CodeQL).
 
+## AI agent workflow (read first)
+
+Any AI agent making changes here **must** follow
+[.claude/skills/ai-agent-coding-workflow/SKILL.md](.claude/skills/ai-agent-coding-workflow/SKILL.md): plan first and get human
+approval, ticket-named branches when there is a ticket (stacked `AT-123-part-N` when large), tasks under ~500 lines, self-review against
+`.gemini/styleguide.md`, then **stop**. The agent never commits, pushes, or merges — a human does. This file
+and that skill are the entry points; `CLAUDE.md` imports this file, and both Claude Code and Cursor auto-discover
+the skill from `.claude/skills/`.
+
 ## Python: how we write code
 
 The full style contract is in [.gemini/styleguide.md](.gemini/styleguide.md). It is the
@@ -201,5 +210,7 @@ Authoring details live in [CONTRIBUTING.md](CONTRIBUTING.md) and
   add modules and packages.
 - [modules/README.md](modules/README.md) — folder layout, registry, module structure.
 - [.gemini/styleguide.md](.gemini/styleguide.md) — full Python and review style guide.
+- [.claude/skills/ai-agent-coding-workflow/SKILL.md](.claude/skills/ai-agent-coding-workflow/SKILL.md) — AI agent workflow and
+  guardrails.
 
 When behaviour or a convention changes, update the relevant doc in the same PR.
