@@ -86,8 +86,11 @@ Run these read-only checks from the folder the user opened. Report what you foun
 Optional, same checks in one table (never prints values):
 
 ```bash
-python3 <skill-dir>/scripts/preflight.py --project-dir <project root> [--app-dir <app_dir>]
+python3 <skill-dir>/scripts/preflight.py --project-dir <project root> [--app-dir <app_dir>] [--scope backend|app]
 ```
+
+`--scope backend` skips the Node and `app.json` checks; `--scope app` skips the Toolkit, `record_views` and `.env`
+checks. The default checks everything.
 
 ## Step 0 - Scenario
 
@@ -111,7 +114,8 @@ Then **ask** (one question): backend only, or backend and app? Default: both.
 - Toolkit is 0.8 or later. Do not move the project to a new minor line on your own; that is a team decision
   (`cdf-toolkit-setup` §1 and §9).
 - On Toolkit 0.8, `cdf.toml` has `record_views = true` under `[alpha_flags]`. If it is missing, show the two lines,
-  get a "yes", and add them. On 0.9 the flag is not needed.
+  get a "yes", and add them. On 0.9 the flag may no longer be needed, but this skill has not been checked on 0.9:
+  if the build reports record containers or record views, ask before adding the flag.
 - Node 20 or later and npm, if the app is in scope.
 - **Ask** whether Records and Streams, Functions and Data workflows are enabled in the project. "Don't know" is fine:
   the dry run and deploy will show it.
@@ -207,13 +211,19 @@ yes, ask for the function space and add `space: <space>` to `functions/context_q
 <CDF> build -c <org_dir>/config.<env>.yaml
 ```
 
+The environment is chosen here, at build time: `-c` takes the path of the config file. Without `-c`, Toolkit uses
+`default_env` from `cdf.toml` (`--env <env>` also works but is deprecated). Only `cdf build` takes `-c`.
+
 `cdf build` works offline. Expect `UNVERIFIED`/`Missing space ... cdf_cdm` and `cdf_idm` without credentials; they
 clear when the build can reach CDF. Any other error: fix it before going on.
 
-Then the dry run. It needs credentials and can prompt, so hand it over unless `cdf auth` already works non-interactively:
+Then the dry run. `cdf deploy` has no `-c` or `--env`: it deploys what the last build wrote to `build/` (its only
+argument is that folder). Rebuild after every config change, so the dry run and the deploy use the environment you
+just built. The dry run needs credentials and can prompt, so hand it over unless `cdf auth` already works
+non-interactively:
 
 ```text
-! <CDF> deploy --dry-run -c <org_dir>/config.<env>.yaml
+! <CDF> deploy --dry-run
 ```
 
 **Verify:** summarise the create/update/delete counts in plain language. Flag:
@@ -226,10 +236,11 @@ Then the dry run. It needs credentials and can prompt, so hand it over unless `c
 
 ## Step 6 - Deploy the backend
 
-**Ask:** "Deploy the backend to `<project>` now?" Run only on an explicit "yes" in this turn.
+**Ask:** "Deploy the backend to `<project>` now?" Run only on an explicit "yes" in this turn. Deploy the same build
+the dry run read; if the config changed since, go back to step 5.
 
 ```bash
-<CDF> deploy -c <org_dir>/config.<env>.yaml
+<CDF> deploy
 ```
 
 **Verify:** the deploy finished without errors. Then tell the user to wait until `fn_context_quality_metrics` shows as
@@ -294,8 +305,9 @@ Then hand off: `! npx @cognite/cli apps deploy --interactive` (uploads a DRAFT v
 
 ## Step 11 - Access
 
-Users open the app through the backend group `consumer_context_quality_dashboard_dev` (App Hosting READ and RUN for
-this app, read access to the run log). So the user must add people to the IdP group whose ID is in
+Users open the app through the backend's dashboard group: the CDF group named by `metricsDashboardGroupName` in
+`config.<env>.yaml` (read the value there; the default is `consumer_context_quality_dashboard_dev`). It grants App
+Hosting READ and RUN for this app and read access to the run log. So the user must add people to the IdP group whose ID is in
 `CQ_DASHBOARD_GROUP_SOURCE_ID`. Do not rely on the dummy group in the app's `auth/` folder; it only exists so Toolkit
 accepts the module. People who start runs from the dashboard also need `workflowOrchestrationAcl` WRITE,
 `sessionsAcl` CREATE and what the function group holds (`REFERENCE.md`, "Running with a config file"). You do not

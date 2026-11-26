@@ -17,6 +17,7 @@ needs a capability, an IdP change or a Cognite service: stop, say what is missin
 | Dry run shows a stream "create" on an upgrade | Names or template differ from what is deployed | Align the `metricsStream*` variables with the deployed stream before deploying. Never recreate the stream |
 | A shard task times out | Too many entities in one call | Run once with `"planning": {"shardTargetEntities": 25000}`; if it keeps happening, lower `metricsShardTargetEntities` |
 | `Could not find the '<org>/modules' directory` on `cdf modules add` | The org folder has no `modules/` yet | `mkdir -p <org_dir>/modules`, run again |
+| `No such option: -c` on `cdf deploy` | Only `cdf build` takes `-c`; `cdf deploy` deploys the last build (`build/` by default) | Run `<CDF> build -c <org_dir>/config.<env>.yaml`, then `<CDF> deploy --dry-run` / `<CDF> deploy` |
 | `Package 'dp' not found.` | The pack ID was passed to `-d` | Use the CLI key: `-d context_quality` |
 | `Missing space (data_modeling) 'cdf_cdm'` / `'cdf_idm'` in an offline `cdf build` | The build cannot reach CDF to verify system spaces | Expected without credentials; it clears when the build can reach CDF |
 | Function deploy fails in a data-modeling-only project | The function definition names no space for its code | Add `space: <function space>` to `functions/context_quality.Function.yaml` (`references/backend-config.md`) |
