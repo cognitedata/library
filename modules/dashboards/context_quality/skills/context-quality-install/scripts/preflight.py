@@ -2,7 +2,7 @@
 """Read-only preflight for installing the Contextualization Quality Dashboard.
 
 Usage (from the Toolkit project root):
-    python3 <skill-dir>/scripts/preflight.py [--project-dir .] [--app-dir <app folder>]
+    python3 <skill-dir>/scripts/preflight.py [--project-dir .] [--app-dir <app folder>] [--scope all|backend|app]
 
 Prints a PASS / FAIL / SKIP table and exits 1 if any check fails. It never prints, logs or writes the value of an
 environment variable: it only says whether each required variable is set.
@@ -34,6 +34,7 @@ ENV_NAMES = (
     "CQ_FUNCTION_CLIENT_SECRET",
 )
 PLACEHOLDER_PROJECT = "your-project"
+SCOPES = ("all", "backend", "app")
 VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
 
@@ -89,7 +90,7 @@ def check_record_views(cdf_toml: Path, toolkit: Version | None) -> Check:
     if not cdf_toml.is_file():
         return Check("record_views", "FAIL", f"no cdf.toml in {cdf_toml.parent}")
     if toolkit is not None and toolkit >= RECORD_VIEWS_STABLE:
-        return Check("record_views", "PASS", "not needed on Toolkit 0.9 or later")
+        return Check("record_views", "SKIP", "not checked on Toolkit 0.9 or later; see SKILL.md step 1")
     try:
         flags = tomllib.loads(cdf_toml.read_text()).get("alpha_flags", {})
     except tomllib.TOMLDecodeError as error:
@@ -156,17 +157,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--project-dir", type=Path, default=Path.cwd(), help="Toolkit project root (holds cdf.toml)")
     parser.add_argument("--app-dir", type=Path, default=None, help="the dashboard app folder (holds app.json)")
+    parser.add_argument("--scope", choices=SCOPES, default="all", help="what is being installed (default: all)")
     args = parser.parse_args(argv)
     project_dir: Path = args.project_dir
+    scope: str = args.scope
 
-    toolkit_output = run_command(toolkit_command(project_dir))
-    checks = [
-        check_toolkit(toolkit_output),
-        check_record_views(project_dir / "cdf.toml", parse_version(toolkit_output) if toolkit_output else None),
-        check_node(run_command(["node", "--version"])),
-        check_env_vars(project_dir / ".env", os.environ),
-        check_app_json(args.app_dir),
-    ]
+    def skipped(name: str) -> Check:
+        return Check(name, "SKIP", f"not needed for --scope {scope}")
+
+    if scope == "app":
+        backend_checks = [skipped("Toolkit"), skipped("record_views"), skipped("CQ_* variables")]
+    else:
+        toolkit_output = run_command(toolkit_command(project_dir))
+        backend_checks = [
+            check_toolkit(toolkit_output),
+            check_record_views(project_dir / "cdf.toml", parse_version(toolkit_output) if toolkit_output else None),
+            check_env_vars(project_dir / ".env", os.environ),
+        ]
+    if scope == "backend":
+        app_checks = [skipped("Node"), skipped("app.json")]
+    else:
+        app_checks = [check_node(run_command(["node", "--version"])), check_app_json(args.app_dir)]
+    checks = [*backend_checks, *app_checks]
     print(format_table(checks))
     return 1 if any(check.status == "FAIL" for check in checks) else 0
 

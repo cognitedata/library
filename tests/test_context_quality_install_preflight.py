@@ -62,9 +62,9 @@ def test_record_views_fails_on_0_8_without_flag(tmp_path: Path) -> None:
     assert preflight.check_record_views(tmp_path / "cdf.toml", (0, 8, 191)).status == "FAIL"
 
 
-def test_record_views_not_needed_on_0_9(tmp_path: Path) -> None:
+def test_record_views_is_not_checked_on_0_9(tmp_path: Path) -> None:
     (tmp_path / "cdf.toml").write_text("[cdf]\ndefault_env = 'dev'\n")
-    assert preflight.check_record_views(tmp_path / "cdf.toml", (0, 9, 39)).status == "PASS"
+    assert preflight.check_record_views(tmp_path / "cdf.toml", (0, 9, 39)).status == "SKIP"
 
 
 def test_record_views_fails_without_cdf_toml(tmp_path: Path) -> None:
@@ -134,3 +134,29 @@ def test_main_prints_a_table_and_never_a_secret(
 def test_main_fails_when_a_check_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(preflight, "run_command", lambda command: None)
     assert preflight.main(["--project-dir", str(tmp_path)]) == 1
+
+
+def test_backend_scope_does_not_need_node(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "cdf.toml").write_text("[alpha_flags]\nrecord_views = true\n")
+    write_env(tmp_path / ".env", dict.fromkeys(ENV_NAMES, SECRET))
+    outputs = {"cdf": "CDF-Toolkit version: 0.8.191.", "node": None}
+    monkeypatch.setattr(preflight, "run_command", lambda command: outputs[command[-2]])
+    for name in ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+
+    exit_code = preflight.main(["--project-dir", str(tmp_path), "--scope", "backend"])
+
+    assert exit_code == 0
+    assert "Node" in capsys.readouterr().out
+
+
+def test_app_scope_does_not_need_toolkit_or_record_views(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    write_app_json(tmp_path / "app", "acme-dev")
+    outputs = {"cdf": None, "node": "v20.11.1"}
+    monkeypatch.setattr(preflight, "run_command", lambda command: outputs[command[-2]])
+
+    exit_code = preflight.main(["--project-dir", str(tmp_path), "--app-dir", str(tmp_path / "app"), "--scope", "app"])
+
+    assert exit_code == 0
