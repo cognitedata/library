@@ -57,6 +57,14 @@ Terms:
 
 ## Deployment
 
+### Install with an AI assistant
+
+The backend module ships a skill that installs the backend and this app as a short interview:
+[`skills/context-quality-install`](../../../dashboards/context_quality/skills/context-quality-install/SKILL.md). Open
+your Toolkit project in Cursor or Claude Code, then copy that folder to `.cursor/skills/` or `.claude/skills/`, or
+tell the agent "follow `<org_dir>/modules/dashboards/context_quality/skills/context-quality-install/SKILL.md`". It
+asks before every deploy, publish and activate.
+
 ### 0. Get the app into your project
 
 Toolkit downloads both modules of the pack, but only the backend is deployed with `cdf deploy`. The app is a Fusion
