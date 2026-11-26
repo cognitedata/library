@@ -12,7 +12,7 @@ consumerGroupName: "consumer_all_dev"
 producerGroupName: "producer_all_dev"
 adminGroupName: "admin_all_dev"
 
-# Object ID of the Entra ID security group mapped to each persona (SOP Step 3d).
+# Object ID of the Entra ID security group mapped to each persona (SOP Access control, Step 4c).
 # Values are stored in .env by setup_project.py and referenced here via ${…}.
 # Run the wizard to populate .env, or set the variables manually.
 consumerSourceId: "${CONSUMER_SOURCE_ID}"    # read-only consumers

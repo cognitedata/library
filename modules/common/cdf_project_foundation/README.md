@@ -267,7 +267,7 @@ cdf_project_foundation/
 
 ## Access Groups
 
-Three CDF groups are deployed, each bound to an Entra ID security group via its `sourceId` (the Entra ID group **Object ID**, recorded per SOP Step 3d). Naming follows the **SOP**:
+Three CDF groups are deployed, each bound to an Entra ID security group via its `sourceId` (the Entra ID group **Object ID**, recorded per SOP Access control, Step 4c). Naming follows the **SOP**:
 
 ```
 <persona>_[{site}_]all_<environment>
@@ -286,7 +286,7 @@ Three CDF groups are deployed, each bound to an Entra ID security group via its 
 
 The wizard stores group source IDs in `.env` as `CONSUMER_SOURCE_ID`, `PRODUCER_SOURCE_ID`, `ADMIN_SOURCE_ID` and the config files reference them via `${…}`. These are Entra ID object IDs, **not secrets**.
 
-> **Service-principal / per-extractor groups**: This module ships only the three core persona groups. Additional producer groups for service principals and extractors are added per SOP Step 3c as concrete needs arise.
+> **Service-principal / per-extractor groups**: This module ships only the three core persona groups. Add a producer group for each extractor service principal in the `auth/` folder of that source system module, as set out in SOP Data onboarding, Step 6.
 
 ---
 
