@@ -6,6 +6,8 @@ export type QualityOperations = {
   runStatus: RunStatusDto | undefined;
   /** Set when the backend cannot be read at all; every page depends on the same latest run. */
   runStatusError: unknown;
+  /** True until the first run status answer (data or error) arrives. */
+  isRunStatusLoading: boolean;
   retryRunStatus: () => void;
   isRefreshing: boolean;
   isRerunning: boolean;

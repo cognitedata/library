@@ -109,7 +109,7 @@ describe('DimensionPage', () => {
       { services }
     );
 
-    const filtersSection = screen.getByLabelText('Global filters');
+    const filtersSection = await screen.findByLabelText('Global filters');
     await user.click(within(filtersSection).getAllByRole('combobox')[0]);
     await user.click(screen.getByRole('option', { name: 'Demo North' }));
 

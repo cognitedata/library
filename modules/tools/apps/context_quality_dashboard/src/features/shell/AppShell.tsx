@@ -1,3 +1,4 @@
+import { Skeleton } from '@cognite/aura/components/skeleton';
 import { useEffect, useRef } from 'react';
 
 import { useAppState } from '../../app/state/useAppState';
@@ -57,6 +58,10 @@ function AppShellContent({ viewModel }: AppShellContentProps) {
     viewModel.page === 'configuration' &&
     (configurationOnboarding || state.configurationOnboardingComplete === true);
   const showError = Boolean(backendError) && !hideNoRunErrorOnConfiguration;
+  // Until the first run status answer arrives, a first run cannot be told apart from a project with runs. Showing the
+  // tabs and a page now would flash the normal layout and then swap it for the first-run screen.
+  const awaitingRunStatus =
+    operations.isRunStatusLoading && state.configurationOnboardingComplete !== true && !configurationOnboarding;
 
   const onboardingInitialRedirectDone = useRef(false);
   useEffect(() => {
@@ -119,14 +124,14 @@ function AppShellContent({ viewModel }: AppShellContentProps) {
           page={viewModel.page}
           language={viewModel.language}
           themeMode={viewModel.themeMode}
-          showPageTabs={!configurationOnboarding}
+          showPageTabs={!configurationOnboarding && !awaitingRunStatus}
           onPageChange={viewModel.setPage}
           onLanguageChange={viewModel.setLanguage}
           onThemeChange={viewModel.setTheme}
           t={viewModel.t}
         />
 
-        {viewModel.showFilters && !backendError ? (
+        {viewModel.showFilters && !backendError && !awaitingRunStatus ? (
           <FilterBar
             filters={viewModel.filters}
             spaces={viewModel.spaces}
@@ -152,7 +157,12 @@ function AppShellContent({ viewModel }: AppShellContentProps) {
       </div>
 
       <main className={`flex-1 py-4 ${appContentHorizontalInsetClassName}`}>
-        {showError ? (
+        {awaitingRunStatus ? (
+          <section aria-label={viewModel.t('app.loading')} data-testid="app-loading" className="space-y-4">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-32 w-full" />
+          </section>
+        ) : showError ? (
           <BackendErrorPanel
             error={backendError}
             onRetry={operations.retryRunStatus}
