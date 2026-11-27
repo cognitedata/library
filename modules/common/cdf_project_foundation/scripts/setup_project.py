@@ -1678,7 +1678,7 @@ def _prompt_group_source_ids(
     if installed_ss:
         _section(t("Extractor Group Source IDs  (per source system)"))
         _hint(t("One scoped producer group per extractor — write access limited to its"))
-        _hint(t("dataset, instance space, and RAW tables only (SOP Step 3c)."))
+        _hint(t("dataset, instance space, and RAW tables only (SOP Data onboarding, Step 6)."))
         _hint(t("See: https://docs.cognite.com/cdf/access/entra/guides/create_groups_oidc"))
         for module in installed_ss:
             var = _MODULE_EXTRACTOR_ENV_VAR.get(module, "")
