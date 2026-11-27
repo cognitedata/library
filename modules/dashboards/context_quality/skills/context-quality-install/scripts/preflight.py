@@ -138,9 +138,15 @@ def check_app_json(app_dir: Path | None) -> Check:
         loaded: object = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError) as error:
         return Check("app.json", "FAIL", f"cannot read {path}: {error}")
-    deployments = loaded.get("deployments") if isinstance(loaded, dict) else None
-    first = deployments[0] if isinstance(deployments, list) and deployments else None
-    project = first.get("project") if isinstance(first, dict) else None
+    deployments = None
+    if isinstance(loaded, dict):
+        deployments = loaded.get("deployments")
+    first = None
+    if isinstance(deployments, list) and deployments:
+        first = deployments[0]
+    project = None
+    if isinstance(first, dict):
+        project = first.get("project")
     if not isinstance(project, str) or project in ("", PLACEHOLDER_PROJECT):
         return Check("app.json", "FAIL", "set deployments[0].project to your CDF project")
     return Check("app.json", "PASS", f"project {project}")
