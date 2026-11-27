@@ -56,16 +56,21 @@ run what is safe, and hand interactive or browser steps to the user. Avoid these
 
 ## Hand-off to the user
 
-Commands that open a browser or prompt interactively are run by the user, not by you. Ask them to run the command
-with a leading `!` (Claude Code runs it in the session, so the output lands in the conversation), or in their own
-terminal and paste the result (Cursor):
+Commands that open a browser or prompt interactively are run by the user, not by you. Two kinds:
 
-```text
-! <CDF> auth init
-! npx @cognite/cli auth login
-! npx @cognite/cli apps setup-https
-! npx @cognite/cli apps deploy --interactive
-```
+- **A simple command with no menu** (it may open a browser, but needs no keys pressed in the terminal). Ask the user to
+  run it with a leading `!` (Claude Code runs it in the session, so the output lands in the conversation), or in
+  their own terminal and paste the result (Cursor):
+
+  ```text
+  ! <CDF> auth verify
+  ! npx @cognite/cli apps setup-https
+  ```
+
+- **A command with an arrow-key menu or a confirmation prompt** (`apps deploy --interactive`, `publish`, `activate`,
+  `auth login`). `!` cannot answer a menu: the command stops at it. Give the user the full command, with a `cd` to the
+  app folder, to run in a **normal terminal window**. Skip the target menu with `-d 0` (the first entry of
+  `deployments` in `app.json`). If a command rejects `-d`, the user picks the target in the menu.
 
 Then read the output and continue. Never try to answer an interactive prompt by piping input.
 
@@ -121,8 +126,12 @@ Then **ask** (one question): backend only, or backend and app? Default: both.
   the dry run and deploy will show it.
 - Capabilities of the deploying identity: `dataModelsAcl`, `streamsAcl`, groups, data sets, functions, workflows;
   for the app, `appHostingAcl` READ and WRITE. Check with `<CDF> auth status` on 0.9 (read-only, you may run it). On
-  0.8, hand `! <CDF> auth verify` to the user (it can prompt). If there are no credentials yet, hand off
-  `! <CDF> auth init`.
+  0.8, hand `<CDF> auth verify` to the user (it can prompt). If there are no credentials yet, hand off
+  `<CDF> auth init` (a wizard with prompts). Both go in a normal terminal window, not `!`.
+- **App Hosting write access, now, not at step 10.** Whoever runs `apps deploy` needs `appHostingAcl` WRITE (and READ)
+  in the project. The project client in `.env` usually does not have it: the backend's dashboard group gives only READ
+  and RUN. Ask the user early whether their own user can write App Hosting; if they are not sure, tell them to ask a
+  project admin now, so that step 10 does not stop at a 403.
 
 **On failure:** report each gap and who must fix it (a project admin grants capabilities; Cognite enables Records and
 Streams). Do not grant anything. Offline steps (2-5 up to `cdf build`) can continue.
@@ -142,7 +151,8 @@ mkdir -p <org_dir>/modules        # the command fails if this folder is missing
 ```
 
 `-d context_quality` installs the whole pack (backend and app) without prompts. Without `-d` the command is an
-interactive menu; hand it to the user. Then move the app out of `modules/`, so `cdf deploy` does not pick it up:
+interactive menu; hand it to the user. The command downloads the whole package and can take more than two minutes: if
+your shell times out and moves it to the background, wait for it to finish; do not start a second copy. Then move the app out of `modules/`, so `cdf deploy` does not pick it up:
 
 ```bash
 mv <org_dir>/modules/tools/apps/context_quality_dashboard <apps-dir>/context_quality_dashboard
@@ -150,7 +160,8 @@ mv <org_dir>/modules/tools/apps/context_quality_dashboard <apps-dir>/context_qua
 
 **Verify:** `<org_dir>/modules/dashboards/context_quality/module.toml` exists, `config.<env>.yaml` has a
 `variables.modules.dashboards.context_quality` block, and the app is in `<apps-dir>`. Delete config backups the
-install left (`config.*.backup.yaml`, `*.yaml.bak`).
+install left (`config.*.backup.yaml`, `*.yaml.bak`). If the project was just scaffolded, also delete the empty
+`modules/custom/` placeholder and the `variables.modules.custom` block in `config.<env>.yaml`.
 
 **On failure:** see `references/troubleshooting.md` (`Could not find the '<org>/modules' directory`, wrong key).
 
@@ -163,7 +174,8 @@ install left (`config.*.backup.yaml`, `*.yaml.bak`).
 - `CQ_FUNCTION_CLIENT_ID` and `CQ_FUNCTION_CLIENT_SECRET`: the app registration the daily schedule runs as. It must
   be a member of the function group.
 
-**Ask** the user to add the four lines to `.env` in the project root themselves. Never ask for the values in chat.
+**Ask** the user to add the four lines to the `.env` in the project root themselves, and give them the **full path** of
+that file (a second `.env` in another project folder is easy to edit by mistake). Never ask for the values in chat.
 
 **Verify** presence only, one name at a time:
 
@@ -174,7 +186,8 @@ grep -c '^CQ_FUNCTION_CLIENT_SECRET=.\+' .env    # 1 = set, 0 = missing or empty
 Also check `.env` is in `.gitignore` (and `.cursorignore` if they use Cursor); if not, propose the line and add it
 after a "yes".
 
-**On failure:** list the missing names. Do not count on `cdf build` to catch them: on 0.8 it keeps the `${CQ_*}`
+**On failure:** list the missing names. If the user says they are done but every name is missing, suspect the wrong
+`.env` file: repeat the full path. Do not count on `cdf build` to catch them: on 0.8 it keeps the `${CQ_*}`
 placeholders and the dry run or deploy fails later (some versions report `INVALID-FIELD ... sourceId ... None`). The
 offline build may go ahead; the dry run waits until all four are set.
 
@@ -193,6 +206,10 @@ each variable are in `references/backend-config.md`.
 3. `metricsWorkflowSchedule` (default `"0 4 * * *"`, UTC).
 
 **Warn:** `metricsStreamTemplate` (default `BasicArchive`) cannot change once the stream exists.
+
+**Any scenario, if the project may already hold a backend:** ask for the stream's external ID that is deployed (list
+the streams read-only, or Fusion). The default `context_quality_metrics` would make the dry run create a new stream,
+and a deleted stream's ID stays reserved for weeks, so it may not be creatable at all.
 
 **Scenario C (backend already deployed):** ask for the deployed names of the stream, spaces, workflow and the stream's
 template, and set the variables to them. Never rename to "fix" a difference; never delete or recreate the stream.
@@ -282,7 +299,7 @@ names: then carry over `metricsStreamExternalId`, `metricsSchemaSpace`, `metrics
 
 **Ask:** try the app locally before deploying? Default: yes.
 
-**Run:** `npm install`. Hand off once: `! npx @cognite/cli apps setup-https`, then `! npx @cognite/cli auth login`.
+**Run:** `npm install`. Hand off once: `! npx @cognite/cli apps setup-https`, then `npx @cognite/cli auth login` in a normal terminal window (it opens a browser and may show a menu).
 Then the user runs `npm run dev` (it keeps running) and opens the **Fusion URL it prints**, not bare `localhost`.
 No completed run yet? The first-run screen offers **Run built-in checks**. Backend not ready? Offer `npm run dev:mock`.
 
@@ -292,12 +309,20 @@ No completed run yet? The first-run screen offers **Run built-in checks**. Backe
 
 **Run:** `npm test && npm run build` (same `.env.local`; Vite inlines the `VITE_*` values at build time).
 
-Then hand off: `! npx @cognite/cli apps deploy --interactive` (uploads a DRAFT version).
+Then hand off. These sign in through the browser and may show menus, so the user runs them in a **normal terminal
+window**, not with `!` (see Hand-off), from the app folder:
 
-**Ask** before each: "Publish now?" -> `! npx @cognite/cli apps publish . --interactive`; "Activate now?" ->
-`! npx @cognite/cli apps activate . --interactive`. Each needs its own "yes" in the current turn.
+```text
+cd <app_dir>
+npx @cognite/cli apps deploy --interactive -d 0      # uploads a DRAFT version
+```
 
-**Verify:** `npx @cognite/cli apps status .` shows the version as active.
+**Ask** before each: "Publish now?" -> `npx @cognite/cli apps publish . --interactive -d 0`; "Activate now?" ->
+`npx @cognite/cli apps activate . --interactive -d 0`. Each needs its own "yes" in the current turn. If a command
+rejects `-d 0`, the user picks the target in its menu.
+
+**Verify:** `npx @cognite/cli apps status . --interactive -d 0` (same way) shows the version as active; then the user
+opens the app in Fusion.
 
 **Re-release:** raise `versionTag` in `app.json` before `apps deploy`.
 

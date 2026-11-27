@@ -6,6 +6,8 @@ needs a capability, an IdP change or a Cognite service: stop, say what is missin
 | Symptom | Cause | Action |
 |---|---|---|
 | `Missing capability: AppHosting:WRITE` (403) on `apps deploy` | The deploying identity lacks `appHostingAcl` write | Ask a project admin to grant `appHostingAcl` READ and WRITE, or deploy as someone who has it |
+| `apps deploy --interactive` stops at "Select deployment target" when run with `!` | An arrow-key menu cannot be answered through `!` | Run it in a normal terminal window, with `-d 0` to skip the menu |
+| A stream create fails because its ID is taken, though the stream is not listed | A deleted Records stream keeps its ID reserved until its soft-delete window ends (24 hours for test streams, weeks for `BasicArchive`) | Use a new `metricsStreamExternalId`, or the ID of the stream that still exists. Do not delete a stream to reuse its ID |
 | Stream create fails / 404 on records | Records and Streams not enabled for the project | Ask Cognite to enable them. Do not retry the deploy until they are |
 | 403 `Access to create/update/delete instances in spaces='[...]' is denied` on Records writes, although `streamRecordsAcl` and `dataModelInstancesAcl` look right | Project-level access difference for the stream's instance space | Check the groups in the project and the space-scoped ACLs; escalate to a project admin |
 | Run fails right after backend deploy | The function was still building | Wait until `fn_context_quality_metrics` is Ready in Fusion, run again |
