@@ -160,3 +160,27 @@ def test_app_scope_does_not_need_toolkit_or_record_views(tmp_path: Path, monkeyp
     exit_code = preflight.main(["--project-dir", str(tmp_path), "--app-dir", str(tmp_path / "app"), "--scope", "app"])
 
     assert exit_code == 0
+
+
+BAD_BYTES = b"\xff\xfe\x00not utf-8 \x80"
+
+
+def test_unreadable_cdf_toml_fails_instead_of_crashing(tmp_path: Path) -> None:
+    cdf_toml = tmp_path / "cdf.toml"
+    cdf_toml.write_bytes(BAD_BYTES)
+    check = preflight.check_record_views(cdf_toml, (0, 8, 191))
+    assert check.status == "FAIL"
+    assert "cdf.toml" in check.detail
+
+
+def test_env_file_with_bad_encoding_counts_as_no_names_set(tmp_path: Path) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_bytes(BAD_BYTES)
+    assert preflight.names_set_in(env_file) == set()
+
+
+def test_unreadable_app_json_fails_instead_of_crashing(tmp_path: Path) -> None:
+    (tmp_path / "app.json").write_bytes(BAD_BYTES)
+    check = preflight.check_app_json(tmp_path)
+    assert check.status == "FAIL"
+    assert "app.json" in check.detail

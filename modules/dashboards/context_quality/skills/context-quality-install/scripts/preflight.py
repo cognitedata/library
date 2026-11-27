@@ -92,7 +92,9 @@ def check_record_views(cdf_toml: Path, toolkit: Version | None) -> Check:
     if toolkit is not None and toolkit >= RECORD_VIEWS_STABLE:
         return Check("record_views", "SKIP", "not checked on Toolkit 0.9 or later; see SKILL.md step 1")
     try:
-        flags = tomllib.loads(cdf_toml.read_text()).get("alpha_flags", {})
+        flags = tomllib.loads(cdf_toml.read_text(encoding="utf-8")).get("alpha_flags", {})
+    except (OSError, UnicodeDecodeError) as error:
+        return Check("record_views", "FAIL", f"cannot read cdf.toml: {error}")
     except tomllib.TOMLDecodeError as error:
         return Check("record_views", "FAIL", f"cdf.toml does not parse: {error}")
     if isinstance(flags, dict) and flags.get("record_views") is True:
@@ -115,7 +117,11 @@ def names_set_in(env_file: Path) -> set[str]:
         return set()
     assignment = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$")
     names: set[str] = set()
-    for line in env_file.read_text().splitlines():
+    try:
+        content = env_file.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return names
+    for line in content.splitlines():
         match = assignment.match(line)
         if match and match.group(2).strip("'\""):
             names.add(match.group(1))
@@ -135,8 +141,8 @@ def check_app_json(app_dir: Path | None) -> Check:
         return Check("app.json", "SKIP", "no --app-dir given")
     path = app_dir / "app.json"
     try:
-        loaded: object = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError) as error:
+        loaded: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         return Check("app.json", "FAIL", f"cannot read {path}: {error}")
     deployments = None
     if isinstance(loaded, dict):
