@@ -1,3 +1,5 @@
+# rules: ignore[MISSING-REFERENCED-RESOURCE]
+# The context-quality-dashboard app is deployed after this backend module (see README).
 name: "{{ metricsDashboardGroupName }}"
 sourceId: "{{ metricsDashboardGroupSourceId }}"
 metadata:
