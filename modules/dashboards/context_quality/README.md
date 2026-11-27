@@ -33,6 +33,14 @@ How it works, the run log format and every option are in [`REFERENCE.md`](REFERE
 
 ## Deployment
 
+### Install with an AI assistant
+
+The module ships a skill that walks you through the steps below (backend and app) as a short interview:
+[`skills/context-quality-install`](skills/context-quality-install/SKILL.md). After `cdf modules add`, either copy that
+folder to `.cursor/skills/` or `.claude/skills/` in your Toolkit project, or tell the agent "follow
+`<org_dir>/modules/dashboards/context_quality/skills/context-quality-install/SKILL.md`". It asks before every deploy
+and never reads your secrets. The `skills/` folder is not a Toolkit resource; `cdf build` ignores it.
+
 ### Prerequisites
 
 - A CDF project where the **Records and Streams services are available**. The deploy creates a stream, and the function
@@ -120,6 +128,7 @@ context_quality/
 ├── functions/
 │   ├── context_quality.Function.yaml
 │   └── fn_context_quality_metrics/   # handler.py, cq/, tests
+├── skills/                # AI install skill (not deployed)
 ├── streams/
 ├── workflows/             # workflow, version, schedule trigger
 ├── default.config.yaml    # all variables and their defaults
